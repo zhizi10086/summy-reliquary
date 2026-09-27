@@ -12036,13 +12036,14 @@ public final class ForgeDevCheck {
 		String description = modInfo.getDescription();
 		boolean logoOk = "assets/summy-reliquary/icon.png".equals(modInfo.getLogoFile().orElse(""));
 		boolean descOk = description != null && description.contains("金刀片")
-				&& description.contains("23 个成就") && description.contains("七罪主题饰品合集");
+				&& description.contains("24 个成就") && description.contains("七罪主题饰品合集");
 		boolean tomlOk = logoOk && descOk;
 
-		// ③ 图标：icon.png 必须是根成就图标（duality_stat）的 2× 最近邻放大（每个源像素变成 2×2 = 4 个像素）
+		// ③ 图标：icon.png 必须是根成就图标（duality_stat，16×16）的 **32× 最近邻放大**
+		//     → 512×512、每个源像素变成 32×32 = 1024 个像素（平台要求 ≥400×400）
 		int[] icon = pngStats(client, "icon.png");
 		int[] marker = pngStats(client, "textures/item/duality_stat.png");
-		boolean iconOk = icon[0] == 32 && icon[1] == 32 && marker[2] > 0 && icon[2] == marker[2] * 4;
+		boolean iconOk = icon[0] == 512 && icon[1] == 512 && marker[2] > 0 && icon[2] == marker[2] * 1024;
 
 		// ④ 创造页图标（懒构建，构建了才判定）
 		var tab = net.minecraft.core.registries.BuiltInRegistries.CREATIVE_MODE_TAB
@@ -12054,7 +12055,7 @@ public final class ForgeDevCheck {
 		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 46）、逐项与预期一致="
 				+ orderOk + "（应 true" + (mismatch.length() == 0 ? "" : "，异常：" + mismatch.toString().trim())
 				+ "）、分块=武器 → 天使线 → 恶魔线 → 中立材料工具；mods.toml（logoFile=" + modInfo.getLogoFile()
-				+ "=" + logoOk + "、描述含「金刀片 / 23 个成就 / 七罪主题饰品合集」=" + descOk + "）="
+				+ "=" + logoOk + "、描述含「金刀片 / 24 个成就 / 七罪主题饰品合集」=" + descOk + "）="
 				+ tomlOk + "（应 true）；icon.png=" + icon[0] + "×" + icon[1] + "、不透明像素 "
 				+ icon[2] + "（duality_stat=" + marker[2] + "）→ " + iconOk + "（应 true）；创造页图标="
 				+ (tabBuilt ? String.valueOf(tabIconOk) : "（未构建，按不判定处理）"));

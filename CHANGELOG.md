@@ -39,7 +39,7 @@
 
 **④ 品牌：MOD 描述 / MOD 图标 / 创造页图标**
 
-- 创造页图标与 MOD 图标都换成**根成就图标** `duality_stat`（「遗物：七罪」）：创造页用 `new ItemStack(duality_stat)`；`logoFile` 路径不变（`assets/summy-reliquary/icon.png`），内容换成 `duality_stat.png` 的 **2× 最近邻放大**（16×16 → 32×32，保持像素风）。
+- 创造页图标与 MOD 图标都换成**根成就图标** `duality_stat`（「遗物：七罪」）：创造页用 `new ItemStack(duality_stat)`；`logoFile` 路径不变（`assets/summy-reliquary/icon.png`），内容换成 `duality_stat.png` 的 **32× 最近邻放大（16×16 → 512×512）**（16×16 → 32×32，保持像素风）。
 - `mods.toml` 描述改写为「七罪主题饰品合集 + 天使线 / 恶魔线 / 武器 / 流程」四行。
 
 **⑤ 交付**：版本 `1.7.10-forge`；协议仍 `"12"`；注册物品 **49 → 50**、创造页 **45 → 46**、配方 **33 → 34**；自检 **526~528 行全绿**（随存档赎罪状态浮动 2 行）；`enchantment-reforged` 不动。
