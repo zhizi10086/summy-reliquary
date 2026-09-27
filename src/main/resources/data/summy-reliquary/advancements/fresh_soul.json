@@ -1,0 +1,29 @@
+{
+  "parent": "summy-reliquary:deal",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:your_soul"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.fresh_soul.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.fresh_soul.description",
+        "color": "#C03030"
+      }
+    ],
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "sacrifice_done"
+      }
+    }
+  }
+}

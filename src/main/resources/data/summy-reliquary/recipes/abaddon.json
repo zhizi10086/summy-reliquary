@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "EDE",
+    "NBN",
+    "ERE"
+  ],
+  "key": {
+    "E": { "item": "minecraft:echo_shard" },
+    "D": { "item": "minecraft:dragon_head" },
+    "N": { "item": "minecraft:nether_star" },
+    "B": { "item": "summy-reliquary:brimstone" },
+    "R": { "item": "minecraft:dragon_breath" }
+  },
+  "result": { "item": "summy-reliquary:abaddon", "count": 1 }
+}

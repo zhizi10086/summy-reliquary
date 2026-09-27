@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "GBG",
+    "BSB",
+    "BGB"
+  ],
+  "key": {
+    "G": { "item": "minecraft:gold_ingot" },
+    "B": { "item": "minecraft:black_wool" },
+    "S": { "item": "minecraft:netherite_scrap" }
+  },
+  "result": { "item": "summy-reliquary:ceremonial_robes", "count": 1 }
+}

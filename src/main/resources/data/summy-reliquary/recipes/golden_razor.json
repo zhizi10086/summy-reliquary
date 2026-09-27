@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "IGI",
+    "I I",
+    "IGI"
+  ],
+  "key": {
+    "I": { "item": "minecraft:gold_ingot" },
+    "G": { "item": "minecraft:gold_nugget" }
+  },
+  "result": { "item": "summy-reliquary:golden_razor", "count": 1 }
+}

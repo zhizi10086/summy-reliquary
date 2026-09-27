@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "IGN",
+    "CRL",
+    "EUA"
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_block" },
+    "G": { "item": "minecraft:gold_block" },
+    "N": { "item": "minecraft:diamond_block" },
+    "C": { "item": "minecraft:coal_block" },
+    "R": { "item": "minecraft:redstone_block" },
+    "L": { "item": "minecraft:lapis_block" },
+    "E": { "item": "minecraft:emerald_block" },
+    "U": { "item": "minecraft:copper_block" },
+    "A": { "item": "minecraft:netherite_ingot" }
+  },
+  "result": { "item": "summy-reliquary:sin_fragment_greed", "count": 1 }
+}

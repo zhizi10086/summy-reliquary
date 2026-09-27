@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SNS",
+    "DGD",
+    "ONO"
+  ],
+  "key": {
+    "S": { "item": "minecraft:wither_skeleton_skull" },
+    "N": { "item": "minecraft:nether_star" },
+    "D": { "item": "minecraft:dragon_breath" },
+    "G": { "item": "minecraft:ghast_tear" },
+    "O": { "item": "minecraft:obsidian" }
+  },
+  "result": { "item": "summy-reliquary:abyss_lord", "count": 1 }
+}

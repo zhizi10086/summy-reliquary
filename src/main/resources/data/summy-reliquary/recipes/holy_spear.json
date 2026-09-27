@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "H  ",
+    " TF",
+    " FG"
+  ],
+  "key": {
+    "H": { "item": "summy-reliquary:holy_light" },
+    "T": { "item": "minecraft:trident" },
+    "F": { "item": "minecraft:glowstone_dust" },
+    "G": { "item": "minecraft:gold_block" }
+  },
+  "result": { "item": "summy-reliquary:holy_spear", "count": 1 }
+}

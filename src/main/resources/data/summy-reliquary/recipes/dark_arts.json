@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " N ",
+    " D ",
+    "OBO"
+  ],
+  "key": {
+    "N": { "item": "minecraft:nether_star" },
+    "D": { "item": "summy-reliquary:sacrificial_dagger" },
+    "O": { "item": "minecraft:obsidian" },
+    "B": { "item": "minecraft:netherite_ingot" }
+  },
+  "result": { "item": "summy-reliquary:dark_arts", "count": 1 }
+}

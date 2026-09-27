@@ -1,0 +1,8 @@
+{
+  "order": 30,
+  "size": 1,
+  "icon": "summy-reliquary:slot/soul_seal",
+  "validators": [
+    "summy-reliquary:soul_seal_only"
+  ]
+}

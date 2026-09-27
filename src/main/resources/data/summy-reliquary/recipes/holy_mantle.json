@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "WCW",
+    "SXS",
+    "WCW"
+  ],
+  "key": {
+    "W": { "item": "minecraft:white_wool" },
+    "C": { "item": "minecraft:prismarine_crystals" },
+    "S": { "item": "minecraft:prismarine_shard" },
+    "X": { "item": "summy-reliquary:wooden_cross" }
+  },
+  "result": { "item": "summy-reliquary:holy_mantle", "count": 1 }
+}

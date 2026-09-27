@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "RSR",
+    "BHB",
+    "RSR"
+  ],
+  "key": {
+    "R": { "item": "minecraft:rose_bush" },
+    "S": { "item": "minecraft:sugar" },
+    "B": { "item": "minecraft:sweet_berries" },
+    "H": { "item": "minecraft:honey_bottle" }
+  },
+  "result": { "item": "summy-reliquary:sin_fragment_lust", "count": 1 }
+}

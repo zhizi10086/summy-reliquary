@@ -1,0 +1,9 @@
+{
+  "parent": "summy-reliquary:item/spear_in_hand",
+  "textures": {
+    "layer0": "summy-reliquary:item/holy_spear"
+  },
+  "overrides": [
+    { "predicate": { "summy-reliquary:using": 1 }, "model": "summy-reliquary:item/holy_spear_using" }
+  ]
+}

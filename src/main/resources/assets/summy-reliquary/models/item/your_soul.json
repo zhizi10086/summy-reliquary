@@ -1,0 +1,6 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "summy-reliquary:item/your_soul"
+  }
+}

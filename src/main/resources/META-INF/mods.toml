@@ -1,0 +1,40 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+issueTrackerURL="https://github.com/zhizi10086/summy-reliquary/issues"
+
+[[mods]]
+modId="summy_reliquary"
+version="${version}"
+displayName="Summy Reliquary"
+authors="Summy"
+logoFile="assets/summy-reliquary/icon.png"
+description='''
+以 Curios 为前置的七罪主题饰品合集（Forge 1.20.1）。
+· 天使线：肉体 / 思想 / 灵魂（灵台三件套）、伯列恒之星、终末天启、神性、救恩、圣光、神圣斗篷、圣心
+· 恶魔线：契约、仪式法袍、撒旦圣经、咒印、复仇之魂、夜之幽魂、硫磺火、玄秘魔眼、深渊领主、亚巴顿、恶魔王冠
+· 武器：献祭匕首与暗仪刺刀（遁入暗影）、圣光短矛与炽天使之枪（投掷 · 圣光爆发）、金刀片（穿透投掷）
+· 七罪激活与赎罪、启示与创世纪、23 个成就
+· 粉丝二创：灵感与部分素材取自《以撒的结合》（The Binding of Isaac），非官方作品，与原作者及权利方无关联
+'''
+
+[[dependencies.summy_reliquary]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.summy_reliquary]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.20.2)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.summy_reliquary]]
+    modId="curios"
+    mandatory=true
+    versionRange="[5.4.0,)"
+    ordering="AFTER"
+    side="BOTH"

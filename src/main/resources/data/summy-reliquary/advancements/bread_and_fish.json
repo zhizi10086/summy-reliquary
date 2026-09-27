@@ -1,0 +1,26 @@
+{
+  "parent": "summy-reliquary:pure",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:salvation"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.bread_and_fish.title"
+    },
+    "description": {
+      "translate": "advancements.summy-reliquary.bread_and_fish.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "salvation_crafted"
+      }
+    }
+  }
+}

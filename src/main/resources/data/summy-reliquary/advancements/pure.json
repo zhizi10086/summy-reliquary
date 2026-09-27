@@ -1,0 +1,26 @@
+{
+  "parent": "summy-reliquary:sinner",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:redemption"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.pure.title"
+    },
+    "description": {
+      "translate": "advancements.summy-reliquary.pure.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "redeemed_to_virtues"
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "PEP",
+    "SNS",
+    "PEP"
+  ],
+  "key": {
+    "P": { "item": "minecraft:phantom_membrane" },
+    "E": { "item": "minecraft:ender_pearl" },
+    "S": { "item": "minecraft:soul_sand" },
+    "N": { "item": "minecraft:netherite_scrap" }
+  },
+  "result": { "item": "summy-reliquary:night_wraith", "count": 1 }
+}

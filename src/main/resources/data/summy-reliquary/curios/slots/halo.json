@@ -1,0 +1,8 @@
+{
+  "order": 10,
+  "size": 1,
+  "icon": "summy-reliquary:slot/halo",
+  "validators": [
+    "summy-reliquary:halo_only"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "BAB",
+    "AXA",
+    "BAB"
+  ],
+  "key": {
+    "B": { "item": "minecraft:book" },
+    "A": { "item": "minecraft:amethyst_shard" },
+    "X": { "item": "minecraft:experience_bottle" }
+  },
+  "result": {
+    "item": "summy-reliquary:the_mind",
+    "count": 1
+  }
+}

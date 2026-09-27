@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "BDB",
+    "SNS",
+    "BDB"
+  ],
+  "key": {
+    "B": { "item": "minecraft:blaze_rod" },
+    "D": { "item": "minecraft:dragon_breath" },
+    "S": { "item": "minecraft:soul_sand" },
+    "N": { "item": "minecraft:nether_star" }
+  },
+  "result": { "item": "summy-reliquary:brimstone", "count": 1 }
+}

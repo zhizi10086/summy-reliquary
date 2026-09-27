@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "DND",
+    "SGS",
+    "DND"
+  ],
+  "key": {
+    "D": { "item": "minecraft:dragon_breath" },
+    "N": { "item": "minecraft:nether_star" },
+    "S": { "item": "minecraft:wither_skeleton_skull" },
+    "G": { "item": "minecraft:ghast_tear" }
+  },
+  "result": { "item": "summy-reliquary:sin_fragment_pride", "count": 1 }
+}

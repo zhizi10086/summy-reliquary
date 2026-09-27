@@ -1,0 +1,26 @@
+{
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:duality_stat"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.reliquary.title"
+    },
+    "description": {
+      "translate": "advancements.summy-reliquary.reliquary.description"
+    },
+    "frame": "task",
+    "background": "minecraft:textures/gui/advancements/backgrounds/stone.png",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "sins_obtained"
+      }
+    }
+  }
+}

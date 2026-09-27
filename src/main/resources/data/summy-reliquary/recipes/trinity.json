@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " S ",
+    " H ",
+    "T M"
+  ],
+  "key": {
+    "S": { "item": "summy-reliquary:the_soul" },
+    "H": { "item": "summy-reliquary:heart_shard" },
+    "T": { "item": "summy-reliquary:the_body" },
+    "M": { "item": "summy-reliquary:the_mind" }
+  },
+  "result": { "item": "summy-reliquary:trinity", "count": 1 }
+}

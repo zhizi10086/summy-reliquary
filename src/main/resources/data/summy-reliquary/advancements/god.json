@@ -1,0 +1,34 @@
+{
+  "parent": "summy-reliquary:heart",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:godhead"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.god.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.god.description.prefix",
+        "color": "#FFE4B5"
+      },
+      {
+        "translate": "advancements.summy-reliquary.god.description.tail",
+        "color": "#FFE4B5",
+        "italic": true
+      }
+    ],
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "godhead_obtained"
+      }
+    }
+  }
+}

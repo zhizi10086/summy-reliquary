@@ -1,0 +1,8 @@
+# 统一换行：文本文件在仓库里一律存 LF，Windows 批处理保留 CRLF
+* text=auto eol=lf
+*.bat text eol=crlf
+gradlew text eol=lf
+# 二进制资源不做换行转换
+*.png binary
+*.jar binary
+*.ogg binary

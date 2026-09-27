@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "TFT",
+    "MBM",
+    "TFT"
+  ],
+  "key": {
+    "T": { "item": "minecraft:tnt" },
+    "F": { "item": "minecraft:fire_charge" },
+    "M": { "item": "minecraft:magma_cream" },
+    "B": { "item": "minecraft:blaze_rod" }
+  },
+  "result": { "item": "summy-reliquary:sin_fragment_wrath", "count": 1 }
+}

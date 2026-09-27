@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "BWB",
+    "HLH",
+    "BWB"
+  ],
+  "key": {
+    "B": { "tag": "minecraft:beds" },
+    "W": { "tag": "minecraft:wool" },
+    "H": { "item": "minecraft:hay_block" },
+    "L": { "item": "minecraft:leather" }
+  },
+  "result": { "item": "summy-reliquary:sin_fragment_sloth", "count": 1 }
+}

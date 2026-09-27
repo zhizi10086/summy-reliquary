@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CAC",
+    "PEP",
+    "CAC"
+  ],
+  "key": {
+    "C": { "item": "minecraft:cake" },
+    "A": { "item": "minecraft:golden_apple" },
+    "P": { "item": "minecraft:pumpkin_pie" },
+    "E": { "item": "minecraft:enchanted_golden_apple" }
+  },
+  "result": { "item": "summy-reliquary:sin_fragment_gluttony", "count": 1 }
+}

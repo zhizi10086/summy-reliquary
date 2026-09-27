@@ -1,0 +1,29 @@
+{
+  "parent": "summy-reliquary:fresh_soul",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:the_mark"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.beast_mark.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.beast_mark.description",
+        "color": "#C03030"
+      }
+    ],
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "the_mark_obtained"
+      }
+    }
+  }
+}

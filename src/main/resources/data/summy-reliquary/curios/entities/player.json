@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "entities": [
+    "minecraft:player"
+  ],
+  "slots": [
+    "halo",
+    "stomach",
+    "soul_seal",
+    "spirit_altar",
+    "revelation",
+    "blessing",
+    "charm",
+    "demon_pact",
+    "back"
+  ]
+}

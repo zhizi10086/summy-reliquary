@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "BCM",
+    "GAG",
+    "KGP"
+  ],
+  "key": {
+    "B": { "item": "minecraft:beef" },
+    "C": { "item": "minecraft:prismarine_crystals" },
+    "M": { "item": "minecraft:mutton" },
+    "G": { "item": "minecraft:bone" },
+    "A": { "item": "minecraft:golden_apple" },
+    "K": { "item": "minecraft:chicken" },
+    "P": { "item": "minecraft:porkchop" }
+  },
+  "result": {
+    "item": "summy-reliquary:the_body",
+    "count": 1
+  }
+}

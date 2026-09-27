@@ -1,0 +1,29 @@
+{
+  "parent": "summy-reliquary:demon_flame",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:abyss_lord"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.demon_king.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.demon_king.description",
+        "color": "#C03030"
+      }
+    ],
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "abyss_lord_obtained"
+      }
+    }
+  }
+}

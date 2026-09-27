@@ -1,0 +1,187 @@
+package com.summy.reliquary.effect;
+
+import com.summy.reliquary.SummyReliquary;
+import com.summy.reliquary.config.ReliquaryConfig;
+import com.summy.reliquary.util.CurioHelper;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * 「灵台」套装效果。
+ *
+ * <ul>
+ *     <li>肉体：最大生命 +10 / 套装 +20（属性修正由物品类提供）；</li>
+ *     <li>思想：15 格内敌对生物与玩家发光；套装时对发光目标 +10% 伤害；</li>
+ *     <li>灵魂：+3 魂心（每点 2 点吸收，黄血由 {@link SoulShield} 维护）；套装时 20% 几率免死（见 {@link DeathImmunity}）。</li>
+ * </ul>
+ *
+ * <p>发光用「任意佩戴者覆盖即发光」的并集判定：多名玩家同时佩戴时不会互相把标记清掉。
+ */
+public final class SpiritAltarSet {
+	/** 当前被本模组点亮的目标实体（UUID → 实体，便于清除标记） */
+	private static final Map<UUID, Entity> GLOWING = new HashMap<>();
+
+	private SpiritAltarSet() {
+	}
+
+	/** 三件套判定 */
+	public static boolean isFullSet(LivingEntity entity) {
+		return CurioHelper.wearsAll(entity,
+				SummyReliquary.THE_BODY.get(),
+				SummyReliquary.THE_MIND.get(),
+				SummyReliquary.THE_SOUL.get());
+	}
+
+	/**
+	 * 「套装效果是否生效」（1.6.2）：三件套齐 **或** 佩戴咒印。
+	 *
+	 * <p>咒印继承天使线灵台套装的全部属性，所以减伤 / 对发光加伤 / 免死都走这个判定；
+	 * 但**发放伯列恒之星与「三位一体」进度仍然只认真正的三件套**（见 {@link #isFullSet}），
+	 * 恶魔线不该因此拿到天使线的奖励。
+	 */
+	public static boolean hasSetEffects(LivingEntity entity) {
+		return isFullSet(entity) || com.summy.reliquary.effect.SatanicMark.wears(entity);
+	}
+
+	/** 服务端每 tick 调用 */
+	public static void tickServer(MinecraftServer server) {
+		boolean secondPassed = server.getTickCount() % 20 == 0;
+		Set<UUID> desired = secondPassed ? new HashSet<>() : null;
+
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			// 发光：每秒维护一次
+			if (desired != null && (CurioHelper.wears(player, SummyReliquary.THE_MIND.get())
+					|| com.summy.reliquary.effect.SatanicMark.wears(player))) {
+				double radius = ReliquaryConfig.glowRadius();
+				AABB box = player.getBoundingBox().inflate(radius);
+				for (Entity entity : player.serverLevel().getEntities(player, box, SpiritAltarSet::isGlowTarget)) {
+					desired.add(entity.getUUID());
+					GLOWING.put(entity.getUUID(), entity);
+				}
+				// 额外：视线看向的生物也发光（距离同生效半径，被方块挡住则不算）
+				LivingEntity lookedAt = findLookedAt(player, radius);
+				if (lookedAt != null) {
+					desired.add(lookedAt.getUUID());
+					GLOWING.put(lookedAt.getUUID(), lookedAt);
+				}
+			}
+			// 1.6.5：玄秘魔眼——被它注视的那一具也发光（对玩家也生效，可配置）。
+			// 与"思想"共用同一份 desired 集合，避免两边互相清除发光标记。
+			if (desired != null && ReliquaryConfig.enableOccultEye()
+					&& CurioHelper.wears(player, SummyReliquary.OCCULT_EYE.get())
+					&& ReliquaryConfig.fearGlow()) {
+				LivingEntity eyed = GazeLook.lookedAt(player, ReliquaryConfig.fearRadius());
+				if (eyed != null
+						&& (ReliquaryConfig.fearGlowAffectsPlayers() || !(eyed instanceof Player))) {
+					desired.add(eyed.getUUID());
+					GLOWING.put(eyed.getUUID(), eyed);
+				}
+			}
+		}
+
+		if (desired == null) {
+			return;
+		}
+
+		// 不再需要发光的目标：清除标记
+		Iterator<Map.Entry<UUID, Entity>> iterator = GLOWING.entrySet().iterator();
+		while (iterator.hasNext()) {
+			Map.Entry<UUID, Entity> entry = iterator.next();
+			Entity entity = entry.getValue();
+			if (!entity.isAlive()) {
+				iterator.remove();
+				continue;
+			}
+			if (!desired.contains(entry.getKey())) {
+				entity.setGlowingTag(false);
+				iterator.remove();
+			}
+		}
+		// 需要发光的目标：打标记
+		for (UUID id : desired) {
+			Entity entity = GLOWING.get(id);
+			if (entity != null && entity.isAlive() && !entity.hasGlowingTag()) {
+				entity.setGlowingTag(true);
+			}
+		}
+	}
+
+	/** 发光目标：敌对生物与玩家（不含佩戴者自己） */
+	private static boolean isGlowTarget(Entity entity) {
+		return entity.isAlive() && (entity instanceof Enemy || entity instanceof Player);
+	}
+
+	/**
+	 * 视线看向的生物（1.6.5 起改为调用共用的 {@link GazeLook}，与玄秘魔眼同一套判定）：
+	 * 最远 distance 格、被方块挡住就不算、对任意生物生效。
+	 */
+	private static LivingEntity findLookedAt(ServerPlayer player, double distance) {
+		return GazeLook.lookedAt(player, distance);
+	}
+
+	/** 战斗结算：套装伤害加成、肉体减伤、伯列恒之星伤害加成（免死见 {@link DeathImmunity}） */
+	public static void onLivingHurt(LivingHurtEvent event) {
+		LivingEntity victim = event.getEntity();
+
+		// 肉体 + 套装：受到的伤害减免
+		if (victim instanceof ServerPlayer player && hasSetEffects(player)) {
+			double reduction = ReliquaryConfig.bodySetDamageReductionPercent() / 100.0D;
+			if (reduction > 0.0D) {
+				event.setAmount((float) (event.getAmount() * (1.0D - reduction)));
+			}
+		}
+
+		Entity attacker = event.getSource().getEntity();
+		if (!(attacker instanceof ServerPlayer player)) {
+			return;
+		}
+		// 1.6.4：本模组的"定值真伤"（启示之光 / 神性光环 / 献祭 / 恶魔之焰）不允许被加伤改写 ——
+		// 它们的数值是配置直接给定的；以前是靠启示之光的事后校正顺手盖住，改成伤害标签后必须显式排除
+		if (com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource())) {
+			return;
+		}
+
+		float amount = event.getAmount();
+
+		// 思想 + 套装：对发光目标额外伤害
+		if (hasSetEffects(player) && victim.hasGlowingTag()) {
+			amount *= 1.0F + ReliquaryConfig.mindBonusPercent() / 100.0F;
+		}
+
+		// 伯列恒之星 / 终末天启：造成伤害提升
+		if (CurioHelper.wears(player, SummyReliquary.STAR_OF_BETHLEHEM.get())
+				|| CurioHelper.wears(player, SummyReliquary.FINAL_REVELATION.get())) {
+			amount *= 1.0F + ReliquaryConfig.starDamagePercent() / 100.0F;
+		}
+
+		// 玄秘魔眼（1.6.5）：对"此刻正被自己注视的那一具"造成伤害 ×1.3
+		// —— 与目标身上有没有"恐惧"无关，所以戴圣心的目标只免疫减益、照样吃这个加成
+		if (ReliquaryConfig.enableOccultEye()
+				&& CurioHelper.wears(player, SummyReliquary.OCCULT_EYE.get())
+				&& GazeLook.lookedAt(player, ReliquaryConfig.fearRadius()) == victim) {
+			amount *= (float) ReliquaryConfig.fearDamageMultiplier();
+		}
+
+		// 恶魔王冠（1.7.1）：邪恶 666 后，按"已损失生命"每 10% 一档 +3%（上限 +15%）
+		// —— 与上面几条同层（事件金额、减伤之前）；定值真伤已在上面 return 掉，不会吃这个加成
+		double crownBonus = DevilCrown.damageBonusPercent(player);
+		if (crownBonus > 0.0D) {
+			amount *= 1.0F + (float) (crownBonus / 100.0D);
+		}
+
+		event.setAmount(amount);
+	}
+}

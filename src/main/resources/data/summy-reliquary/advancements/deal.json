@@ -1,0 +1,29 @@
+{
+  "parent": "summy-reliquary:unforgivable",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:the_pact"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.deal.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.deal.description",
+        "color": "#C03030"
+      }
+    ],
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "pact_signed"
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "sources": [
+    {
+      "type": "single",
+      "resource": "summy-reliquary:particle/short_flame",
+      "sprite": "summy-reliquary:short_flame"
+    }
+  ]
+}

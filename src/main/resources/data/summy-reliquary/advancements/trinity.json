@@ -1,0 +1,26 @@
+{
+  "parent": "summy-reliquary:shade",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:trinity"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.trinity.title"
+    },
+    "description": {
+      "translate": "advancements.summy-reliquary.trinity.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "spirit_altar_full_set"
+      }
+    }
+  }
+}

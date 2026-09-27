@@ -1,0 +1,26 @@
+{
+  "parent": "summy-reliquary:sinner",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:error"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.sinless.title"
+    },
+    "description": {
+      "translate": "advancements.summy-reliquary.sinless.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "killed_dragon_sinless"
+      }
+    }
+  }
+}

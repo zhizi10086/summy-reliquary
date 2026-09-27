@@ -1,0 +1,29 @@
+{
+  "parent": "summy-reliquary:sinner",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:genesis"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.genesis.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.genesis.description",
+        "color": "#FFE4B5"
+      }
+    ],
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "genesis_used"
+      }
+    }
+  }
+}

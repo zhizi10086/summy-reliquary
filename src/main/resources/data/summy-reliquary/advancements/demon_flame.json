@@ -1,0 +1,29 @@
+{
+  "parent": "summy-reliquary:nightmare",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:brimstone"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.demon_flame.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.demon_flame.description",
+        "color": "#C03030"
+      }
+    ],
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "brimstone_obtained"
+      }
+    }
+  }
+}

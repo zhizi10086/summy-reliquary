@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ERE",
+    "RNR",
+    "ESE"
+  ],
+  "key": {
+    "E": { "item": "minecraft:ender_eye" },
+    "R": { "item": "minecraft:echo_shard" },
+    "N": { "item": "summy-reliquary:night_wraith" },
+    "S": { "item": "minecraft:netherite_scrap" }
+  },
+  "result": {
+    "item": "summy-reliquary:occult_eye",
+    "count": 1
+  }
+}

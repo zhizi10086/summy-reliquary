@@ -1,0 +1,29 @@
+# gradle
+.gradle/
+build/
+out/
+classes/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# 运行目录与本地缓存
+run/
+
+# 构建 / 自检 / 服务端日志（只留最新一份在本地，不入库）
+/build-*.log
+/devcheck-*.log
+/server-*.log
+/compilejava*.log
+/devcheck_*.txt
+/build_*.txt
+/runserver_*.txt
+/logs/
+
+# 本地依赖与映射备份（不入库）
+/libs/
+/_backup-mappings/

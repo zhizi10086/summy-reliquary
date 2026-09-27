@@ -1,0 +1,29 @@
+{
+  "parent": "summy-reliquary:deal",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:satanic_bible"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.dark_tome.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.dark_tome.description",
+        "color": "#C03030"
+      }
+    ],
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "satanic_bible_obtained"
+      }
+    }
+  }
+}

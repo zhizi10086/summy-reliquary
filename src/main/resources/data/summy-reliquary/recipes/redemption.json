@@ -1,0 +1,34 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "summy-reliquary:sin_fragment_pride"
+    },
+    {
+      "item": "summy-reliquary:sin_fragment_greed"
+    },
+    {
+      "item": "summy-reliquary:sin_fragment_lust"
+    },
+    {
+      "item": "summy-reliquary:sin_fragment_envy"
+    },
+    {
+      "item": "summy-reliquary:sin_fragment_gluttony"
+    },
+    {
+      "item": "summy-reliquary:sin_fragment_wrath"
+    },
+    {
+      "item": "summy-reliquary:sin_fragment_sloth"
+    },
+    {
+      "item": "minecraft:nether_star"
+    }
+  ],
+  "result": {
+    "item": "summy-reliquary:redemption",
+    "count": 1
+  }
+}

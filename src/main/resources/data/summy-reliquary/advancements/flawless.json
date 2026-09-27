@@ -1,0 +1,33 @@
+{
+  "parent": "summy-reliquary:sinner",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:purity"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.flawless.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.flawless.description.1",
+        "color": "#FFD700"
+      },
+      {
+        "translate": "advancements.summy-reliquary.flawless.description.2",
+        "color": "#FFD700"
+      }
+    ],
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "killed_dragon_flawless"
+      }
+    }
+  }
+}

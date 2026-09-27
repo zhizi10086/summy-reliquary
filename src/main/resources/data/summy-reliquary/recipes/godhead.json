@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "EDE",
+    "NFN",
+    "ETE"
+  ],
+  "key": {
+    "E": { "item": "minecraft:echo_shard" },
+    "D": { "item": "minecraft:dragon_head" },
+    "N": { "item": "minecraft:nether_star" },
+    "F": { "item": "summy-reliquary:final_revelation" },
+    "T": { "item": "summy-reliquary:trinity" }
+  },
+  "result": { "item": "summy-reliquary:godhead", "count": 1 }
+}

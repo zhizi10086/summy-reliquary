@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "summy-reliquary:six" },
+    { "item": "summy-reliquary:six" },
+    { "item": "summy-reliquary:six" }
+  ],
+  "result": {
+    "item": "summy-reliquary:the_mark"
+  }
+}

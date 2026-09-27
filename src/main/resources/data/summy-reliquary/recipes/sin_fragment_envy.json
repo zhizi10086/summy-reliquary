@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ECE",
+    "PSP",
+    "ECE"
+  ],
+  "key": {
+    "E": { "item": "minecraft:ender_pearl" },
+    "C": { "item": "minecraft:chorus_fruit" },
+    "P": { "item": "minecraft:phantom_membrane" },
+    "S": { "item": "minecraft:prismarine_shard" }
+  },
+  "result": { "item": "summy-reliquary:sin_fragment_envy", "count": 1 }
+}

@@ -1,0 +1,29 @@
+{
+  "parent": "summy-reliquary:nightmare",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:occult_eye"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.evil_eye.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.evil_eye.description",
+        "color": "#C03030"
+      }
+    ],
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "occult_eye_upgraded"
+      }
+    }
+  }
+}

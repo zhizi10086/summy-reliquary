@@ -1,0 +1,176 @@
+// Summy Reliquary 1.20.1：Forge + Curios 版本
+// 说明：本工程由原来的 Fabric/Trinkets 版本原地改造而来，现在只产出 Forge jar；
+//      在 Fabric 整合包里通过 Kilt（+ Fabric Language Kotlin）运行同一个 jar。
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    // Forge 1.20.1 官方工具链（与 Curios 自身使用的版本区间一致）
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+// 启动问题诊断开关（仅排查用，三选一）：
+//   -Pnodata  去掉本轮新增的全部数据包内容（自定义伤害类型 + 3 个原版伤害类型标签覆盖）
+//   -Pnotags  只去掉 3 个原版伤害类型标签覆盖（保留自定义伤害类型）
+//   -Pnomodel 去掉新物品「终末天启」的模型与贴图
+def diagnosisSwitch = ['nodata', 'notags', 'nomodel'].find { project.hasProperty(it) }
+
+base {
+    archivesName = project.archives_base_name
+}
+
+java {
+    toolchain {
+        // Forge 1.20.1 的目标是 Java 17；本机 JDK 通过 gradle.properties 的 org.gradle.java.home 指定
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+    withSourcesJar()
+}
+
+repositories {
+    mavenCentral()
+    // Forge 与 Curios 的发布仓库
+    maven {
+        name = 'MinecraftForge'
+        url = 'https://maven.minecraftforge.net/'
+    }
+    maven {
+        name = 'Curios'
+        url = 'https://maven.theillusivec4.top/'
+    }
+    // JEI：仅编译期（按玩家隐藏「赎罪」配方）；运行期没装 JEI 时相关类不会被加载
+    maven {
+        name = 'BlameJared'
+        url = 'https://maven.blamejared.com'
+    }
+}
+
+minecraft {
+    // 使用 Mojang 官方映射（Curios 也是这套），保证 Curios API 的类/方法名可以直接引用
+    mappings channel: 'official', version: project.minecraft_version
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'debug'
+            // 开发环境里让 Mixin 把依赖模组（Curios）自带的 SRG refmap 重映射成开发映射，
+            // 否则 Curios 的 mixin 会因为找不到 f_xxx_ 字段而崩溃
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            // 只有显式加 -Pdevcheck 时才打开自检脚本（跑完会自动退出游戏）
+            if (project.hasProperty('devcheck')) {
+                property 'summy.devcheck', 'true'
+            }
+            mods {
+                "${project.mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'debug'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            mods {
+                "${project.mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
+
+    // Curios：本模组唯一的硬前置（饰品系统与栏位面板都由它提供）
+    implementation fg.deobf("top.theillusivec4.curios:curios-forge:${project.curios_version}")
+
+    // JEI API：compileOnly，不写进 mods.toml，也不打包
+    compileOnly "mezz.jei:jei-1.20.1-forge-api:15.59.0.212"
+}
+
+// 把 gradle.properties 里的版本号写进 mods.toml
+processResources {
+    inputs.property 'version', project.mod_version
+    inputs.property 'curios_version', project.curios_version
+
+    filesMatching('META-INF/mods.toml') {
+        expand(
+                'version': project.mod_version,
+                'curios_version': project.curios_version
+        )
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 17
+    it.options.encoding = 'UTF-8'
+}
+
+jar {
+    // 开发自检脚本不打进正式 jar；需要测试时用 -Pdevcheck 打包
+    if (!project.hasProperty('devcheck')) {
+        exclude 'com/summy/reliquary/devcheck/**'
+    }
+    if (diagnosisSwitch == 'nodata' || diagnosisSwitch == 'notags') {
+        exclude 'data/minecraft/tags/damage_type/**'
+    }
+    if (diagnosisSwitch == 'nodata') {
+        exclude 'data/summy-reliquary/damage_type/**'
+    }
+    if (diagnosisSwitch == 'nomodel') {
+        exclude 'assets/summy-reliquary/models/item/final_revelation.json'
+        exclude 'assets/summy-reliquary/textures/item/final_revelation.png'
+    }
+    manifest {
+        attributes([
+                'Specification-Title'     : project.archives_base_name,
+                'Specification-Vendor'    : 'Summy',
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.mod_version,
+                'Implementation-Vendor'   : 'Summy'
+        ])
+    }
+    from('LICENSE') {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}
+
+// 构建结束后把 reobf 后的 jar 复制到固定的发布目录（项目外的 ../JAR/summy-reliquary）
+tasks.named('build') {
+    doLast {
+        // 带诊断开关时：改名 + 放进 _test 子目录，避免覆盖正式产物
+        def releaseDir = diagnosisSwitch ? file('../JAR/summy-reliquary/_test') : file('../JAR/summy-reliquary')
+        releaseDir.mkdirs()
+        // ForgeGradle 6 的 reobfJar 任务没有 archiveFile 属性：优先取它的 output 属性，
+        // 取不到就退回约定的输出目录 build/reobfJar
+        def reobfTask = tasks.named('reobfJar').get()
+        def jarFile = null
+        if (reobfTask.hasProperty('output')) {
+            def output = reobfTask.property('output')
+            if (output instanceof File) {
+                jarFile = output
+            }
+        }
+        if (jarFile == null) {
+            jarFile = file('build/reobfJar').listFiles()?.find { it.name.endsWith('.jar') }
+        }
+        if (jarFile == null || !jarFile.exists()) {
+            throw new GradleException('找不到 reobfJar 的输出 jar')
+        }
+        def targetName = diagnosisSwitch
+                ? "${project.archives_base_name}-${project.mod_version}-test-${diagnosisSwitch}.jar"
+                : "${project.archives_base_name}-${project.mod_version}.jar"
+        copy {
+            from jarFile
+            rename { targetName }
+            into releaseDir
+        }
+    }
+}

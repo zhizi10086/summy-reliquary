@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "N H",
+    " S ",
+    "H G"
+  ],
+  "key": {
+    "N": { "item": "minecraft:nether_star" },
+    "H": { "item": "summy-reliquary:heart_shard" },
+    "S": { "item": "summy-reliquary:holy_spear" },
+    "G": { "item": "minecraft:gold_block" }
+  },
+  "result": { "item": "summy-reliquary:seraph_spear", "count": 1 }
+}

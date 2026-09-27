@@ -1,0 +1,8 @@
+{
+  "order": 70,
+  "size": 1,
+  "icon": "summy-reliquary:slot/demon_pact",
+  "validators": [
+    "summy-reliquary:demon_pact_only"
+  ]
+}
