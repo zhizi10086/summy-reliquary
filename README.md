@@ -1,5 +1,11 @@
 # Summy Reliquary
 
+> 七罪遗物 · 天使与恶魔双线 · Minecraft 1.20.1 Forge
+
+**前置：** Forge 1.20.1（推荐 47.4.10+）｜ Curios 5.14.1+1.20.1
+
+[GitHub](https://github.com/zhizi10086/summy-reliquary) | [Issues](https://github.com/zhizi10086/summy-reliquary/issues) | [CHANGELOG](CHANGELOG.md) | [CREDITS](CREDITS.md) | [LICENSE](LICENSE)
+
 以 **Curios** 为前置的七罪主题饰品与武器合集（Minecraft 1.20.1 / **Forge 47.4.10**）。
 
 ## 模组概述
@@ -14,40 +20,13 @@ Summy Reliquary 是一个以 **Curios** 为前置的七罪主题饰品与武器�
 
 ## 致谢与免责声明
 
-**中文**
+本模组是**粉丝二创作品**：物品贴图与部分设定**有相当数量直接取自或改编自《以撒的结合》**（The Binding of Isaac，原作创作者 Edmund McMillen / 发行方 Nicalis, Inc.），我们对这部分素材**不主张任何权利**，仅用于非商业的粉丝创作；本模组并非官方作品，与原作者及任何宗教组织均无关联。
 
-本模组（Summy Reliquary）是一款基于《以撒的结合》（The Binding of Isaac）与基督教传统宗教文化符号的融合与再解读的**粉丝二创作品**。
+本模组完全免费，**禁止任何商业用途**。许可为**自定义许可**（允许整合包收录 / 转载 / 个人修改，须保留声明并署名，禁商用）—— 详见 [`LICENSE`](LICENSE)。若任何内容无意中侵犯了您的权益，请联系 **525277385@qq.com**，一经核实我们将立即移除相关素材并发布修复版本。
 
-我们衷心感谢《以撒的结合》及其原作创作者 Edmund McMillen 与发行方 Nicalis, Inc.，感谢他们创造了一个如此深邃、黑暗而富有诗意的世界。本模组的**物品贴图与部分设定有相当数量直接取自或改编自该作品**；我们对这部分素材**不主张任何权利**，仅用于非商业的粉丝创作与免费分享。本模组并非官方作品，与 Edmund McMillen、Nicalis, Inc. 及任何宗教组织均无隶属或合作关系。
+**English**: This is a **fan-made derivative work** inspired by *The Binding of Isaac*, and a substantial portion of its item textures and some design concepts are taken from or adapted from that game — we **claim no rights** over them and use them only for non-commercial fan work. It is completely free and **must not be used commercially** (see [`LICENSE`](LICENSE)).
 
-本模组对七宗罪、天使、恶魔、天启等传统宗教元素的运用，属于文化符号的艺术再解读，旨在探索叙事与游戏机制的可能性，不代表任何宗教立场，亦无意冒犯任何信仰。我们尊重所有宗教传统与个人信仰。
-
-本模组完全免费，仅供学习与娱乐，**禁止用于任何商业用途**。若任何内容无意中侵犯了您的权益，请通过 **525277385@qq.com** 与我们联系；一经核实，我们将**立即移除相关素材并发布修复版本**。
-
-整合包收录与转载**允许**，但请保留本声明，并注明模组名与作者。
-
-感谢所有玩家的支持与反馈。
-
-**English**
-
-**Acknowledgements & Fan-Work Disclaimer**
-
-Summy Reliquary is a **fan-made derivative work** that fuses and re-interprets The Binding of Isaac together with traditional Christian religious imagery.
-
-Our sincere thanks to The Binding of Isaac, its creator Edmund McMillen and its publisher Nicalis, Inc., for a world so deep, dark and poetic. A **substantial portion of this mod's item textures and some of its design concepts are taken directly from, or adapted from, that game**; we **claim no rights** over such material and use it only for non-commercial fan work and free distribution. This mod is not an official product and is not affiliated with or endorsed by Edmund McMillen, Nicalis, Inc. or any religious organization.
-
-Traditional religious elements such as the Seven Deadly Sins, angels, demons and the Apocalypse are used as an artistic re-reading of cultural symbols, to explore narrative and gameplay possibilities. This represents no religious position and intends no offence to any belief. We respect all religious traditions and personal beliefs.
-
-This mod is completely free, for learning and entertainment only, and **must not be used commercially**. If any content unintentionally infringes your rights, please contact us at **525277385@qq.com**; once verified, we will **remove the material immediately and publish a fixed release**.
-
-Modpack inclusion and redistribution are **permitted**, provided this notice is kept and the mod name and author are credited.
-
-Thank you to every player for your support and feedback.
-
-**其他素材署名**：白饭贴图借用自 [Farmer's Delight（农夫乐事）](https://modrinth.com/mod/farmers-delight)，MIT 许可；
-完整的素材来源与许可范围说明见 [CREDITS.md](CREDITS.md)。
-
----
+**完整的中英双语声明见 [`CREDITS.md`](CREDITS.md)。**
 
 ## 内容
 
