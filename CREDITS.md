@@ -4,6 +4,11 @@
 > 许可见仓库根目录的 `LICENSE`（**自定义许可**：允许整合包收录、转载与个人修改，**必须保留声明并署名**，
 > **禁止任何商业用途**）。本模组的原创代码与原创素材同样受该自定义许可约束；取自或改编自《以撒的结合》的
 > 贴图与设定**不在本许可范围内**，其权利属于原作者 / 权利方。
+>
+> **许可分层（1.7.10 起）**：`LICENSE` 已把 **源码（Source Code）**、**资产（Assets）**、**构件（Artifacts，发布的 jar）**
+> 分成三节分别声明 —— 源码与构件均为"允许整合包 / 转载 / 个人修改、须署名并保留声明、**禁止任何商业用途**"；
+> 资产另按四类来源细分（原创素材随本模组禁商用 / 《以撒的结合》素材**不主张任何权利** /
+> 白饭贴图属 Farmer's Delight（MIT）/ `short_flame` 复制自原版贴图）。
 
 ## 致谢与二创声明（《以撒的结合》）
 
@@ -48,7 +53,7 @@ Thank you to every player for your support and feedback.
   `sacrificial_dagger` / `dark_arts`、两把天使线长矛 `holy_spear` / `seraph_spear`、金刀片 `golden_razor`、
   恶魔王冠 `devil_crown`，以及其余遗物素材）：**有相当数量直接取自或改编自《以撒的结合》**
   （The Binding of Isaac，原作创作者 Edmund McMillen / 发行方 Nicalis, Inc.）—— 这部分素材
-  **不在本工程的 MIT 许可范围内**，详见上面的《致谢与二创声明》。
+  **不在本工程的许可范围内**（本模组对该部分素材不主张任何权利），详见上面的《致谢与二创声明》。
 - **MOD 图标**（`assets/summy-reliquary/icon.png`）：由根成就图标 `duality_stat.png` 以
   **2× 最近邻放大**（16×16 → 32×32）生成；`duality_stat` 属于上述取自《以撒的结合》的素材。
 - **栏位 / HUD / 效果图标**（`textures/slot/*.png`、`textures/gui/soul_heart/*.png`、

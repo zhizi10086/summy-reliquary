@@ -1,47 +1,35 @@
-Summy Reliquary 自定义许可 / Custom License
+Summy Reliquary 许可协议 / License
+适用版本：1.7.10-forge
+版权所有 (c) 2026 Summy。保留所有权利。 / Copyright (c) 2026 Summy. All rights reserved.
 
-版权所有 (c) 2026 Summy。保留所有权利。
-Copyright (c) 2026 Summy. All rights reserved.
+本协议分三部分，分别适用于【源码】【资产】【构件】。三者的共同底线是：
+允许整合包收录与免费转载，必须保留署名与声明，禁止任何商业用途。
 
-============ 中文 ============
+============ 一、源码 Source Code ============
 
-【允许】（无需额外许可、免费）
-1. 在整合包（modpack）中收录本模组；
-2. 转载、分发本模组的未修改副本；
-3. 为个人使用或整合包适配而修改本模组。
+【允许】阅读、学习、修改；在非商业的整合包或衍生作品中使用。
+【必须】保留署名（Summy Reliquary / 作者 Summy）与本许可声明；分发修改版时注明来源。
+【禁止】任何商业用途 —— 不得出售、不得置于付费墙后、不得用于营利性服务或产品。
 
-【必须遵守】
-1. 保留本许可文件与 CREDITS.md 中的全部署名与声明；
-2. 转载或分发时注明模组名（Summy Reliquary）与作者（Summy），并链接回原发布页；
-3. 禁止任何商业用途 —— 不得出售本模组或其修改版，不得将其置于任何形式的付费墙之后，
-   不得用于营利性服务或产品。
+============ 二、资产 Assets（贴图 / 模型 / 音效等） ============
 
-【例外与第三方素材】
-1. 取自或改编自《以撒的结合》（The Binding of Isaac）的贴图与设定不在本许可范围内；
-   其权利属于原作者 Edmund McMillen 与发行方 Nicalis, Inc.。本模组对该部分素材不主张
-   任何权利，仅在非商业粉丝创作范围内使用。
-2. 「白饭」贴图来自 Farmer's Delight（MIT 许可，作者 vectorwing），署名与许可说明见 CREDITS.md。
+本模组资产来源不单一，分别适用以下条款：
+1. 原创素材（栏位图标、HUD 图标、效果图标等）：随本模组采用保留所有权利 + 禁商用；
+   允许在非商业整合包与二次创作中使用，须署名。
+2. 取自或改编自《以撒的结合》（The Binding of Isaac）的贴图与部分设定：
+   本模组对该部分不主张任何权利，其权利属于原作者 Edmund McMillen 与发行方 Nicalis, Inc.，
+   仅用于非商业的粉丝创作；权利方如有异议，将立即移除。
+3. 「白饭」贴图来自 Farmer's Delight（作者 vectorwing，MIT 许可），保留其署名与许可说明。
+4. `short_flame` 粒子贴图复制自 Minecraft 原版贴图（minecraft:textures/particle/flame.png），
+   受 Minecraft EULA 约束。
 
-============ English ============
+============ 三、构件 Artifacts（发布的 jar 等构建产物） ============
 
-Permission is granted, free of charge, to:
-1. include this mod in modpacks;
-2. redistribute unmodified copies of this mod;
-3. modify this mod for personal use or modpack compatibility.
+【允许】在整合包中收录；转载、分发未修改的副本；为个人使用或整合包适配而修改。
+【必须】保留本许可与 CREDITS.md 中的全部署名与声明；转载时注明模组名与作者并链接回原发布页。
+【禁止】任何商业用途 —— 不得出售本模组或其修改版、不得置于付费墙后、不得用于营利性服务。
 
-Conditions:
-1. You must keep this license file and all credits/notices in CREDITS.md;
-2. Redistributions must credit the mod (Summy Reliquary) and its author (Summy), and link back
-   to the original release page;
-3. Commercial use of any kind is prohibited — you may not sell this mod or modified versions,
-   put it behind a paywall, or use it in a for-profit service or product.
-
-Exceptions & third-party assets:
-1. Textures and design elements taken from or adapted from The Binding of Isaac are NOT covered
-   by this license; all rights belong to their original creator Edmund McMillen and publisher
-   Nicalis, Inc. This project claims no rights over that material and uses it only within
-   non-commercial fan work.
-2. The "Freeloader's Rice" texture comes from Farmer's Delight (MIT, by vectorwing);
-   see CREDITS.md for attribution.
+============ 免责 Disclaimer ============
 
 THE MOD IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+若任何内容无意中侵犯了您的权益，请联系 525277385@qq.com，一经核实我们将立即移除相关素材并发布修复版本。
