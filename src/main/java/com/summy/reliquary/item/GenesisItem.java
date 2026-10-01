@@ -308,6 +308,7 @@ public class GenesisItem extends Item {
 		//   而且它会被 SinChallenges.selfHeal 每秒补回；这里清掉只会留下 1 秒的空窗）
 		PlayerFlags.setAngel(player, false);
 		PlayerFlags.setStarGranted(player, false);
+		PlayerFlags.setDaggerGranted(player, false);
 		PlayerFlags.setDragonVerdict(player, com.summy.reliquary.advancement.SinChallenges.VERDICT_NONE);
 		// ③ 清整条恶魔线（1.6.10：契约 + 交易记录 + 邪恶度 / 解锁 / 献祭 / 「6」掉落 ……）
 		//    先清「恶魔标记 / 曾签约」，再 revoke —— 这样 revoke 里的 syncSlot 才会把

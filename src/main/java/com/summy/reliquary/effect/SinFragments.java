@@ -83,9 +83,8 @@ public final class SinFragments {
 			}
 		}
 
-		SinManager.setState(serverPlayer, sin, SinManager.SinState.REDEEMED);
-		RevelationTracker.sync(serverPlayer);
-		AttributeManager.apply(serverPlayer);
+		// 1.8.0：走统一的赎罪入口（置为已赎罪 + 清零该罪计数 + 同步客户端与属性）
+		SinManager.redeem(serverPlayer, sin);
 
 		serverPlayer.level().playSound(null, serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ(),
 				SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.8F, 1.4F);

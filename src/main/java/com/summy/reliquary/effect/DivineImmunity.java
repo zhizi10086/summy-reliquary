@@ -10,7 +10,7 @@ import net.minecraft.world.entity.LivingEntity;
 /**
  * 圣心 / 神性提供的**效果免疫**（1.6.7）。
  *
- * <p>佩戴圣心或神性的玩家：
+ * <p>佩戴圣心、神性，或**恶魔线已解锁玄秘魔眼（邪恶度 700，1.8.0 起）**的玩家：
  * <ul>
  *     <li>免疫「黑暗」（原版 {@code DARKNESS}）—— 不论来源是玄秘魔眼的恐惧、监守者还是别的模组；</li>
  *     <li>免疫「恐惧」（{@code summy-reliquary:fear}）。</li>
@@ -22,13 +22,17 @@ public final class DivineImmunity {
 	private DivineImmunity() {
 	}
 
-	/** 佩戴圣心或神性的玩家（神性 1.6.7 起同步圣心的免疫） */
+	/**
+	 * 佩戴圣心或神性的玩家（神性 1.6.7 起同步圣心的免疫）；
+	 * 1.8.0 起，恶魔线**解锁玄秘魔眼**（邪恶度 ≥ 700，或解锁位图已置位）的玩家同样免疫。
+	 */
 	public static boolean immune(LivingEntity entity) {
 		if (entity == null) {
 			return false;
 		}
 		return CurioHelper.wears(entity, SummyReliquary.SACRED_HEART.get())
-				|| Godhead.active(entity);
+				|| Godhead.active(entity)
+				|| EvilUnlock.OCCULT_EYE.unlockedFor(entity);
 	}
 
 	/** 这个效果是否被上面的免疫挡住 */

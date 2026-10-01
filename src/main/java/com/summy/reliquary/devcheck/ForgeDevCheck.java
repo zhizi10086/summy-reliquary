@@ -393,6 +393,12 @@ public final class ForgeDevCheck {
 				case 2239 -> checkFlawlessWearingRatio(player);
 				case 2240 -> checkGenesisClearsWearingTimer(player);
 				case 2241 -> checkNearlyPerfect(player);
+				// 1.8.0：七罪激活/赎罪口径 + 匕首发放前置 + 魔眼恐惧免疫 + 愤怒自伤调整
+				case 2242 -> checkRedeemedNeverReactivates(player);
+				case 2243 -> checkActivationRequiresSource(player);
+				case 2244 -> checkDaggerGrantGate(player);
+				case 2245 -> checkOccultEyeFearImmunity(player);
+				case 2246 -> checkWrathSelfHitNeverKills(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -2084,6 +2090,12 @@ public final class ForgeDevCheck {
 		}
 		log(String.format("暴怒（赎罪后）：系数上限 %.2f（应接近 2.0）、自伤 %d 次（应为 0）",
 				max, com.summy.reliquary.sin.SinEffects.wrathSelfHitCount()));
+		// 1.8.0：赎罪是终态 —— 再击杀 200 次也不能把它变回「已激活」
+		for (int index = 0; index < 200; index++) {
+			com.summy.reliquary.sin.SinEffects.onKill(player, victim);
+		}
+		log("暴怒（赎罪后·1.8.0）：再击杀 200 次后仍为已赎罪="
+				+ (SinManager.state(player, Sin.WRATH) == SinManager.SinState.REDEEMED) + "（应 true）");
 		victim.discard();
 	}
 
@@ -11780,6 +11792,240 @@ public final class ForgeDevCheck {
 		// 收尾
 		com.summy.reliquary.effect.PlayerFlags.setDragonVerdict(player, 0);
 		com.summy.reliquary.effect.PlayerFlags.resetSinWearTracking(player);
+		unequip(player, ReliquarySlots.SOUL_SEAL);
+		resetDemonPactState(player);
+	}
+
+	/** 1.8.0：赎罪是终态 —— 赎罪后的罪不会因再次满足条件而回退成「已激活」 */
+	private static void checkRedeemedNeverReactivates(ServerPlayer player) {
+		resetDemonPactState(player);
+		prepareBarePlayer(player);
+		prepareSourceOfSins(player);
+
+		int survived = 0;
+		for (com.summy.reliquary.sin.Sin sin : com.summy.reliquary.sin.Sin.values()) {
+			SinManager.setState(player, sin, SinManager.SinState.ACTIVATED);
+			boolean activated = SinManager.state(player, sin) == SinManager.SinState.ACTIVATED;
+			// 赎罪（内部会清零该罪计数）
+			SinManager.redeem(player, sin);
+			boolean redeemed = SinManager.state(player, sin) == SinManager.SinState.REDEEMED;
+			boolean cleared = countFor(player, sin) == 0;
+			// 再走一次「触发」（直接调 activate，等价于任何满足了条件的老触发路径）
+			SinManager.activate(player, sin, true);
+			boolean stayed = SinManager.state(player, sin) == SinManager.SinState.REDEEMED;
+			if (activated && redeemed && cleared && stayed) {
+				survived++;
+			}
+		}
+		boolean allRedeemed = SinManager.allRedeemed(player);
+
+		// 端到端：愤怒赎罪后再杀 200 只也不复活
+		Zombie victim = spawnTestZombie(player, 8.0D);
+		for (int index = 0; index < 200; index++) {
+			com.summy.reliquary.sin.SinEffects.onKill(player, victim);
+		}
+		boolean wrathStayed = SinManager.state(player, com.summy.reliquary.sin.Sin.WRATH)
+				== SinManager.SinState.REDEEMED;
+		victim.discard();
+
+		log("赎罪终态（1.8.0）：七罪逐个「激活→赎罪→再触发」全部保持已赎罪=" + survived + "/7（应 7）、"
+				+ "全赎判定=" + allRedeemed + "（应 true）、愤怒赎罪后再击杀 200 次仍为已赎罪="
+				+ wrathStayed + "（应 true）");
+
+		// 收尾
+		for (com.summy.reliquary.sin.Sin sin : com.summy.reliquary.sin.Sin.values()) {
+			SinManager.setState(player, sin, SinManager.SinState.UNACTIVATED);
+		}
+		unequip(player, ReliquarySlots.SOUL_SEAL);
+		resetDemonPactState(player);
+	}
+
+	/** 取某一罪当前的触发计数（自检用） */
+	private static int countFor(ServerPlayer player, com.summy.reliquary.sin.Sin sin) {
+		return switch (sin) {
+			case PRIDE -> com.summy.reliquary.sin.SinProgress.get(player,
+					com.summy.reliquary.sin.SinProgress.PRIDE_KILLS);
+			case ENVY -> com.summy.reliquary.sin.SinProgress.get(player,
+					com.summy.reliquary.sin.SinProgress.ENVY_SEEN);
+			case WRATH -> com.summy.reliquary.sin.SinProgress.get(player,
+					com.summy.reliquary.sin.SinProgress.WRATH_KILLS);
+			case SLOTH -> com.summy.reliquary.sin.SinProgress.get(player,
+					com.summy.reliquary.sin.SinProgress.SLOTH_SLEEPS);
+			case GREED -> com.summy.reliquary.sin.SinProgress.get(player,
+					com.summy.reliquary.sin.SinProgress.GREED_PEAK_DIAMONDS);
+			case GLUTTONY -> com.summy.reliquary.sin.SinProgress.get(player,
+					com.summy.reliquary.sin.SinProgress.GLUTTONY_MEALS);
+			case LUST -> com.summy.reliquary.sin.SinProgress.get(player,
+					com.summy.reliquary.sin.SinProgress.LUST_BREEDS);
+		};
+	}
+
+	/** 1.8.0：激活的硬前置 —— 必须佩戴七罪之源，且该罪处于未激活 */
+	private static void checkActivationRequiresSource(ServerPlayer player) {
+		resetDemonPactState(player);
+		prepareBarePlayer(player);
+		clearBlessingSlots(player);
+
+		// ① 什么都没戴
+		unequip(player, ReliquarySlots.SOUL_SEAL);
+		SinManager.activate(player, com.summy.reliquary.sin.Sin.WRATH, true);
+		boolean noneBlocked = SinManager.state(player, com.summy.reliquary.sin.Sin.WRATH)
+				== SinManager.SinState.UNACTIVATED;
+
+		// ② 戴美德
+		equip(player, ReliquarySlots.SOUL_SEAL, SummyReliquary.VIRTUES.get());
+		SinManager.activate(player, com.summy.reliquary.sin.Sin.WRATH, true);
+		boolean virtuesBlocked = SinManager.state(player, com.summy.reliquary.sin.Sin.WRATH)
+				== SinManager.SinState.UNACTIVATED;
+
+		// ③ 戴撒旦圣经
+		equip(player, ReliquarySlots.SOUL_SEAL, SummyReliquary.SATANIC_BIBLE.get());
+		SinManager.activate(player, com.summy.reliquary.sin.Sin.WRATH, true);
+		boolean bibleBlocked = SinManager.state(player, com.summy.reliquary.sin.Sin.WRATH)
+				== SinManager.SinState.UNACTIVATED;
+
+		// ④ 戴七罪之源 → 允许激活
+		prepareSourceOfSins(player);
+		SinManager.activate(player, com.summy.reliquary.sin.Sin.WRATH, true);
+		boolean allowedWithSource = SinManager.state(player, com.summy.reliquary.sin.Sin.WRATH)
+				== SinManager.SinState.ACTIVATED;
+
+		log("激活前置（1.8.0）：未佩戴时被挡=" + noneBlocked + "（应 true）、戴美德被挡=" + virtuesBlocked
+				+ "（应 true）、戴撒旦圣经被挡=" + bibleBlocked + "（应 true）、戴七罪之源可激活="
+				+ allowedWithSource + "（应 true）");
+
+		// 收尾
+		SinManager.setState(player, com.summy.reliquary.sin.Sin.WRATH, SinManager.SinState.UNACTIVATED);
+		unequip(player, ReliquarySlots.SOUL_SEAL);
+		resetDemonPactState(player);
+	}
+
+	/** 1.8.0：匕首防丢失以「发放过」为前置（不要求真正持有） */
+	private static void checkDaggerGrantGate(ServerPlayer player) {
+		resetDemonPactState(player);
+		prepareBarePlayer(player);
+		player.getInventory().clearContent();
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setDaggerGranted(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setDaggerMissingSeconds(player, 0);
+		com.summy.reliquary.effect.PlayerFlags.setDaggerRecoveryOpen(player, false);
+
+		// ① 从没发放过 → 推 600 秒也不开放
+		com.summy.reliquary.effect.DaggerRecovery.tickForTest(player, 600);
+		boolean neverOpen = !com.summy.reliquary.effect.DaggerRecovery.isOpen(player);
+
+		// ② 发放过（模拟签约那一刻，即使玩家没真正拿到）→ 无匕首满 5 分钟必须开放
+		com.summy.reliquary.effect.PlayerFlags.setDaggerGranted(player, true);
+		com.summy.reliquary.effect.DaggerRecovery.tickForTest(player, 600);
+		boolean opened = com.summy.reliquary.effect.DaggerRecovery.isOpen(player);
+
+		// ③ 重新拿到匕首 → 立刻清零并关闭
+		player.getInventory().add(new net.minecraft.world.item.ItemStack(
+				SummyReliquary.SACRIFICIAL_DAGGER.get()));
+		com.summy.reliquary.effect.DaggerRecovery.tickForTest(player, 1);
+		boolean closedAgain = !com.summy.reliquary.effect.DaggerRecovery.isOpen(player)
+				&& com.summy.reliquary.effect.DaggerRecovery.missingSeconds(player) == 0;
+
+		log("匕首防丢失前置（1.8.0）：未发放时不开放=" + neverOpen + "（应 true）、发放过且无匕首 600 秒后开放="
+				+ opened + "（应 true）、拿到匕首后关闭并清零=" + closedAgain + "（应 true）");
+
+		// 收尾
+		player.getInventory().clearContent();
+		com.summy.reliquary.effect.PlayerFlags.setDaggerGranted(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setDaggerMissingSeconds(player, 0);
+		com.summy.reliquary.effect.PlayerFlags.setDaggerRecoveryOpen(player, false);
+		resetDemonPactState(player);
+	}
+
+	/** 1.8.0：恶魔线解锁玄秘魔眼（邪恶度 700）即获得与圣心 / 神性同款的恐惧免疫 */
+	private static void checkOccultEyeFearImmunity(ServerPlayer player) {
+		resetDemonPactState(player);
+		prepareBarePlayer(player);
+		clearBlessingSlots(player);
+		unequip(player, ReliquarySlots.REVELATION);
+
+		// ① 邪恶度 699 → 不免疫
+		com.summy.reliquary.effect.PlayerFlags.setEvilUnlocks(player, 0);
+		com.summy.reliquary.effect.PlayerFlags.setEvil(player, 699.0D);
+		boolean belowImmune = com.summy.reliquary.effect.DivineImmunity.immune(player);
+		boolean belowFearable = com.summy.reliquary.effect.OccultEye.canFear(player);
+
+		// ② 邪恶度 700 → 免疫（且恐惧无法施加）
+		com.summy.reliquary.effect.PlayerFlags.setEvil(player, 700.0D);
+		boolean atImmune = com.summy.reliquary.effect.DivineImmunity.immune(player);
+		boolean atFearable = com.summy.reliquary.effect.OccultEye.canFear(player);
+
+		// ③ 先中招、后解锁 → 每秒清理把恐惧与黑暗一起清掉
+		com.summy.reliquary.effect.PlayerFlags.setEvil(player, 0.0D);
+		com.summy.reliquary.effect.PlayerFlags.setEvilUnlocks(player, 0);
+		player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+				SummyReliquary.FEAR.get(), 200, 0, false, false, false));
+		player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+				net.minecraft.world.effect.MobEffects.DARKNESS, 200, 0, false, false, false));
+		boolean hadFear = player.hasEffect(SummyReliquary.FEAR.get());
+		com.summy.reliquary.effect.PlayerFlags.setEvil(player, 700.0D);
+		com.summy.reliquary.effect.DivineImmunity.tickPlayer(player);
+		boolean cleaned = !player.hasEffect(SummyReliquary.FEAR.get())
+				&& !player.hasEffect(net.minecraft.world.effect.MobEffects.DARKNESS);
+
+		log("魔眼恐惧免疫（1.8.0）：邪恶 699 免疫=" + belowImmune + "（应 false）、699 恐惧可施加="
+				+ belowFearable + "（应 true）、邪恶 700 免疫=" + atImmune + "（应 true）、700 恐惧可施加="
+				+ atFearable + "（应 false）、先中招（成功=" + hadFear + "）后解锁并清理 → 恐惧与黑暗都消失="
+				+ cleaned + "（应 true）");
+
+		// 收尾
+		player.removeEffect(SummyReliquary.FEAR.get());
+		player.removeEffect(net.minecraft.world.effect.MobEffects.DARKNESS);
+		com.summy.reliquary.effect.PlayerFlags.setEvil(player, 0.0D);
+		com.summy.reliquary.effect.PlayerFlags.setEvilUnlocks(player, 0);
+		resetDemonPactState(player);
+	}
+
+	/** 1.8.0：愤怒自伤倍率 50% 且永不致死 */
+	private static void checkWrathSelfHitNeverKills(ServerPlayer player) {
+		resetDemonPactState(player);
+		prepareBarePlayer(player);
+		prepareSourceOfSins(player);
+		SinManager.setState(player, com.summy.reliquary.sin.Sin.WRATH, SinManager.SinState.ACTIVATED);
+		com.summy.reliquary.sin.SinEffects.resetCounters();
+
+		Zombie victim = spawnTestZombie(player, 8.0D);
+		victim.setNoAi(true);
+		com.summy.reliquary.sin.SinEffects.resetCounters();
+
+		// ① 满血测倍率：自伤应正好等于"本次攻击结算值（含暴怒随机浮动）× 50%"
+		player.setHealth(player.getMaxHealth());
+		player.invulnerableTime = 0;
+		float swing = 0.0F;
+		for (int index = 0; index < 200 && com.summy.reliquary.sin.SinEffects.wrathSelfHitCount() == 0; index++) {
+			swing = com.summy.reliquary.sin.SinEffects.modifyOutgoingDamage(player, victim, 10.0F);
+		}
+		float lost = player.getMaxHealth() - player.getHealth();
+		boolean ratioOk = Math.abs(lost - swing * 0.5F) < 0.01F;
+
+		// ② 残血不致死：2 点生命被 20 点伤害的自伤打中，也只能掉到 1 点
+		com.summy.reliquary.sin.SinEffects.resetCounters();
+		player.setHealth(2.0F);
+		player.invulnerableTime = 0;
+		for (int index = 0; index < 200; index++) {
+			com.summy.reliquary.sin.SinEffects.modifyOutgoingDamage(player, victim, 20.0F);
+		}
+		boolean alive = player.isAlive();
+		float health = player.getHealth();
+		victim.discard();
+
+		boolean multOk = Math.abs(com.summy.reliquary.config.ReliquaryConfig.wrathSelfHitMultiplier() - 0.5D) < 1e-6;
+		log("愤怒自伤（1.8.0）：满血被 10 点伤害自伤后掉血=" + String.format("%.1f", lost)
+				+ "（本次结算 " + String.format("%.2f", swing) + " 的 50%）= " + ratioOk
+				+ "（应 true）、残血连打后存活=" + alive
+				+ "（应 true）、剩余生命=" + String.format("%.1f", health) + "（应 ≥ 1.0）、自伤倍率默认 0.5="
+				+ multOk + "（应 true）");
+
+		// 收尾
+		player.setHealth(player.getMaxHealth());
+		SinManager.setState(player, com.summy.reliquary.sin.Sin.WRATH, SinManager.SinState.UNACTIVATED);
+		com.summy.reliquary.sin.SinEffects.resetCounters();
 		unequip(player, ReliquarySlots.SOUL_SEAL);
 		resetDemonPactState(player);
 	}

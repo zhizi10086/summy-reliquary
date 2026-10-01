@@ -171,11 +171,15 @@ public final class SinManager {
 	/**
 	 * 由触发条件把某个罪置为「已激活」，并同步客户端与属性。
 	 *
+	 * <p><b>1.8.0 收紧前置</b>：必须是「佩戴七罪之源」（{@link SinEffects#effectsEnabled}）
+	 * 且该罪**当前处于未激活**。戴美德 / 撒旦圣经时一律不激活；已赎罪是终态，
+	 * 不会被重新点亮（只有 OP 的 {@code unredeem} 能回退）。
+	 *
 	 * @param silent true = 静默激活（例如色欲的隐藏触发条件），不播提示与音效
 	 * @return true 表示这次真的从其它状态变成了已激活
 	 */
 	public static boolean activate(ServerPlayer player, Sin sin, boolean silent) {
-		if (state(player, sin) == SinState.ACTIVATED) {
+		if (!SinEffects.effectsEnabled(player) || state(player, sin) != SinState.UNACTIVATED) {
 			return false;
 		}
 		setState(player, sin, SinState.ACTIVATED);
@@ -196,5 +200,19 @@ public final class SinManager {
 		SummyReliquary.LOGGER.info("[Summy Reliquary] {} 的 {} 因满足条件而觉醒{}",
 				player.getName().getString(), sin.id(), silent ? "（隐藏条件）" : "");
 		return true;
+	}
+
+	/**
+	 * 赎罪入口（1.8.0）：把某个罪置为「已赎罪」，并**清零它的触发计数**。
+	 *
+	 * <p>赎罪是终态 —— {@link #activate} 不会再点亮它；清空计数是为了让"重新堕落"只发生在
+	 * OP {@code unredeem} 之后（回退后需重新累计），也避免旧计数把玩家瞬间推回激活状态。
+	 * 碎片右击、OP {@code redeem} / {@code all redeem}、以及「纯洁无瑕」的自动全赎都走这里。
+	 */
+	public static void redeem(ServerPlayer player, Sin sin) {
+		setState(player, sin, SinState.REDEEMED);
+		SinProgress.clear(player, sin);
+		RevelationTracker.sync(player);
+		AttributeManager.apply(player);
 	}
 }

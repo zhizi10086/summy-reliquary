@@ -28,9 +28,11 @@ public final class DaggerRecovery {
 	}
 
 	private static void tickPlayer(ServerPlayer player) {
-		boolean signed = PlayerFlags.isDemonSealed(player) || PlayerFlags.isDemon(player);
+		// 1.8.0：前置改为"发放过仪式匕首"。老存档没有该标记时，以"曾签约 / 当前是恶魔"兜底视为已发放。
+		boolean granted = PlayerFlags.isDaggerGranted(player)
+				|| PlayerFlags.isDemonSealed(player) || PlayerFlags.isDemon(player);
 		boolean hasDagger = holdsDagger(player);
-		if (!signed || hasDagger) {
+		if (!granted || hasDagger) {
 			// 有匕首（或还没签约）：清零计时；已开放的配方要关掉
 			if (PlayerFlags.daggerMissingSeconds(player) != 0) {
 				PlayerFlags.setDaggerMissingSeconds(player, 0);

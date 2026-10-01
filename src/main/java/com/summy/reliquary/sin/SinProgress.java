@@ -81,4 +81,30 @@ public final class SinProgress {
 	public static void reset(ServerPlayer player) {
 		mutableProgress(player).getAllKeys().clear();
 	}
+
+	/**
+	 * 清零某一罪的触发计数（1.8.0）。
+	 *
+	 * <p>赎罪时调用：赎罪是终态，清掉旧计数才不会在 OP {@code unredeem} 之后被历史击杀数
+	 * 立刻推回激活状态。
+	 */
+	public static void clear(ServerPlayer player, Sin sin) {
+		String key = keyOf(sin);
+		if (key != null) {
+			mutableProgress(player).putInt(key, 0);
+		}
+	}
+
+	/** 罪 → 该罪的计数键（七罪都有计数，兜底返回 null 以便将来新增罪时安全） */
+	private static String keyOf(Sin sin) {
+		return switch (sin) {
+			case PRIDE -> PRIDE_KILLS;
+			case ENVY -> ENVY_SEEN;
+			case WRATH -> WRATH_KILLS;
+			case SLOTH -> SLOTH_SLEEPS;
+			case GREED -> GREED_PEAK_DIAMONDS;
+			case GLUTTONY -> GLUTTONY_MEALS;
+			case LUST -> LUST_BREEDS;
+		};
+	}
 }

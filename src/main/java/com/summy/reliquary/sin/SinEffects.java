@@ -251,7 +251,7 @@ public final class SinEffects {
 			result *= (float) roll;
 			if (active(attacker, Sin.WRATH)
 					&& attacker.getRandom().nextDouble() * 100.0D < ReliquaryConfig.wrathSelfHitPercent()) {
-				selfHit(attacker, result);
+				selfHit(attacker, (float) (result * ReliquaryConfig.wrathSelfHitMultiplier()));
 			}
 		}
 
@@ -291,15 +291,28 @@ public final class SinEffects {
 		return result;
 	}
 
-	/** 暴怒自伤：等量伤害打在自己身上（带防递归标记，避免再次套用七罪加成） */
+	/**
+	 * 暴怒自伤：按配置倍率打在自己身上（带防递归标记，避免再次套用七罪加成）。
+	 *
+	 * <p>1.8.0：自伤**永不致死** —— 结算前把伤害钳到「当前生命 − 1」，血量 ≤ 1 时直接跳过。
+	 * 仍走原版伤害管线，所以护甲 / 保护 / 抗性照常减免，只是不会把人打死。
+	 */
 	private static void selfHit(ServerPlayer player, float amount) {
 		if (applyingSelfHit || amount <= 0.0F || !player.isAlive()) {
+			return;
+		}
+		float health = player.getHealth();
+		if (health <= 1.0F) {
+			return;
+		}
+		float safeAmount = Math.min(amount, health - 1.0F);
+		if (safeAmount <= 0.0F) {
 			return;
 		}
 		applyingSelfHit = true;
 		try {
 			wrathSelfHitCount++;
-			player.hurt(player.damageSources().generic(), amount);
+			player.hurt(player.damageSources().generic(), safeAmount);
 		} finally {
 			applyingSelfHit = false;
 		}

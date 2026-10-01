@@ -249,7 +249,8 @@ public final class SinChallenges {
 			return false;
 		}
 		for (com.summy.reliquary.sin.Sin sin : com.summy.reliquary.sin.Sin.values()) {
-			SinManager.setState(player, sin, SinManager.SinState.REDEEMED);
+			// 1.8.0：自动全赎也走统一入口（清零各罪计数）
+			SinManager.redeem(player, sin);
 		}
 		AttributeManager.apply(player);
 		RevelationTracker.sync(player);

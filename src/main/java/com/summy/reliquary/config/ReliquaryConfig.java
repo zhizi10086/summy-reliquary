@@ -75,6 +75,7 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.DoubleValue WRATH_RANDOM_MAX;
 	private static final ForgeConfigSpec.DoubleValue WRATH_RANDOM_MAX_REDEEMED;
 	private static final ForgeConfigSpec.IntValue WRATH_SELF_HIT_PERCENT;
+	private static final ForgeConfigSpec.DoubleValue WRATH_SELF_HIT_MULTIPLIER;
 	private static final ForgeConfigSpec.IntValue SLOTH_SLEEP_REQUIRED;
 	private static final ForgeConfigSpec.IntValue SLOTH_SLEEP_BEFORE_HOUR;
 	private static final ForgeConfigSpec.IntValue SLOTH_RESISTANCE_AMPLIFIER;
@@ -506,6 +507,9 @@ public final class ReliquaryConfig {
 				.defineInRange("wrath_random_max_redeemed", 2.0D, 0.0D, 10.0D);
 		WRATH_SELF_HIT_PERCENT = builder.comment("暴怒：每次攻击使自己受到等量伤害的几率（百分比）")
 				.defineInRange("wrath_self_hit_percent", 15, 0, 100);
+		WRATH_SELF_HIT_MULTIPLIER = builder
+				.comment("暴怒：自伤倍率（1.0 = 等量伤害；1.8.0 起默认 0.5，且自伤永不致死）")
+				.defineInRange("wrath_self_hit_multiplier", 0.5D, 0.0D, 10.0D);
 		SLOTH_SLEEP_REQUIRED = builder.comment("怠惰：触发需要「早睡」的次数")
 				.defineInRange("sloth_sleep_required", 3, 0, 1000);
 		SLOTH_SLEEP_BEFORE_HOUR = builder
@@ -1260,6 +1264,11 @@ public final class ReliquaryConfig {
 
 	public static int wrathSelfHitPercent() {
 		return intOr(WRATH_SELF_HIT_PERCENT, 15);
+	}
+
+	/** 暴怒自伤倍率（1.8.0；自伤只会把血量打到 1 点，永不致死） */
+	public static double wrathSelfHitMultiplier() {
+		return doubleOr(WRATH_SELF_HIT_MULTIPLIER, 0.5D);
 	}
 
 	public static int slothSleepRequired() {

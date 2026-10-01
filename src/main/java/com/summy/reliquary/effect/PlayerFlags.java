@@ -69,6 +69,14 @@ public final class PlayerFlags {
 	private static final String PACT_SIGNS = "pact_signs";
 	/** 恶魔契约：签约瞬间的「魂印物品 + 七罪逐项状态」快照（忏悔时原样恢复，1.6.1） */
 	private static final String DEMON_SIN_SNAPSHOT = "demon_sin_snapshot";
+	/**
+	 * 1.8.0：签约时是否**发放过**仪式匕首（献祭匕首）。
+	 *
+	 * <p>防丢失状态机的前置：只要发放发生过（哪怕当时背包满、匕首掉在地上或掉进虚空、玩家从没真正拿到），
+	 * 之后丢失满 5 分钟就会给出提示并开放配方 —— 否则玩家既不知道丢了、也永远拿不回来。
+	 * 属恶魔线数据，**随创世纪清除**。
+	 */
+	private static final String DAGGER_GRANTED = "dagger_granted";
 	/** 1.7.6：已签约玩家"连续多少秒身上没有任何一把仪式匕首" */
 	private static final String DAGGER_MISSING_SECONDS = "dagger_missing_seconds";
 	/** 1.7.6：献祭匕首的「防丢失配方」是否已开放 */
@@ -332,6 +340,15 @@ public final class PlayerFlags {
 	}
 
 	// ==================== 献祭匕首：防丢失（1.7.6） ====================
+
+	/** 是否发放过仪式匕首（防丢失状态机的前置；老存档以"曾签约 / 当前恶魔"兜底） */
+	public static boolean isDaggerGranted(LivingEntity entity) {
+		return entity != null && root(entity).getBoolean(DAGGER_GRANTED);
+	}
+
+	public static void setDaggerGranted(ServerPlayer player, boolean value) {
+		set(player, DAGGER_GRANTED, value);
+	}
 
 	/** 连续多少秒身上没有匕首（拿到任意一把就会清零） */
 	public static int daggerMissingSeconds(LivingEntity entity) {

@@ -77,29 +77,29 @@ Write-Host ("实测：物品 {0} / 创造页 {1} / 配方 {2} / 进度 {3} / 配
         $itemCount, $tabCount, $recipeCount, $advancementCount, $sectionCount, $configKeyCount, $razorKeys, $protocol, $devcheckLines, `
         ($(if ($devcheckLog) { $devcheckLog.Name } else { '没有 devcheck 日志' })))
 
-# 自检行数允许 526~529 浮动：「光环 / 美德提示行」dump 会读存档里的赎罪状态（两行都在 = 528、都不在 = 526）
-if ($devcheckLines -lt 526 -or $devcheckLines -gt 529) {
-    Add-Problem ("自检行数 " + $devcheckLines + " 超出预期的 526~529 区间（文档写的正是这个区间）")
+# 自检行数允许 533~537 浮动：「光环 / 美德提示行」dump 会读存档里的赎罪状态（两行都在 = 528、都不在 = 526）
+if ($devcheckLines -lt 533 -or $devcheckLines -gt 537) {
+    Add-Problem ("自检行数 " + $devcheckLines + " 超出预期的 533~537 区间（文档写的正是这个区间）")
 }
 
 # ==================== 与文档比对 ====================
 $readme = Join-Path $ProjectRoot 'README.md'
-$progress = Join-Path $LedgerDir 'SummyReliquary-进度文档-1.7.10-forge.md'
-$events = Join-Path $LedgerDir 'SummyReliquary-事件文本与触发关系-1.7.10.md'
+$progress = Join-Path $LedgerDir 'SummyReliquary-进度文档-1.8.0-forge.md'
+$events = Join-Path $LedgerDir 'SummyReliquary-事件文本与触发关系-1.8.0.md'
 
 Write-Host '检查 README…'
-Check-Contains $readme 'README' '## 1.7.10 变更' '当前版本小节'
-Check-Contains $readme 'README' ('`1.7.10-forge`') '当前版本号'
-Check-Contains $readme 'README' ("注册物品 **49 → " + $itemCount + "**") '物品数'
-Check-Contains $readme 'README' ("创造页 **45 → " + $tabCount + "**") '创造页条目数'
-Check-Contains $readme 'README' ("配方 **33 → " + $recipeCount + "**") '配方数'
-Check-Contains $readme 'README' '自检 **526~529 行全绿**' '自检行数（区间口径）'
-Check-Contains $readme 'README' 'util/HeldItems' '持有判定口径'
+Check-Contains $readme 'README' '## 1.8.0 变更' '当前版本小节'
+Check-Contains $readme 'README' ('`1.8.0-forge`') '当前版本号'
+Check-Contains $readme 'README' ("注册物品 / 创造页 / 配方数不变（**" + $itemCount + " / " + $tabCount + " / " + $recipeCount + "**）") '物品 / 创造页 / 配方数'
+# 1.8.0：创造页与配方数已并入上一条断言
+# 1.8.0：配方数已并入上一条断言
+Check-Contains $readme 'README' '自检 **535 行全绿**' '自检行数'
+Check-Contains $readme 'README' 'wrath_self_hit_multiplier' '1.8.0 关键口径'
 
 Write-Host '检查《进度文档》…'
 Check-Contains $progress '进度文档' ("## 2. 内容总表（" + $itemCount + " 件已注册物品）") '第 2 章标题的物品数'
-Check-Contains $progress '进度文档' '**526~529 行 `[DEVCHECK]`**' '第 11 章自检行数（区间口径）'
-Check-Contains $progress '进度文档' '版本 1.7.10-forge' '第 14 章版本号'
+Check-Contains $progress '进度文档' '**535 行 `[DEVCHECK]`**' '第 11 章自检行数'
+Check-Contains $progress '进度文档' '版本 1.8.0-forge' '第 14 章版本号'
 Check-Contains $progress '进度文档' ("$sectionCount 个配置段 / $configKeyCount 个键") '配置段总览（简介）'
 Check-Contains $progress '进度文档' ("注册物品 **" + $itemCount + "**、进度 **" + $advancementCount + "**、配方 **" + $recipeCount + "**、配置段 **" + $sectionCount + "**") '当前计数行'
 Check-Contains $progress '进度文档' '实例 config 因历史残留键' '配置键数的实例口径说明'
@@ -122,13 +122,13 @@ Check-Contains $modsToml 'mods.toml' 'The Binding of Isaac' '游戏内描述的�
 Check-Contains $progress '进度文档' '525277385@qq.com' '二创与致谢指引'
 
 Write-Host '检查《事件文本与触发关系》…'
-Check-Contains $events '事件台账' '（1.7.10-forge）' '版本行'
+Check-Contains $events '事件台账' '（1.8.0-forge）' '版本行'
 Check-Contains $events '事件台账' '### 1.39 金刀片（1.7.10）' '金刀片文案小节'
 Check-Contains $events '事件台账' '灰正体尾行' '700 台词的口径'
 
 Write-Host '检查 README 去历史与 CHANGELOG…'
 $changelog = Join-Path $ProjectRoot 'CHANGELOG.md'
-Check-Contains $changelog 'CHANGELOG' '## 1.7.10 变更' '最新版本小节'
+Check-Contains $changelog 'CHANGELOG' '## 1.8.0 变更' '最新版本小节'
 Check-Contains $changelog 'CHANGELOG' '## 1.4.4 变更' '最老版本小节'
 $readmeText = [System.IO.File]::ReadAllText($readme)
 foreach ($old in @('## 1.7.9 变更', '## 1.6.10 变更', '## 1.4.4 变更')) {

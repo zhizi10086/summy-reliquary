@@ -363,6 +363,9 @@ public final class DemonPact {
 
 	/** 1.7.6：签约时给一把献祭匕首（身上已经有任意一把仪式匕首就跳过；背包满则掉脚下并受掉落保护） */
 	private static void grantSacrificialDagger(ServerPlayer player) {
+		// 1.8.0：先置位"已发放" —— 即使身上已有一把、或背包满把匕首掉在地上/掉进虚空，
+		// 这次发放也算发生过，之后丢失满 5 分钟一定会收到防丢失提示。
+		com.summy.reliquary.effect.PlayerFlags.setDaggerGranted(player, true);
 		if (DaggerRecovery.holdsDagger(player)) {
 			return;
 		}

@@ -344,7 +344,12 @@ public final class ReliquaryCommand {
 			return playerOnly(context);
 		}
 		for (Sin sin : Sin.values()) {
-			SinManager.setState(player, sin, state);
+			if (state == SinManager.SinState.REDEEMED) {
+				// 1.8.0：批量赎罪同样清零每一项的计数
+				SinManager.redeem(player, sin);
+			} else {
+				SinManager.setState(player, sin, state);
+			}
 		}
 		applyChanges(player);
 		post(context, Component.translatable("message.summy-reliquary.sin.all.done",
@@ -404,10 +409,13 @@ public final class ReliquaryCommand {
 			return 0;
 		}
 
-		SinManager.setState(player, sin, redeem
-				? SinManager.SinState.REDEEMED
-				: SinManager.SinState.ACTIVATED);
-		applyChanges(player);
+		if (redeem) {
+			// 1.8.0：赎罪走统一入口（置为已赎罪 + 清零该罪计数）
+			SinManager.redeem(player, sin);
+		} else {
+			SinManager.setState(player, sin, SinManager.SinState.ACTIVATED);
+			applyChanges(player);
+		}
 		if (redeem) {
 			// 赎罪成功的提示：整行金色
 			Component line = Component.translatable("message.summy-reliquary.sin.redeem.done",
