@@ -1,6 +1,6 @@
-# Summy Reliquary 事件文本与触发关系总台账（1.8.0-forge）
+# Summy Reliquary 事件文本与触发关系总台账（1.8.1-forge）
 
-> 更新时间：2026-10-01（1.8.0）　｜　对应版本：**1.8.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-10-04（1.8.1）　｜　对应版本：**1.8.1-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > 用途：把所有"会显示给玩家的话"按**触发条件**整理成一张表，方便改文案、查文案、加功能时对照。
 > 权威文本源：`src/main/resources/assets/summy-reliquary/lang/zh_cn.json` / `en_us.json`（改文案只改这两个文件，代码里没有硬编码中文）。
 
@@ -1038,7 +1038,7 @@
 | 完成"除「无罪之人」外"的全部本模组成就（22 条） | 服务端每秒兜底（`ItemObtained.tick`） | 标题「近乎完美」；描述两行：「你做的很好了，就差一个放下。」/「只可惜你已经放不下了。」 | 成就页（**挑战帧、完成前隐藏**） | 图标＝根图标 `duality_stat`；语言键 `advancements.summy-reliquary.nearly_perfect.{title, description, description.tail}`；**拿过「无罪之人」或先签约又用掉创世纪的玩家永久无法完成** |
 | 击杀末影龙（纯洁无瑕） | 佩戴七罪之源 + 七罪全未激活 + **佩戴率 ≥ 99%** | （沿用既有「七罪之源已化作美德」） | 行动栏 | 佩戴率＝戴着秒数 ÷（戴着 + 没戴）；开局 120 秒宽限、允许随时间洗白；创世纪重置会清空计时 |
 
-### 1.41 玄秘魔眼恐惧免疫与愤怒自伤（1.8.0）
+### 1.41 玄秘魔眼恐惧免疫与愤怒自伤（1.8.1）
 
 | 触发 | 条件 | 文本 | 位置 | 备注 |
 | --- | --- | --- | --- | --- |

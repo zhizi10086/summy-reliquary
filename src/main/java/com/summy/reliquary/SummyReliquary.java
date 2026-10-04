@@ -179,7 +179,10 @@ public class SummyReliquary {
 	public static final RegistryObject<Item> FINAL_REVELATION =
 			ITEMS.register("final_revelation", () -> new FinalRevelationItem(new Item.Properties().stacksTo(1)));
 
-	/** 隐藏图标物品：只用于「三位一体」成就的图标，不进创造页、无配方 */
+	/**
+	 * 「三位一体」：由灵台三件套合成的材料（1.8.1 起需要天使标记；合成后三件套退还、只实耗心之碎片），
+	 * 也是「神性」的合成材料之一。进创造页。
+	 */
 	public static final RegistryObject<Item> TRINITY =
 			ITEMS.register("trinity", () -> new Item(new Item.Properties()));
 

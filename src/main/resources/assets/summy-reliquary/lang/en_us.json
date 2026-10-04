@@ -366,6 +366,7 @@
   "message.summy-reliquary.contrition.repeat.1": "You finished the prayer once more, and nothing happened.",
   "message.summy-reliquary.contrition.repeat.2": "You broke your vow, and He will not answer you again.",
   "message.summy-reliquary.contrition.repeat.3": "This time, there is no second chance.",
+  "message.summy-reliquary.contrition.need_demon": "You have nothing to confess yet.",
   "message.summy-reliquary.contrition.fail.dimension.1": "You spoke the prayer. But the words did not rise: they sank, like a stone into the abyss.",
   "message.summy-reliquary.contrition.fail.dimension.2": "This place is too far from heaven.",
   "message.summy-reliquary.contrition.fail.range.1": "You spoke the prayer. But all around was quiet; not the quiet of peace, but the quiet of emptiness.",

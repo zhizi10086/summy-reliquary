@@ -399,6 +399,8 @@ public final class ForgeDevCheck {
 				case 2244 -> checkDaggerGrantGate(player);
 				case 2245 -> checkOccultEyeFearImmunity(player);
 				case 2246 -> checkWrathSelfHitNeverKills(player);
+				// 1.8.1：痛悔短祷需要当前持恶魔标记；三位一体配方需要天使标记
+				case 2247 -> checkContritionAndTrinityGates(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -9190,7 +9192,8 @@ public final class ForgeDevCheck {
 				+ (mismatch.length() == 0) + "（应 true"
 				+ (mismatch.length() == 0 ? "" : "，异常：" + mismatch.toString().trim()) + "）");
 
-		// ③ 三位一体：配方只实耗心之碎片 → 取产物时退还三件套
+		// ③ 三位一体（1.8.1 起需要天使标记）：配方只实耗心之碎片 → 取产物时退还三件套
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
 		player.getInventory().clearContent();
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.TRINITY.get()));
 		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
@@ -9246,14 +9249,16 @@ public final class ForgeDevCheck {
 						SummyReliquary.id("vengeful_spirit"))
 				&& com.summy.reliquary.effect.EvilUnlock.gatedRecipes().containsKey(SummyReliquary.id("abaddon"))
 				&& com.summy.reliquary.effect.EvilUnlock.gatedRecipes().containsKey(SummyReliquary.id("dark_arts"));
-		// 1.7.6：第三参 = 献祭匕首「防丢失配方」是否开放；1.7.9：第四参 = 圣光短矛「防丢失配方」是否开放
-		var angelView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(true, false, false, false);
-		var plainView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(false, false, false, false);
-		var signedView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(false, true, false, false);
-		var daggerView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(false, false, true, false);
+		// 参数顺序：(天使标记, 曾签约, **当前持恶魔标记(1.8.1)**, 匕首防丢失开放, 长矛防丢失开放)
+		var angelView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(true, false, false, false, false);
+		var plainView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(false, false, false, false, false);
+		var signedView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(false, true, false, false, false);
+		// 1.8.1：痛悔短祷看"当前持恶魔标记"
+		var demonView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(false, false, true, false, false);
+		var daggerView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(false, false, false, true, false);
 		// 1.7.9：只有"丢失态 + 天使标记"才看得见短矛的防丢失配方
-		var spearView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(true, false, false, true);
-		var spearNoAngel = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(false, false, false, true);
+		var spearView = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(true, false, false, false, true);
+		var spearNoAngel = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(false, false, false, false, true);
 		boolean jeiOk = Boolean.TRUE.equals(angelView.get(SummyReliquary.id("the_body")))
 				&& Boolean.TRUE.equals(angelView.get(SummyReliquary.id("holy_light")))
 				&& Boolean.TRUE.equals(angelView.get(SummyReliquary.id("godhead")))
@@ -9270,7 +9275,13 @@ public final class ForgeDevCheck {
 				// 1.7.6：献祭匕首的「防丢失配方」只在开放态可见
 				&& Boolean.FALSE.equals(plainView.get(SummyReliquary.id("sacrificial_dagger")))
 				&& Boolean.TRUE.equals(daggerView.get(SummyReliquary.id("sacrificial_dagger")))
-				&& Boolean.FALSE.equals(daggerView.get(SummyReliquary.id("the_body")));
+				&& Boolean.FALSE.equals(daggerView.get(SummyReliquary.id("the_body")))
+				// 1.8.1：三位一体需要天使标记；痛悔短祷需要当前持恶魔标记
+				&& Boolean.TRUE.equals(angelView.get(SummyReliquary.id("trinity")))
+				&& Boolean.FALSE.equals(plainView.get(SummyReliquary.id("trinity")))
+				&& Boolean.TRUE.equals(demonView.get(SummyReliquary.id("act_of_contrition")))
+				&& Boolean.FALSE.equals(plainView.get(SummyReliquary.id("act_of_contrition")))
+				&& Boolean.FALSE.equals(angelView.get(SummyReliquary.id("act_of_contrition")));
 		log("配方门禁清单：恶魔线受管配方=" + com.summy.reliquary.effect.EvilUnlock.gatedRecipes().size()
 				+ " 张（应 8，1.7.6 起含暗仪刺刀）=" + gated
 				+ "（应 true）；JEI 可见性（天使 / 无 / 已签约 / 匕首丢失态 / 长矛丢失态）→ " + jeiOk
@@ -9733,9 +9744,9 @@ public final class ForgeDevCheck {
 		player.getInventory().clearContent();
 		// JEI 可见性：无标记 → 隐藏、有标记 → 可见（与三件套/圣光/斗篷一致）
 		boolean jeiOk = Boolean.FALSE.equals(com.summy.reliquary.effect.SpiritAltarRecipeGate
-				.jeiVisibility(false, false, false, false).get(SummyReliquary.id("sacred_heart")))
+				.jeiVisibility(false, false, false, false, false).get(SummyReliquary.id("sacred_heart")))
 				&& Boolean.TRUE.equals(com.summy.reliquary.effect.SpiritAltarRecipeGate
-						.jeiVisibility(true, false, false, false).get(SummyReliquary.id("sacred_heart")));
+						.jeiVisibility(true, false, false, false, false).get(SummyReliquary.id("sacred_heart")));
 		log("圣心配方门禁（1.7.1）：无天使标记 → 产物被收走（产物残留=" + productRemains + "，应 false）、"
 				+ "退料 心之碎片×" + countItem(player, SummyReliquary.HEART_SHARD.get()) + " + 烈焰粉×"
 				+ countItem(player, Items.BLAZE_POWDER) + " + 木十字架×"
@@ -11858,6 +11869,76 @@ public final class ForgeDevCheck {
 			case LUST -> com.summy.reliquary.sin.SinProgress.get(player,
 					com.summy.reliquary.sin.SinProgress.LUST_BREEDS);
 		};
+	}
+
+	/** 1.8.1：痛悔短祷需要"当前持恶魔标记"；三位一体配方需要天使标记 */
+	private static void checkContritionAndTrinityGates(ServerPlayer player) {
+		resetDemonPactState(player);
+		prepareBarePlayer(player);
+		player.getInventory().clearContent();
+
+		// ① 三位一体：无天使标记 → 产物被收走 + 按配方退回全部材料（三件套 + 心之碎片）
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.TRINITY.get()));
+		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+				new ItemStack(SummyReliquary.TRINITY.get()), player.inventoryMenu.getCraftSlots()));
+		boolean trinityBlocked = player.inventoryMenu.getCarried().isEmpty()
+				&& countItem(player, SummyReliquary.THE_BODY.get()) == 1
+				&& countItem(player, SummyReliquary.THE_MIND.get()) == 1
+				&& countItem(player, SummyReliquary.THE_SOUL.get()) == 1
+				&& countItem(player, SummyReliquary.HEART_SHARD.get()) == 1;
+		player.inventoryMenu.setCarried(ItemStack.EMPTY);
+		player.getInventory().clearContent();
+
+		// ② 痛悔短祷：无恶魔标记 → 使用被拒、不消耗、未置"已用过"标记
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		com.summy.reliquary.item.ActOfContritionItem.resetUsed(player);
+		com.summy.reliquary.item.ActOfContritionItem.resetNotified(player);
+		com.summy.reliquary.item.ActOfContritionItem.forget(player);
+		player.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(SummyReliquary.ACT_OF_CONTRITION.get()));
+		int before = player.getMainHandItem().getCount();
+		var result = SummyReliquary.ACT_OF_CONTRITION.get().use(player.serverLevel(), player,
+				net.minecraft.world.InteractionHand.MAIN_HAND);
+		boolean refused = result.getResult() == net.minecraft.world.InteractionResult.FAIL;
+		boolean notConsumed = player.getMainHandItem().getCount() == before;
+		boolean notUsed = !com.summy.reliquary.item.ActOfContritionItem.isUsed(player);
+
+		// ③ 痛悔短祷：无恶魔标记 → 配方被拦（产物收走 + 退回全部材料）
+		player.getInventory().clearContent();
+		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.ACT_OF_CONTRITION.get()));
+		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+				new ItemStack(SummyReliquary.ACT_OF_CONTRITION.get()), player.inventoryMenu.getCraftSlots()));
+		boolean contritionBlocked = player.inventoryMenu.getCarried().isEmpty()
+				&& countItem(player, SummyReliquary.WOODEN_CROSS.get()) == 1
+				&& countItem(player, Items.FEATHER) == 1
+				&& countItem(player, Items.PAPER) == 1
+				&& countItem(player, Items.GLOW_INK_SAC) == 1
+				&& countItem(player, Items.GOLD_BLOCK) == 1;
+		player.inventoryMenu.setCarried(ItemStack.EMPTY);
+		player.getInventory().clearContent();
+
+		// ④ 补上恶魔标记 → 使用放行（换回天使标记），且配方也放行
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		com.summy.reliquary.item.ActOfContritionItem.resetUsed(player);
+		com.summy.reliquary.item.ActOfContritionItem.forget(player);
+		player.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(SummyReliquary.ACT_OF_CONTRITION.get()));
+		SummyReliquary.ACT_OF_CONTRITION.get().use(player.serverLevel(), player,
+				net.minecraft.world.InteractionHand.MAIN_HAND);
+		boolean allowedWithMark = !com.summy.reliquary.effect.PlayerFlags.isDemon(player)
+				&& com.summy.reliquary.item.ActOfContritionItem.isUsed(player);
+
+		log("痛悔短祷 / 三位一体门槛（1.8.1）：三位一体无天使标记被拦并退全部材料=" + trinityBlocked
+				+ "（应 true）、痛悔短祷无恶魔标记被拒=" + refused + "（应 true）、不消耗=" + notConsumed
+				+ "（应 true）、未记用过=" + notUsed + "（应 true）、痛悔短祷无标记合成被拦并退料="
+				+ contritionBlocked + "（应 true）、补上标记后可用=" + allowedWithMark + "（应 true）");
+
+		// 收尾
+		player.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+		com.summy.reliquary.item.ActOfContritionItem.resetUsed(player);
+		com.summy.reliquary.item.ActOfContritionItem.resetNotified(player);
+		com.summy.reliquary.item.ActOfContritionItem.forget(player);
+		player.getInventory().clearContent();
+		resetDemonPactState(player);
 	}
 
 	/** 1.8.0：激活的硬前置 —— 必须佩戴七罪之源，且该罪处于未激活 */

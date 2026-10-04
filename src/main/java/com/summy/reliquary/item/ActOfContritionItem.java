@@ -45,6 +45,8 @@ public class ActOfContritionItem extends Item {
 	public static final String USED_KEY = "contrition_used";
 	/** 「已经用过」的三行提示只发一次的标记 */
 	public static final String NOTIFIED_KEY = "contrition_notified";
+	/** 1.8.1：没有恶魔标记时的提示语言键（单行；与其它失败提示共用同一套 5 秒节流） */
+	public static final String FAIL_NEED_DEMON = "message.summy-reliquary.contrition.need_demon";
 	/** 允许的水平距离（格） */
 	private static final double RADIUS = 8.0D;
 	/** 同一失败原因的最短提示间隔（tick）：5 秒 */
@@ -150,6 +152,11 @@ public class ActOfContritionItem extends Item {
 		// 1.6.0：邪恶度达到 666 之后永久锁定天使线 —— 拒绝使用且**不消耗**
 		if (com.summy.reliquary.effect.PlayerFlags.isHellLocked(serverPlayer)) {
 			sendLines(serverPlayer, hellLockedLines());
+			return InteractionResultHolder.fail(stack);
+		}
+		// 1.8.1：忏悔的前提是"当前正与它立约" —— 没有恶魔标记就没有可忏悔的对象
+		if (!com.summy.reliquary.effect.PlayerFlags.isDemon(serverPlayer)) {
+			speakNeedDemon(serverPlayer, serverPlayer.serverLevel().getGameTime());
 			return InteractionResultHolder.fail(stack);
 		}
 		// ① 已经用过：三行提示终身只发一次，之后静默（但仍照常失败、不消耗）
@@ -296,6 +303,13 @@ public class ActOfContritionItem extends Item {
 	private static void speakFailure(ServerPlayer player, String failureKey, long gameTime) {
 		if (claimFailureSlot(player, failureKey, gameTime)) {
 			sendLines(player, failureLines(failureKey));
+		}
+	}
+
+	/** 1.8.1：没有恶魔标记时的单行提示（复用同一套 5 秒节流，不与位置失败互相影响） */
+	private static void speakNeedDemon(ServerPlayer player, long gameTime) {
+		if (claimFailureSlot(player, FAIL_NEED_DEMON, gameTime)) {
+			sendLines(player, List.of(Component.translatable(FAIL_NEED_DEMON).withStyle(color(GRAY))));
 		}
 	}
 

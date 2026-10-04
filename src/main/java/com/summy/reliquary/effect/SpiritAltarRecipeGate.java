@@ -29,8 +29,8 @@ import java.util.Map;
  * <p>救恩的判据同样是天使标记，但它**在 JEI 里永久隐藏**（{@link Lock#ALWAYS_HIDDEN}）——
  * 这是 1.5.6 起就有的行为，本轮保持不变。
  *
- * <p>另外这里还管「三位一体」的**退还三件套**：那张配方没有门槛，但按需求**只实耗心之碎片**，
- * 肉体 / 思想 / 灵魂在取产物时原样退回（{@link #RETURNED}）。
+ * <p>另外这里还管「三位一体」的**退还三件套**：1.8.1 起那张配方也**需要天使标记**（未持标记时收走产物
+ * 并退回全部材料），通过后按需求**只实耗心之碎片**，肉体 / 思想 / 灵魂在取产物时原样退回（{@link #RETURNED}）。
  */
 public final class SpiritAltarRecipeGate {
 	/** 门禁类型 */
@@ -44,7 +44,9 @@ public final class SpiritAltarRecipeGate {
 		/** 1.7.6：献祭匕首的「防丢失配方」—— 只有"长时间没有匕首"时才开放 */
 		DAGGER_LOST,
 		/** 1.7.9：圣光短矛的「防丢失配方」—— 只有"曾获得过 + 长时间没有长矛"且仍有天使标记时才开放 */
-		SPEAR_LOST
+		SPEAR_LOST,
+		/** 1.8.1：需要**当前**持恶魔标记（痛悔短祷：没有约就没有可忏悔的对象） */
+		DEMON
 	}
 
 	/** 一条门禁：判据类型 + 不满足时要退回的全部材料 */
@@ -78,6 +80,10 @@ public final class SpiritAltarRecipeGate {
 				new ItemStack(Items.ECHO_SHARD, 4), new ItemStack(Items.DRAGON_HEAD),
 				new ItemStack(Items.NETHER_STAR, 2), new ItemStack(SummyReliquary.FINAL_REVELATION.get()),
 				new ItemStack(SummyReliquary.TRINITY.get())));
+		// 1.8.1：三位一体同样需要天使标记（被拦时退回全部材料；通过后由下面的 RETURNED 再退还三件套）
+		register(SummyReliquary.TRINITY.get(), Lock.ANGEL, List.of(
+				new ItemStack(SummyReliquary.THE_BODY.get()), new ItemStack(SummyReliquary.THE_MIND.get()),
+				new ItemStack(SummyReliquary.THE_SOUL.get()), new ItemStack(SummyReliquary.HEART_SHARD.get())));
 		// 圣心（1.7.1 修正：以前它的配方完全没门禁，JEI 里谁都看得到）
 		register(SummyReliquary.SACRED_HEART.get(), Lock.ANGEL, List.of(
 				new ItemStack(SummyReliquary.HEART_SHARD.get(), 6),
@@ -105,8 +111,12 @@ public final class SpiritAltarRecipeGate {
 		register(SummyReliquary.CEREMONIAL_ROBES.get(), Lock.SIGNED, List.of(
 				new ItemStack(Items.GOLD_INGOT, 3), new ItemStack(Items.BLACK_WOOL, 5),
 				new ItemStack(Items.NETHERITE_SCRAP)));
+		// ===== 痛悔短祷（1.8.1）：需要当前持恶魔标记，否则 JEI 隐藏 + 服务端拦合成并退料 =====
+		register(SummyReliquary.ACT_OF_CONTRITION.get(), Lock.DEMON, List.of(
+				new ItemStack(SummyReliquary.WOODEN_CROSS.get()), new ItemStack(Items.FEATHER),
+				new ItemStack(Items.PAPER), new ItemStack(Items.GLOW_INK_SAC), new ItemStack(Items.GOLD_BLOCK)));
 
-		// ===== 三位一体：无门槛，但只实耗心之碎片 → 取产物时退还三件套 =====
+		// ===== 三位一体：需要天使标记（1.8.1 起），且只实耗心之碎片 → 通过时退还三件套 =====
 		RETURNED.put(SummyReliquary.TRINITY.get(), List.of(
 				new ItemStack(SummyReliquary.THE_BODY.get()),
 				new ItemStack(SummyReliquary.THE_MIND.get()),
@@ -168,6 +178,7 @@ public final class SpiritAltarRecipeGate {
 	private static boolean allowed(ServerPlayer player, Lock lock) {
 		return switch (lock) {
 			case ANGEL, ALWAYS_HIDDEN -> PlayerFlags.hasAngel(player);
+			case DEMON -> PlayerFlags.isDemon(player);
 			case SIGNED -> PlayerFlags.isDemonSealed(player) || PlayerFlags.isDemon(player);
 			case DAGGER_LOST -> DaggerRecovery.isOpen(player);
 			// 1.7.9：丢失态 + 天使标记（两个条件都要满足）
@@ -179,6 +190,7 @@ public final class SpiritAltarRecipeGate {
 	private static String lockHint(Lock lock) {
 		return switch (lock) {
 			case SIGNED -> "item.summy-reliquary.demon.required";
+			case DEMON -> com.summy.reliquary.item.ActOfContritionItem.FAIL_NEED_DEMON;
 			case DAGGER_LOST -> "message.summy-reliquary.recipe.dagger_present";
 			case SPEAR_LOST -> "message.summy-reliquary.recipe.spear_present";
 			case ANGEL, ALWAYS_HIDDEN -> "message.summy-reliquary.recipe.angel_locked";
@@ -192,13 +204,14 @@ public final class SpiritAltarRecipeGate {
 	 * {@code EvilUnlock.gatedRecipes()} 那套单独处理。
 	 */
 	public static Map<ResourceLocation, Boolean> jeiVisibility(boolean angel, boolean signed,
-			boolean daggerLost, boolean spearLost) {
+			boolean demon, boolean daggerLost, boolean spearLost) {
 		Map<ResourceLocation, Boolean> wanted = new LinkedHashMap<>();
 		GATES.forEach((item, gate) -> wanted.put(
 				net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item),
 				switch (gate.lock()) {
 					case ANGEL -> angel;
 					case SIGNED -> signed;
+					case DEMON -> demon;
 					case ALWAYS_HIDDEN -> false;
 					case DAGGER_LOST -> daggerLost;
 					case SPEAR_LOST -> spearLost && angel;
