@@ -59,6 +59,13 @@ Thank you to every player for your support and feedback.
 - **栏位 / HUD / 效果图标**（`textures/slot/*.png`、`textures/gui/soul_heart/*.png`、
   `textures/gui/demon_black_heart/*.png`、`textures/mob_effect/*.png`）：作者自绘。
 
+## 代码参考
+
+- **箭矢追踪（圣心）**的制导思路参考了**合作者 mofeng945** 的 [TinkersNewlife](https://github.com/mofeng945/TinkersNewlife)
+  中 `src/main/java/com/mofengbaizhi/tinkersnewlife/content/entity/SwordGuidance.java`（飞剑制导）。
+  当前只借鉴三项：正后方 180° 兜底、小角度死区、追踪半径的球体距离判定；
+  具体改法与验收标准记录在 `docs/SummyReliquary-待办与借鉴.md`（尚未实施）。
+
 ## 依赖与兼容
 
 - [Forge](https://files.minecraftforge.net/) `47.4.10`（Minecraft 1.20.1）：模组加载器（**必需**）。
