@@ -102,6 +102,8 @@ public class ThePactItem extends Item implements ICurioItem {
 					// 1.6.4：邪恶度显示一位小数（键与文案不变）
 					String.format(java.util.Locale.ROOT, "%.1f", DemonPact.evilExact(self)),
 					String.valueOf(ReliquaryConfig.evilMax()));
+			// 1.8.2：提供方声明为谁提供联动
+			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.the_pact.linkage");
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
 		}

@@ -103,6 +103,9 @@ public class FinalRevelationItem extends Item implements ICurioItem {
 					com.summy.reliquary.config.ReliquaryConfig.starDamagePercent());
 			tooltip.add(Component.translatable("item.summy-reliquary.final_revelation.desc.3")
 					.withStyle(ChatFormatting.GRAY));
+			// 1.8.2：提供方声明为谁提供联动
+			ReliquaryTooltips.statLine(tooltip, com.summy.reliquary.text.ReliquaryFaction.ANGEL,
+					"item.summy-reliquary.final_revelation.linkage");
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
 		}

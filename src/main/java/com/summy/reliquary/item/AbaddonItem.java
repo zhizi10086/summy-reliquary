@@ -58,13 +58,20 @@ public class AbaddonItem extends Item implements ICurioItem {
 		}
 
 		if (ReliquaryTooltips.shiftDown()) {
-			// 五行「你即是 x，……」：按 | 拆两段、各上一色（恶魔线深红 + 亮红）
-			for (int index = 1; index <= 5; index++) {
+			// 六行功能：按 | 拆两段、各上一色（恶魔线深红 + 亮红）
+			for (int index = 1; index <= 6; index++) {
 				ReliquaryTooltips.statLine(tooltip, com.summy.reliquary.text.ReliquaryFaction.DEMON,
 						"item.summy-reliquary.abaddon.shift." + index);
 			}
+		} else if (ReliquaryTooltips.altDown()) {
+			// 五行诗句「你即是 x，……」
+			for (int index = 1; index <= 5; index++) {
+				ReliquaryTooltips.statLine(tooltip, com.summy.reliquary.text.ReliquaryFaction.DEMON,
+						"item.summy-reliquary.abaddon.alt." + index);
+			}
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
+			tooltip.add(ReliquaryTooltips.altHint());
 		}
 	}
 

@@ -43,6 +43,10 @@ public final class HolyMantle {
 			event.setCanceled(true);
 			return;
 		}
+		// 1.8.2：献祭的自伤不算"受击" —— 不触发斗篷的无敌窗口
+		if (com.summy.reliquary.effect.Sacrifice.isSelfDamage(event.getSource())) {
+			return;
+		}
 		if (event.getAmount() <= 0.0F) {
 			return;
 		}

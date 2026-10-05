@@ -301,6 +301,7 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.BooleanValue HELLFIRE_HALVES_RESISTANCE_WITH_ABADDON;
 	// ===== 亚巴顿（1.6.8） =====
 	private static final ForgeConfigSpec.BooleanValue ENABLE_ABADDON;
+	private static final ForgeConfigSpec.DoubleValue ABADDON_BEAM_CHARGE_SECONDS;
 	private static final ForgeConfigSpec.IntValue ABADDON_BEAM_DAMAGE_PER_TICK;
 	private static final ForgeConfigSpec.IntValue ABADDON_BEAM_LENGTH;
 	private static final ForgeConfigSpec.IntValue ABADDON_BEAM_RADIUS;
@@ -391,6 +392,22 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.DoubleValue SHADOW_ABADDON_CONTACT_RADIUS;
 	/** 亚巴顿联动：强力斩击半径加成（格，1.7.10） */
 	private static final ForgeConfigSpec.DoubleValue SHADOW_ABADDON_HEAVY_RADIUS;
+
+	// ===== 献祭（1.8.2：献祭匕首的右键技能） =====
+	/** 献祭：总开关 */
+	private static final ForgeConfigSpec.BooleanValue ENABLE_SACRIFICE;
+	/** 献祭：对自身造成的伤害点数（不致死） */
+	private static final ForgeConfigSpec.DoubleValue SACRIFICE_SELF_DAMAGE;
+	/** 献祭：近战增伤（百分比，随时间线性衰减到 0） */
+	private static final ForgeConfigSpec.IntValue SACRIFICE_DAMAGE_PERCENT;
+	/** 献祭：增伤持续秒数 */
+	private static final ForgeConfigSpec.DoubleValue SACRIFICE_DURATION_SECONDS;
+	/** 献祭：冷却秒数 */
+	private static final ForgeConfigSpec.IntValue SACRIFICE_COOLDOWN_SECONDS;
+
+	// ===== 神圣行动（1.8.2：神性回溯 / 亚巴顿恶魔形态的 X 键） =====
+	/** X 技能：长按蓄力秒数 */
+	private static final ForgeConfigSpec.DoubleValue DIVINE_ACTION_CHARGE_SECONDS;
 
 	// ===== 金刀片（1.7.10：无属性、右键投掷、固定伤害、可穿透） =====
 	private static final ForgeConfigSpec.BooleanValue ENABLE_GOLDEN_RAZOR;
@@ -919,6 +936,9 @@ public final class ReliquaryConfig {
 		builder.comment("亚巴顿（1.6.8）：启示之座的恶魔侧终极饰品；继承并强化硫磺火、死亡时拦截复活")
 				.push("abaddon");
 		ENABLE_ABADDON = builder.comment("是否启用亚巴顿").define("enable_abaddon", true);
+		ABADDON_BEAM_CHARGE_SECONDS = builder
+				.comment("亚巴顿继承的恶魔之焰：长按 V 的蓄力秒数（1.8.2 起专属 1.0 秒，硫磺火仍走 [brimstone]）")
+				.defineInRange("beam_charge_seconds", 1.0D, 0.1D, 60.0D);
 		ABADDON_BEAM_DAMAGE_PER_TICK = builder
 				.comment("亚巴顿继承的恶魔之焰：每次结算的狱火（真伤）点数")
 				.defineInRange("beam_damage_per_tick", 9, 0, 100000);
@@ -1023,6 +1043,31 @@ public final class ReliquaryConfig {
 		SHADOW_ABADDON_HEAVY_RADIUS = builder
 				.comment("亚巴顿联动：佩戴亚巴顿时强力斩击半径加成（格，1.7.10）")
 				.defineInRange("abaddon_heavy_radius_bonus", 2.0D, 0.0D, 16.0D);
+		builder.pop();
+
+		builder.comment("献祭（1.8.2）：献祭匕首的右键技能 —— 自损换近战增伤，随时间线性衰减")
+				.push("sacrifice");
+		ENABLE_SACRIFICE = builder.comment("献祭：总开关")
+				.define("enable_sacrifice", true);
+		SACRIFICE_SELF_DAMAGE = builder
+				.comment("献祭：对自身造成的伤害点数（2 心 = 4；结算前钳到「当前生命 − 1」，绝不致死）")
+				.defineInRange("self_damage", 4.0D, 0.0D, 1024.0D);
+		SACRIFICE_DAMAGE_PERCENT = builder
+				.comment("献祭：近战增伤（百分比；只对严格左键近战生效）")
+				.defineInRange("damage_percent", 40, 0, 1000);
+		SACRIFICE_DURATION_SECONDS = builder
+				.comment("献祭：增伤持续秒数（从满值线性衰减到 0）")
+				.defineInRange("duration_seconds", 8.0D, 0.1D, 600.0D);
+		SACRIFICE_COOLDOWN_SECONDS = builder
+				.comment("献祭：冷却秒数（右键成功后计入物品冷却，图标会显示冷却扇形）")
+				.defineInRange("cooldown_seconds", 8, 0, 86400);
+		builder.pop();
+
+		builder.comment("神圣行动（1.8.2）：神性「回溯」/ 亚巴顿「恶魔形态」的 X 键蓄力")
+				.push("divine_action");
+		DIVINE_ACTION_CHARGE_SECONDS = builder
+				.comment("X 技能：长按蓄力秒数（满蓄力才生效，松手取消）")
+				.defineInRange("charge_seconds", 1.0D, 0.1D, 60.0D);
 		builder.pop();
 
 		builder.comment("金刀片（1.7.10：无属性武器，右键投掷、固定伤害、可穿透生物）").push("golden_razor");
@@ -2006,6 +2051,50 @@ public final class ReliquaryConfig {
 		return doubleOr(SHADOW_ABADDON_HEAVY_RADIUS, 2.0D);
 	}
 
+	// ==================== 献祭（1.8.2） ====================
+
+	/** 献祭：总开关 */
+	public static boolean enableSacrifice() {
+		return boolOr(ENABLE_SACRIFICE, true);
+	}
+
+	/** 献祭：对自身造成的伤害点数 */
+	public static double sacrificeSelfDamage() {
+		return doubleOr(SACRIFICE_SELF_DAMAGE, 4.0D);
+	}
+
+	/** 献祭：近战增伤（百分比） */
+	public static int sacrificeDamagePercent() {
+		return intOr(SACRIFICE_DAMAGE_PERCENT, 40);
+	}
+
+	/** 献祭：增伤持续（tick） */
+	public static int sacrificeDurationTicks() {
+		return Math.max(1, (int) Math.round(doubleOr(SACRIFICE_DURATION_SECONDS, 8.0D) * 20.0D));
+	}
+
+	/** 献祭：增伤持续（秒，供提示用） */
+	public static double sacrificeDurationSeconds() {
+		return doubleOr(SACRIFICE_DURATION_SECONDS, 8.0D);
+	}
+
+	/** 献祭：冷却（tick） */
+	public static int sacrificeCooldownTicks() {
+		return Math.max(0, intOr(SACRIFICE_COOLDOWN_SECONDS, 8)) * 20;
+	}
+
+	// ==================== 神圣行动（1.8.2） ====================
+
+	/** X 技能：长按蓄力秒数 */
+	public static double divineActionChargeSeconds() {
+		return doubleOr(DIVINE_ACTION_CHARGE_SECONDS, 1.0D);
+	}
+
+	/** X 技能：长按蓄力（tick，默认 1 秒 = 20） */
+	public static int divineActionChargeTicks() {
+		return Math.max(1, (int) Math.round(divineActionChargeSeconds() * 20.0D));
+	}
+
 	// ==================== 金刀片（1.7.10） ====================
 
 	/** 金刀片：总开关 */
@@ -2311,6 +2400,11 @@ public final class ReliquaryConfig {
 	/** 亚巴顿继承的恶魔之焰：每次结算的狱火（真伤）点数 */
 	public static int abaddonBeamDamagePerTick() {
 		return intOr(ABADDON_BEAM_DAMAGE_PER_TICK, 9);
+	}
+
+	/** 亚巴顿继承的恶魔之焰：长按 V 的蓄力（tick，默认 1.0 秒） */
+	public static int abaddonBeamChargeTicks() {
+		return Math.max(1, (int) Math.round(doubleOr(ABADDON_BEAM_CHARGE_SECONDS, 1.0D) * 20.0D));
 	}
 
 	/** 亚巴顿继承的恶魔之焰：火柱长度（格） */

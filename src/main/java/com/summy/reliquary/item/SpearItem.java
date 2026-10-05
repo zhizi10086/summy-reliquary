@@ -147,6 +147,11 @@ public class SpearItem extends SwordItem {
 	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip,
 			TooltipFlag flag) {
 		ReliquaryTooltips.angelFlavorLine(tooltip, nameKey + ".tagline.1");
+		// 1.8.2：没有天使标记时与其它天使线饰品一致 —— 不可查阅功能
+		if (ReliquaryTooltips.weaponLocked(stack.getItem())) {
+			ReliquaryTooltips.appendWeaponHint(tooltip, stack.getItem());
+			return;
+		}
 		if (ReliquaryTooltips.shiftDown()) {
 			ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.1");
 			if (throwable) {

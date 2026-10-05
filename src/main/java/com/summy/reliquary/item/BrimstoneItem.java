@@ -76,6 +76,8 @@ public class BrimstoneItem extends Item implements ICurioItem {
 			ReliquaryTooltips.narrativeLine(tooltip, "item.summy-reliquary.brimstone.shift.2");
 			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.brimstone.shift.3",
 					String.valueOf(ReliquaryConfig.brimstoneCooldownSeconds()));
+			// 1.8.2：提供方声明为谁提供联动
+			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.brimstone.linkage");
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
 		}

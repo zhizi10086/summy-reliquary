@@ -120,6 +120,8 @@ public final class ReliquaryEvents {
 		com.summy.reliquary.effect.CombatTuning.clear();
 		com.summy.reliquary.effect.DamagePools.clear();
 		com.summy.reliquary.effect.Abaddon.clear();
+		com.summy.reliquary.effect.Godhead.clearGuards();
+		com.summy.reliquary.effect.Sacrifice.clear();
 	}
 
 	/**
@@ -155,6 +157,10 @@ public final class ReliquaryEvents {
 		clearDemonFire(player);
 		// 亚巴顿（1.6.8）：恶魔光环每 tick 结算 + 球内黑烟；顺带清理过期的无敌记录
 		com.summy.reliquary.effect.Abaddon.tickPlayer(player);
+		// 神性（1.8.2）：清理过期的"死亡拦截后 2 秒无敌"记录
+		com.summy.reliquary.effect.Godhead.tickPlayer(player);
+		// 献祭（1.8.2）：清理过期的近战增伤记录
+		com.summy.reliquary.effect.Sacrifice.tickPlayer(player);
 		// 七罪：每 tick 的即时压制（暴食的饥饿上限必须是每 tick 生效，否则吃东西后会闪回 19/20）
 		SinEffects.tickPlayerEveryTick(player);
 		com.summy.reliquary.effect.VirtuesEffects.tickPlayerEveryTick(player);
@@ -185,6 +191,8 @@ public final class ReliquaryEvents {
 			com.summy.reliquary.effect.OccultEye.tickPlayer(player);
 			// 圣心 / 神性（1.6.7）：每秒清掉身上已有的黑暗与恐惧（拦住"先中招、后戴上"的情况）
 			com.summy.reliquary.effect.DivineImmunity.tickPlayer(player);
+			// 神性 / 亚巴顿（1.8.2）：每秒清掉身上已有的**原版负面效果**
+			com.summy.reliquary.effect.DebuffImmunity.tickPlayer(player);
 			// 光环（1.7.1）：获取过启示后，低血时每秒刷新「生命回复」
 			com.summy.reliquary.effect.HaloBlessing.tickPlayer(player);
 			// 栏位阶段化（1.6.2）：灵台 / 启示之座 / 加护的格数按当前阶段校正
@@ -231,6 +239,12 @@ public final class ReliquaryEvents {
 		}
 		if (event.getEntity() instanceof ServerPlayer victim) {
 			com.summy.reliquary.sin.SinEffects.onPlayerDeath(victim);
+			// 1.8.2：记录死亡地点，供神性「回溯」（X）使用
+			com.summy.reliquary.effect.PlayerFlags.setLastDeath(victim,
+					victim.level().dimension().location().toString(),
+					victim.getX(), victim.getY(), victim.getZ());
+			// 1.8.2：献祭的近战增伤不跨死亡保留
+			com.summy.reliquary.effect.Sacrifice.forget(victim);
 		}
 		// 心之碎片：带启示之光的生物死亡时按几率掉落（1.5.6）
 		com.summy.reliquary.effect.HeartShardDrop.onDeath(event.getEntity(), event.getSource().getEntity());
@@ -384,6 +398,8 @@ public final class ReliquaryEvents {
 			// 1.6.4：还原可能残留的"临时并入吸收值"，并清掉挂起记录
 			com.summy.reliquary.effect.DamagePools.forget(player);
 			com.summy.reliquary.effect.Abaddon.forget(player);
+			com.summy.reliquary.effect.Godhead.forget(player);
+			com.summy.reliquary.effect.Sacrifice.forget(player);
 			RevelationAscension.forget(player);
 			RevelationBeam.forget(player);
 			AttributeManager.forget(player);
@@ -603,6 +619,11 @@ public final class ReliquaryEvents {
 		if (event.isCanceled()) {
 			return;
 		}
+		// 神性死亡拦截后的 2 秒无敌：同样取消一切来源的伤害（1.8.2）
+		com.summy.reliquary.effect.Godhead.onHurt(event);
+		if (event.isCanceled()) {
+			return;
+		}
 		// 免死后的 2 秒无敌：直接取消这次伤害
 		DeathImmunity.onHurt(event);
 		if (event.isCanceled()) {
@@ -643,7 +664,7 @@ public final class ReliquaryEvents {
 				float virtueDamage = com.summy.reliquary.effect.VirtuesEffects.modifyOutgoingDamage(
 						attacker, event.getEntity(), event.getSource(), sinDamage);
 				// 圣心 + 神性：同一个「全伤害最终倍率」乘区（相加），并且不吃到本模组的神性伤害上
-				event.setAmount(virtueDamage * finalDamageMultiplier(attacker));
+				event.setAmount(virtueDamage * finalDamageMultiplier(attacker, event.getSource()));
 			}
 			// 恶魔契约（1.6.0）：诅咒 > 阈值时按本次出伤值吸血（口径同 ER 嗜血）
 			if (com.summy.reliquary.effect.DemonPact.lifestealActive(attacker)) {
@@ -652,7 +673,9 @@ public final class ReliquaryEvents {
 			}
 		}
 		// 七罪：受害者是本模组玩家时的受伤增加与色欲受击脱甲
-		if (event.getEntity() instanceof ServerPlayer victim && !event.isCanceled()) {
+		// 1.8.2：献祭的自伤不触发傲慢放大与色欲脱甲
+		if (event.getEntity() instanceof ServerPlayer victim && !event.isCanceled()
+				&& !com.summy.reliquary.effect.Sacrifice.isSelfDamage(event.getSource())) {
 			event.setAmount(SinEffects.modifyIncomingDamage(victim, event.getAmount()));
 		}
 
@@ -676,6 +699,13 @@ public final class ReliquaryEvents {
 	@SubscribeEvent
 	public static void onEffectApplicable(net.minecraftforge.event.entity.living.MobEffectEvent.Applicable event) {
 		if (event.getEntity().level().isClientSide()) {
+			return;
+		}
+		// 1.8.2：佩戴神性 / 亚巴顿时，所有**原版**负面效果一律拦住
+		// （必须放在前面的免疫判定之前：亚巴顿不在 DivineImmunity 的名单里）
+		if (com.summy.reliquary.effect.DebuffImmunity.covers(event.getEntity())
+				&& com.summy.reliquary.effect.DebuffImmunity.blocks(event.getEffectInstance().getEffect())) {
+			event.setResult(net.minecraftforge.eventbus.api.Event.Result.DENY);
 			return;
 		}
 		if (!com.summy.reliquary.effect.DivineImmunity.immune(event.getEntity())) {
@@ -767,7 +797,8 @@ public final class ReliquaryEvents {
 	// 圣心 + 神性的「全伤害最终倍率」：两者同属一个乘区，相加后一次性相乘
 	// （同时佩戴 = ×1.5，而不是 ×1.56）。调用点已经排除了本模组的神性伤害
 	// （圣光 / 光柱 / 领域），所以不会出现"圣光伤害再乘一遍"的重复计算。
-	private static float finalDamageMultiplier(ServerPlayer attacker) {
+	private static float finalDamageMultiplier(ServerPlayer attacker,
+			net.minecraft.world.damagesource.DamageSource source) {
 		double percent = 0.0D;
 		if (CurioHelper.wears(attacker, SummyReliquary.SACRED_HEART.get())) {
 			percent += ReliquaryConfig.sacredHeartDamagePercent();
@@ -777,6 +808,10 @@ public final class ReliquaryEvents {
 		}
 		// 恶魔契约（1.6.0）：契约 16% + 邪恶度（奇偶交替）也进同一个乘区
 		percent += com.summy.reliquary.effect.DemonPact.attackBonusPercent(attacker);
+		// 献祭（1.8.2）：只对严格左键近战生效，并随剩余时间线性衰减
+		if (com.summy.reliquary.effect.Sacrifice.isMeleeHit(attacker, source)) {
+			percent += com.summy.reliquary.effect.Sacrifice.bonusPercent(attacker);
+		}
 		return (float) (1.0D + percent / 100.0D);
 	}
 

@@ -53,6 +53,9 @@ public final class RespawnTeleport {
 			targetLevel = respawnLevel;
 			destination = new Vec3(respawn.getX() + 0.5D, respawn.getY() + 1.0D, respawn.getZ() + 0.5D);
 		} else {
+			// 1.8.2：没有个人重生点时按原版死亡重生处理 —— 回**主世界**共享出生点
+			// （以前用的是"当前维度"的出生点，在下界 / 末地被拦截就会留在原维度）
+			targetLevel = server.overworld();
 			BlockPos spawn = targetLevel.getSharedSpawnPos();
 			destination = new Vec3(spawn.getX() + 0.5D, spawn.getY() + 1.0D, spawn.getZ() + 0.5D);
 		}

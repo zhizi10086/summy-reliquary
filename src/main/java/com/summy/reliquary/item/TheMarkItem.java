@@ -68,21 +68,14 @@ public class TheMarkItem extends Item implements ICurioItem {
 			tooltip.add(Component.translatable("item.summy-reliquary.the_mark.shift.1")
 					.withStyle(ChatFormatting.GRAY));
 			// 1.6.3：带数值的一行按「属性名 + 数值」两段配色（恶魔线）
-			// 1.6.10：同时佩戴亚巴顿时显示联动后的伤害（60）
+			// 1.8.2：数值直接写强化后的 60
 			ReliquaryTooltips.statLine(tooltip, com.summy.reliquary.text.ReliquaryFaction.DEMON,
-					"item.summy-reliquary.the_mark.shift.2",
-					format(com.summy.reliquary.effect.Synergies
-							.shatterDamage(ReliquaryTooltips.localPlayer())));
+					"item.summy-reliquary.the_mark.shift.2");
 			tooltip.add(Component.translatable("item.summy-reliquary.the_mark.shift.3")
 					.withStyle(ChatFormatting.GRAY));
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
 		}
-	}
-
-	/** 去掉小数点后缀（40.0 → 40） */
-	private static String format(double value) {
-		return value == Math.floor(value) ? String.valueOf((long) value) : String.valueOf(value);
 	}
 
 	/** 1.6.3：物品名按派系上色（恶魔线 = 暗红底 + 亮红扫光） */

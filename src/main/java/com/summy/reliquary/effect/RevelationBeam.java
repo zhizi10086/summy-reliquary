@@ -182,10 +182,15 @@ public final class RevelationBeam {
 		return kind == BeamKind.DEMON_FLAME && wearsAbaddon(entity);
 	}
 
-	/** 蓄力 tick 数 */
-	public static int chargeTicks(BeamKind kind) {
-		return kind == BeamKind.DEMON_FLAME ? ReliquaryConfig.brimstoneChargeTicks()
-				: ReliquaryConfig.beamChargeTicks();
+	/**
+	 * 蓄力 tick 数（1.8.2：恶魔之焰按「硫磺火 / 亚巴顿」两档取，启示之光走神性覆盖）。
+	 */
+	public static int chargeTicks(net.minecraft.world.entity.LivingEntity entity, BeamKind kind) {
+		if (kind == BeamKind.DEMON_FLAME) {
+			return abyssal(entity, kind) ? ReliquaryConfig.abaddonBeamChargeTicks()
+					: ReliquaryConfig.brimstoneChargeTicks();
+		}
+		return Godhead.beamChargeTicks(entity);
 	}
 
 	/** 冷却 tick 数（启示之光按神性 / 天启的覆盖值，恶魔之焰走自己的配置） */
@@ -279,7 +284,7 @@ public final class RevelationBeam {
 		if (now < readyAt(kind, id)) {
 			return;
 		}
-		CHARGING.put(id, new Charge(kind, now, now + chargeTicks(kind) + 5L));
+		CHARGING.put(id, new Charge(kind, now, now + chargeTicks(player, kind) + 5L));
 	}
 
 	/** 该玩家是否正在蓄力（自检用） */
@@ -415,7 +420,7 @@ public final class RevelationBeam {
 		if (now % CHARGE_PARTICLE_INTERVAL != 0L) {
 			return;
 		}
-		int needed = Math.max(1, chargeTicks(charge.kind()));
+		int needed = Math.max(1, chargeTicks(player, charge.kind()));
 		double progress = (now - charge.startTick()) / (double) needed;
 		double radius = chargeRingRadius(progress);
 
@@ -440,35 +445,69 @@ public final class RevelationBeam {
 	/** 一次结算：对"此刻在圆柱体内"的生物逐个造成伤害（无视无敌帧） */
 	private static void applyDamageTick(ActiveBeam beam, long now) {
 		beam.ticksApplied++;
-		List<LivingEntity> targets = collectTargets(beam);
-		for (LivingEntity target : targets) {
+		for (LivingEntity target : collectTargets(beam)) {
 			// 无视无敌帧，保证 0.1 秒的节奏每一下都生效
 			target.invulnerableTime = 0;
 			if (target.hurt(beam.source, beam.damagePerTick)) {
 				beam.hitTargets.add(target.getUUID());
 			}
 		}
+		// 1.8.2：末地水晶不是生物，单独结算 —— 打中即按原版规则引爆
+		for (net.minecraft.world.entity.boss.enderdragon.EndCrystal crystal : collectCrystals(beam)) {
+			if (crystal.hurt(beam.source, beam.damagePerTick)) {
+				beam.hitTargets.add(crystal.getUUID());
+			}
+		}
 	}
 
 	/** 取此刻处在圆柱体内的生物（不含施法者与已死亡目标） */
 	private static List<LivingEntity> collectTargets(ActiveBeam beam) {
-		AABB box = new AABB(beam.origin, beam.origin.add(beam.direction.scale(beam.length)))
-				.inflate(beam.radius + 1.0D);
 		List<LivingEntity> targets = new ArrayList<>();
-		for (LivingEntity target : beam.level.getEntitiesOfClass(LivingEntity.class, box,
+		for (LivingEntity target : beam.level.getEntitiesOfClass(LivingEntity.class, beamBox(beam),
 				candidate -> candidate.isAlive() && !candidate.getUUID().equals(beam.casterId))) {
-			Vec3 relative = target.getBoundingBox().getCenter().subtract(beam.origin);
-			double along = relative.dot(beam.direction);
-			if (along < 0.0D || along > beam.length) {
-				continue;
+			if (inBeam(beam, target)) {
+				targets.add(target);
 			}
-			double perpendicular = relative.subtract(beam.direction.scale(along)).length();
-			if (perpendicular > beam.radius + target.getBbWidth() * 0.5D) {
-				continue;
-			}
-			targets.add(target);
 		}
 		return targets;
+	}
+
+	/**
+	 * 1.8.2：取此刻处在圆柱体内的**末地水晶**。
+	 *
+	 * <p>水晶不是 {@link LivingEntity}，原版的光柱目标收集拿不到它，所以单列一路；
+	 * 对它造成伤害会按原版规则直接引爆（可能波及地形与周围生物，与用箭矢打水晶同款）。
+	 */
+	private static List<net.minecraft.world.entity.boss.enderdragon.EndCrystal> collectCrystals(
+			ActiveBeam beam) {
+		List<net.minecraft.world.entity.boss.enderdragon.EndCrystal> crystals = new ArrayList<>();
+		for (net.minecraft.world.entity.boss.enderdragon.EndCrystal crystal
+				: beam.level.getEntitiesOfClass(
+						net.minecraft.world.entity.boss.enderdragon.EndCrystal.class, beamBox(beam),
+						candidate -> !candidate.isRemoved()
+								&& !candidate.getUUID().equals(beam.casterId))) {
+			if (inBeam(beam, crystal)) {
+				crystals.add(crystal);
+			}
+		}
+		return crystals;
+	}
+
+	/** 光柱判定用的外扩包围盒 */
+	private static AABB beamBox(ActiveBeam beam) {
+		return new AABB(beam.origin, beam.origin.add(beam.direction.scale(beam.length)))
+				.inflate(beam.radius + 1.0D);
+	}
+
+	/** 目标中心是否落在光柱圆柱体内（沿轴 0~length、径向 ≤ radius + 半宽） */
+	private static boolean inBeam(ActiveBeam beam, net.minecraft.world.entity.Entity entity) {
+		Vec3 relative = entity.getBoundingBox().getCenter().subtract(beam.origin);
+		double along = relative.dot(beam.direction);
+		if (along < 0.0D || along > beam.length) {
+			return false;
+		}
+		double perpendicular = relative.subtract(beam.direction.scale(along)).length();
+		return perpendicular <= beam.radius + entity.getBbWidth() * 0.5D;
 	}
 
 	private static DamageSource damageSource(ServerLevel level, ServerPlayer caster, String path) {

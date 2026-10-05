@@ -53,7 +53,11 @@ public class RitualDaggerItem extends SwordItem {
 		if (!(player instanceof ServerPlayer serverPlayer)) {
 			return InteractionResultHolder.pass(stack);
 		}
-		if (!ShadowDash.tryStart(serverPlayer, stack, darkArts)) {
+		// 1.8.2：暗仪刺刀仍是「遁入暗影」；献祭匕首换成「献祭」（自损换近战增伤）
+		boolean started = darkArts
+				? com.summy.reliquary.effect.ShadowDash.tryStart(serverPlayer, stack, true)
+				: com.summy.reliquary.effect.Sacrifice.tryUse(serverPlayer);
+		if (!started) {
 			return InteractionResultHolder.fail(stack);
 		}
 		return InteractionResultHolder.success(stack);
@@ -75,6 +79,11 @@ public class RitualDaggerItem extends SwordItem {
 	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip,
 			TooltipFlag flag) {
 		ReliquaryTooltips.demonFlavorLine(tooltip, nameKey + ".tagline.1");
+		// 1.8.2：未进恶魔线（暗仪刺刀还要邪恶 700）时与其它路线饰品一致 —— 不可查阅功能
+		if (ReliquaryTooltips.weaponLocked(stack.getItem())) {
+			ReliquaryTooltips.appendWeaponHint(tooltip, stack.getItem());
+			return;
+		}
 		if (ReliquaryTooltips.shiftDown()) {
 			ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.1");
 			ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.2");

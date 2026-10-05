@@ -25,7 +25,10 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 「神性」的被动（1.5.5）：继承天启的属性与光柱、救恩半径扩大、8 格光环审判、
@@ -59,6 +62,10 @@ public final class Godhead {
 
 	/** 自检用：死亡拦截次数 */
 	private static int deathGuardCount;
+	/** 1.8.2：死亡拦截后的 2 秒无敌（清掉全部状态效果的补偿窗口） */
+	private static final int GUARD_TICKS = 40;
+	/** 无敌截止时刻（游戏 tick） */
+	private static final Map<UUID, Long> GUARD_UNTIL = new HashMap<>();
 
 	private Godhead() {
 	}
@@ -209,9 +216,51 @@ public final class Godhead {
 			return false;
 		}
 		player.setHealth(1.0F);
+		// 1.8.2：拦截时清除全部状态效果，并给 2 秒无敌作为补偿
+		player.removeAllEffects();
+		GUARD_UNTIL.put(player.getUUID(), player.level().getGameTime() + GUARD_TICKS);
 		deathGuardCount++;
+		// 1.8.2：把「被拦截的地点」记为回溯点（X 可回到这里）
+		PlayerFlags.setLastDeath(player, player.level().dimension().location().toString(),
+				player.getX(), player.getY(), player.getZ());
 		teleportToRespawn(player);
 		return true;
+	}
+
+	/** 死亡拦截后的 2 秒无敌：取消一切来源的伤害 */
+	public static void onHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player && isGuarded(player)) {
+			event.setAmount(0.0F);
+			event.setCanceled(true);
+		}
+	}
+
+	/** 是否处于死亡拦截后的无敌窗口 */
+	public static boolean isGuarded(ServerPlayer player) {
+		Long until = GUARD_UNTIL.get(player.getUUID());
+		return until != null && player.level().getGameTime() < until;
+	}
+
+	/** 服务端每 tick：清理过期的无敌记录 */
+	public static void tickPlayer(ServerPlayer player) {
+		Long until = GUARD_UNTIL.get(player.getUUID());
+		if (until != null && player.level().getGameTime() >= until) {
+			GUARD_UNTIL.remove(player.getUUID());
+		}
+	}
+
+	/** 玩家退出 / 服务端停止：清掉无敌记录 */
+	public static void forget(ServerPlayer player) {
+		GUARD_UNTIL.remove(player.getUUID());
+	}
+
+	public static void clearGuards() {
+		GUARD_UNTIL.clear();
+	}
+
+	/** 自检用：2 秒无敌的 tick 数 */
+	public static int guardTicks() {
+		return GUARD_TICKS;
 	}
 
 	private static void teleportToRespawn(ServerPlayer player) {

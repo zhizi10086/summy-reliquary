@@ -369,7 +369,8 @@ public final class SinEffects {
 	public static boolean isEarlySleep(ServerPlayer player) {
 		long time = player.level().getDayTime() % 24000L;
 		long hour = (time / 1000L + 6L) % 24L;
-		return hour < ReliquaryConfig.slothSleepBeforeHour();
+		// 1.8.2：排除凌晨（0:00~5:59）—— 以前只判 hour < 20，取模回绕会把凌晨入睡也算成"早睡"
+		return hour >= 6L && hour < ReliquaryConfig.slothSleepBeforeHour();
 	}
 
 	/** 动物繁殖成功（色欲的繁殖计数） */

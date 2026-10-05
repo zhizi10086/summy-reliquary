@@ -56,15 +56,11 @@ public class VengefulSpiritItem extends Item implements ICurioItem {
 		}
 
 		if (ReliquaryTooltips.shiftDown()) {
-			// 1.6.4：文案改成两行（属性行 + 括注行），属性行的参数顺序 =（半径, 伤害）
+			// 1.8.2：受益方不设联动行，主行半径直接写强化后的 5 格
 			ReliquaryTooltips.statLine(tooltip, com.summy.reliquary.text.ReliquaryFaction.DEMON,
 					"item.summy-reliquary.vengeful_spirit.shift.1",
-					format(ReliquaryConfig.vengefulHellfireRadius()),
 					format(ReliquaryConfig.vengefulHellfireDamage()));
 			ReliquaryTooltips.narrativeLine(tooltip, "item.summy-reliquary.vengeful_spirit.shift.2");
-			// 1.6.7：与硫磺火的联动。物品提示拿不到玩家状态，所以这里写成一句静态说明
-			ReliquaryTooltips.narrativeLine(tooltip, "item.summy-reliquary.vengeful_spirit.shift.3",
-					format(ReliquaryConfig.vengefulHellfireRadiusBrimstone()));
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
 		}

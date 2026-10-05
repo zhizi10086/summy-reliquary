@@ -77,6 +77,16 @@ public final class PlayerFlags {
 	 * 属恶魔线数据，**随创世纪清除**。
 	 */
 	private static final String DAGGER_GRANTED = "dagger_granted";
+	/**
+	 * 1.8.2：神性「回溯」（X 键）用的**上一次死亡地点**（维度 id + 坐标）。
+	 *
+	 * <p>写在 {@code summy_reliquary} 根标签下，因此死亡 / 换维度会随该标签一起复制到新实体；
+	 * 与恶魔线数据无关，创世纪不清除。
+	 */
+	private static final String LAST_DEATH_DIM = "last_death_dim";
+	private static final String LAST_DEATH_X = "last_death_x";
+	private static final String LAST_DEATH_Y = "last_death_y";
+	private static final String LAST_DEATH_Z = "last_death_z";
 	/** 1.7.6：已签约玩家"连续多少秒身上没有任何一把仪式匕首" */
 	private static final String DAGGER_MISSING_SECONDS = "dagger_missing_seconds";
 	/** 1.7.6：献祭匕首的「防丢失配方」是否已开放 */
@@ -366,6 +376,39 @@ public final class PlayerFlags {
 
 	public static void setDaggerRecoveryOpen(ServerPlayer player, boolean value) {
 		set(player, DAGGER_RECOVERY_OPEN, value);
+	}
+
+	// ==================== 神性：回溯（1.8.2） ====================
+
+	/** 记录上一次死亡地点（死亡事件里调用） */
+	public static void setLastDeath(ServerPlayer player, String dimension, double x, double y, double z) {
+		CompoundTag root = mutableRoot(player);
+		root.putString(LAST_DEATH_DIM, dimension == null ? "" : dimension);
+		root.putDouble(LAST_DEATH_X, x);
+		root.putDouble(LAST_DEATH_Y, y);
+		root.putDouble(LAST_DEATH_Z, z);
+	}
+
+	/** 是否记录过死亡地点 */
+	public static boolean hasLastDeath(LivingEntity entity) {
+		return entity != null && !root(entity).getString(LAST_DEATH_DIM).isEmpty();
+	}
+
+	/** 上一次死亡地点的维度 id（没记录时为空串） */
+	public static String lastDeathDimension(LivingEntity entity) {
+		return entity == null ? "" : root(entity).getString(LAST_DEATH_DIM);
+	}
+
+	public static double lastDeathX(LivingEntity entity) {
+		return entity == null ? 0.0D : root(entity).getDouble(LAST_DEATH_X);
+	}
+
+	public static double lastDeathY(LivingEntity entity) {
+		return entity == null ? 0.0D : root(entity).getDouble(LAST_DEATH_Y);
+	}
+
+	public static double lastDeathZ(LivingEntity entity) {
+		return entity == null ? 0.0D : root(entity).getDouble(LAST_DEATH_Z);
 	}
 
 	// ==================== 圣光短矛：防丢失（1.7.9） ====================

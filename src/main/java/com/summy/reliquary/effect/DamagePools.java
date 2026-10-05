@@ -93,7 +93,9 @@ public final class DamagePools {
 				absorptionBefore);
 		// ① 整击拦下：神性死亡拦截 → 亚巴顿（有冷却）→ 灵魂免死
 		boolean nullify = false;
-		if (healthPart > 0.0F && healthPart >= player.getHealth()) {
+		// 1.8.2：献祭自伤**不做任何死亡拦截** —— 该致死就致死
+		if (healthPart > 0.0F && healthPart >= player.getHealth()
+				&& !Sacrifice.isSelfDamage(event.getSource())) {
 			nullify = Godhead.tryNullify(player, healthPart)
 					|| Abaddon.tryNullify(player, healthPart, event.getSource())
 					|| DeathImmunity.tryNullify(player, healthPart);

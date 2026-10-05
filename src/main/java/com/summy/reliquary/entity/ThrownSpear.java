@@ -136,7 +136,14 @@ public class ThrownSpear extends AbstractArrow {
 					+ EnchantmentHelper.getDamageBonus(getDisplayStack(), target instanceof LivingEntity livingTarget
 							? livingTarget.getMobType() : net.minecraft.world.entity.MobType.UNDEFINED);
 			if (damage > 0.0F) {
-				target.hurt(source, damage);
+				// 1.8.2：投掷走的是与左键近战同一个 playerAttack 源，这里打个「投掷结算中」标记，
+				// 让献祭的近战增伤明确跳过投掷（严格左键近战）
+				com.summy.reliquary.effect.Sacrifice.beginRangedResolve();
+				try {
+					target.hurt(source, damage);
+				} finally {
+					com.summy.reliquary.effect.Sacrifice.endRangedResolve();
+				}
 			}
 		}
 		markLanded();

@@ -58,20 +58,12 @@ public class HolyMantleItem extends Item implements ICurioItem {
 		}
 
 		if (ReliquaryTooltips.shiftDown()) {
-			// 1.6.3：属性名 + 数值两段配色（天使线）；1.6.10：与神性同戴时显示联动后的秒数
+			// 1.6.3：属性名 + 数值两段配色（天使线）；1.8.2：数值直接写强化后的 1.5 秒
 			ReliquaryTooltips.statLine(tooltip, com.summy.reliquary.text.ReliquaryFaction.ANGEL,
-					"item.summy-reliquary.holy_mantle.desc",
-					formatSeconds(com.summy.reliquary.effect.Synergies
-							.holyMantleInvulnerableTicks(ReliquaryTooltips.localPlayer())));
+					"item.summy-reliquary.holy_mantle.desc");
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
 		}
-	}
-
-	/** tick → 秒文本（20 → 1、30 → 1.5），去掉多余的小数点 */
-	private static String formatSeconds(int ticks) {
-		double seconds = ticks / 20.0D;
-		return seconds == Math.floor(seconds) ? String.valueOf((long) seconds) : String.valueOf(seconds);
 	}
 
 	/** 1.6.3：物品名按派系上色（天使线 = 白→金对称渐变） */

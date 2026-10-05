@@ -43,7 +43,7 @@ public final class ReliquaryTooltips {
 
 	/** 同上，直接追加到提示列表 */
 	public static void demonFlavorLine(List<Component> tooltip, String key, Object... args) {
-		tooltip.add(demonFlavor(key, args));
+		add(tooltip, demonFlavor(key, args));
 	}
 
 	/**
@@ -58,7 +58,7 @@ public final class ReliquaryTooltips {
 
 	/** 同上，直接追加到提示列表 */
 	public static void angelFlavorLine(List<Component> tooltip, String key, Object... args) {
-		tooltip.add(angelFlavor(key, args));
+		add(tooltip, angelFlavor(key, args));
 	}
 
 	/**
@@ -74,7 +74,17 @@ public final class ReliquaryTooltips {
 
 	/** 同上，直接追加到提示列表 */
 	public static void neutralFlavorLine(List<Component> tooltip, String key, Object... args) {
-		tooltip.add(neutralFlavor(key, args));
+		add(tooltip, neutralFlavor(key, args));
+	}
+
+	/**
+	 * 统一提示输出入口（1.8.2）：把一行文本按提示框宽度折成多行再追加。
+	 *
+	 * <p>折行口径与原版悬停文本一致（{@code max(窗口 GUI 宽 / 2, 200)}），配色按 style 逐段保留；
+	 * 短行折完仍是 1 行，所以调用方不必自己判断宽度。专用服务端没有字体，原样输出单行。
+	 */
+	public static void add(List<Component> tooltip, Component line) {
+		tooltip.addAll(wrap(line));
 	}
 
 	/**
@@ -84,7 +94,7 @@ public final class ReliquaryTooltips {
 	 * @param descKey    按住 Shift 时显示的功能描述语言键
 	 */
 	public static void append(List<Component> tooltip, String taglineKey, String descKey) {
-		tooltip.add(Component.translatable(taglineKey).withStyle(ChatFormatting.GRAY));
+		add(tooltip, Component.translatable(taglineKey).withStyle(ChatFormatting.GRAY));
 		appendShiftLine(tooltip, descKey);
 	}
 
@@ -97,7 +107,7 @@ public final class ReliquaryTooltips {
 	public static void appendShiftLine(List<Component> tooltip, String descKey, Object... args) {
 		if (shiftDown()) {
 			// 功能描述行用浅灰，比提示行更显眼
-			tooltip.add(Component.translatable(descKey, args).withStyle(ChatFormatting.GRAY));
+			add(tooltip, Component.translatable(descKey, args).withStyle(ChatFormatting.GRAY));
 		} else {
 			tooltip.add(shiftHint());
 		}
@@ -108,6 +118,11 @@ public final class ReliquaryTooltips {
 		return Component.translatable("item.summy-reliquary.shift_hint").withStyle(ChatFormatting.DARK_GRAY);
 	}
 
+	/** 「按住 <Alt> 查看介绍」提示行 */
+	public static MutableComponent altHint() {
+		return Component.translatable("item.summy-reliquary.alt_hint").withStyle(ChatFormatting.DARK_GRAY);
+	}
+
 	/**
 	 * 「属性名 + 数值」两段配色的提示行（1.6.3）。
 	 *
@@ -116,7 +131,7 @@ public final class ReliquaryTooltips {
 	 */
 	public static void statLine(List<Component> tooltip,
 			com.summy.reliquary.text.ReliquaryFaction faction, String key, Object... args) {
-		tooltip.add(statComponent(faction, key, args));
+		add(tooltip, statComponent(faction, key, args));
 	}
 
 	/**
@@ -140,7 +155,7 @@ public final class ReliquaryTooltips {
 
 	/** 叙述句行（不含数值）：统一灰色，供"属性行 + 说明行"拆分后的说明部分复用 */
 	public static void narrativeLine(List<Component> tooltip, String key, Object... args) {
-		tooltip.add(Component.translatable(key, args).withStyle(ChatFormatting.GRAY));
+		add(tooltip, Component.translatable(key, args).withStyle(ChatFormatting.GRAY));
 	}
 
 	/**
@@ -205,6 +220,30 @@ public final class ReliquaryTooltips {
 		tooltip.add(Component.translatable(signed
 						? "item.summy-reliquary.demon.not_ready"
 						: "item.summy-reliquary.demon.required")
+				.withStyle(ChatFormatting.GRAY));
+	}
+
+	/**
+	 * 四把仪式武器是否处于「未进对应路线」的锁定态（1.8.2）。
+	 *
+	 * <p>判据与右键技能 / 左键伤害完全同源（{@code WeaponGates#qualified}）：
+	 * 献祭匕首＝当前持恶魔标记、暗仪刺刀＝恶魔标记 + 邪恶 700、两把长矛＝天使标记。
+	 * 服务端没有本地玩家 → 返回 false（不额外加行）。
+	 */
+	public static boolean weaponLocked(net.minecraft.world.item.Item item) {
+		return weaponLocked(localPlayer(), item);
+	}
+
+	/** 同上，但显式传入实体（自检 / 纯函数复用） */
+	public static boolean weaponLocked(LivingEntity entity, net.minecraft.world.item.Item item) {
+		return entity != null && !com.summy.reliquary.effect.WeaponGates.qualified(entity, item);
+	}
+
+	/** 武器未达标时追加的门槛提示行（匕首两态 / 长矛一态，文案复用 WeaponGates 的判据） */
+	public static void appendWeaponHint(List<Component> tooltip, net.minecraft.world.item.Item item) {
+		LivingEntity entity = localPlayer();
+		add(tooltip, Component.translatable(
+						com.summy.reliquary.effect.WeaponGates.hintKey(entity, item))
 				.withStyle(ChatFormatting.GRAY));
 	}
 

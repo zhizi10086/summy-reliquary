@@ -32,4 +32,16 @@ public final class ReliquaryClientTicks {
 	public static void onClientTick(TickEvent.ClientTickEvent event) {
 		SummyReliquaryClient.ForgeBus.onClientTick(event);
 	}
+
+	/**
+	 * 视野收缩（1.8.2 修）：启示之光 / 五芒星签约 / X 技能蓄力三处的 FOV 反馈。
+	 *
+	 * <p>以前这个处理器写在 {@code SummyReliquaryClient.ForgeBus} 里 —— 与上面的 tick 同一个坑：
+	 * 嵌套类的 FORGE 事件不会被注册，所以三处 FOV 收缩**从来没有生效过**。这里与 tick 一样
+	 * 用顶层转发，真正的逻辑仍在 {@code SummyReliquaryClient.ForgeBus#onComputeFov} 里。
+	 */
+	@SubscribeEvent
+	public static void onComputeFov(net.minecraftforge.client.event.ViewportEvent.ComputeFov event) {
+		SummyReliquaryClient.ForgeBus.onComputeFov(event);
+	}
 }

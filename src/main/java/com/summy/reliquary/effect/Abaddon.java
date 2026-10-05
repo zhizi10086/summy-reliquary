@@ -88,6 +88,9 @@ public final class Abaddon {
 		long now = player.level().getGameTime();
 		// 环境伤害：只送回重生点（保持当前血量），不给效果、不吃冷却
 		if (isEnvironmentDamage(source)) {
+			// 1.8.2：把「被送走的地点」记为回溯点（与神性拦截同口径）
+			PlayerFlags.setLastDeath(player, player.level().dimension().location().toString(),
+					player.getX(), player.getY(), player.getZ());
 			teleportToRespawn(player);
 			if (player.getHealth() <= 0.0F) {
 				player.setHealth(1.0F);
@@ -98,6 +101,29 @@ public final class Abaddon {
 			return false;
 		}
 		// 被击杀：满血 + 清空负面 + 8 秒无敌 + 8 秒恶魔光环 + 冷却
+		activateForm(player, now);
+		return true;
+	}
+
+	/**
+	 * 1.8.2：**主动**激活恶魔形态（X 键，与被动共用同一个 1200 秒冷却）。
+	 *
+	 * @return true 表示成功激活（佩戴亚巴顿且冷却已好）
+	 */
+	public static boolean activateManually(ServerPlayer player) {
+		if (player == null || !wears(player)) {
+			return false;
+		}
+		long now = player.level().getGameTime();
+		if (!reviveReady(player, now)) {
+			return false;
+		}
+		activateForm(player, now);
+		return true;
+	}
+
+	/** 恶魔形态的落地效果（被动拦截与主动激活共用） */
+	private static void activateForm(ServerPlayer player, long now) {
 		reviveCount++;
 		player.setHealth(player.getMaxHealth());
 		clearHarmfulEffects(player);
@@ -106,7 +132,12 @@ public final class Abaddon {
 		AURA_UNTIL.put(player.getUUID(), until);
 		PlayerFlags.setAbaddonReviveReadyAt(player, now + ReliquaryConfig.abaddonReviveCooldownTicks());
 		playReviveEffects(player);
-		return true;
+	}
+
+	/** 恶魔形态剩余冷却秒数（向上取整；0 = 可用） */
+	public static int cooldownSecondsLeft(ServerPlayer player) {
+		long remaining = PlayerFlags.abaddonReviveReadyAt(player) - player.level().getGameTime();
+		return (int) Math.max(0L, (remaining + 19L) / 20L);
 	}
 
 	/** 无敌期间：取消一切来源的伤害（与灵魂破碎 / 神圣斗篷同一套写法） */

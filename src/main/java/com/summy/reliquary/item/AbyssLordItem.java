@@ -63,6 +63,9 @@ public class AbyssLordItem extends Item implements ICurioItem {
 			ReliquaryTooltips.narrativeLine(tooltip, "item.summy-reliquary.abyss_lord.shift.4",
 					format(ReliquaryConfig.hellfireArmorPercentPerLevel()),
 					format(ReliquaryConfig.hellfireDamagePerLevelPerSecond()));
+			// 1.8.2：提供方声明为谁提供联动
+			ReliquaryTooltips.statLine(tooltip, com.summy.reliquary.text.ReliquaryFaction.DEMON,
+					"item.summy-reliquary.abyss_lord.linkage");
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
 		}

@@ -48,9 +48,9 @@ public class SacredHeartItem extends Item implements ICurioItem {
 
 	@Override
 	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-		tooltip.add(Component.translatable("item.summy-reliquary.sacred_heart.desc.1")
+		ReliquaryTooltips.add(tooltip, Component.translatable("item.summy-reliquary.sacred_heart.desc.1")
 				.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(PALE_GOLD)).withItalic(true)));
-		tooltip.add(Component.translatable("item.summy-reliquary.sacred_heart.desc.2")
+		ReliquaryTooltips.add(tooltip, Component.translatable("item.summy-reliquary.sacred_heart.desc.2")
 				.withStyle(ChatFormatting.GRAY));
 
 		if (ReliquaryTooltips.angelLocked()) {
@@ -59,13 +59,15 @@ public class SacredHeartItem extends Item implements ICurioItem {
 		}
 
 		if (ReliquaryTooltips.shiftDown()) {
-			tooltip.addAll(shiftLines());
+			for (Component line : shiftLines()) {
+				ReliquaryTooltips.add(tooltip, line);
+			}
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
 		}
 	}
 
-	/** Shift 四行（按需求原文，不列具体数值）：末两行是「·追踪能力」与「你不再恐惧深渊」（1.6.5 新增） */
+	/** Shift 五行：末两行是「·追踪能力」与「你不再恐惧深渊」，最后一行为联动声明（1.8.2） */
 	public static java.util.List<Component> shiftLines() {
 		return java.util.List.of(
 				Component.translatable("item.summy-reliquary.sacred_heart.shift.1")
@@ -75,7 +77,10 @@ public class SacredHeartItem extends Item implements ICurioItem {
 				Component.translatable("item.summy-reliquary.sacred_heart.shift.3")
 						.withStyle(ChatFormatting.GRAY),
 				Component.translatable("item.summy-reliquary.sacred_heart.shift.4")
-						.withStyle(ChatFormatting.GRAY));
+						.withStyle(ChatFormatting.GRAY),
+				ReliquaryTooltips.statComponent(
+						com.summy.reliquary.text.ReliquaryFaction.ANGEL,
+						"item.summy-reliquary.sacred_heart.linkage"));
 	}
 
 	/** 1.6.3：物品名按派系上色（天使线 = 白→金对称渐变） */

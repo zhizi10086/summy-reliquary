@@ -107,7 +107,8 @@ public class VirtuesItem extends Item implements ICurioItem {
 			for (String virtueKey : VIRTUE_KEYS) {
 				tooltip.add(SinTexts.colored(virtueKey, virtueColor));
 				// 1.4.4：每条美德后补一行效果说明（数值读 [virtues] 配置）
-				tooltip.add(Component.translatable(virtueKey + ".effect",
+				// 1.8.2：效果说明统一走折行入口（最长约 39 字，会顶出屏幕）
+				ReliquaryTooltips.add(tooltip, Component.translatable(virtueKey + ".effect",
 						com.summy.reliquary.effect.VirtuesEffects.descriptionArgs(virtueKey))
 						.withStyle(net.minecraft.network.chat.Style.EMPTY
 								.withColor(net.minecraft.network.chat.TextColor.fromRgb(virtueColor))));

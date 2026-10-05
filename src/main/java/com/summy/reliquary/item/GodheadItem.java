@@ -64,20 +64,38 @@ public class GodheadItem extends Item implements ICurioItem {
 		}
 
 		if (ReliquaryTooltips.shiftDown()) {
-			tooltip.addAll(shiftLines());
+			for (Component line : functionLines()) {
+				ReliquaryTooltips.add(tooltip, line);
+			}
+		} else if (ReliquaryTooltips.altDown()) {
+			for (Component line : loreLines()) {
+				ReliquaryTooltips.add(tooltip, line);
+			}
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
+			tooltip.add(ReliquaryTooltips.altHint());
 		}
 	}
 
-	/** Shift 五行：前缀「如祂一样，」淡金斜体 + 白色正体尾巴 */
-	public static java.util.List<Component> shiftLines() {
+	/** Shift 八行功能：按「标题|说明」两段配色（天使线） */
+	public static java.util.List<Component> functionLines() {
 		java.util.List<Component> lines = new java.util.ArrayList<>();
-		for (String tail : new String[]{"shift.1", "shift.2", "shift.3", "shift.4", "shift.5"}) {
+		for (int index = 1; index <= 8; index++) {
+			lines.add(ReliquaryTooltips.statComponent(
+					com.summy.reliquary.text.ReliquaryFaction.ANGEL,
+					"item.summy-reliquary.godhead.shift." + index));
+		}
+		return lines;
+	}
+
+	/** Alt 五行诗句：前缀「如祂一样，」淡金斜体 + 白色正体尾巴 */
+	public static java.util.List<Component> loreLines() {
+		java.util.List<Component> lines = new java.util.ArrayList<>();
+		for (int index = 1; index <= 5; index++) {
 			lines.add(Component.empty()
 					.append(Component.translatable("item.summy-reliquary.godhead.shift.prefix")
 							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(PALE_GOLD)).withItalic(true)))
-					.append(Component.translatable("item.summy-reliquary.godhead." + tail)
+					.append(Component.translatable("item.summy-reliquary.godhead.alt." + index)
 							.withStyle(ChatFormatting.WHITE)));
 		}
 		return lines;

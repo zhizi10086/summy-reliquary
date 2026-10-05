@@ -123,11 +123,13 @@ public class SourceOfSinsItem extends Item implements ICurioItem {
 					default -> INACTIVE_COLOR;
 				};
 				Style style = Style.EMPTY.withColor(TextColor.fromRgb(color));
-				tooltip.add(styled(Component.translatable(sin.nameKey()), style));
-				tooltip.add(bullet(com.summy.reliquary.sin.SinDescriptions.secondLine(sin, state), style));
+				// 1.8.2：每个罪的整块按提示框宽度折行，长句不再顶出屏幕
+				ReliquaryTooltips.add(tooltip, styled(Component.translatable(sin.nameKey()), style));
+				ReliquaryTooltips.add(tooltip,
+						bullet(com.summy.reliquary.sin.SinDescriptions.secondLine(sin, state), style));
 				Component third = com.summy.reliquary.sin.SinDescriptions.thirdLine(sin, state);
 				if (third != null) {
-					tooltip.add(bullet(third, style));
+					ReliquaryTooltips.add(tooltip, bullet(third, style));
 				}
 			}
 

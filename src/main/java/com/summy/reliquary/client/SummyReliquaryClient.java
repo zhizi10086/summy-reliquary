@@ -39,6 +39,13 @@ public final class SummyReliquaryClient {
 			GLFW.GLFW_KEY_V,
 			"key.categories.summy-reliquary");
 
+	/** 神性回溯 / 亚巴顿主动恶魔形态：默认 X，玩家可在原版「控制」里改键 */
+	public static final KeyMapping DIVINE_ACTION_KEY = new KeyMapping(
+			"key.summy-reliquary.divine_action",
+			InputConstants.Type.KEYSYM,
+			GLFW.GLFW_KEY_X,
+			"key.categories.summy-reliquary");
+
 	/** 当前蓄力 tick 数 */
 	private static int beamCharge;
 	/** 本地冷却剩余 tick（服务端仍会再校验一次） */
@@ -51,17 +58,29 @@ public final class SummyReliquaryClient {
 	/** 上一次通知给服务端的蓄力状态（只在变化时发包） */
 	private static boolean chargeReported;
 
+	/** X 技能（神性回溯 / 亚巴顿恶魔形态）当前蓄力 tick 数 */
+	private static int divineCharge;
+	/** 本次按住 X 是否已经触发过（避免按住时连发） */
+	private static boolean divineFiredWhileHeld;
+
 	/** 当前蓄力进度（0~1；未蓄力为 0），供 FOV 收缩使用 */
 	public static double chargeProgress() {
 		int needed = chargeTicks();
 		return needed <= 0 ? 0.0D : Math.min(1.0D, beamCharge / (double) needed);
 	}
 
-	/** 当前需要的蓄力 tick：按"现在 V 键会放哪一种光束"取（恶魔之焰 1.5 秒 / 启示之光按神性覆盖） */
+	/** X 技能蓄力进度（0~1；未蓄力为 0），供 FOV 收缩使用 */
+	public static double divineChargeProgress() {
+		int needed = ReliquaryConfig.divineActionChargeTicks();
+		return needed <= 0 ? 0.0D : Math.min(1.0D, divineCharge / (double) needed);
+	}
+
+	/** 当前需要的蓄力 tick：按"现在 V 键会放哪一种光束"取（硫磺火 1.5 秒 / 亚巴顿 1.0 秒 / 启示之光按神性覆盖） */
 	private static int chargeTicks() {
 		var local = Minecraft.getInstance().player;
 		var kind = local == null ? null : com.summy.reliquary.effect.RevelationBeam.kindFor(local);
 		return com.summy.reliquary.effect.RevelationBeam.chargeTicks(
+				local,
 				kind == null ? com.summy.reliquary.effect.RevelationBeam.BeamKind.HOLY : kind);
 	}
 
@@ -78,6 +97,7 @@ public final class SummyReliquaryClient {
 		public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
 			event.register(TOGGLE_MAID_KEY);
 			event.register(REVELATION_BEAM_KEY);
+			event.register(DIVINE_ACTION_KEY);
 		}
 
 		@SubscribeEvent
@@ -147,6 +167,8 @@ public final class SummyReliquaryClient {
 					ReliquaryNetworking.sendToggleMaid();
 				}
 			}
+			// 1.8.2：X 键 —— 神性回溯 / 亚巴顿主动恶魔形态（长按蓄力后发包，服务端再校验装备）
+			tickDivineAction(client);
 
 			// JEI：按玩家状态隐藏 / 放开「赎罪」与天使线（三件套 / 圣光 / 斗篷 / 神性 / 救恩 / 圣心）与仪式法袍的配方。
 			// 桥内部只在目标状态变化或刚换世界时才真正通知 JEI，没装 JEI 时这里是空操作。
@@ -238,6 +260,36 @@ public final class SummyReliquaryClient {
 			}
 		}
 
+		/**
+		 * X 技能：长按蓄力 {@code [divine_action] charge_seconds}（默认 1 秒）后才发包。
+		 *
+		 * <p>松手 / 打开界面 / 离开世界都会清零重来；蓄力期间不输出行动栏文字，
+		 * 只由 {@link #onComputeFov} 做轻微 FOV 收缩作为反馈。
+		 */
+		private static void tickDivineAction(Minecraft client) {
+			boolean holding = DIVINE_ACTION_KEY.isDown();
+			if (client.player == null || client.level == null || client.screen != null) {
+				divineCharge = 0;
+				divineFiredWhileHeld = false;
+				return;
+			}
+			if (!holding) {
+				divineCharge = 0;
+				divineFiredWhileHeld = false;
+				return;
+			}
+			if (divineFiredWhileHeld) {
+				return;
+			}
+			int needed = ReliquaryConfig.divineActionChargeTicks();
+			divineCharge++;
+			if (divineCharge >= needed) {
+				ReliquaryNetworking.sendDivineAction();
+				divineCharge = 0;
+				divineFiredWhileHeld = true;
+			}
+		}
+
 		/** 蓄力状态变化时通知服务端（用于附近可见的蓄力粒子） */
 		private static void reportCharge(boolean charging) {
 			if (chargeReported == charging) {
@@ -247,8 +299,12 @@ public final class SummyReliquaryClient {
 			ReliquaryNetworking.sendCharge(charging);
 		}
 
-		/** 蓄力时按拉弓方式收缩视野 */
-		@SubscribeEvent
+		/**
+		 * 蓄力时按拉弓方式收缩视野。
+		 *
+		 * <p><b>1.8.2 修</b>：本方法**必须**由顶层 {@code ReliquaryClientTicks#onComputeFov} 转发 ——
+		 * 嵌套类里的 FORGE 事件不会注册，之前写在这里导致三处 FOV 收缩全部失效。
+		 */
 		public static void onComputeFov(net.minecraftforge.client.event.ViewportEvent.ComputeFov event) {
 			// ① 启示之光（V 键）蓄力
 			double beam = chargeProgress();
@@ -260,6 +316,11 @@ public final class SummyReliquaryClient {
 			float deal = pentagramProgress(Minecraft.getInstance().player);
 			if (deal > 0.0F) {
 				event.setFOV(event.getFOV() * (1.0D - ReliquaryConfig.demonChargeFovScale() * deal));
+			}
+			// ③ X 技能蓄力（神性回溯 / 亚巴顿恶魔形态）：同样只做视野收缩
+			double divine = divineChargeProgress();
+			if (divine > 0.0D) {
+				event.setFOV(event.getFOV() * (1.0D - ReliquaryConfig.chargeFovScale() * divine));
 			}
 		}
 	}

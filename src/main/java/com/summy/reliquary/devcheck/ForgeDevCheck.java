@@ -96,6 +96,8 @@ public final class ForgeDevCheck {
 	private static boolean beamFirstFire;
 	private static boolean beamSecondFire;
 	private static float beamCasterHealthBefore = 0.0F;
+	/** 1.8.2：光柱打末地水晶用例里记录的水晶 UUID */
+	private static java.util.UUID beamCrystalId = null;
 
 	/** 光环观感截图用的头部姿态：{偏航角, 俯仰角} */
 	private static final float[][] HALO_POSES = {
@@ -401,6 +403,20 @@ public final class ForgeDevCheck {
 				case 2246 -> checkWrathSelfHitNeverKills(player);
 				// 1.8.1：痛悔短祷需要当前持恶魔标记；三位一体配方需要天使标记
 				case 2247 -> checkContritionAndTrinityGates(player);
+				// 1.8.2：怠惰的「早睡」窗口排除凌晨
+				case 2248 -> checkSlothEarlySleepWindow(player);
+				// 1.8.2：神性 / 亚巴顿的原版负面免疫 + 死亡拦截补强与回溯 + 主动恶魔形态 + 蓄力分档
+				case 2249 -> checkDebuffImmunity(player);
+				case 2250 -> checkGodheadRecallAndGuard(player);
+				case 2251 -> checkAbaddonActiveForm(player);
+				case 2252 -> checkAbaddonCharge(player);
+				// 1.8.2：献祭匕首改版（贴图/献祭技能/门槛提示）
+				case 2253 -> checkSacrifice(player);
+				// 1.8.2：X 技能（神性回溯 / 亚巴顿恶魔形态）改为长按蓄力 1 秒
+				case 2254 -> checkDivineActionCharge(player);
+				// 1.8.2：光柱可以打末地水晶（布置 → 隔 3 tick 验证水晶已被引爆）
+				case 2255 -> checkBeamHitsCrystalSetup(player);
+				case 2258 -> checkBeamHitsCrystalVerify(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -581,7 +597,8 @@ public final class ForgeDevCheck {
 		}
 
 		// 尾巴留够时间：1.5.2 的服务端用例排到 2005 tick，客户端 tick 计数会略微领先服务端
-		if (clientTick > POSE_START_TICK + HALO_POSES.length * POSE_INTERVAL + 1500) {
+		// 1.8.2：用例号已排到 2248，原来 1500 的余量只剩约 30 tick，稍慢一点就会被提前掐断 → 放宽到 2500
+		if (clientTick > POSE_START_TICK + HALO_POSES.length * POSE_INTERVAL + 2500) {
 			log("===== 自检结束 =====");
 			client.stop();
 		}
@@ -1518,6 +1535,9 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.CombatTuning.clear();
 		com.summy.reliquary.effect.SoulShield.clearGuardForTest(player);
 		com.summy.reliquary.effect.DeathImmunity.reset();
+		// 1.8.2：神性死亡拦截后的 2 秒无敌会取消一切伤害，搭场景前必须先清掉
+		com.summy.reliquary.effect.Godhead.clearGuards();
+		com.summy.reliquary.effect.Abaddon.clearGuardForTest(player);
 		player.invulnerableTime = 0;
 		player.setHealth(player.getMaxHealth());
 	}
@@ -2114,11 +2134,12 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.sin.SinEffects.onSleep(player);
 		int lateCount = com.summy.reliquary.sin.SinProgress.get(player,
 				com.summy.reliquary.sin.SinProgress.SLOTH_SLEEPS);
-		player.serverLevel().setDayTime(19000L);
+		// 1.8.2：凌晨（0:00~5:59）不再计入"早睡"，这里改用黄昏窗口 19:30
+		player.serverLevel().setDayTime(13500L);
 		for (int index = 0; index < com.summy.reliquary.config.ReliquaryConfig.slothSleepRequired(); index++) {
 			com.summy.reliquary.sin.SinEffects.onSleep(player);
 		}
-		log("怠惰：22:00 入睡计数=" + lateCount + "（应为 0）；01:00 入睡 "
+		log("怠惰：22:00 入睡计数=" + lateCount + "（应为 0）；19:30 入睡 "
 				+ com.summy.reliquary.config.ReliquaryConfig.slothSleepRequired() + " 次 → 状态="
 				+ SinManager.state(player, Sin.SLOTH) + "（应为 ACTIVATED）");
 		com.summy.reliquary.effect.AttributeManager.apply(player);
@@ -4064,16 +4085,36 @@ public final class ForgeDevCheck {
 		player.setRespawnPosition(net.minecraft.world.level.Level.OVERWORLD, respawn, 0.0F, true, false);
 		player.setHealth(5.0F);
 		// 估算口径：这一击会打到血的部分 ≥ 当前生命 → 拦下
+		Vec3 interceptPos = player.position();
 		boolean nullified = com.summy.reliquary.effect.Godhead.tryNullify(player, 10.0F);
 		float health = player.getHealth();
 		double distance = player.position().distanceTo(
 				new Vec3(respawn.getX() + 0.5D, respawn.getY() + 1.0D, respawn.getZ() + 0.5D));
 		boolean particle = com.summy.reliquary.effect.Godhead.teleportParticle()
 				== net.minecraft.core.particles.ParticleTypes.WAX_ON;
+		boolean recallRecorded = com.summy.reliquary.effect.PlayerFlags.hasLastDeath(player);
+		boolean recallMatches = new Vec3(com.summy.reliquary.effect.PlayerFlags.lastDeathX(player),
+				com.summy.reliquary.effect.PlayerFlags.lastDeathY(player),
+				com.summy.reliquary.effect.PlayerFlags.lastDeathZ(player)).distanceTo(interceptPos) < 0.5D;
 		log(String.format("神性死亡拦截：拦下=%s（应 true）、生命=%.1f（应 1.0）、"
 						+ "与重生点距离=%.2f（应 < 1）、拦截次数=%d（应 1）、落地粒子是金色 WAX_ON=%s（应 true）",
 				nullified, health, distance, com.summy.reliquary.effect.Godhead.deathGuardCount(),
 				particle));
+
+		// 1.8.2：没有个人重生点时按原版死亡重生 —— 回主世界共享出生点；并把拦截地点记进回溯点
+		player.setRespawnPosition(net.minecraft.world.level.Level.OVERWORLD, null, 0.0F, false, false);
+		player.setHealth(5.0F);
+		Vec3 beforeSecond = player.position();
+		boolean nullifiedNoBed = com.summy.reliquary.effect.Godhead.tryNullify(player, 10.0F);
+		BlockPos overworldSpawn = player.getServer().overworld().getSharedSpawnPos();
+		double distanceToOverworldSpawn = player.position().distanceTo(new Vec3(
+				overworldSpawn.getX() + 0.5D, overworldSpawn.getY() + 1.0D, overworldSpawn.getZ() + 0.5D));
+		boolean recallAfterSecond = new Vec3(com.summy.reliquary.effect.PlayerFlags.lastDeathX(player),
+				com.summy.reliquary.effect.PlayerFlags.lastDeathY(player),
+				com.summy.reliquary.effect.PlayerFlags.lastDeathZ(player)).distanceTo(beforeSecond) < 0.5D;
+		log(String.format("神性死亡拦截·无重生点（1.8.2）：拦下=%s（应 true）、与主世界出生点距离=%.2f（应 < 1）、"
+						+ "回溯点已记录=%s（应 true）、回溯点=本次拦截地点=%s（应 true）",
+				nullifiedNoBed, distanceToOverworldSpawn, recallRecorded, recallAfterSecond));
 		// 收尾：恢复血量与重生点
 		player.setHealth(player.getMaxHealth());
 		player.setRespawnPosition(net.minecraft.world.level.Level.OVERWORLD, null, 0.0F, false, false);
@@ -4092,18 +4133,47 @@ public final class ForgeDevCheck {
 				com.summy.reliquary.item.SacredHeartItem.shiftLines();
 		String heartColors = colorOf(heartLines.get(0)) + "/" + colorOf(heartLines.get(1)) + "/"
 				+ colorOf(heartLines.get(2));
-		List<net.minecraft.network.chat.Component> godLines =
-				com.summy.reliquary.item.GodheadItem.shiftLines();
-		var firstPrefix = godLines.get(0).getSiblings().get(0);
-		var firstTail = godLines.get(0).getSiblings().get(1);
+		List<net.minecraft.network.chat.Component> godFunctions =
+				com.summy.reliquary.item.GodheadItem.functionLines();
+		List<net.minecraft.network.chat.Component> godLore =
+				com.summy.reliquary.item.GodheadItem.loreLines();
+		var firstPrefix = godLore.get(0).getSiblings().get(0);
+		var firstTail = godLore.get(0).getSiblings().get(1);
 		log("经文前缀：斗篷=「" + mantle + "」、圣心=「" + heart + "」、神性=「" + godhead + "」→ " + prefix
 				+ "（应 true）");
-		log("圣心 Shift：" + heartLines.size() + " 行（应 3）、配色=" + heartColors
-				+ "（应 #AAAAAA/#FFE4B5/#AAAAAA）、第二行=「" + heartLines.get(1).getString() + "」");
-		log("神性 Shift：" + godLines.size() + " 行（应 5）、首行=「" + godLines.get(0).getString()
+		log("圣心 Shift：" + heartLines.size() + " 行（应 5，末行为联动）、配色=" + heartColors
+				+ "（应 #AAAAAA/#FFE4B5/#AAAAAA）、第二行=「" + heartLines.get(1).getString()
+				+ "」、末行=「" + heartLines.get(4).getString() + "」");
+		log("神性 Shift（功能）：" + godFunctions.size() + " 行（应 8）、首行=「"
+				+ godFunctions.get(0).getString() + "」、末行=「" + godFunctions.get(7).getString() + "」");
+		log("神性 Alt（介绍）：" + godLore.size() + " 行（应 5）、首行=「" + godLore.get(0).getString()
 				+ "」、前缀配色=" + colorOf(firstPrefix) + "（应 #FFE4B5）、前缀斜体="
 				+ firstPrefix.getStyle().isItalic() + "（应 true）、尾巴配色=" + colorOf(firstTail)
 				+ "（应 #FFFFFF）");
+		// 1.8.2：联动文本口径 —— 7 个提供方各有联动键，受益方写静态强化值
+		String[] linkageKeys = {
+				"item.summy-reliquary.godhead.shift.8",
+				"item.summy-reliquary.abaddon.shift.6",
+				"item.summy-reliquary.sacred_heart.linkage",
+				"item.summy-reliquary.final_revelation.linkage",
+				"item.summy-reliquary.brimstone.linkage",
+				"item.summy-reliquary.the_pact.linkage",
+				"item.summy-reliquary.abyss_lord.linkage"
+		};
+		int linkagePresent = 0;
+		for (String key : linkageKeys) {
+			if (hasTranslation(key)) {
+				linkagePresent++;
+			}
+		}
+		String vengefulLine = net.minecraft.network.chat.Component
+				.translatable("item.summy-reliquary.vengeful_spirit.shift.1").getString();
+		String markLine = net.minecraft.network.chat.Component
+				.translatable("item.summy-reliquary.the_mark.shift.2").getString();
+		log("联动文本（1.8.2）：提供方联动键 " + linkagePresent + "/7（应 7）、复仇之魂主行=「"
+				+ vengefulLine + "」（应含「5 格」）、咒印=「" + markLine + "」（应含 60）、"
+				+ "神性联动行=「" + net.minecraft.network.chat.Component
+						.translatable("item.summy-reliquary.godhead.shift.8").getString() + "」");
 		// 心之碎片：三行（淡金斜体经文 + 灰色出处 + 白色正体）
 		List<net.minecraft.network.chat.Component> shard = new ItemStack(SummyReliquary.HEART_SHARD.get())
 				.getTooltipLines(Minecraft.getInstance().player,
@@ -4113,6 +4183,34 @@ public final class ForgeDevCheck {
 		for (net.minecraft.network.chat.Component line : shard) {
 			log("   「" + line.getString() + "」 颜色=" + colorOf(line) + " 斜体=" + line.getStyle().isItalic());
 		}
+		// 1.8.2：提示折行（限宽）—— 长行按提示框宽度折行，且折行后文本不丢字
+		var wrappedLong = com.summy.reliquary.item.ReliquaryTooltips.wrap(
+				net.minecraft.network.chat.Component.translatable("item.summy-reliquary.abaddon.shift.3"));
+		String wrappedText = wrappedLong.stream().map(net.minecraft.network.chat.Component::getString)
+				.collect(java.util.stream.Collectors.joining());
+		String rawLong = net.minecraft.network.chat.Component
+				.translatable("item.summy-reliquary.abaddon.shift.3").getString();
+		var wrappedShort = com.summy.reliquary.item.ReliquaryTooltips.wrap(
+				net.minecraft.network.chat.Component.translatable("item.summy-reliquary.shift_hint"));
+		log("提示折行（1.8.2）：最长行（恶魔形态 " + rawLong.length() + " 字）折成 " + wrappedLong.size()
+				+ " 行（窗口够宽时可能为 1）、折行后文本无丢失=" + wrappedText.equals(rawLong)
+				+ "（应 true）、短行折成 " + wrappedShort.size() + " 行（应 1）");
+		// 1.8.2：献祭文本 —— 成功提示已移除；失败侧保留三条；自伤有独立死亡文本
+		boolean usedGone = !hasTranslation("message.summy-reliquary.sacrifice.used");
+		boolean tooWeakGone = !hasTranslation("message.summy-reliquary.sacrifice.too_weak");
+		boolean remainTexts = hasTranslation("message.summy-reliquary.sacrifice.cooldown")
+				&& hasTranslation("message.summy-reliquary.sacrifice.interrupted")
+				&& hasTranslation("death.attack.summy-reliquary.sacrifice_self")
+				&& hasTranslation("death.attack.summy-reliquary.sacrifice_self.player");
+		log("献祭文本（1.8.2）：成功提示与「生命太低」均已移除=" + (usedGone && tooWeakGone)
+				+ "（应 true）、冷却/打断提示 + 两条死亡文本齐全=" + remainTexts + "（应 true）");
+		// 1.8.2：FOV 收缩必须挂在顶层转发类上（嵌套类里的 FORGE 事件不会被注册）
+		boolean fovForwarded = java.util.Arrays.stream(
+				com.summy.reliquary.client.ReliquaryClientTicks.class.getDeclaredMethods())
+				.anyMatch(m -> m.getName().equals("onComputeFov")
+						&& m.isAnnotationPresent(net.minecraftforge.eventbus.api.SubscribeEvent.class));
+		log("视野收缩转发（1.8.2）：ReliquaryClientTicks#onComputeFov 带 @SubscribeEvent=" + fovForwarded
+				+ "（应 true）");
 	}
 
 	// ==================== 1.5.8：五芒星的提示文案 / 配色 ====================
@@ -6707,6 +6805,12 @@ public final class ForgeDevCheck {
 		return player.addEffect(new net.minecraft.world.effect.MobEffectInstance(effect, 100, 0, false, false, false));
 	}
 
+	/** 语言键是否有译文（缺键时 Component 会原样返回 key 本身，1.8.2） */
+	private static boolean hasTranslation(String key) {
+		String value = net.minecraft.network.chat.Component.translatable(key).getString();
+		return !value.isEmpty() && !value.equals(key);
+	}
+
 	// ==================== 1.6.8：深渊领主文案 / 亚巴顿 / 飞行免摔 / 邪恶满值 ====================
 
 	/** 按物品 id 取物品（自检里用来逐件搭场景） */
@@ -6956,13 +7060,18 @@ public final class ForgeDevCheck {
 				&& Math.abs(player.getZ() - (expectedPos.getZ() + 0.5D)) < 2.0D
 				&& player.position().distanceTo(beforePos) > 1.0D;
 		boolean envNoGuard = !com.summy.reliquary.effect.Abaddon.isGuarded(player);
+		// 1.8.2：环境致死传送时也把「被送走的地点」记为回溯点
+		boolean envRecall = new Vec3(com.summy.reliquary.effect.PlayerFlags.lastDeathX(player),
+				com.summy.reliquary.effect.PlayerFlags.lastDeathY(player),
+				com.summy.reliquary.effect.PlayerFlags.lastDeathZ(player)).distanceTo(beforePos) < 0.5D;
 		log("亚巴顿复活：被击杀拦下=" + revived + "（应 true）、生命=" + healthAfter + "（应 满血 "
 				+ player.getMaxHealth() + "）、负面清空=" + cleaned + "、正面保留=" + kept + "（应 true）、"
 				+ "无敌守卫=" + guarded + "（应 true）、无敌期内伤害被取消=" + immuneNow + "（应 true）、"
 				+ "恶魔光环开启=" + aura + "（应 true）、冷却已写入=" + cooled + "（应 true）、"
 				+ "冷却中不再拦=" + cooledBlocks + "（应 true）；环境（仙人掌）致死 → 不触发复活=" + envNoRevive
 				+ "、保持血量=" + envHealthKept + "（应 true）、不写冷却=" + envNoCooldown + "（应 true）、"
-				+ "被传送回重生点=" + envTeleported + "（应 true）、不给无敌=" + envNoGuard + "（应 true）");
+				+ "被传送回重生点=" + envTeleported + "（应 true）、不给无敌=" + envNoGuard
+				+ "（应 true）、回溯点=被送走的地点=" + envRecall + "（应 true）");
 		resetDemonPactState(player);
 	}
 
@@ -8589,7 +8698,7 @@ public final class ForgeDevCheck {
 				&& reconcile.contains("结算后吸收=0.0") && !reconcile.contains("估算血伤");
 		log("伤害池日志字段（1.6.9）：prepare=「" + prepare + "」、对账=「" + reconcile + "」→ " + ok
 				+ "（应 true）；协议=" + com.summy.reliquary.net.ReliquaryNetworking.protocolVersion()
-				+ "（应 12 = 1.7.2 新增创世纪动画包）");
+				+ "（应 13 = 1.8.2 新增「神性回溯 / 恶魔形态」包）");
 	}
 
 	// ==================== 1.6.10：创世纪 / 启示属性 / 条件驱动发放 / 饰品联动 ====================
@@ -9018,80 +9127,40 @@ public final class ForgeDevCheck {
 	}
 
 	/**
-	 * 1.6.10 联动的提示数值：圣光 15↔25、斗篷 1↔1.5 秒、咒印 40↔60。
+	 * 1.8.2 联动的提示口径：**受益方**直接写强化后的静态数值（不再动态、不再有联动行）；
+	 * **提供方**（神性 / 亚巴顿 / 圣心 / 终末天启 / 硫磺火 / 契约 / 深渊领主）各自声明「为谁提供联动」。
 	 *
-	 * <p>这三行都在 Shift 里（自检里按不住 Shift），所以这里验证的是"**取值入口 + 文案模板**"：
-	 * 用与物品提示**同一个** {@code Synergies} 取值、同一个 {@code statComponent} 拼行，
-	 * 因此数值一旦跑偏就会在这里暴露；三个键也都断言带 {@code %s}（数值必须动态）。
+	 * <p>这条用例只读语言键（自检里按不住 Shift），机制本身仍由
+	 * {@code checkGodheadSynergies} / {@code checkAbaddonSynergies} 覆盖。
 	 */
 	private static void checkSynergyTooltips(ServerPlayer player) {
-		resetDemonPactState(player);
-		clearRobeAndSeal(player);
-		clearBlessingSlots(player);
-		unequip(player, ReliquarySlots.REVELATION);
-		player.getInventory().clearContent();
-		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
-		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
-		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
-		com.summy.reliquary.effect.DemonPact.grant(player, false);
-		com.summy.reliquary.effect.SlotSizing.syncNow(player);
-
-		// ① 圣光：只戴圣光 → 15；再戴神性 → 25
-		equip(player, ReliquarySlots.BLESSING, SummyReliquary.HOLY_LIGHT.get());
-		String lightAlone = lightChanceLine(player);
-		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
-		String lightWith = lightChanceLine(player);
-		unequip(player, ReliquarySlots.REVELATION);
-		// ② 斗篷：只戴斗篷 → 1 秒；再戴神性 → 1.5 秒
-		equip(player, ReliquarySlots.BLESSING, SummyReliquary.HOLY_MANTLE.get());
-		String mantleAlone = mantleLine(player);
-		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
-		String mantleWith = mantleLine(player);
-		unequip(player, ReliquarySlots.REVELATION);
-		// ③ 咒印：只戴咒印 → 40；再戴亚巴顿 → 60
-		equip(player, ReliquarySlots.SPIRIT_ALTAR, SummyReliquary.THE_MARK.get());
-		String markAlone = markShatterLine(player);
-		equip(player, ReliquarySlots.REVELATION, SummyReliquary.ABADDON.get());
-		String markWith = markShatterLine(player);
-		unequip(player, ReliquarySlots.REVELATION);
-		unequip(player, ReliquarySlots.BLESSING);
-		unequip(player, ReliquarySlots.SPIRIT_ALTAR);
-		player.getInventory().clearContent();
-		resetDemonPactState(player);
-		clearSpiritAltar(player);
-		boolean dynamicKeys = Component.translatable("item.summy-reliquary.holy_light.desc")
-				.getString().contains("%s")
-				&& Component.translatable("item.summy-reliquary.holy_mantle.desc").getString().contains("%s")
-				&& Component.translatable("item.summy-reliquary.the_mark.shift.2").getString().contains("%s");
-		boolean ok = lightAlone.contains("15") && lightWith.contains("25")
-				&& mantleAlone.contains("1 秒") && mantleWith.contains("1.5 秒")
-				&& markAlone.contains("40") && markWith.contains("60");
-		log("联动提示数值（1.6.10，取值入口 + 文案模板）：圣光 单戴=「" + lightAlone + "」→ 同戴神性=「"
-				+ lightWith + "」；斗篷 单戴=「" + mantleAlone + "」→ 同戴=「" + mantleWith
-				+ "」；咒印 单戴=「" + markAlone + "」→ 同戴亚巴顿=「" + markWith + "」→ 全部符合=" + ok
-				+ "（应 true）；三个键都带 %s=" + dynamicKeys + "（应 true）");
-	}
-
-	/** 圣光提示行（用与物品提示同一个取值入口与拼行函数） */
-	private static String lightChanceLine(ServerPlayer player) {
-		return com.summy.reliquary.item.ReliquaryTooltips.statComponent(
-				com.summy.reliquary.text.ReliquaryFaction.ANGEL, "item.summy-reliquary.holy_light.desc",
-				com.summy.reliquary.effect.Synergies.holyLightChancePercent(player)).getString();
-	}
-
-	/** 神圣斗篷提示行 */
-	private static String mantleLine(ServerPlayer player) {
-		return com.summy.reliquary.item.ReliquaryTooltips.statComponent(
-				com.summy.reliquary.text.ReliquaryFaction.ANGEL, "item.summy-reliquary.holy_mantle.desc",
-				ticksToSeconds(com.summy.reliquary.effect.Synergies.holyMantleInvulnerableTicks(player)))
-				.getString();
-	}
-
-	/** 咒印碎裂伤害提示行 */
-	private static String markShatterLine(ServerPlayer player) {
-		return com.summy.reliquary.item.ReliquaryTooltips.statComponent(
-				com.summy.reliquary.text.ReliquaryFaction.DEMON, "item.summy-reliquary.the_mark.shift.2",
-				formatNumber(com.summy.reliquary.effect.Synergies.shatterDamage(player))).getString();
+		String light = Component.translatable("item.summy-reliquary.holy_light.desc").getString();
+		String mantle = Component.translatable("item.summy-reliquary.holy_mantle.desc").getString();
+		String mark = Component.translatable("item.summy-reliquary.the_mark.shift.2").getString();
+		String vengeful = Component.translatable("item.summy-reliquary.vengeful_spirit.shift.1").getString();
+		String heart = Component.translatable("item.summy-reliquary.sacred_heart.shift.3").getString();
+		String[] providers = {
+				"item.summy-reliquary.godhead.shift.8",
+				"item.summy-reliquary.abaddon.shift.6",
+				"item.summy-reliquary.sacred_heart.linkage",
+				"item.summy-reliquary.final_revelation.linkage",
+				"item.summy-reliquary.brimstone.linkage",
+				"item.summy-reliquary.the_pact.linkage",
+				"item.summy-reliquary.abyss_lord.linkage"
+		};
+		int present = 0;
+		for (String key : providers) {
+			if (hasTranslation(key)) {
+				present++;
+			}
+		}
+		boolean benefitStatic = !light.contains("%s") && light.contains("25")
+				&& !mantle.contains("%s") && mantle.contains("1.5")
+				&& !mark.contains("%s") && mark.contains("60")
+				&& vengeful.contains("5 格") && heart.contains("12 格");
+		log("联动提示口径（1.8.2）：圣光=「" + light + "」、斗篷=「" + mantle + "」、咒印=「" + mark
+				+ "」、复仇之魂=「" + vengeful + "」、圣心=「" + heart + "」→ 受益方全部静态强化="
+				+ benefitStatic + "（应 true）；提供方联动键=" + present + "/7（应 7）");
 	}
 
 	/** tick → 秒文本（20 → 1、30 → 1.5） */
@@ -10222,11 +10291,12 @@ public final class ForgeDevCheck {
 		boolean teleported = distanceToAnchor <= 2.0D;
 		int animations = com.summy.reliquary.item.GenesisItem.activationCount();
 		int sounds = com.summy.reliquary.item.GenesisItem.soundCount();
-		boolean protocol12 = "12".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
+		// 1.8.2：协议升到 13（新增「神性回溯 / 恶魔形态」的 C2S 空包）
+		boolean protocol13 = "13".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 
 		log(String.format("创世纪表现（1.7.2）：用掉=%s（应 true）、使用前离重生点 %.1f 格 → 使用后 %.1f 格"
-				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=12=%s（应 true）",
-				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol12));
+				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=13=%s（应 true）",
+				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol13));
 		player.getInventory().clearContent();
 		resetDemonPactState(player);
 		clearRobeAndSeal(player);
@@ -11939,6 +12009,501 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.item.ActOfContritionItem.forget(player);
 		player.getInventory().clearContent();
 		resetDemonPactState(player);
+	}
+
+	/** 1.8.2：怠惰的「早睡」窗口 —— 排除凌晨 0:00~5:59，只保留 6:00~20:00 */
+	private static void checkSlothEarlySleepWindow(ServerPlayer player) {
+		long saved = player.serverLevel().getDayTime();
+		try {
+			player.serverLevel().setDayTime(21000L);   // 3:00
+			boolean atThree = com.summy.reliquary.sin.SinEffects.isEarlySleep(player);
+			player.serverLevel().setDayTime(23500L);   // 5:30
+			boolean atHalfFive = com.summy.reliquary.sin.SinEffects.isEarlySleep(player);
+			player.serverLevel().setDayTime(13500L);   // 19:30
+			boolean atHalfSeven = com.summy.reliquary.sin.SinEffects.isEarlySleep(player);
+			player.serverLevel().setDayTime(15000L);   // 21:00
+			boolean atNine = com.summy.reliquary.sin.SinEffects.isEarlySleep(player);
+			log("怠惰·早睡窗口（1.8.2）：凌晨 3:00 计入=" + atThree + "（应 false）、5:30 计入=" + atHalfFive
+					+ "（应 false）、19:30 计入=" + atHalfSeven + "（应 true）、21:00 计入=" + atNine
+					+ "（应 false）");
+		} finally {
+			player.serverLevel().setDayTime(saved);
+		}
+	}
+
+	/** 1.8.0：激活的硬前置 —— 必须佩戴七罪之源，且该罪处于未激活 */
+	/** 1.8.2：神性 / 亚巴顿的「原版负面效果免疫」（拦新施加 + 每秒清理） */
+	private static void checkDebuffImmunity(ServerPlayer player) {
+		prepareBarePlayer(player);
+		clearBlessingSlots(player);
+		player.removeAllEffects();
+
+		// ① 不戴：剧毒可以上身
+		boolean poisonWithout = applies(player, net.minecraft.world.effect.MobEffects.POISON);
+
+		// ② 戴神性：剧毒被拦；恐惧仍由旧的 DivineImmunity 口径拦住（不算模组效果豁免）
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		boolean poisonGodhead = applies(player, net.minecraft.world.effect.MobEffects.POISON);
+		boolean fearGodhead = applies(player, SummyReliquary.FEAR.get());
+
+		// ③ 戴亚巴顿：剧毒被拦；模组自己的恐惧 / 狱火照旧可以施加（证明新免疫只针对原版）
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.ABADDON.get());
+		boolean poisonAbaddon = applies(player, net.minecraft.world.effect.MobEffects.POISON);
+		boolean fearAbaddon = applies(player, SummyReliquary.FEAR.get());
+		boolean hellfireAbaddon = applies(player, SummyReliquary.HELLFIRE.get());
+
+		log("负面免疫（1.8.2）：未佩戴中毒=" + poisonWithout + "（应 true）、戴神性中毒=" + poisonGodhead
+				+ "（应 false）、戴神性恐惧=" + fearGodhead + "（应 false = 旧 DivineImmunity 口径）、戴亚巴顿中毒="
+				+ poisonAbaddon + "（应 false）、戴亚巴顿恐惧=" + fearAbaddon + "（应 true = 模组效果不受新免疫）、"
+				+ "戴亚巴顿狱火=" + hellfireAbaddon + "（应 true）");
+
+		// ④ 每秒清理：先挂上剧毒，再戴神性并跑一次清理
+		player.removeEffect(SummyReliquary.FEAR.get());
+		player.removeEffect(SummyReliquary.HELLFIRE.get());
+		player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+				net.minecraft.world.effect.MobEffects.POISON, 200, 0, false, false, false));
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		com.summy.reliquary.effect.DebuffImmunity.tickPlayer(player);
+		boolean cleansed = !player.hasEffect(net.minecraft.world.effect.MobEffects.POISON);
+		log("负面免疫·每秒清理（1.8.2）：戴神性后剧毒被清=" + cleansed + "（应 true）");
+
+		player.removeAllEffects();
+		unequip(player, ReliquarySlots.REVELATION);
+	}
+
+	/** 1.8.2：神性死亡拦截的「清效果 + 2 秒无敌」与 X 回溯 */
+	private static void checkGodheadRecallAndGuard(ServerPlayer player) {
+		prepareBarePlayer(player);
+		clearBlessingSlots(player);
+		player.removeAllEffects();
+		player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+				net.minecraft.world.effect.MobEffects.POISON, 400, 0, false, false, false));
+		player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+				net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED, 400, 0, false, false, false));
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		player.setHealth(5.0F);
+		boolean nullified = com.summy.reliquary.effect.Godhead.tryNullify(player, 10.0F);
+		boolean cleared = player.getActiveEffects().isEmpty();
+		boolean guarded = com.summy.reliquary.effect.Godhead.isGuarded(player);
+		log("神性死亡拦截补强（1.8.2）：拦下=" + nullified + "（应 true）、生命=" + player.getHealth()
+				+ "（应 1.0）、全部效果被清=" + cleared + "（应 true）、2 秒无敌=" + guarded
+				+ "（应 true，共 " + com.summy.reliquary.effect.Godhead.guardTicks() + " tick）");
+
+		// 回溯：先记录一个死亡点，再按 X
+		double targetX = player.getX() + 60.0D;
+		double targetY = player.getY();
+		double targetZ = player.getZ() + 60.0D;
+		com.summy.reliquary.effect.PlayerFlags.setLastDeath(player,
+				player.level().dimension().location().toString(), targetX, targetY, targetZ);
+		boolean recalled = com.summy.reliquary.effect.DivineActions.recall(player);
+		double moved = player.position().distanceTo(new net.minecraft.world.phys.Vec3(targetX, targetY, targetZ));
+		log("神性回溯（1.8.2）：有记录时成功=" + recalled + "（应 true）、与目标点距离="
+				+ String.format("%.2f", moved) + "（应 < 1）");
+
+		com.summy.reliquary.effect.Godhead.clearGuards();
+		player.setHealth(player.getMaxHealth());
+		player.removeAllEffects();
+		unequip(player, ReliquarySlots.REVELATION);
+	}
+
+	/** 1.8.2：亚巴顿主动恶魔形态（X）与共用的 1200 秒冷却 */
+	private static void checkAbaddonActiveForm(ServerPlayer player) {
+		prepareBarePlayer(player);
+		clearBlessingSlots(player);
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.ABADDON.get());
+		com.summy.reliquary.effect.PlayerFlags.setAbaddonReviveReadyAt(player, 0L);
+		com.summy.reliquary.effect.Abaddon.clearGuardForTest(player);
+		com.summy.reliquary.effect.Abaddon.clearAuraForTest(player);
+		player.setHealth(4.0F);
+		boolean active = com.summy.reliquary.effect.Abaddon.activateManually(player);
+		boolean full = Math.abs(player.getHealth() - player.getMaxHealth()) < 0.01F;
+		boolean guarded = com.summy.reliquary.effect.Abaddon.isGuarded(player);
+		boolean second = com.summy.reliquary.effect.Abaddon.activateManually(player);
+		int cooldown = com.summy.reliquary.effect.Abaddon.cooldownSecondsLeft(player);
+		log("亚巴顿主动形态（1.8.2）：首次激活=" + active + "（应 true）、满血=" + full
+				+ "（应 true）、无敌=" + guarded + "（应 true）、冷却中再按被拒=" + second
+				+ "（应 false）、剩余冷却=" + cooldown + " 秒（应 1200）");
+
+		com.summy.reliquary.effect.PlayerFlags.setAbaddonReviveReadyAt(player, 0L);
+		com.summy.reliquary.effect.Abaddon.clearGuardForTest(player);
+		com.summy.reliquary.effect.Abaddon.clearAuraForTest(player);
+		player.setHealth(player.getMaxHealth());
+		unequip(player, ReliquarySlots.REVELATION);
+	}
+
+	/** 1.8.2：亚巴顿恶魔之焰专属蓄力 1.0 秒（硫磺火仍 1.5 秒） */
+	private static void checkAbaddonCharge(ServerPlayer player) {
+		boolean config = com.summy.reliquary.config.ReliquaryConfig.abaddonBeamChargeTicks() == 20
+				&& com.summy.reliquary.config.ReliquaryConfig.brimstoneChargeTicks() == 30;
+		prepareBarePlayer(player);
+		clearBlessingSlots(player);
+		boolean brimstoneAlone = com.summy.reliquary.effect.RevelationBeam.chargeTicks(player,
+				com.summy.reliquary.effect.RevelationBeam.BeamKind.DEMON_FLAME) == 30;
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.ABADDON.get());
+		boolean abaddon = com.summy.reliquary.effect.RevelationBeam.chargeTicks(player,
+				com.summy.reliquary.effect.RevelationBeam.BeamKind.DEMON_FLAME) == 20;
+		log("恶魔之焰蓄力（1.8.2）：配置 亚巴顿="
+				+ com.summy.reliquary.config.ReliquaryConfig.abaddonBeamChargeTicks() + " tick（应 20）、硫磺火="
+				+ com.summy.reliquary.config.ReliquaryConfig.brimstoneChargeTicks() + " tick（应 30）、配置正确="
+				+ config + "（应 true）、无亚巴顿时 30 tick=" + brimstoneAlone + "（应 true）、戴亚巴顿时 20 tick="
+				+ abaddon + "（应 true）");
+		unequip(player, ReliquarySlots.REVELATION);
+	}
+
+	/**
+	 * 1.8.2：献祭匕首的「献祭」—— 自损 4 点换 +40% 近战伤害（8 秒线性衰减）、
+	 * 8 秒物品冷却、严格左键近战（投掷不吃）、残血不致死。
+	 */
+	private static void checkSacrifice(ServerPlayer player) {
+		resetDemonPactState(player);
+		clearRobeAndSeal(player);
+		clearBlessingSlots(player);
+		resetSinState(player);
+		clearNearbyMonsters(player, 16.0D);
+		prepareBarePlayer(player);
+		com.summy.reliquary.effect.Sacrifice.reset();
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
+
+		Item dagger = SummyReliquary.SACRIFICIAL_DAGGER.get();
+		player.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(dagger));
+		player.getCooldowns().removeCooldown(dagger);
+
+		// 场景公共清理：清空护盾池 / 吸收 / 增益 / 冷却
+		player.setAbsorptionAmount(0.0F);
+		com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+		com.summy.reliquary.effect.Sacrifice.setRemainingForTest(player, 0);
+		player.getCooldowns().removeCooldown(dagger);
+		player.setHealth(player.getMaxHealth());
+		player.invulnerableTime = 0;
+
+		// ① 基础释放：固定真伤 4 + 进冷却 + 满值 +40%（成功不弹动作栏文本）
+		float before = player.getHealth();
+		boolean used = com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		float lost = before - player.getHealth();
+		boolean cooldown = player.getCooldowns().isOnCooldown(dagger);
+		double full = com.summy.reliquary.effect.Sacrifice.bonusPercent(player);
+		log("献祭（1.8.2）：释放=" + used + "（应 true）、自损=" + String.format("%.1f", lost)
+				+ "（应 4.0 = 固定真伤）、物品冷却已进入=" + cooldown + "（应 true）、满值增伤=+"
+				+ String.format("%.1f", full) + "%（应 +40%）、释放次数="
+				+ com.summy.reliquary.effect.Sacrifice.useCount() + "（应 1）");
+
+		// ② 真伤口径：钻石甲 + 抗性 IV（无护盾）→ 红血仍掉 4
+		player.setHealth(player.getMaxHealth());
+		player.getCooldowns().removeCooldown(dagger);
+		player.invulnerableTime = 0;
+		player.setAbsorptionAmount(0.0F);
+		com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+		player.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.DIAMOND_HELMET));
+		player.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.DIAMOND_CHESTPLATE));
+		player.setItemSlot(EquipmentSlot.LEGS, new ItemStack(Items.DIAMOND_LEGGINGS));
+		player.setItemSlot(EquipmentSlot.FEET, new ItemStack(Items.DIAMOND_BOOTS));
+		player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+				net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 600, 3, false, false, false));
+		float armoredBefore = player.getHealth();
+		boolean armoredUsed = com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		float armoredLost = armoredBefore - player.getHealth();
+		log("献祭·真伤口径（1.8.2）：钻石甲 + 抗性 IV（无护盾）→ 释放=" + armoredUsed
+				+ "（应 true）、红血掉=" + String.format("%.1f", armoredLost) + "（应 4.0 = 不吃减免）");
+
+		// ③ 护盾参与·魂心：佩戴「灵魂」提供容量，魂心 8 → 红血不掉、魂心被扣 4
+		player.removeAllEffects();
+		for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+				EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
+			player.setItemSlot(slot, ItemStack.EMPTY);
+		}
+		equip(player, ReliquarySlots.SPIRIT_ALTAR, SummyReliquary.THE_SOUL.get());
+		player.setHealth(player.getMaxHealth());
+		player.setAbsorptionAmount(0.0F);
+		// 池子点数必须落在容量内：deduct 会先把点数夹到容量再扣，超出容量的部分不算有效护盾
+		double soulCapacity = com.summy.reliquary.effect.SoulShield.capacityFor(player);
+		com.summy.reliquary.effect.SoulShield.setPoints(player, soulCapacity);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+		com.summy.reliquary.effect.DamagePools.clear();
+		player.getCooldowns().removeCooldown(dagger);
+		player.invulnerableTime = 0;
+		float poolBefore = player.getHealth();
+		boolean poolUsed = com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		com.summy.reliquary.effect.DamagePools.reconcile(player);
+		float poolLost = poolBefore - player.getHealth();
+		double soulLeft = com.summy.reliquary.effect.SoulShield.points(player);
+		boolean soulPoolOk = soulCapacity >= 4.0D
+				&& Math.abs((soulCapacity - soulLeft) - 4.0D) < 1.0E-4D;
+		log("献祭·魂心可抵（1.8.2）：释放=" + poolUsed + "（应 true）、红血掉="
+				+ String.format("%.1f", poolLost) + "（应 0.0）、魂心容量=" + soulCapacity + " → 剩 "
+				+ String.format("%.1f", soulLeft) + "（应扣 4.0）=" + soulPoolOk + "（应 true）");
+		unequip(player, ReliquarySlots.SPIRIT_ALTAR);
+
+		// ③b 护盾参与·黑心：签约拿到契约（黑心容量来源），黑心 8 → 红血不掉、黑心被扣 4
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
+		com.summy.reliquary.effect.DemonPact.grant(player, false);
+		player.setHealth(player.getMaxHealth());
+		player.setAbsorptionAmount(0.0F);
+		com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+		double blackCapacity = com.summy.reliquary.effect.DemonPact.blackHeartMaxPoints(player);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, blackCapacity);
+		com.summy.reliquary.effect.DamagePools.clear();
+		player.getCooldowns().removeCooldown(dagger);
+		player.invulnerableTime = 0;
+		float blackHeartBefore = player.getHealth();
+		boolean blackUsed = com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		com.summy.reliquary.effect.DamagePools.reconcile(player);
+		float blackLost = blackHeartBefore - player.getHealth();
+		double blackLeft = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
+		boolean blackPoolOk = blackCapacity >= 4.0D
+				&& Math.abs((blackCapacity - blackLeft) - 4.0D) < 1.0E-4D;
+		log("献祭·黑心可抵（1.8.2）：佩戴契约（黑心容量来源）、黑心容量=" + blackCapacity + " → 释放=" + blackUsed
+				+ "（应 true）、红血掉=" + String.format("%.1f", blackLost) + "（应 0.0）、黑心剩="
+				+ String.format("%.1f", blackLeft) + "（应扣 4.0）=" + blackPoolOk + "（应 true）");
+		resetDemonPactState(player);
+
+		// ④ 原版吸收也参与：仅有吸收 6 → 红血不掉、吸收 6→2
+		player.setHealth(player.getMaxHealth());
+		com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+		player.setAbsorptionAmount(6.0F);
+		com.summy.reliquary.effect.DamagePools.clear();
+		player.getCooldowns().removeCooldown(dagger);
+		player.invulnerableTime = 0;
+		float absorptionBeforeHealth = player.getHealth();
+		boolean absorptionUsed = com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		com.summy.reliquary.effect.DamagePools.reconcile(player);
+		float absorptionLost = absorptionBeforeHealth - player.getHealth();
+		float absorptionLeft = player.getAbsorptionAmount();
+		log("献祭·原版吸收参与（1.8.2）：释放=" + absorptionUsed + "（应 true）、红血掉="
+				+ String.format("%.1f", absorptionLost) + "（应 0.0）、吸收 6→"
+				+ String.format("%.1f", absorptionLeft) + "（应 2.0）");
+
+		// ⑤ 免击退：自伤前后速度完全一致
+		player.setHealth(player.getMaxHealth());
+		player.setAbsorptionAmount(0.0F);
+		com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+		com.summy.reliquary.effect.DamagePools.clear();
+		player.getCooldowns().removeCooldown(dagger);
+		player.invulnerableTime = 0;
+		net.minecraft.world.phys.Vec3 velocityBefore = new net.minecraft.world.phys.Vec3(0.31D, 0.11D, -0.23D);
+		player.setDeltaMovement(velocityBefore);
+		float knockBefore = player.getHealth();
+		boolean knockUsed = com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		boolean noKnockback = player.getDeltaMovement().distanceToSqr(velocityBefore) < 1.0E-6D;
+		log("献祭·免击退（1.8.2）：释放=" + knockUsed + "（应 true）、红血掉="
+				+ String.format("%.1f", knockBefore - player.getHealth())
+				+ "（应 4.0）、速度不变=" + noKnockback + "（应 true）");
+
+		// ③ 无副作用：佩戴神圣斗篷时不开启无敌窗口
+		player.removeAllEffects();
+		for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+				EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
+			player.setItemSlot(slot, ItemStack.EMPTY);
+		}
+		player.setAbsorptionAmount(0.0F);
+		com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+		equip(player, ReliquarySlots.BLESSING, SummyReliquary.HOLY_MANTLE.get());
+		player.getCooldowns().removeCooldown(dagger);
+		player.invulnerableTime = 0;
+		boolean mantleUsed = com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		boolean mantleGuard = com.summy.reliquary.effect.HolyMantle.isGuarded(player);
+		log("献祭·不触发斗篷（1.8.2）：佩戴神圣斗篷时释放=" + mantleUsed + "（应 true）、斗篷无敌窗口未开启="
+				+ (!mantleGuard) + "（应 true）");
+		clearBlessingSlots(player);
+
+		// ④ 七罪豁免：傲慢（未赎罪）的"受击 +50%"不得作用于自伤（同一分支同时覆盖色欲脱甲）
+		equip(player, ReliquarySlots.SOUL_SEAL, SummyReliquary.SOURCE_OF_SINS.get());
+		com.summy.reliquary.sin.SinManager.activate(player, com.summy.reliquary.sin.Sin.PRIDE, true);
+		player.getCooldowns().removeCooldown(dagger);
+		player.setHealth(player.getMaxHealth());
+		player.invulnerableTime = 0;
+		float prideBefore = player.getHealth();
+		boolean prideUsed = com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		float prideLost = prideBefore - player.getHealth();
+		boolean prideAwake = com.summy.reliquary.sin.SinManager.state(player,
+				com.summy.reliquary.sin.Sin.PRIDE) == com.summy.reliquary.sin.SinManager.SinState.ACTIVATED;
+		log("献祭·七罪豁免（1.8.2）：傲慢已激活=" + prideAwake + "（应 true）、释放=" + prideUsed
+				+ "（应 true）、自损=" + String.format("%.1f", prideLost)
+				+ "（应 4.0 = 未被 +50% 放大、也不触发色欲脱甲）");
+		unequip(player, ReliquarySlots.SOUL_SEAL);
+		resetSinState(player);
+
+		// ⑤ 线性衰减：半程 ≈ +20%、到期 0
+		int total = com.summy.reliquary.config.ReliquaryConfig.sacrificeDurationTicks();
+		com.summy.reliquary.effect.Sacrifice.setRemainingForTest(player, total / 2);
+		double half = com.summy.reliquary.effect.Sacrifice.bonusPercent(player);
+		com.summy.reliquary.effect.Sacrifice.setRemainingForTest(player, 0);
+		double expired = com.summy.reliquary.effect.Sacrifice.bonusPercent(player);
+		log("献祭·衰减（1.8.2）：总时长=" + total + " tick（应 160 = 8 秒）、半程=+"
+				+ String.format("%.1f", half) + "%（应约 +20%）、到期=+" + String.format("%.1f", expired)
+				+ "%（应 +0%）");
+
+		// ⑥ 严格左键近战：直接来源是玩家 → 吃；投掷结算中 → 不吃
+		com.summy.reliquary.effect.Sacrifice.setRemainingForTest(player, total);
+		var meleeSource = player.damageSources().playerAttack(player);
+		boolean meleeHit = com.summy.reliquary.effect.Sacrifice.isMeleeHit(player, meleeSource);
+		com.summy.reliquary.effect.Sacrifice.beginRangedResolve();
+		boolean throwHit = com.summy.reliquary.effect.Sacrifice.isMeleeHit(player, meleeSource);
+		com.summy.reliquary.effect.Sacrifice.endRangedResolve();
+		log("献祭·近战判定（1.8.2）：左键近战吃加成=" + meleeHit + "（应 true）、投掷结算中不吃="
+				+ (!throwHit) + "（应 true）");
+
+		// ⑦ 被无敌打断：亚巴顿 8 秒无敌期间释放失败（不消耗、不给增益、不进冷却）
+		com.summy.reliquary.effect.Sacrifice.setRemainingForTest(player, 0);
+		player.getCooldowns().removeCooldown(dagger);
+		player.setHealth(player.getMaxHealth());
+		player.invulnerableTime = 0;
+		com.summy.reliquary.effect.Abaddon.setGuardAndAuraForTest(player, 200);
+		float guardBefore = player.getHealth();
+		boolean blockedByGuard = !com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		boolean guardNoLoss = Math.abs(player.getHealth() - guardBefore) < 1.0E-4F;
+		boolean guardNoBuff = com.summy.reliquary.effect.Sacrifice.bonusPercent(player) == 0.0D;
+		boolean guardNoCooldown = !player.getCooldowns().isOnCooldown(dagger);
+		com.summy.reliquary.effect.Abaddon.clearGuardForTest(player);
+		com.summy.reliquary.effect.Abaddon.clearAuraForTest(player);
+		log("献祭·被打断（1.8.2）：无敌期间释放被拒=" + blockedByGuard + "（应 true）、血量未变="
+				+ guardNoLoss + "（应 true）、未获得增益=" + guardNoBuff + "（应 true）、未进冷却="
+				+ guardNoCooldown + "（应 true）");
+
+		// ⑧ 冷却中：提示剩余秒数并拒绝
+		player.getCooldowns().removeCooldown(dagger);
+		player.setHealth(player.getMaxHealth());
+		player.invulnerableTime = 0;
+		com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		int cdLeft = com.summy.reliquary.effect.Sacrifice.cooldownSecondsLeft(player);
+		boolean blockedByCooldown = !com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		log("献祭·冷却（1.8.2）：剩余冷却=" + cdLeft + " 秒（应 8）、冷却中再按被拒="
+				+ blockedByCooldown + "（应 true）");
+
+		// ⑨ 可致死 + 不做任何死亡拦截：生命 2、佩戴神性、无护盾 → 自伤 4 直接打死，神性不接管
+		player.setHealth(player.getMaxHealth());
+		player.setAbsorptionAmount(0.0F);
+		com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+		com.summy.reliquary.effect.DamagePools.clear();
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		player.getCooldowns().removeCooldown(dagger);
+		player.setHealth(2.0F);
+		player.invulnerableTime = 0;
+		int lethalGuardBefore = com.summy.reliquary.effect.Godhead.deathGuardCount();
+		boolean lethalUsed = com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		boolean died = !player.isAlive() || player.getHealth() <= 0.0F;
+		boolean notIntercepted = com.summy.reliquary.effect.Godhead.deathGuardCount() == lethalGuardBefore;
+		log("献祭·可致死（1.8.2）：生命 2、佩戴神性、无护盾 → 释放=" + lethalUsed + "（应 true）、被自伤打死="
+				+ died + "（应 true）、未触发神性死亡拦截=" + notIntercepted + "（应 true）");
+		// 复活并复位，避免影响后续用例
+		if (!player.isAlive()) {
+			player.respawn();
+		}
+		unequip(player, ReliquarySlots.REVELATION);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+		player.setHealth(player.getMaxHealth());
+		player.setAbsorptionAmount(0.0F);
+		com.summy.reliquary.effect.DamagePools.clear();
+
+		// ⑩ 创造模式放行：不掉血但拿到增益与冷却
+		player.getCooldowns().removeCooldown(dagger);
+		player.setHealth(player.getMaxHealth());
+		player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+		com.summy.reliquary.effect.Sacrifice.setRemainingForTest(player, 0);
+		float creativeBefore = player.getHealth();
+		boolean creativeUsed = com.summy.reliquary.effect.Sacrifice.tryUse(player);
+		boolean creativeNoLoss = Math.abs(player.getHealth() - creativeBefore) < 1.0E-4F;
+		boolean creativeBuff = com.summy.reliquary.effect.Sacrifice.bonusPercent(player) > 39.0D;
+		boolean creativeCooldown = player.getCooldowns().isOnCooldown(dagger);
+		player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+		player.getCooldowns().removeCooldown(dagger);
+		com.summy.reliquary.effect.Sacrifice.setRemainingForTest(player, 0);
+		log("献祭·创造放行（1.8.2）：释放=" + creativeUsed + "（应 true）、不掉血=" + creativeNoLoss
+				+ "（应 true）、拿到增益=" + creativeBuff + "（应 true）、进冷却=" + creativeCooldown
+				+ "（应 true）");
+
+		// ⑪ 伤害类型与真伤标签
+		var damageRegistry = player.serverLevel().registryAccess()
+				.registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE);
+		boolean selfTypePresent = damageRegistry.containsKey(SummyReliquary.id("sacrifice_self"));
+		boolean bypassOk = false;
+		if (selfTypePresent) {
+			var holder = damageRegistry.getHolderOrThrow(net.minecraft.resources.ResourceKey.create(
+					net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+					SummyReliquary.id("sacrifice_self")));
+			bypassOk = holder.is(damageTypeTag("bypasses_armor"))
+					&& holder.is(damageTypeTag("bypasses_effects"))
+					&& holder.is(damageTypeTag("bypasses_enchantments"))
+					&& holder.is(damageTypeTag("bypasses_resistance"));
+		}
+		log("献祭·伤害类型（1.8.2）：sacrifice_self 已注册=" + selfTypePresent
+				+ "（应 true）、四个 bypass 标签齐全=" + bypassOk + "（应 true）");
+
+		// ⑦ 武器门槛提示：未进恶魔线时四把武器都算「不可查阅」
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setEvil(player, 0.0D);
+		com.summy.reliquary.effect.PlayerFlags.setEvilUnlocks(player, 0);
+		boolean lockedNone = com.summy.reliquary.item.ReliquaryTooltips.weaponLocked(player, dagger)
+				&& com.summy.reliquary.item.ReliquaryTooltips.weaponLocked(player, SummyReliquary.DARK_ARTS.get())
+				&& com.summy.reliquary.item.ReliquaryTooltips.weaponLocked(player, SummyReliquary.HOLY_SPEAR.get())
+				&& com.summy.reliquary.item.ReliquaryTooltips.weaponLocked(player, SummyReliquary.SERAPH_SPEAR.get());
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		boolean unlockedDemon = !com.summy.reliquary.item.ReliquaryTooltips.weaponLocked(player, dagger);
+		log("武器提示门槛（1.8.2）：未进线时四把都锁定=" + lockedNone + "（应 true）、拿到恶魔标记后献祭匕首解锁="
+				+ unlockedDemon + "（应 true）");
+
+		// 收尾
+		com.summy.reliquary.effect.Sacrifice.reset();
+		player.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+		player.getCooldowns().removeCooldown(dagger);
+		player.setHealth(player.getMaxHealth());
+		resetDemonPactState(player);
+	}
+
+	/** 自检用：构造原版伤害类型标签键（如 {@code bypasses_armor}） */
+	private static net.minecraft.tags.TagKey<net.minecraft.world.damagesource.DamageType> damageTypeTag(
+			String path) {
+		return net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+				net.minecraft.resources.ResourceLocation.tryParse("minecraft:" + path));
+	}
+
+	/** 1.8.2：X 技能（神性回溯 / 亚巴顿恶魔形态）改为长按蓄力 1 秒 */
+	private static void checkDivineActionCharge(ServerPlayer player) {
+		double seconds = com.summy.reliquary.config.ReliquaryConfig.divineActionChargeSeconds();
+		int ticks = com.summy.reliquary.config.ReliquaryConfig.divineActionChargeTicks();
+		boolean ok = Math.abs(seconds - 1.0D) < 1.0E-6D && ticks == 20;
+		log("X 技能蓄力（1.8.2）：charge_seconds=" + seconds + "（应 1.0）、蓄力 tick=" + ticks
+				+ "（应 20）= " + ok + "（应 true）；客户端长按行为留人工验收");
+	}
+
+	/** 1.8.2：光柱（启示之光 / 恶魔之焰）可以对末地水晶造成伤害 —— 布置阶段 */
+	private static void checkBeamHitsCrystalSetup(ServerPlayer player) {
+		prepareBarePlayer(player);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		com.summy.reliquary.effect.RevelationBeam.clear();
+		clearNearbyMonsters(player, 32.0D);
+		Vec3 eye = player.getEyePosition();
+		Vec3 look = player.getLookAngle();
+		// 放在 10 格处：光柱长度 35 格足够覆盖，同时避开水晶爆炸半径（6 格）
+		Vec3 center = eye.add(look.scale(10.0D));
+		var crystal = new net.minecraft.world.entity.boss.enderdragon.EndCrystal(player.serverLevel(),
+				center.x, center.y, center.z);
+		player.serverLevel().addFreshEntity(crystal);
+		beamCrystalId = crystal.getUUID();
+		boolean fired = com.summy.reliquary.effect.RevelationBeam.fire(player);
+		log("光柱打水晶·布置（1.8.2）：光柱已发射=" + fired + "（应 true）、末地水晶已生成="
+				+ (beamCrystalId != null) + "（应 true）");
+		unequip(player, ReliquarySlots.REVELATION);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+	}
+
+	/** 1.8.2：光柱打水晶 —— 断言水晶已被引爆（原版受伤即移除） */
+	private static void checkBeamHitsCrystalVerify(ServerPlayer player) {
+		var entity = beamCrystalId == null ? null : player.serverLevel().getEntity(beamCrystalId);
+		boolean removed = entity == null || entity.isRemoved();
+		log("光柱打水晶·结果（1.8.2）：末地水晶已被光柱引爆=" + removed + "（应 true）");
+		beamCrystalId = null;
+		player.setHealth(player.getMaxHealth());
 	}
 
 	/** 1.8.0：激活的硬前置 —— 必须佩戴七罪之源，且该罪处于未激活 */

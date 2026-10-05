@@ -65,12 +65,9 @@ public class SalvationItem extends Item implements ICurioItem {
 		if (ReliquaryTooltips.shiftDown()) {
 			tooltip.add(Component.translatable("item.summy-reliquary.salvation.desc")
 					.withStyle(ChatFormatting.GRAY));
-			// 联动：同时佩戴终末天启时追加一行
-			if (com.summy.reliquary.util.CurioHelper.wears(
-					ReliquaryTooltips.localPlayer(), SummyReliquary.FINAL_REVELATION.get())) {
-				tooltip.add(Component.translatable("item.summy-reliquary.salvation.desc.extended")
-						.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(AQUA))));
-			}
+			// 1.8.2：受益方不设联动行，直接把领域半径写成强化后的 5 格
+			tooltip.add(Component.translatable("item.summy-reliquary.salvation.desc.extended")
+					.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(AQUA))));
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
 		}
