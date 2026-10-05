@@ -297,7 +297,7 @@
   "item.summy-reliquary.demon.not_ready": "你的契约还不够深",
   "item.summy-reliquary.vengeful_spirit.tagline.1": "无尽冤魂中微不足道的一缕",
   "item.summy-reliquary.vengeful_spirit.tagline.2": "它只想焚尽一切",
-  "item.summy-reliquary.vengeful_spirit.shift.1": "狱火伤害|每秒对 5 格半径内敌人施加 %s",
+  "item.summy-reliquary.vengeful_spirit.shift.1": "狱火伤害|半径 5 格内的敌人每秒受到 %s 点",
   "item.summy-reliquary.vengeful_spirit.shift.2": "（无视护甲与火焰免疫）",
   "item.summy-reliquary.the_mark.tagline.1": "你在额上刻下它的印记",
   "item.summy-reliquary.the_mark.tagline.2": "“你是我的了”",

@@ -9158,9 +9158,13 @@ public final class ForgeDevCheck {
 				&& !mantle.contains("%s") && mantle.contains("1.5")
 				&& !mark.contains("%s") && mark.contains("60")
 				&& vengeful.contains("5 格") && heart.contains("12 格");
+		// 1.8.2 修：复仇之魂主行曾写成「每秒对 5 格半径内敌人施加 6」（数值悬空、定语语序不规范），
+		// 现已对齐神性光环句式 —— 这里加一条负向断言，防止同类语序回归
+		boolean vengefulOrderOk = !vengeful.contains("格半径内");
 		log("联动提示口径（1.8.2）：圣光=「" + light + "」、斗篷=「" + mantle + "」、咒印=「" + mark
 				+ "」、复仇之魂=「" + vengeful + "」、圣心=「" + heart + "」→ 受益方全部静态强化="
-				+ benefitStatic + "（应 true）；提供方联动键=" + present + "/7（应 7）");
+				+ benefitStatic + "（应 true）；提供方联动键=" + present + "/7（应 7）、复仇之魂语序已修（不含「格半径内」）="
+				+ vengefulOrderOk + "（应 true）");
 	}
 
 	/** tick → 秒文本（20 → 1、30 → 1.5） */

@@ -297,7 +297,7 @@
   "item.summy-reliquary.demon.not_ready": "Your contract is not deep enough yet",
   "item.summy-reliquary.vengeful_spirit.tagline.1": "One insignificant wisp among endless vengeful souls",
   "item.summy-reliquary.vengeful_spirit.tagline.2": "It only wants to burn everything",
-  "item.summy-reliquary.vengeful_spirit.shift.1": "Hellfire damage|to enemies within 5 blocks, %s per second",
+  "item.summy-reliquary.vengeful_spirit.shift.1": "Hellfire damage|Enemies within 5 blocks take %s damage per second",
   "item.summy-reliquary.vengeful_spirit.shift.2": "(Ignores armor and fire immunity)",
   "item.summy-reliquary.the_mark.tagline.1": "You carved its mark upon your brow",
   "item.summy-reliquary.the_mark.tagline.2": "\u201cYou are mine now\u201d",
