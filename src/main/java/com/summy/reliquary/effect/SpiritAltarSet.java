@@ -24,7 +24,7 @@ import java.util.UUID;
  *
  * <ul>
  *     <li>肉体：最大生命 +10 / 套装 +20（属性修正由物品类提供）；</li>
- *     <li>思想：15 格内敌对生物与玩家发光；套装时对发光目标 +10% 伤害；</li>
+ *     <li>思想：24 格内敌对生物与玩家发光（视线正对的那一具同样点亮）；套装时对发光目标 +10% 伤害；</li>
  *     <li>灵魂：+3 魂心（每点 2 点吸收，黄血由 {@link SoulShield} 维护）；套装时 20% 几率免死（见 {@link DeathImmunity}）。</li>
  * </ul>
  *
@@ -132,9 +132,20 @@ public final class SpiritAltarSet {
 		return GazeLook.lookedAt(player, distance);
 	}
 
-	/** 战斗结算：套装伤害加成、肉体减伤、伯列恒之星伤害加成（免死见 {@link DeathImmunity}） */
+	/**
+	 * 战斗结算：套装伤害加成（思想对发光目标 / 玄秘魔眼注视 / 恶魔王冠分档）与肉体减伤。
+	 *
+	 * <p>1.8.3：伯列恒之星 / 终末天启的「造成伤害 +20%」已并入
+	 * {@code ReliquaryEvents.finalDamageMultiplier}（与圣心 / 神性同乘区相加）；
+	 * 本层不再处理它，并统一排除**本模组的全部伤害类型**与自伤。
+	 */
 	public static void onLivingHurt(LivingHurtEvent event) {
 		LivingEntity victim = event.getEntity();
+		// 1.8.3：自伤（献祭匕首的自损）**完全不吃这一层** —— 既不参与加伤，也不被「肉体」套装减伤缩水，
+		// 保证"自损恒为配置值"（否则三件套齐 / 戴咒印时 4 点会先被 ×0.8 变成 3.2）
+		if (event.getSource().getEntity() != null && event.getSource().getEntity() == victim) {
+			return;
+		}
 
 		// 肉体 + 套装：受到的伤害减免
 		if (victim instanceof ServerPlayer player && hasSetEffects(player)) {
@@ -148,23 +159,22 @@ public final class SpiritAltarSet {
 		if (!(attacker instanceof ServerPlayer player)) {
 			return;
 		}
-		// 1.6.4：本模组的"定值真伤"（启示之光 / 神性光环 / 献祭 / 恶魔之焰）不允许被加伤改写 ——
-		// 它们的数值是配置直接给定的；以前是靠启示之光的事后校正顺手盖住，改成伤害标签后必须显式排除
-		if (com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource())) {
+		// 1.8.3：本模组自己的全部伤害类型都不吃这一层加成。这里必须用**并集**：
+		// isDivine 与 isExactDamage 互不包含 —— isDivine 独有 holy_light（圣光）/ pact_shatter（黑心碎裂）/ hellfire（狱火），
+		// isExactDamage 独有 godhead_aura（神性光环）/ sacrifice（契约献祭），只用其中一个都会漏掉另一边。
+		// 于是圣光只在"主击基准"里继承过一次加伤，不会在本层被重复放大。
+		if (com.summy.reliquary.effect.HolyLightEffect.isDivine(event.getSource())
+				|| com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource())) {
 			return;
 		}
 
 		float amount = event.getAmount();
 
 		// 思想 + 套装：对发光目标额外伤害
-		if (hasSetEffects(player) && victim.hasGlowingTag()) {
+		// 1.8.3：改用 isCurrentlyGlowing() —— 服务端等价于「本模组打的标记 ∨ 原版发光效果」，
+		// 被光谱箭 / 发光药水照亮的目标也算（不受 24 格限制）
+		if (hasSetEffects(player) && victim.isCurrentlyGlowing()) {
 			amount *= 1.0F + ReliquaryConfig.mindBonusPercent() / 100.0F;
-		}
-
-		// 伯列恒之星 / 终末天启：造成伤害提升
-		if (CurioHelper.wears(player, SummyReliquary.STAR_OF_BETHLEHEM.get())
-				|| CurioHelper.wears(player, SummyReliquary.FINAL_REVELATION.get())) {
-			amount *= 1.0F + ReliquaryConfig.starDamagePercent() / 100.0F;
 		}
 
 		// 玄秘魔眼（1.6.5）：对"此刻正被自己注视的那一具"造成伤害 ×1.3

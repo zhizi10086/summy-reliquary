@@ -17,8 +17,11 @@ import net.minecraft.util.RandomSource;
  * 「伯列恒之星」的启示计时与坐标揭示。
  *
  * <p>累计佩戴时间（每 20 tick 记一次、落盘到玩家持久化数据，卸下保留），满 600 秒（可配置）后揭示坐标：
- * 坐标由「世界种子 + 玩家 UUID」派生，以世界出生点为中心、半径 1000 格（可配置）的圆内取 X/Z，忽略 Y；
+ * 坐标由「世界种子 + 玩家 UUID」派生，以**主世界**共享出生点为中心、半径 1000 格（可配置）的圆内取 X/Z，忽略 Y；
  * 同一存档同一玩家永远得到同一个坐标，并通过网络包同步给客户端用于提示文本。
+ *
+ * <p>1.8.3：坐标在**首次进入世界时**就派生并冻结（{@link #ensureCoordinate}）——无论玩家在哪个维度
+ * 凑满计时、在哪里触发揭示，拿到的都是主世界坐标；创世纪重置会清掉坐标，下一次检查点按当时的主世界出生点重新派生。
  */
 public final class RevelationTracker {
 	private static final String TICKS = "revelation_ticks";
@@ -82,30 +85,46 @@ public final class RevelationTracker {
 		return root(player).getInt(Z);
 	}
 
-	/** 揭示坐标：派生 → 落盘 → 同步 → 提示 */
-	public static void reveal(ServerPlayer player) {
-		ServerLevel level = player.serverLevel();
-		long seed = level.getSeed()
+	/**
+	 * 1.8.3：确保坐标已确定（首次进入世界即冻结）。
+	 *
+	 * <p>派生基准固定为**主世界**：种子用主世界种子、圆心用主世界共享出生点。X/Z 缺失时才派生并落盘，
+	 * 之后不再改变；创世纪重置会清掉 X/Z，于是下一次调用会重新派生（出生点没变则结果与旧值相同）。
+	 */
+	public static void ensureCoordinate(ServerPlayer player) {
+		if (player == null || player.getServer() == null) {
+			return;
+		}
+		CompoundTag existing = root(player);
+		if (existing.contains(X) && existing.contains(Z)) {
+			return;
+		}
+		ServerLevel overworld = player.getServer().overworld();
+		long seed = overworld.getSeed()
 				^ player.getUUID().getMostSignificantBits()
 				^ Long.rotateLeft(player.getUUID().getLeastSignificantBits(), 17);
 		RandomSource random = RandomSource.create(seed);
-
-		BlockPos spawn = level.getSharedSpawnPos();
+		BlockPos spawn = overworld.getSharedSpawnPos();
 		double angle = random.nextDouble() * Math.PI * 2.0D;
 		double distance = Math.sqrt(random.nextDouble()) * Math.max(1, ReliquaryConfig.revealRadius());
 		int x = spawn.getX() + (int) Math.round(Math.cos(angle) * distance);
 		int z = spawn.getZ() + (int) Math.round(Math.sin(angle) * distance);
 
 		CompoundTag root = mutableRoot(player);
-		root.putBoolean(REVEALED, true);
 		root.putInt(X, x);
 		root.putInt(Z, z);
+	}
 
+	/** 揭示坐标：确保已派生 → 置位 → 同步 → 提示 */
+	public static void reveal(ServerPlayer player) {
+		ensureCoordinate(player);
+		mutableRoot(player).putBoolean(REVEALED, true);
 		sync(player);
 		player.displayClientMessage(
-				Component.translatable("message.summy-reliquary.revelation", coordinateText(x, z)), true);
+				Component.translatable("message.summy-reliquary.revelation",
+						coordinateText(revealX(player), revealZ(player))), true);
 		SummyReliquary.LOGGER.info("[Summy Reliquary] 为 {} 揭示启示坐标 ({}, {})",
-				player.getName().getString(), x, z);
+				player.getName().getString(), revealX(player), revealZ(player));
 	}
 
 	/**
@@ -144,6 +163,8 @@ public final class RevelationTracker {
 
 	/** 把当前状态同步给该玩家的客户端（登录时与状态变化时调用） */
 	public static void sync(ServerPlayer player) {
+		// 1.8.3：同步前先确保坐标已确定（首次进入即冻结；创世纪重置后在这里重新派生）
+		ensureCoordinate(player);
 		// 同步前先把"是否获取过启示"补齐（老存档迁移 / 持有天启 · 神性的兜底）
 		updateObtained(player);
 		// 启示已降临（星→天启）会加一个标记位，供提示文本切换成"你的启示已经降临"

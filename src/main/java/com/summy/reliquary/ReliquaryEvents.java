@@ -794,8 +794,8 @@ public final class ReliquaryEvents {
 		}
 	}
 
-	// 圣心 + 神性的「全伤害最终倍率」：两者同属一个乘区，相加后一次性相乘
-	// （同时佩戴 = ×1.5，而不是 ×1.56）。调用点已经排除了本模组的神性伤害
+	// 「全伤害最终倍率」：圣心 + 神性 + 伯列恒之星 / 终末天启 同属一个乘区，相加后一次性相乘
+	// （星 + 圣心 = 1.5 倍，而不是 1.56）。调用点已经排除了本模组的神性伤害
 	// （圣光 / 光柱 / 领域），所以不会出现"圣光伤害再乘一遍"的重复计算。
 	private static float finalDamageMultiplier(ServerPlayer attacker,
 			net.minecraft.world.damagesource.DamageSource source) {
@@ -805,6 +805,12 @@ public final class ReliquaryEvents {
 		}
 		if (com.summy.reliquary.effect.Godhead.active(attacker)) {
 			percent += ReliquaryConfig.godheadDamagePercent();
+		}
+		// 1.8.3：伯列恒之星 / 终末天启的「造成伤害 +20%」由 SpiritAltarSet 挪进本乘区，
+		// 与圣心相加而非相乘；作用范围随本乘区一起排除本模组的全部特效伤害
+		if (CurioHelper.wears(attacker, SummyReliquary.STAR_OF_BETHLEHEM.get())
+				|| CurioHelper.wears(attacker, SummyReliquary.FINAL_REVELATION.get())) {
+			percent += ReliquaryConfig.starDamagePercent();
 		}
 		// 恶魔契约（1.6.0）：契约 16% + 邪恶度（奇偶交替）也进同一个乘区
 		percent += com.summy.reliquary.effect.DemonPact.attackBonusPercent(attacker);
