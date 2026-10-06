@@ -3,6 +3,38 @@
 > 本文档收录 Summy Reliquary 的历史版本变更；**当前版本的内容与玩法以 [README.md](README.md) 为准**
 > （README 只保留最新一版变更，历史记录全部收在这里）。
 
+## 1.8.3 变更
+
+**① 圣心箭矢追踪（借鉴合作者 mofeng945 的 `SwordGuidance`）**
+
+- 抽出纯函数 `SacredHeart.homingDirection(Vec3 velocity, Vec3 toTargetUnit)`：当前方向与指向目标恰好相反时混合结果为零向量，旧实现会把箭速写成 0 悬停 —— 现在退化为直接朝目标。
+- 新增小角度死区 `MIN_TURN_ANGLE = 0.02`（约 1.15°）：已对准的箭不再每 tick 写速度与 `hurtMarked`。
+- `nearestEnemy` 由"方盒"改为「AABB 粗筛 + `distanceToSqr <= radius²` 球体精筛」，斜角方向不再能吸到 8√3 格外的目标。
+
+**② 伯列恒之星 / 终末天启的 +20% 并入「圣心 · 神性」乘区**
+
+- 从 `SpiritAltarSet.onLivingHurt` 删除该乘法，改在 `ReliquaryEvents.finalDamageMultiplier` 的相加项里累加。
+- 星 + 圣心由 1.2×1.3 = 1.56 变为 1 + 20% + 30% = **1.50**；作用范围跟随该乘区既有的 `!isDivine(source)` 守卫，圣光不再被第二次放大。
+
+**③ 启示坐标固定主世界，且首次进入世界即冻结**
+
+- 新增 `RevelationTracker.ensureCoordinate(ServerPlayer)`：以**主世界**种子 + **主世界**共享出生点派生 X/Z（原来用玩家当时所在维度），在 `sync()` 与 `reveal()` 开头调用。
+- X/Z 缺失时才派生并落盘；`reveal` 只置位；创世纪重置仍清 X/Z，于是下次检查点按当时的主世界出生点重新派生。
+
+**④ 恶魔王冠加伤作用范围收窄**
+
+- 排除条件由 `isExactDamage` 改为 **`isDivine(source) || isExactDamage(source)`**（并集 —— 两者互不包含，只用其中一个会漏掉另一边的定值 / 特效伤害）。
+- 层首新增自伤豁免：攻击者 == 受害者直接返回，献祭自损既不被放大、也不吃「肉体」套装减伤，恒为配置值。
+
+**⑤ 思想的「对发光目标 +10%」改认原版发光**
+
+- `victim.hasGlowingTag()` 改为 `victim.isCurrentlyGlowing()`：光谱箭 / 发光药水照亮的目标也算，作用区间不再受 24 格限制；跨玩家共享标记的行为不变。
+- 订正 `SpiritAltarSet` 类注释与 `ReliquaryConfig.glowRadius()` 兜底值的过期数字 15 → 24。
+
+**⑥ 交付**
+
+- 版本 `1.8.3-forge`；协议仍 `"13"`；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；自检 **574 行全绿**（0 条失败断言）。
+
 ## 1.8.2 变更
 
 **① 提示系统重做**

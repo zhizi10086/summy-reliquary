@@ -1129,7 +1129,20 @@ public final class ForgeDevCheck {
 
 		log(String.format("伤害加成检查：普通目标 %.2f（期望 12.00 = 10×1.2 星）/ 发光目标 %.2f（期望 13.20 = 10×1.1×1.2）",
 				damagePlain, damageGlowing));
+		// 先清掉发光标记，保证下面这条只测"星 + 圣心"的乘区，不会混进思想的对发光目标 +10%
 		zombie.setGlowingTag(false);
+		// 1.8.3：星与圣心改为同乘区"相加" —— 10 × (1 + 20% + 30%) = 15.00（旧口径是 10×1.2×1.3 = 15.60）
+		CuriosApi.getCuriosInventory(player).ifPresent(handler ->
+				handler.setEquippedCurio(ReliquarySlots.BLESSING, 1,
+						new ItemStack(SummyReliquary.SACRED_HEART.get())));
+		LivingHurtEvent withHeart = new LivingHurtEvent(zombie,
+				player.damageSources().playerAttack(player), 10.0F);
+		MinecraftForge.EVENT_BUS.post(withHeart);
+		double damageWithHeart = withHeart.getAmount();
+		CuriosApi.getCuriosInventory(player).ifPresent(handler ->
+				handler.setEquippedCurio(ReliquarySlots.BLESSING, 1, ItemStack.EMPTY));
+		log(String.format("星 + 圣心同乘区检查：%.2f（期望 15.00 = 10×(1+20%%+30%%)；旧口径 1.2×1.3 = 15.60）",
+				damageWithHeart));
 	}
 
 	/** 装备伯列恒之星并把累计计时推到揭示前一刻 */
@@ -1146,9 +1159,10 @@ public final class ForgeDevCheck {
 		boolean revealed = RevelationTracker.isRevealed(player);
 		int x = RevelationTracker.revealX(player);
 		int z = RevelationTracker.revealZ(player);
-		var spawn = player.serverLevel().getSharedSpawnPos();
+		// 1.8.3：坐标基准固定为主世界（与玩家当时所在维度无关）
+		var spawn = player.server.overworld().getSharedSpawnPos();
 		double distance = Math.sqrt(Math.pow(x - spawn.getX(), 2.0D) + Math.pow(z - spawn.getZ(), 2.0D));
-		log(String.format("启示检查：已揭示=%s 坐标=(%d, %d) 距出生点 %.1f 格（应 ≤ %d）",
+		log(String.format("启示检查：已揭示=%s 坐标=(%d, %d) 距主世界出生点 %.1f 格（应 ≤ %d）",
 				revealed, x, z, distance, com.summy.reliquary.config.ReliquaryConfig.revealRadius()));
 	}
 
@@ -3924,10 +3938,56 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.SacredHeart.tick(server);
 		double afterDot = arrow.getDeltaMovement().normalize()
 				.dot(near.getEyePosition().subtract(arrow.position()).normalize());
-		arrow.discard();
-		near.discard();
 		log(String.format("圣心箭矢追踪：偏转前 dot=%.3f → 偏转后 dot=%.3f（应变大，说明朝目标转向）",
 				beforeDot, afterDot));
+
+		// 1.8.3 ①：180° 正后方兜底 —— 混合结果为零向量时必须直接朝目标，不能把速度写成 0
+		Vec3 backward = com.summy.reliquary.effect.SacredHeart.homingDirection(
+				new Vec3(0.0D, 0.0D, -1.0D), new Vec3(0.0D, 0.0D, 1.0D));
+		double backwardDot = backward.normalize().dot(new Vec3(0.0D, 0.0D, 1.0D));
+		boolean oppositeOk = Math.abs(backward.length() - 1.0D) < 1.0E-6D && backwardDot > 0.999D;
+		log(String.format("圣心追踪·正后方兜底：结果长度=%.3f、与目标方向点积=%.3f（应 1.000）→ %s（应 true）",
+				backward.length(), backwardDot, oppositeOk));
+
+		// 1.8.3 ②：小角度死区 —— 已对准的箭不再被改写（同一个 Vec3 实例、不置 hurtMarked）
+		double eyeOffset = near.getEyeY() - near.getY();
+		near.teleportTo(arrow.getX(), arrow.getY() - eyeOffset, arrow.getZ() - 4.0D);
+		Vec3 aligned = new Vec3(0.0D, 0.0D, -0.5D);
+		arrow.setDeltaMovement(aligned);
+		arrow.hurtMarked = false;
+		Vec3 beforeVector = arrow.getDeltaMovement();
+		com.summy.reliquary.effect.SacredHeart.steerForTest(arrow, near);
+		boolean untouched = arrow.getDeltaMovement() == beforeVector && !arrow.hurtMarked;
+		near.teleportTo(arrow.getX() + 4.0D, arrow.getY() - eyeOffset, arrow.getZ());
+		arrow.setDeltaMovement(aligned);
+		arrow.hurtMarked = false;
+		com.summy.reliquary.effect.SacredHeart.steerForTest(arrow, near);
+		boolean steered = arrow.hurtMarked;
+		log("圣心追踪·小角度死区（阈值 " + com.summy.reliquary.effect.SacredHeart.minTurnAngle()
+				+ " rad）：已对准时未被改写=" + untouched + "（应 true）、大偏角时写回=" + steered + "（应 true）");
+
+		// 1.8.3 ③：半径改真球体 —— 落在旧 AABB 内、球外的斜角目标不再被选中
+		double radius = com.summy.reliquary.effect.Synergies.sacredHeartArrowRadius(player);
+		net.minecraft.world.entity.projectile.Arrow probe =
+				new net.minecraft.world.entity.projectile.Arrow(player.serverLevel(), player);
+		probe.setPos(player.getX(), player.getY() + 40.0D, player.getZ());
+		player.serverLevel().addFreshEntity(probe);
+		Zombie diagonal = new Zombie(player.serverLevel());
+		diagonal.moveTo(probe.getX() + radius * 0.8D, probe.getY(), probe.getZ() + radius * 0.8D);
+		player.serverLevel().addFreshEntity(diagonal);
+		Zombie axial = new Zombie(player.serverLevel());
+		axial.moveTo(probe.getX() + radius - 0.01D, probe.getY(), probe.getZ());
+		player.serverLevel().addFreshEntity(axial);
+		LivingEntity picked = com.summy.reliquary.effect.SacredHeart.nearestEnemyForTest(
+				player.serverLevel(), probe, radius);
+		boolean sphereOk = picked == axial;
+		log(String.format("圣心追踪·球体半径（%.1f 格）：斜角目标距离 %.2f 格（旧方盒内、球外）、轴向目标 %.2f 格，"
+				+ "选中轴向目标=%s（应 true）", radius, Math.sqrt(2.0D) * radius * 0.8D, radius - 0.01D, sphereOk));
+		diagonal.discard();
+		axial.discard();
+		probe.discard();
+		arrow.discard();
+		near.discard();
 	}
 
 	/** 神性：互斥、继承属性、飞行不减速、光柱覆盖值、救恩半径 */
@@ -9549,11 +9609,14 @@ public final class ForgeDevCheck {
 		double bonusFive = com.summy.reliquary.effect.DevilCrown.damageBonusPercent(player);
 		player.setHealth(player.getMaxHealth() * 0.1F);
 		double bonusCap = com.summy.reliquary.effect.DevilCrown.damageBonusPercent(player);
-		// 事件层：50% 血 → 10 点变 11.5；定值真伤（启示之光）不吃
+		// 事件层：50% 血 → 10 点变 11.5；本模组自己的伤害类型（启示之光 / 圣光 / 黑心碎裂）与自伤都不吃
 		player.setHealth(player.getMaxHealth() * 0.5F);
 		Zombie crownTarget = spawnHolyLightTarget(player, 6.0D);
 		float crownBoosted = -1.0F;
 		float crownExact = -1.0F;
+		float crownHoly = -1.0F;
+		float crownShatter = -1.0F;
+		float crownSelf = -1.0F;
 		if (crownTarget != null) {
 			var boostedHurt = new LivingHurtEvent(crownTarget,
 					player.damageSources().playerAttack(player), 10.0F);
@@ -9568,12 +9631,39 @@ public final class ForgeDevCheck {
 			var exactHurt = new LivingHurtEvent(crownTarget, exactSource, 10.0F);
 			com.summy.reliquary.effect.SpiritAltarSet.onLivingHurt(exactHurt);
 			crownExact = exactHurt.getAmount();
+			// 1.8.3：排除条件改成 isDivine ∪ isExactDamage —— 圣光与黑心碎裂也必须原样通过
+			var holySource = new net.minecraft.world.damagesource.DamageSource(registry.getHolderOrThrow(
+					net.minecraft.resources.ResourceKey.create(
+							net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+							SummyReliquary.id("holy_light"))), player, player);
+			var holyHurt = new LivingHurtEvent(crownTarget, holySource, 10.0F);
+			com.summy.reliquary.effect.SpiritAltarSet.onLivingHurt(holyHurt);
+			crownHoly = holyHurt.getAmount();
+			var shatterSource = new net.minecraft.world.damagesource.DamageSource(registry.getHolderOrThrow(
+					net.minecraft.resources.ResourceKey.create(
+							net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+							SummyReliquary.id("pact_shatter"))), player, player);
+			var shatterHurt = new LivingHurtEvent(crownTarget, shatterSource, 40.0F);
+			com.summy.reliquary.effect.SpiritAltarSet.onLivingHurt(shatterHurt);
+			crownShatter = shatterHurt.getAmount();
 			crownTarget.discard();
 		}
+		// 1.8.3：自伤（攻击者 == 受害者）整层跳过 —— 既不放大，也不被「肉体」套装减伤缩水
+		var selfRegistry = player.serverLevel().registryAccess()
+				.registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE);
+		var selfSource = new net.minecraft.world.damagesource.DamageSource(selfRegistry.getHolderOrThrow(
+				net.minecraft.resources.ResourceKey.create(
+						net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+						SummyReliquary.id("sacrifice_self"))), player, player);
+		var selfHurt = new LivingHurtEvent(player, selfSource, 4.0F);
+		com.summy.reliquary.effect.SpiritAltarSet.onLivingHurt(selfHurt);
+		crownSelf = selfHurt.getAmount();
 		boolean damageOk = bonusBeforeLock == 0.0D && bonusFull == 0.0D
 				&& Math.abs(bonusOne - 3.0D) < 1.0E-6D && Math.abs(bonusTwo - 6.0D) < 1.0E-6D
 				&& Math.abs(bonusFive - 15.0D) < 1.0E-6D && Math.abs(bonusCap - 15.0D) < 1.0E-6D
-				&& Math.abs(crownBoosted - 11.5F) < 1.0E-4F && Math.abs(crownExact - 10.0F) < 1.0E-4F;
+				&& Math.abs(crownBoosted - 11.5F) < 1.0E-4F && Math.abs(crownExact - 10.0F) < 1.0E-4F
+				&& Math.abs(crownHoly - 10.0F) < 1.0E-4F && Math.abs(crownShatter - 40.0F) < 1.0E-4F
+				&& Math.abs(crownSelf - 4.0F) < 1.0E-4F;
 
 		// ⑤ 发放：转化撒旦圣经时发 1 次且不重复；死亡不掉
 		resetDemonPactState(player);
@@ -9632,6 +9722,10 @@ public final class ForgeDevCheck {
 						+ "事件层 50%% 血时 10 → %.2f（应 11.50）、定值真伤 10 → %.2f（应仍是 10）→ 全对=%s（应 true）",
 				bonusBeforeLock, bonusFull, bonusOne, bonusTwo, bonusFive, bonusCap,
 				crownBoosted, crownExact, damageOk));
+		// 1.8.3：本模组自己的伤害类型与自伤都不吃这一层，单独把实测值打出来
+		log(String.format("恶魔王冠·作用范围（1.8.3）：圣光 10 → %.2f（应仍是 10）、黑心碎裂 40 → %.2f（应仍是 40）、"
+						+ "献祭自伤 4 → %.2f（应仍是 4）",
+				crownHoly, crownShatter, crownSelf));
 		log("恶魔王冠·发放：转化撒旦圣经后王冠×" + crownAfterConvert + "（应 1）、再跑一次仍×" + crownAfterSecond
 				+ "（应 1，不重复）、死亡不掉（ALWAYS_KEEP）=" + keepOnDeath + "（应 true）→ " + grantOk
 				+ "（应 true）");

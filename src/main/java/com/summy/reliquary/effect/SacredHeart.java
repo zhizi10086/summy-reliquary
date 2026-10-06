@@ -24,6 +24,10 @@ public final class SacredHeart {
 	private static final double HOMING_STRENGTH = 0.5D;
 	/** 速率低于该值就不硬掰（避免原地打转的箭乱飞） */
 	private static final double MIN_SPEED = 0.05D;
+	/** 1.8.3：夹角小于该值（弧度，约 1.15°）就不再修正 —— 已对准时不再写速度、不置 hurtMarked */
+	private static final double MIN_TURN_ANGLE = 0.02D;
+	/** 1.8.3：混合结果长度平方低于该值时视为"正后方"（零向量），直接朝目标 */
+	private static final double BLEND_EPSILON = 1.0E-8D;
 
 	private SacredHeart() {
 	}
@@ -63,9 +67,13 @@ public final class SacredHeart {
 	private static LivingEntity nearestEnemy(ServerLevel level, AbstractArrow arrow, double radius) {
 		LivingEntity best = null;
 		double bestDistance = Double.MAX_VALUE;
+		// 1.8.3：AABB 只做粗筛（走区块索引），这里补一层球体距离精筛，
+		// 让"半径 N 格"严格成立（旧的方盒在斜角上最远能到 N√3 格）
+		double radiusSqr = radius * radius;
 		for (LivingEntity candidate : level.getEntitiesOfClass(LivingEntity.class,
 				arrow.getBoundingBox().inflate(radius),
-				entity -> entity instanceof Enemy && entity.isAlive())) {
+				entity -> entity instanceof Enemy && entity.isAlive()
+						&& entity.distanceToSqr(arrow) <= radiusSqr)) {
 			double distance = candidate.distanceToSqr(arrow);
 			if (distance < bestDistance) {
 				bestDistance = distance;
@@ -83,13 +91,37 @@ public final class SacredHeart {
 			return;
 		}
 		Vec3 direction = target.getEyePosition().subtract(arrow.position()).normalize();
-		Vec3 steered = velocity.normalize().scale(1.0D - HOMING_STRENGTH)
-				.add(direction.scale(HOMING_STRENGTH))
-				.normalize()
-				.scale(speed);
-		arrow.setDeltaMovement(steered);
+		// 1.8.3：已经基本对准就不再改写 —— 省掉每 tick 的速度写入与 hurtMarked 同步
+		double cos = Math.max(-1.0D, Math.min(1.0D, velocity.normalize().dot(direction)));
+		if (Math.acos(cos) < MIN_TURN_ANGLE) {
+			return;
+		}
+		arrow.setDeltaMovement(homingDirection(velocity, direction));
 		// 让客户端也同步这次速度变化
 		arrow.hurtMarked = true;
+	}
+
+	/**
+	 * 1.8.3：偏转后的速度（保持原速率，只改方向）。
+	 *
+	 * <p>取「当前方向」与「指向目标」的角平分线；当两者**恰好相反**（正后方）时混合结果会成为
+	 * 零向量，若不处理就会把箭速写成 0、悬停在半空 —— 这里退化为直接朝目标。
+	 *
+	 * <p>自检用：纯计算，不碰实体。
+	 */
+	public static Vec3 homingDirection(Vec3 velocity, Vec3 toTargetUnit) {
+		double speed = velocity.length();
+		Vec3 blended = velocity.normalize().scale(1.0D - HOMING_STRENGTH)
+				.add(toTargetUnit.scale(HOMING_STRENGTH));
+		if (blended.lengthSqr() < BLEND_EPSILON) {
+			return toTargetUnit.scale(speed);
+		}
+		return blended.normalize().scale(speed);
+	}
+
+	/** 自检用：小角度死区（弧度） */
+	public static double minTurnAngle() {
+		return MIN_TURN_ANGLE;
 	}
 
 	/** 自检用：偏转强度 */

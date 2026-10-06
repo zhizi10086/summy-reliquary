@@ -1203,7 +1203,8 @@ public final class ReliquaryConfig {
 	}
 
 	public static int glowRadius() {
-		return intOr(GLOW_RADIUS, 15);
+		// 1.8.3：兜底值与注册默认值统一为 24（旧注释与兜底值写的 15 是过期数据）
+		return intOr(GLOW_RADIUS, 24);
 	}
 
 	public static int mindBonusPercent() {
