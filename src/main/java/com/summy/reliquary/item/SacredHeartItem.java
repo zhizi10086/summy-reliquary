@@ -69,12 +69,15 @@ public class SacredHeartItem extends Item implements ICurioItem {
 
 	/** Shift 五行：末两行是「·追踪能力」与「你不再恐惧深渊」，最后一行为联动声明（1.8.2） */
 	public static java.util.List<Component> shiftLines() {
+		// 1.8.4：追踪半径按"当前是否同时佩戴神性"实时显示（基础 8 格 / 联动 12 格）
+		String radius = ReliquaryTooltips.number(com.summy.reliquary.effect.Synergies
+				.sacredHeartArrowRadius(ReliquaryTooltips.localPlayer()));
 		return java.util.List.of(
 				Component.translatable("item.summy-reliquary.sacred_heart.shift.1")
 						.withStyle(ChatFormatting.GRAY),
 				Component.translatable("item.summy-reliquary.sacred_heart.shift.2")
 						.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(PALE_GOLD))),
-				Component.translatable("item.summy-reliquary.sacred_heart.shift.3")
+				Component.translatable("item.summy-reliquary.sacred_heart.shift.3", radius)
 						.withStyle(ChatFormatting.GRAY),
 				Component.translatable("item.summy-reliquary.sacred_heart.shift.4")
 						.withStyle(ChatFormatting.GRAY),

@@ -1,6 +1,6 @@
-# Summy Reliquary 事件文本与触发关系总台账（1.8.3-forge）
+# Summy Reliquary 事件文本与触发关系总台账（1.8.4-forge）
 
-> 更新时间：2026-10-06（1.8.3）　｜　对应版本：**1.8.3-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-10-07（1.8.4）　｜　对应版本：**1.8.4-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > 用途：把所有"会显示给玩家的话"按**触发条件**整理成一张表，方便改文案、查文案、加功能时对照。
 > 权威文本源：`src/main/resources/assets/summy-reliquary/lang/zh_cn.json` / `en_us.json`（改文案只改这两个文件，代码里没有硬编码中文）。
 
@@ -953,6 +953,8 @@
 7. **无敌帧相关的日志不是玩家可见文本**：`[combat] log_iframe_throttle` 只写 `logs/latest.log`（每 5 秒一条，含"尝试 / 落地 / 被挡下 + 来源"），
    用来排查"帧伤"，**不要在语言文件里给它加键**。
 6. 所有"数字"都来自配置（`config/summy_reliquary-common.toml`），改配置后提示里的数字会跟着变；不要把这些数字写死在语言文件里（用 `%s` 占位）。
+   ⚠️ **1.8.4 口径**：受益方（圣光 / 神圣斗篷 / 圣心 / 炽天使之枪 / 救恩 / 咒印 / 复仇之魂 / 暗仪刺刀）的**联动数值必须用占位符 + 运行时取值**（`Synergies`，或 `VengefulSpirit.effectiveRadius` / `SalvationDomain.radiusFor` / `DemonPact.shatterDamage`）—— 1.8.2 曾把联动值写死在语言文件里，导致**没戴联动件时也显示强化后的数字**，1.8.4 已回退。
+   ⚠️ 玄秘魔眼与深渊领主的**亚巴顿专属**描述（「并使目标无法移动」/「满级时目标的抗性提升等级减半」）已拆成独立键 `occult_eye.shift.3.abaddon` / `abyss_lord.shift.4.abaddon`，按 `Synergies.withAbaddon` 条件二选一；**基础键里不要再包含这两句**。同理，契约与深渊领主的联动行只声明「暗仪刺刀已被强化」（献祭匕首 1.8.2 起已改走「献祭」，不再吃遁入暗影的联动）。
 7. **口径变更提醒**：① **受伤无敌帧在 1.6.3 已返工** —— 不再是 1.6.2 的自定义节流，而是**沿用原版判定、只改写窗口长度**（字段值 = 有效窗口 + 10；一般 5 tick、帧伤 10 tick），差值结算与 `#bypasses_cooldown` 都交回原版；
 ② 魂心是**独立池**（`soul_heart_points`，由状态包同步给 HUD），与黑心按"吸收 → 魂心 → 黑心 → 真血"依次结算。
 8. **1.6.4：本模组"定值真伤"不允许被加伤改写**（`HolyLightEffect.isExactDamage`）——`revelation_light`（光柱 / 救恩）、

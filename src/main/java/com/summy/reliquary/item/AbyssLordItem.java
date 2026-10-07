@@ -60,7 +60,12 @@ public class AbyssLordItem extends Item implements ICurioItem {
 			ReliquaryTooltips.narrativeLine(tooltip, "item.summy-reliquary.abyss_lord.shift.2",
 					String.valueOf(ReliquaryConfig.hellfireMaxLevel()));
 			ReliquaryTooltips.narrativeLine(tooltip, "item.summy-reliquary.abyss_lord.shift.3");
-			ReliquaryTooltips.narrativeLine(tooltip, "item.summy-reliquary.abyss_lord.shift.4",
+			// 1.8.4：「满级时目标的抗性提升等级减半」是亚巴顿专属联动，按当前佩戴状态追加
+			boolean suppress = com.summy.reliquary.effect.Synergies
+					.hellfireSuppressesResistance(ReliquaryTooltips.localPlayer());
+			ReliquaryTooltips.narrativeLine(tooltip, suppress
+							? "item.summy-reliquary.abyss_lord.shift.4.abaddon"
+							: "item.summy-reliquary.abyss_lord.shift.4",
 					format(ReliquaryConfig.hellfireArmorPercentPerLevel()),
 					format(ReliquaryConfig.hellfireDamagePerLevelPerSecond()));
 			// 1.8.2：提供方声明为谁提供联动

@@ -56,9 +56,12 @@ public class VengefulSpiritItem extends Item implements ICurioItem {
 		}
 
 		if (ReliquaryTooltips.shiftDown()) {
-			// 1.8.2：受益方不设联动行，主行半径直接写强化后的 5 格
+			// 1.8.4：受益方不设联动行，半径与伤害都按当前佩戴状态实时显示
+			//（基础 3 格 / 戴硫磺火 4 格 / 戴亚巴顿 5 格）
 			ReliquaryTooltips.statLine(tooltip, com.summy.reliquary.text.ReliquaryFaction.DEMON,
 					"item.summy-reliquary.vengeful_spirit.shift.1",
+					ReliquaryTooltips.number(com.summy.reliquary.effect.VengefulSpirit
+							.effectiveRadius(ReliquaryTooltips.localPlayer())),
 					format(ReliquaryConfig.vengefulHellfireDamage()));
 			ReliquaryTooltips.narrativeLine(tooltip, "item.summy-reliquary.vengeful_spirit.shift.2");
 		} else {

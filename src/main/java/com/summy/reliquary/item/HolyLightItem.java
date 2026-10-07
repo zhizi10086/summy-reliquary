@@ -61,9 +61,12 @@ public class HolyLightItem extends Item implements ICurioItem {
 		}
 
 		if (ReliquaryTooltips.shiftDown()) {
-			// 1.6.3：属性名 + 数值两段配色（天使线）；1.8.2：数值直接写强化后的 25%
+			// 1.6.3：属性名 + 数值两段配色（天使线）
+			// 1.8.4：数值按"当前是否同时佩戴神性"实时显示（基础 15% / 联动 25%）
 			ReliquaryTooltips.statLine(tooltip, com.summy.reliquary.text.ReliquaryFaction.ANGEL,
-					"item.summy-reliquary.holy_light.desc");
+					"item.summy-reliquary.holy_light.desc",
+					String.valueOf(com.summy.reliquary.effect.Synergies
+							.holyLightChancePercent(ReliquaryTooltips.localPlayer())));
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());
 		}

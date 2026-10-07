@@ -65,7 +65,12 @@ public class OccultEyeItem extends Item implements ICurioItem {
 			// 第一行是叙述（继承夜之幽魂，不重复列具体属性），其余按「属性名|数值」两段配色
 			ReliquaryTooltips.narrativeLine(tooltip, "item.summy-reliquary.occult_eye.shift.1");
 			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.occult_eye.shift.2");
-			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.occult_eye.shift.3");
+			// 1.8.4：「并使目标无法移动」是亚巴顿专属效果，按当前是否同时佩戴亚巴顿追加
+			boolean freezes = com.summy.reliquary.effect.Synergies
+					.fearFreezes(ReliquaryTooltips.localPlayer());
+			ReliquaryTooltips.statLine(tooltip, FACTION, freezes
+					? "item.summy-reliquary.occult_eye.shift.3.abaddon"
+					: "item.summy-reliquary.occult_eye.shift.3");
 			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.occult_eye.shift.4",
 					String.format(java.util.Locale.ROOT, "%.1f", ReliquaryConfig.fearDamageMultiplier()));
 		} else {

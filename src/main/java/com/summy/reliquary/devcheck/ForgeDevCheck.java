@@ -4230,8 +4230,12 @@ public final class ForgeDevCheck {
 				.translatable("item.summy-reliquary.vengeful_spirit.shift.1").getString();
 		String markLine = net.minecraft.network.chat.Component
 				.translatable("item.summy-reliquary.the_mark.shift.2").getString();
-		log("联动文本（1.8.2）：提供方联动键 " + linkagePresent + "/7（应 7）、复仇之魂主行=「"
-				+ vengefulLine + "」（应含「5 格」）、咒印=「" + markLine + "」（应含 60）、"
+		// 1.8.4：受益方改回"占位符 + 当前值"的动态口径（语言键里不再写死联动后的数字）
+		boolean benefitDynamic = vengefulLine.contains("%s 格") && !vengefulLine.contains("5 格")
+				&& markLine.contains("%s") && !markLine.contains("60");
+		log("联动文本（1.8.4）：提供方联动键 " + linkagePresent + "/7（应 7）、受益方改回动态占位符="
+				+ benefitDynamic + "（应 true）、复仇之魂主行=「" + vengefulLine + "」、咒印=「"
+				+ markLine + "」、"
 				+ "神性联动行=「" + net.minecraft.network.chat.Component
 						.translatable("item.summy-reliquary.godhead.shift.8").getString() + "」");
 		// 心之碎片：三行（淡金斜体经文 + 灰色出处 + 白色正体）
@@ -9187,7 +9191,8 @@ public final class ForgeDevCheck {
 	}
 
 	/**
-	 * 1.8.2 联动的提示口径：**受益方**直接写强化后的静态数值（不再动态、不再有联动行）；
+	 * 联动的提示口径（1.8.4 起）：**受益方**改回「占位符 + 当前值」的**动态**显示
+	 * （语言键里不再写死联动后的数字，实际取值见各物品类与 {@code Synergies}）；
 	 * **提供方**（神性 / 亚巴顿 / 圣心 / 终末天启 / 硫磺火 / 契约 / 深渊领主）各自声明「为谁提供联动」。
 	 *
 	 * <p>这条用例只读语言键（自检里按不住 Shift），机制本身仍由
@@ -9199,6 +9204,8 @@ public final class ForgeDevCheck {
 		String mark = Component.translatable("item.summy-reliquary.the_mark.shift.2").getString();
 		String vengeful = Component.translatable("item.summy-reliquary.vengeful_spirit.shift.1").getString();
 		String heart = Component.translatable("item.summy-reliquary.sacred_heart.shift.3").getString();
+		String seraph = Component.translatable("item.summy-reliquary.seraph_spear.shift.3").getString();
+		String salvation = Component.translatable("item.summy-reliquary.salvation.desc.extended").getString();
 		String[] providers = {
 				"item.summy-reliquary.godhead.shift.8",
 				"item.summy-reliquary.abaddon.shift.6",
@@ -9214,17 +9221,40 @@ public final class ForgeDevCheck {
 				present++;
 			}
 		}
-		boolean benefitStatic = !light.contains("%s") && light.contains("25")
-				&& !mantle.contains("%s") && mantle.contains("1.5")
-				&& !mark.contains("%s") && mark.contains("60")
-				&& vengeful.contains("5 格") && heart.contains("12 格");
+		// 1.8.4：受益方全部改回动态口径 —— 含占位符、且不再写死联动后的数字
+		boolean benefitDynamic = light.contains("%s") && !light.contains("25")
+				&& mantle.contains("%s") && !mantle.contains("1.5")
+				&& mark.contains("%s") && !mark.contains("60")
+				&& vengeful.contains("%s 格") && !vengeful.contains("5 格")
+				&& heart.contains("%s 格") && !heart.contains("12 格")
+				&& seraph.contains("%s") && !seraph.contains("5 格")
+				&& salvation.contains("%s") && !salvation.contains("5 格");
+		// 亚巴顿专属的两句（魔眼冻结 / 深渊领主抗性压制）拆成独立键，基础键不再包含
+		boolean abaddonSplit = hasTranslation("item.summy-reliquary.occult_eye.shift.3.abaddon")
+				&& hasTranslation("item.summy-reliquary.abyss_lord.shift.4.abaddon")
+				&& !Component.translatable("item.summy-reliquary.occult_eye.shift.3").getString()
+						.contains("无法移动")
+				&& !Component.translatable("item.summy-reliquary.abyss_lord.shift.4").getString()
+						.contains("减半");
+		// 献祭匕首 1.8.2 起改走「献祭」，两处提供方的联动行里不再出现它
+		boolean daggerRemoved = !Component.translatable("item.summy-reliquary.the_pact.linkage").getString()
+						.contains("献祭匕首")
+				&& !Component.translatable("item.summy-reliquary.abyss_lord.linkage").getString()
+						.contains("献祭匕首");
 		// 1.8.2 修：复仇之魂主行曾写成「每秒对 5 格半径内敌人施加 6」（数值悬空、定语语序不规范），
 		// 现已对齐神性光环句式 —— 这里加一条负向断言，防止同类语序回归
 		boolean vengefulOrderOk = !vengeful.contains("格半径内");
-		log("联动提示口径（1.8.2）：圣光=「" + light + "」、斗篷=「" + mantle + "」、咒印=「" + mark
-				+ "」、复仇之魂=「" + vengeful + "」、圣心=「" + heart + "」→ 受益方全部静态强化="
-				+ benefitStatic + "（应 true）；提供方联动键=" + present + "/7（应 7）、复仇之魂语序已修（不含「格半径内」）="
-				+ vengefulOrderOk + "（应 true）");
+		// 1.8.4：炽天使之枪的落点行有两个占位符 —— 渲染一次确认都能填上（漏传参会原样显示 %s）
+		String seraphRendered = Component.translatable("item.summy-reliquary.seraph_spear.shift.3", 5, 16)
+				.getString();
+		boolean seraphFilled = !seraphRendered.contains("%s") && seraphRendered.contains("5")
+				&& seraphRendered.contains("16");
+		log("联动提示口径（1.8.4）：圣光=「" + light + "」、斗篷=「" + mantle + "」、咒印=「" + mark
+				+ "」、复仇之魂=「" + vengeful + "」、圣心=「" + heart + "」→ 受益方全部动态显示="
+				+ benefitDynamic + "（应 true）；提供方联动键=" + present + "/7（应 7）、亚巴顿专属句已拆分="
+				+ abaddonSplit + "（应 true）、旧匕首联动声明已清=" + daggerRemoved
+				+ "（应 true）、复仇之魂语序已修（不含「格半径内」）=" + vengefulOrderOk
+				+ "（应 true）、炽天使之枪落点行填值后无残留占位符=" + seraphFilled + "（应 true）");
 	}
 
 	/** tick → 秒文本（20 → 1、30 → 1.5） */
@@ -11778,7 +11808,9 @@ public final class ForgeDevCheck {
 				.sacredHeartThrowSpeedPercent() / 100.0F);
 		boolean speedOk = Math.abs(multiplierWithout - 1.0F) < 1.0E-6F
 				&& Math.abs(multiplierWith - expectedSpeed / 2.5F) < 1.0E-6F
-				&& Math.abs(speedWith - expectedSpeed) < 0.05F
+				// 原版 Projectile#shoot 会给方向加 random.triangle(0, 0.0172275 × inaccuracy) 的扰动，
+				// 因此实测模长有 ±1.7% 级别的抖动；容差留到 0.15（约 5%）避免变成随机失败的断言
+				&& Math.abs(speedWith - expectedSpeed) < 0.15F
 				&& speedWith > speedWithout + 0.1F;
 		log("武器联动·圣心（1.7.10）：投掷初速倍率 无圣心=" + String.format("%.2f", multiplierWithout)
 				+ "（应 1.00）、有圣心=" + String.format("%.2f", multiplierWith) + "（应 "
@@ -12282,10 +12314,15 @@ public final class ForgeDevCheck {
 		float lost = before - player.getHealth();
 		boolean cooldown = player.getCooldowns().isOnCooldown(dagger);
 		double full = com.summy.reliquary.effect.Sacrifice.bonusPercent(player);
+		// 1.8.4 订正：提示文案必须与"可致死"的实现一致 —— 旧文案写着「（不会致死）」
+		String sacrificeHint = Component.translatable("item.summy-reliquary.sacrificial_dagger.shift.2")
+				.getString();
+		boolean hintWordingOk = !sacrificeHint.contains("不会致死") && sacrificeHint.contains("致死");
 		log("献祭（1.8.2）：释放=" + used + "（应 true）、自损=" + String.format("%.1f", lost)
 				+ "（应 4.0 = 固定真伤）、物品冷却已进入=" + cooldown + "（应 true）、满值增伤=+"
 				+ String.format("%.1f", full) + "%（应 +40%）、释放次数="
-				+ com.summy.reliquary.effect.Sacrifice.useCount() + "（应 1）");
+				+ com.summy.reliquary.effect.Sacrifice.useCount() + "（应 1）、提示文案已订正为可致死="
+				+ hintWordingOk + "（应 true）");
 
 		// ② 真伤口径：钻石甲 + 抗性 IV（无护盾）→ 红血仍掉 4
 		player.setHealth(player.getMaxHealth());

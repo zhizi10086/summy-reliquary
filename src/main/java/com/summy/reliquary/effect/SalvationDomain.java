@@ -221,8 +221,11 @@ public final class SalvationDomain {
 	 * 该玩家的领域半径：优先级 神性（默认 5）&gt; 终末天启（默认 4）&gt; 基础（默认 3）。
 	 *
 	 * <p>自检也用它，保证"看到的边界 = 实际判定范围"。
+	 *
+	 * <p>1.8.4：参数放宽到 {@link LivingEntity}，让**客户端提示**也能取到同一个值
+	 * （物品提示里显示的半径 = 实际判定半径，不再写死）。
 	 */
-	public static double radiusFor(ServerPlayer player) {
+	public static double radiusFor(LivingEntity player) {
 		if (Godhead.active(player)) {
 			return Godhead.salvationRadius(player);
 		}
