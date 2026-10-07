@@ -1,6 +1,7 @@
 package com.summy.reliquary.effect;
 
 import com.summy.reliquary.config.ReliquaryConfig;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -12,6 +13,8 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,6 +64,12 @@ public final class ShadowDash {
 	private static final class State {
 		private final boolean darkArts;
 		private final ItemStack weapon;
+		/** 1.8.4：技能启动瞬间的玩家坐标（Y 取 +1.0 的胸口高度）—— 判定期玩家高速移动，起点必须是快照 */
+		private final Vec3 origin;
+		/** 1.8.4：技能启动时的维度（换维度时连线直接跳过，只做安全兜底） */
+		private final ResourceKey<Level> dimension;
+		/** 1.8.4：斩击轨迹连线的游标 —— 始终指向"上一段线的终点"，初值 = 起点 */
+		private Vec3 cursor;
 		/** 判定期剩余 tick（加速与无敌都跟它走） */
 		private int remaining;
 		private Phase phase = Phase.ACTIVE;
@@ -77,10 +86,14 @@ public final class ShadowDash {
 		/** 强力斩击的伤害＝上述理论值之和 */
 		private float heavyDamage;
 
-		private State(boolean darkArts, ItemStack weapon, int durationTicks) {
+		private State(boolean darkArts, ItemStack weapon, int durationTicks, Vec3 origin,
+				ResourceKey<Level> dimension) {
 			this.darkArts = darkArts;
 			this.weapon = weapon;
 			this.remaining = Math.max(1, durationTicks);
+			this.origin = origin;
+			this.dimension = dimension;
+			this.cursor = origin;
 		}
 	}
 
@@ -116,7 +129,10 @@ public final class ShadowDash {
 		}
 		ACTIVE.put(player.getUUID(), new State(darkArts, weapon.copy(),
 				// 1.7.10：佩戴亚巴顿时技能时长 +1 秒（配置项）
-				Synergies.shadowDashDurationTicks(player, darkArts)));
+				Synergies.shadowDashDurationTicks(player, darkArts),
+				// 1.8.4：起点快照 = 按下右键那一刻的玩家坐标（胸口高度）
+				new Vec3(player.getX(), player.getY() + 1.0D, player.getZ()),
+				player.level().dimension()));
 		// 技能期间禁用 V 键射线：开始时就打断可能在进行的蓄力
 		RevelationBeam.setCharging(player, false);
 		AttributeManager.applyModifier(player, Attributes.MOVEMENT_SPEED, SPEED_MODIFIER,
@@ -180,6 +196,8 @@ public final class ShadowDash {
 				LivingEntity target = findTarget(player, targetId);
 				if (target != null && target.isAlive()) {
 					strike(player, target, state.values.getOrDefault(targetId, state.heavyDamage));
+					// 1.8.4：按斩击顺序把上一节点连到本目标（墨汁连线，纯表现）
+					connectLine(player.serverLevel(), state, targetChest(target));
 				}
 				// 1.7.10：斩击结算后，只退掉"标记时自己加的那一层"狱火
 				if (state.hellfireAdded.remove(targetId) && target != null) {
@@ -295,8 +313,52 @@ public final class ShadowDash {
 		soulRing(level, player, Math.max(1.0D, radius - 0.8D), 24);
 		level.sendParticles(ParticleTypes.LARGE_SMOKE, player.getX(), player.getY() + 0.3D, player.getZ(),
 				36, radius * 0.8D, 0.3D, radius * 0.8D, 0.05D);
+		// 1.8.4：斩击轨迹收口 —— 从上一节点连到玩家（强力斩击释放点）
+		// 未标记任何目标时游标仍停在起点，于是自然退化为「起点 → 玩家」的一段直线
+		connectLine(level, state, new Vec3(player.getX(), player.getY() + 1.0D, player.getZ()));
 		// 1.7.10：强化斩击触发「咒印的黑心爆发伤害」（门槛＝佩戴咒印；不动黑心池与补满计时）
 		DemonPact.triggerShatterDamage(player);
+	}
+
+	// ==================== 1.8.4 斩击轨迹连线（纯表现） ====================
+
+	/** 目标的胸口坐标（与既有斩击特效同高：脚下 + 0.5 × 身高） */
+	private static Vec3 targetChest(LivingEntity target) {
+		return new Vec3(target.getX(), target.getY() + target.getBbHeight() * 0.5D, target.getZ());
+	}
+
+	/**
+	 * 把连线游标推进到新节点，并沿途铺一串墨汁粒子。
+	 *
+	 * <p>逐段随斩击推进：每次基础斩击画「上一点 → 该目标」，强力斩击时补最后一段连到玩家。
+	 * 每段只发一遍粒子、随后自然消散，**不做每 tick 重绘**。
+	 *
+	 * <p>与技能启动不同的维度直接跳过（技能途中换维度属极端情形，只做安全兜底）；
+	 * 游标照常推进，避免后续段落跨维度跳变。
+	 */
+	private static void connectLine(ServerLevel level, State state, Vec3 to) {
+		Vec3 from = state.cursor;
+		state.cursor = to;
+		if (level == null || !level.dimension().equals(state.dimension)) {
+			return;
+		}
+		drawInkLine(level, from, to);
+	}
+
+	/**
+	 * 沿两点之间等距铺「墨汁」粒子。
+	 *
+	 * <p>步长 0.4 格、单段点数钳制在 2~64 之间：超长距离自动稀释，避免粒子风暴。
+	 */
+	private static void drawInkLine(ServerLevel level, Vec3 from, Vec3 to) {
+		double distance = from.distanceTo(to);
+		int points = Math.max(2, Math.min(64, (int) Math.round(distance / 0.4D) + 1));
+		for (int index = 0; index < points; index++) {
+			double ratio = (double) index / (double) (points - 1);
+			Vec3 point = from.lerp(to, ratio);
+			level.sendParticles(ParticleTypes.SQUID_INK, point.x, point.y, point.z,
+					1, 0.0D, 0.0D, 0.0D, 0.0D);
+		}
 	}
 
 	/** 在玩家周围沿一个圆环逐点发灵魂火（像爆发一样贴在半径上） */

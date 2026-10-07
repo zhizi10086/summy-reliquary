@@ -276,6 +276,18 @@ public final class ReliquaryTooltips {
 	}
 
 	/**
+	 * 提示行里的数值格式化（1.8.4）：去掉多余的小数点 —— {@code 8.0 → 8}、{@code 1.5 → 1.5}。
+	 *
+	 * <p>联动数值改成"按当前佩戴状态显示"之后，同一条属性行会拿到整数值（基础档）
+	 * 或半整数值（联动档），统一在这里收口，避免每件饰品各写一份 format。
+	 */
+	public static String number(double value) {
+		return Math.abs(value - Math.rint(value)) < 1.0E-6D
+				? String.valueOf((long) Math.rint(value))
+				: String.valueOf(Math.round(value * 10.0D) / 10.0D);
+	}
+
+	/**
 	 * 把一行提示按提示框宽度折成多行（原版提示不会自动折行，长句会顶出屏幕）。
 	 * 服务端没有字体，原样返回单行。
 	 */

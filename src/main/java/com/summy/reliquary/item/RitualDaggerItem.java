@@ -86,11 +86,25 @@ public class RitualDaggerItem extends SwordItem {
 		}
 		if (ReliquaryTooltips.shiftDown()) {
 			ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.1");
-			ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.2");
-			ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.3");
-			ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.4");
 			if (darkArts) {
+				// 1.8.4：三处联动数值按"当前是否佩戴亚巴顿"实时显示
+				//（时长 2 → 3 秒、接触半径 2 → 3 格、强力斩击半径 3 → 5 格）
+				net.minecraft.world.entity.LivingEntity self = ReliquaryTooltips.localPlayer();
+				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.2",
+						ReliquaryTooltips.number(com.summy.reliquary.effect.Synergies
+								.shadowDashDurationTicks(self, true) / 20.0D));
+				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.3",
+						ReliquaryTooltips.number(com.summy.reliquary.effect.Synergies
+								.shadowDashContactRadius(self)));
+				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.4",
+						ReliquaryTooltips.number(com.summy.reliquary.effect.Synergies
+								.shadowDashHeavyRadius(self)));
 				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.5");
+			} else {
+				// 献祭匕首（1.8.2 起走「献祭」技能），三行都无联动数值
+				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.2");
+				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.3");
+				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.4");
 			}
 		} else {
 			tooltip.add(ReliquaryTooltips.shiftHint());

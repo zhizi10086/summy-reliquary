@@ -156,7 +156,11 @@ public class SpearItem extends SwordItem {
 			ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.1");
 			if (throwable) {
 				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.2");
-				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.3");
+				// 1.8.4：落点圣光的半径与伤害按"当前是否佩戴神性"实时显示（基础 4 格 / 14 点，联动 5 格 / 16 点）
+				net.minecraft.world.entity.LivingEntity self = ReliquaryTooltips.localPlayer();
+				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.3",
+						ReliquaryTooltips.number(com.summy.reliquary.effect.Synergies.holyBurstRadius(self)),
+						ReliquaryTooltips.number(com.summy.reliquary.effect.Synergies.holyBurstDamage(self)));
 			} else {
 				ReliquaryTooltips.narrativeLine(tooltip, nameKey + ".shift.2",
 						ReliquaryConfig.holyLightChancePercentSpear());

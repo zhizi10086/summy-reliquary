@@ -68,9 +68,11 @@ public class TheMarkItem extends Item implements ICurioItem {
 			tooltip.add(Component.translatable("item.summy-reliquary.the_mark.shift.1")
 					.withStyle(ChatFormatting.GRAY));
 			// 1.6.3：带数值的一行按「属性名 + 数值」两段配色（恶魔线）
-			// 1.8.2：数值直接写强化后的 60
+			// 1.8.4：数值按"当前是否同时佩戴亚巴顿"实时显示（佩戴咒印 40 / 联动 60）
 			ReliquaryTooltips.statLine(tooltip, com.summy.reliquary.text.ReliquaryFaction.DEMON,
-					"item.summy-reliquary.the_mark.shift.2");
+					"item.summy-reliquary.the_mark.shift.2",
+					ReliquaryTooltips.number(com.summy.reliquary.effect.Synergies
+							.shatterDamage(ReliquaryTooltips.localPlayer())));
 			tooltip.add(Component.translatable("item.summy-reliquary.the_mark.shift.3")
 					.withStyle(ChatFormatting.GRAY));
 		} else {
