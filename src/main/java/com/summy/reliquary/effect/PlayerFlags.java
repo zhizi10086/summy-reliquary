@@ -87,6 +87,8 @@ public final class PlayerFlags {
 	private static final String LAST_DEATH_X = "last_death_x";
 	private static final String LAST_DEATH_Y = "last_death_y";
 	private static final String LAST_DEATH_Z = "last_death_z";
+	/** 1.8.5：神性「神圣光环」是否被玩家关掉（默认 false = 开启；写盘持久，创世纪重置时回默认） */
+	private static final String GODHEAD_AURA_OFF = "godhead_aura_off";
 	/** 1.7.6：已签约玩家"连续多少秒身上没有任何一把仪式匕首" */
 	private static final String DAGGER_MISSING_SECONDS = "dagger_missing_seconds";
 	/** 1.7.6：献祭匕首的「防丢失配方」是否已开放 */
@@ -409,6 +411,28 @@ public final class PlayerFlags {
 
 	public static double lastDeathZ(LivingEntity entity) {
 		return entity == null ? 0.0D : root(entity).getDouble(LAST_DEATH_Z);
+	}
+
+	// ==================== 神性「神圣光环」的玩家开关（1.8.5） ====================
+
+	/**
+	 * 神性的「神圣光环」是否被玩家关掉（默认 {@code false} = 开启）。
+	 *
+	 * <p>客户端读的是同步位（提示里的状态后缀要用），服务端读 NBT。
+	 */
+	public static boolean isGodheadAuraOff(LivingEntity entity) {
+		if (entity == null) {
+			return false;
+		}
+		if (entity.level().isClientSide()) {
+			return ReliquaryClientState.isGodheadAuraOff();
+		}
+		return root(entity).getBoolean(GODHEAD_AURA_OFF);
+	}
+
+	/** 写「神圣光环」开关（服务端；写盘持久） */
+	public static void setGodheadAuraOff(ServerPlayer player, boolean value) {
+		set(player, GODHEAD_AURA_OFF, value);
 	}
 
 	// ==================== 圣光短矛：防丢失（1.7.9） ====================
@@ -845,6 +869,10 @@ public final class PlayerFlags {
 		// 1.7.9：圣光短矛的「防丢失配方」是否已开放（bit11，决定 JEI 可见性）
 		if (root(entity).getBoolean(SPEAR_RECOVERY_OPEN)) {
 			flags |= ReliquaryClientState.FLAG_SPEAR_RECOVERY;
+		}
+		// 1.8.5：神性「神圣光环」是否被玩家关掉（bit12，提示里要显示状态后缀）
+		if (root(entity).getBoolean(GODHEAD_AURA_OFF)) {
+			flags |= ReliquaryClientState.FLAG_GODHEAD_AURA_OFF;
 		}
 		// 1.6.10：创世纪"是否已知"（获取前禁止查看的提示要用，所以也要同步给客户端）
 		if (root(entity).getBoolean(GENESIS_KNOWN)) {

@@ -56,9 +56,11 @@ public final class DemonBlackHeartOverlay implements IGuiOverlay {
 		int x = width / 2 - 91;
 		// 1.6.5：黑心紧跟在魂心（蓝心）之后的**独立行**——蓝心在盔甲条上方、黑心再往上，避免压住黄心与盔甲图标
 		// 1.6.6：行位改为按原版"红心 + 黄心"网格的真实行数 / 行距推算（多排红心时也不会重叠）
+		// 1.8.5 补修：经典状态条环境改用它的实际条堆高度锚定（与魂心同一个函数）
 		int y = blackHeartRowY(height, SoulHeartOverlay.maxHealthOf(client.player),
 				client.player.getAbsorptionAmount(), client.player.getArmorValue(),
-				SoulHeartOverlay.ourSoulHeartPoints(client.player));
+				SoulHeartOverlay.ourSoulHeartPoints(client.player), gui.rightHeight,
+				com.summy.reliquary.config.ReliquaryConfig.soulHeartHudOffsetY());
 		PoseStack pose = graphics.pose();
 		pose.pushPose();
 		for (int index = 0; index < full; index++) {
@@ -72,10 +74,23 @@ public final class DemonBlackHeartOverlay implements IGuiOverlay {
 		pose.popPose();
 	}
 
-	/** 黑心区域的基准行（Y）：魂心区域之上（魂心没点时直接占用魂心的基准行） */
+	/** 黑心区域的基准行（Y）：魂心区域之上（魂心没点时直接占用魂心的基准行）；兼容入口，`rightHeight` 按 0 处理 */
 	public static int blackHeartRowY(int screenHeight, float maxHealth, float absorptionPoints, int armorPoints,
 			double soulPoints) {
 		return SoulHeartOverlay.soulHeartRowY(screenHeight, maxHealth, absorptionPoints, armorPoints)
+				- 10 * SoulHeartOverlay.soulHeartRows(soulPoints);
+	}
+
+	/**
+	 * 1.8.5 补修：带「经典状态条」条堆高度的重载（`render` 用）。
+	 *
+	 * <p>魂心与黑心**共用同一套行位解析**，黑心永远画在魂心区域之上，因此 Classic Bar 环境里两者
+	 * 会一起贴着条堆往上排（各自 10px 一行）。
+	 */
+	public static int blackHeartRowY(int screenHeight, float maxHealth, float absorptionPoints, int armorPoints,
+			double soulPoints, int classicBarRightHeight, int offsetY) {
+		return SoulHeartOverlay.soulHeartRowY(screenHeight, maxHealth, absorptionPoints, armorPoints,
+				classicBarRightHeight, offsetY)
 				- 10 * SoulHeartOverlay.soulHeartRows(soulPoints);
 	}
 

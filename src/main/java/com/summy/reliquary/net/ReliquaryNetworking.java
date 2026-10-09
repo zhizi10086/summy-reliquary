@@ -22,7 +22,8 @@ public final class ReliquaryNetworking {
 	// 10 / 11：1.6.7 起新增狱火效果与短寿命火焰粒子、1.6.8 起新增恶魔光环伤害类型（都是同步注册表变化）
 	// 12：1.7.2 起新增「创世纪使用 → 图腾动画」的 S2C 空包（注册序号 8），两端必须同版本
 	// 13：1.8.2 起新增「神性回溯 / 恶魔形态」的 C2S 空包（注册序号 9），两端必须同版本
-	private static final String VERSION = "13";
+	// 14：1.8.5 起新增「切换神性神圣光环」的 C2S 空包（注册序号 10），两端必须同版本
+	private static final String VERSION = "14";
 
 	public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
 			SummyReliquary.id("main"),
@@ -108,6 +109,13 @@ public final class ReliquaryNetworking {
 				.decoder(DivineActionMessage::new)
 				.consumerMainThread(DivineActionMessage::handle)
 				.add();
+
+		// 客户端 → 服务端：请求切换神性「神圣光环」开关（背包里右键神性，1.8.5）
+		CHANNEL.messageBuilder(ToggleAuraMessage.class, 10, NetworkDirection.PLAY_TO_SERVER)
+				.encoder(ToggleAuraMessage::encode)
+				.decoder(ToggleAuraMessage::new)
+				.consumerMainThread(ToggleAuraMessage::handle)
+				.add();
 	}
 
 	/** 客户端调用：请求切换邦邦女仆状态 */
@@ -118,6 +126,11 @@ public final class ReliquaryNetworking {
 	/** 客户端调用：请求执行一次「神性回溯 / 恶魔形态」 */
 	public static void sendDivineAction() {
 		CHANNEL.sendToServer(new DivineActionMessage());
+	}
+
+	/** 客户端调用：请求切换神性「神圣光环」开关（1.8.5） */
+	public static void sendToggleAura() {
+		CHANNEL.sendToServer(new ToggleAuraMessage());
 	}
 
 	/** 服务端调用：把该玩家的状态同步给他自己 */

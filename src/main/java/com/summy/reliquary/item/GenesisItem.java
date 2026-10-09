@@ -319,6 +319,8 @@ public class GenesisItem extends Item {
 		// ④ 清派生数值
 		PlayerFlags.setSoulHeartPoints(player, 0.0D);
 		PlayerFlags.setAbaddonReviveReadyAt(player, 0L);
+		// 1.8.5：神性「神圣光环」的玩家开关也回到默认（开启）
+		PlayerFlags.setGodheadAuraOff(player, false);
 		// 「五芒星那句 300 秒的话」也一起清：重置后与一周目一样要重新累计 300 秒才会再听到
 		PlayerFlags.setPentagramTicks(player, 0);
 		PlayerFlags.setPentagramSpoken(player, false);

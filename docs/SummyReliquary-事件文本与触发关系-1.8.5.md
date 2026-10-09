@@ -1,6 +1,6 @@
-# Summy Reliquary 事件文本与触发关系总台账（1.8.4-forge）
+# Summy Reliquary 事件文本与触发关系总台账（1.8.5-forge）
 
-> 更新时间：2026-10-07（1.8.4）　｜　对应版本：**1.8.4-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-10-08（1.8.5）　｜　对应版本：**1.8.5-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > 用途：把所有"会显示给玩家的话"按**触发条件**整理成一张表，方便改文案、查文案、加功能时对照。
 > 权威文本源：`src/main/resources/assets/summy-reliquary/lang/zh_cn.json` / `en_us.json`（改文案只改这两个文件，代码里没有硬编码中文）。
 
@@ -596,7 +596,7 @@
 | 救恩 | 两条弧线，一个名字。/ 你知道，祂也知道。 | 祂的光环绕着你，审判一切异端。（佩戴终末天启时追加「当你走得更远，光便照得更远。」） | 需要天使标记 |
 | 圣光 | “神就是光，在他毫无黑暗”（淡金斜体）+「——《约翰一书》1:5」（灰） | `圣光几率\|x%`（1.6.3 起两段分色；原是「攻击有 x% 几率召唤圣光」） | 需要天使标记 |
 | 神圣斗篷 | 他必用自己的翎毛遮蔽你，你要投靠在他的翅膀底下。（淡金斜体）+「——《诗篇》91:4」（灰） | 受击后获得 1 秒无敌 | 需要天使标记 |
-| 圣心 | “义人哪，你们应当靠耶和华欢喜快乐，心里正直的人哪，你们都当欢呼。”（淡金斜体）+「——《诗篇》32:11」（灰） | 大量属性提升 / **祂与你同在：**（淡金）/ ·射出的箭矢获得追踪能力 / **1.6.5 新增**：你不再恐惧深渊 | 需要天使标记；佩戴者免疫「恐惧」减益（不免疫发光与注视增伤） |
+| 圣心 | “义人哪，你们应当靠耶和华欢喜快乐，心里正直的人哪，你们都当欢呼。”（淡金斜体）+「——《诗篇》32:11」（灰） | **1.8.5：改成「一行一项属性」**（与光环同款 `属性名\|数值` 两段配色）：最大生命 +10 / 护甲 +5 / 护甲韧性 +5 / 攻击速度 +0.5 / 移动速度 +15% / 挖掘速度 +15% / 造成伤害 +30% / **祂与你同在：**（金色引言行）/ ·射出的箭矢在 %s 格内追踪目标 / 你不再恐惧深渊 / 联动声明 —— 旧的「大量属性提升」一行已撤掉 | 需要天使标记；佩戴者免疫「恐惧」减益（不免疫发光与注视增伤） |
 | 神性 | “我与父原为一。”（淡金斜体 + **慢速流光** 6 字符/秒）+「——《约翰福音》10:30」（灰） | 如祂一样，光已圆满／审判群敌／翱翔于世／无惧万物／永恒（前缀「如祂一样，」淡金斜体，尾巴白色正体） | 需要天使标记 |
 | 心之碎片 | “我也要赐给你们一个新心，将新灵放在你们里面。”（淡金斜体）+「——《以西结书》36:26」（灰）+「被光触及的心，不会消失。」（白正体） | — | 材料 |
 | 痛悔短祷 | 「你从哪里来，就到哪里去。」+（有主世界重生点）「回到你选择的地方，做出你的忏悔。」/（没有）「回到一切开始的地方，做出你的忏悔。」（均灰） | Shift：整段祷文**同一行自动折行**（柔白 `#F0F0F0` / 亮金 `#FFD700` / 柔白） | — |
@@ -927,7 +927,8 @@
 | `item.summy-reliquary.holy_mantle.desc` | 受击后无敌\|%s 秒 | **1.6.10 改**：以前写死「1 秒」，现在带 `%s`（单戴 1 / 同戴神性 1.5） |
 | `advancements.summy-reliquary.light.*` / `shade.*` / `genesis.*` | 光 / 荫蔽 / 亘古之初 的标题与描述 | **1.6.10 新增**：描述均为单段数组 + `"color": "#FFE4B5"`，标题不上色 |
 | `item.summy-reliquary.occult_eye.shift.1~4` | 继承夜之幽魂能力 / `恐惧\|……` / `恐惧效果\|……` / `对注视目标的伤害\|提升至 ×%s` | 玄秘魔眼 Shift 四行（第一行叙述灰，其余两段分色；1.6.5） |
-| `item.summy-reliquary.sacred_heart.shift.4` | 你不再恐惧深渊 | 圣心 Shift 第 4 行（1.6.5 新增，对应"免疫恐惧减益"） |
+| `item.summy-reliquary.sacred_heart.shift.presence` | 祂与你同在： | **1.8.5 新增**：圣心 Shift 的金色引言行（旧版是 `shift.2`，1.8.5 重排后改用本键，位置在七条属性行之后） |
+| `item.summy-reliquary.sacred_heart.shift.abyss` | 你不再恐惧深渊 | 圣心 Shift 行（1.6.5 新增，对应"免疫恐惧减益"）；**1.8.5 键名由 `shift.4` 改为 `shift.abyss`**，同轮 `shift.1~7` 改成七条属性行、箭矢追踪行移到 `shift.arrow` |
 | `item.summy-reliquary.pentagram.phrase` | 埋葬无尽灵魂 | **不是显示文本**，是"慢速呼吸"要强调的短语（中英各一套，供代码定位） |
 
 ---
@@ -1046,3 +1047,64 @@
 | --- | --- | --- | --- | --- |
 | 恶魔线玩家被玄秘魔眼注视 | 目标为玩家且未免疫 | （沿用既有「恐惧」） | 目标身上的效果图标 | **1.8.0**：邪恶度 **700** 解锁玄秘魔眼即视为免疫（与圣心 / 神性同款）——新施加的恐惧与黑暗被拦、已中的每秒清除，`OccultEye.canFear` 返回 false |
 | 暴怒攻击触发自伤 | 佩戴七罪之源 + 暴怒已激活 + 15% 几率 | （无新文案） | —— | **1.8.0**：自伤＝本次攻击**结算值** × `[sins] wrath_self_hit_multiplier`(0.5)，且**永不致死**（结算前钳到「当前生命 − 1」） |
+
+---
+
+### 1.42 愤怒自伤的提示文案订正（1.8.5）
+
+| 触发 | 条件 | 文本 | 位置 | 备注 |
+| --- | --- | --- | --- | --- |
+| 查看「七罪之源」里暴怒已激活的第三行 | 佩戴七罪之源 | 旧：「每次攻击 %s%% 几率自伤**等量**」→ 新：「每次攻击 %s%% 几率自伤**本次伤害的 %s%%**」（英文 `"%s%% chance to hurt yourself for %s%% of the damage dealt"`，渲染示例「每次攻击 15% 几率自伤本次伤害的 50%」） | 物品提示（语言键 `item.summy-reliquary.sin.wrath.debuff`） | **1.8.5 订正**：1.8.0 起实际口径就是「15% 几率 × `[sins] wrath_self_hit_multiplier`(0.5) 的伤害、且永不致死」，旧文案的「等量 / same amount」早已过期；`SinDescriptions` 的 WRATH `debuff` 分支补第二个参数（倍率 ×100，默认渲染为 50），自检断言"必须含 15% 与 50%、不含「等量」"。**没有新增或删除任何语言键**，第 2 节的键表结构不变 |
+| 伯列恒之星的坐标提示（已揭示后） | 佩戴伯列恒之星且已揭示（或戴终末天启 / 神性） | 旧：「前往 %s（**纬度**）聆听你的启示」→ 新：「前往 %s（%s）聆听你的启示」，第二个参数 = **维度名**（启示坐标固定主世界 → 「主世界」） | 物品提示（`item.summy-reliquary.star_of_bethlehem.guided` + 新增 `item.summy-reliquary.dimension.overworld`） | **1.8.5 订正**：「纬度」是「维度」的错字；`StarOfBethlehemItem` 第二个参数改为 `Component.translatable("item.summy-reliquary.dimension.overworld")`（坐标本就固定主世界）。日后坐标若跟随维度，把传参换成对应维度的语言键即可 |
+
+> **1.8.5 其余改动的文案影响**：完全拦截提前到 `LivingAttackEvent`、复活清伤害池挂起、伤害池还原改增量、魂心 / 黑心 HUD 的单排适配与像素偏移、受伤节流日志与「属性更新」日志措辞 —— 都不涉及语言键。唯一另一处改动是**暗仪刺刀** `item.summy-reliquary.dark_arts.shift.5` 由「（无敌更久，斩击更痛）」改成「（无敌覆盖全程，直到斩击结算完毕）」（键名不变、中英同步，理由见上面 1.34 的对照对象已消失）。`[spirit_altar]` 新增的两个键属于配置键，不进本台账。
+>
+> **本节的键编号（1.8.5 新增 1 条键）**：`item.summy-reliquary.dimension.overworld` —— 与 `star_of_bethlehem.guided` 配套，值分别为「主世界」/「the Overworld」。
+
+---
+
+### 1.43 护盾夹取命令的回执（1.8.5 补修）
+
+| 触发 | 条件 | 文本 | 位置 | 备注 |
+| --- | --- | --- | --- | --- |
+| 执行 `/summyreliquary shield clamp [<玩家>]` | OP（权限等级 2） | 「已把「<玩家名>」的吸收值从 <旧值> 夹回 <新值>（保留检测到的 Enchantment Reforged 生命护盾 <值>）」/「……（未检测到 Enchantment Reforged 生命护盾，直接清零）」 | 聊天框（命令回执） | **1.8.5 补修**：修复"死亡拦截把整击金额并入吸收值"留下的残留（与 Enchantment Reforged 的生命护盾互相污染，实测每次拦截 +一个生命上限）。文本用 `Component.literal` 拼装、**不新增语言键**（与既有命令一致）；数值统一 `%.1f` 一位小数 |
+
+---
+
+### 1.44 暴食击杀回复上限修复 + 防火火焰特效压制（1.8.5 补修，**无文案改动**）
+
+> 这两条都只改数值与表现，**没有新增 / 修改 / 删除任何语言键**，第 2 节的键表保持原样。留一节是为了让以后的读者能在台账里查到"1.8.5 到底改了什么"。
+
+| 改动 | 层级 | 说明 |
+| --- | --- | --- |
+| 暴食·击杀回复的饥饿上限 | 数值（`SinEffects.Feed.feed`） | 旧实现无条件取 `Gluttony.foodCap`（恒 18）夹结果，赎罪后（含美德 / 撒旦圣经）每杀一只怪都会把已经 19 / 20 的饥饿值压回 18。现在只有「佩戴七罪之源 + 暴食未赎罪」才是 18；其余状态用 `RiceHungerLock.foodCap`（原版 20 / 「大胃袋」抬高值）。**不改任何提示文本**（`sin.gluttony.debuff` 那句 18 的口径本来指的就是未赎罪档） |
+| 防火时的火焰特效 | 表现（服务端 `ReliquaryEvents.keepNotOnFire` + 客户端 `SummyReliquaryClient.ForgeBus.keepNotOnFireOnClient`） | 恶魔线完全防火 / 神性 `#is_fire` 环境免疫时，把着火 tick **与"着火"同步位**一起压掉，屏幕上的火焰覆盖层不再出现（以前"血不掉但屏幕上全是火"）。**纯表现 + 状态位，不涉及任何文本** |
+
+---
+
+### 1.45 神性「神圣光环」的玩家开关（1.8.5 第二轮）
+
+> 这一节**新增 4 条语言键**（中英同步），既有键名与编号一律未动。第 2 节的键表结构不变（第 2 行是按状态二选一的两条键）。
+
+| 触发 | 条件 | 文本 | 位置 | 备注 |
+| --- | --- | --- | --- | --- |
+| 背包 / Curios 面板里对着「神性」右键（或手持 + 潜行右键） | 任意（不需佩戴） | 「神圣光环：开启」/「神圣光环：关闭」（英文 `Divine aura: on` / `Divine aura: off`） | 行动栏（`message.summy-reliquary.godhead.aura.on` / `.off`） | **1.8.5 第二轮**：`Godhead.toggleAura` 翻转 `PlayerFlags.godhead_aura_off`（写盘持久、同步到位 bit12），随后 `RevelationTracker.sync` 立刻补发状态包。背包那条走 `ReliquaryClientInteractions`（`ScreenEvent.MouseButtonPressed.Pre`，取消即吃掉原版的"取半栈"）→ `ToggleAuraMessage`；**零 Mixin** |
+| 查看「神性」的功能行（第 2 行，光环**已关闭**时） | 佩戴神性 + 客户端位 `FLAG_GODHEAD_AURA_OFF` | 「神圣光环｜半径 8 格内的敌人每秒受到 2 点圣光真伤。**（已关闭）**」（英文 `Divine Aura｜Enemies within 8 blocks take 2 true holy damage every second. (Disabled)`） | 物品提示（`item.summy-reliquary.godhead.shift.2.off`） | **1.8.5 第二轮**：`GodheadItem.functionLines()` 改为循环 1..9，第 2 行按 `ReliquaryClientState.isGodheadAuraOff()` 在 `shift.2` 与 `shift.2.off` 之间二选一（前缀在启用时仍显示原键 `shift.2`） |
+| 查看「神性」的功能行（第 9 行） | 佩戴神性 | 「开关｜背包里对着它右键，或手持时潜行右键。」（英文 `Toggle｜Right-click it in your inventory, or sneak-right-click while holding it.`） | 物品提示（`item.summy-reliquary.godhead.shift.9`） | **1.8.5 第二轮**：新增的操作说明行；`functionLines()` 的上界由 8 改成 9 |
+
+> **1.8.5 第二轮的其余改动不涉及文本**：伤害池份额改走 `LivingDamageEvent`（扣池口径与日志格式，新增的只是日志文本，不是语言键）、Kilt 旧路径上的 Enchantment Reforged 记账校正 —— 都不进本台账的语言键表。
+
+---
+
+### 1.46 第三轮：圣心提示改「一行一项属性」+ 两处非文本修（1.8.5）
+
+> 这一节把圣心 Shift 重排为 **11 行**（中英同步）：`shift.1~7` = 七条属性行（`属性名|数值` 两段配色，数值取 `[sacred_heart]` 配置）、`shift.presence` = 金色引言行「祂与你同在：」、`shift.arrow` = 箭矢追踪行、`shift.abyss` = 你不再恐惧深渊、`linkage` = 联动声明；旧 `shift.2` / `shift.3` / `shift.4` 的旧内容一并撤掉。**与光环（`the_halo.shift.1~7`）同款**：`属性名|数值` 两段配色（标题 = 天使名色 `#FFE4B5`、数值 = 天使值色）。
+
+| 触发 | 条件 | 文本 | 位置 | 备注 |
+| --- | --- | --- | --- | --- |
+| 按住 Shift 查看「圣心」 | 佩戴者 / 任意（需天使标记才展开） | 七条属性行：`最大生命 +10` / `护甲 +5` / `护甲韧性 +5` / `攻击速度 +0.5` / `移动速度 +15%` / `挖掘速度 +15%` / `造成伤害 +30%`（英文 `Max health +10` / `Armor +5` / …… / `Damage dealt +30%%`） | 物品提示（`item.summy-reliquary.sacred_heart.shift.1` ~ `.7`） | **1.8.5**：数值全部取 `[sacred_heart]` 配置（`max_health` / `armor` / `armor_toughness` / `attack_speed` / `movement_percent` / `break_speed_percent` / `damage_percent`），改配置即同步；原先只有一行「大量属性提升」，看不到任何数字 |
+| 同上（第 8 行） | 同上 | `祂与你同在：`（金色引言行，旧版第 2 行） | 物品提示（`item.summy-reliquary.sacred_heart.shift.presence`） | **1.8.5 新增键**：位置固定在七条属性行之后、两条效果行之前（与旧版语义一致），配色仍为淡金 `#FFE4B5` |
+| 同上（第 9 行） | 同上 | `·射出的箭矢在 %s 格内追踪目标`（同戴神性时 8 → 12 格） | 物品提示（`item.summy-reliquary.sacred_heart.shift.arrow`） | **1.8.5 键名变动**：内容与 1.8.3 起完全一致，仅从旧 `shift.3` 改名 |
+| 同上（第 10 行） | 同上 | `你不再恐惧深渊` | 物品提示（`item.summy-reliquary.sacred_heart.shift.abyss`） | **1.8.5 键名变动**：内容与 1.6.5 起完全一致，仅从旧 `shift.4` 改名 |
+
+> **同轮的两处改动不涉及文本**：① **魂心 / 黑心先于死亡拦截**（`DamagePools.guardOrNullify` 先扣池子能扛的份额，`uncovered ≥ 当前生命` 才轮到拦截）；② **创造飞行换维度后补推**（`AttributeManager.applyFlight` 的"维度 # 游戏模式 # tick/100"推送指纹）。两者都不改任何语言键，只改判定与网络推送。

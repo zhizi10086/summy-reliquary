@@ -417,6 +417,22 @@ public final class ForgeDevCheck {
 				// 1.8.2：光柱可以打末地水晶（布置 → 隔 3 tick 验证水晶已被引爆）
 				case 2255 -> checkBeamHitsCrystalSetup(player);
 				case 2258 -> checkBeamHitsCrystalVerify(player);
+				// 1.8.5：完全拦截类伤害改为在 Attack 层提前取消（不抖、不白吃无敌帧）
+				case 2259 -> checkCompleteBlock(player);
+				// 1.8.5：复活 / 换维度时清掉伤害池挂起记录（护盾数值异常叠加的根因）
+				case 2261 -> checkPoolCloneCleanup(player);
+				// 1.8.5 补修：/summyreliquary shield clamp 把被污染的吸收值夹回可解释的部分
+				case 2263 -> checkShieldClamp(player);
+				// 1.8.5 补修：击杀回复的饥饿上限只在"暴食未赎罪"时是 18
+				case 2264 -> checkGluttonyKillFeed(player);
+				// 1.8.5 第二轮：池子份额改走 LivingDamageEvent（吸收值全程不动，与 ER 生命护盾互不干扰）
+				case 2266 -> checkPoolHealthDamagePath(player);
+				// 1.8.5 第二轮：神性「神圣光环」的玩家开关（右键物品切换）
+				case 2267 -> checkGodheadAuraToggle(player);
+				// 1.8.5 第二轮补修：魂心/黑心先于死亡拦截（池子还扛得住就不许触发免死）
+				case 2268 -> checkPoolBeforeDeathGuard(player);
+				// 1.8.5 第二轮补修：创造飞行的能力包在换维度 / 重生后要补推
+				case 2269 -> checkFlightResync(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -514,6 +530,11 @@ public final class ForgeDevCheck {
 		// 1.5.3：天使名单隔离（自己有没有标记，都不能影响别人的名字染色）
 		if (clientTick == 2010) {
 			checkAngelRosterIsolation();
+		}
+
+		// 1.8.5 补修：防火时客户端本地的火焰覆盖层也必须能压掉
+		if (clientTick == 2015) {
+			checkClientFireOverlay();
 		}
 
 		// 1.5.4：占位物品提示 + 圣光死亡文本
@@ -2832,6 +2853,8 @@ public final class ForgeDevCheck {
 		var angel = root.getChild("angel");
 		var dragon = root.getChild("dragon");
 		var genesis = root.getChild("genesis");
+		// 1.8.5 补修：护盾夹取命令（OP 专用）
+		var shield = root.getChild("shield");
 		var p0 = player.createCommandSourceStack().withPermission(0);
 		var p2 = player.createCommandSourceStack().withPermission(2);
 
@@ -2849,12 +2872,15 @@ public final class ForgeDevCheck {
 				&& !root.getChild("slots").getRequirement().test(p0)
 				&& !angel.getChild("grant").getRequirement().test(p0)
 				&& !genesis.getChild("reset").getRequirement().test(p0)
-				&& !dragon.getRequirement().test(p0);
+				&& !dragon.getRequirement().test(p0)
+				&& !shield.getRequirement().test(p0);
 		boolean adminAllowed = sinArg.getChild("on").getRequirement().test(p2)
 				&& sin.getChild("all").getRequirement().test(p2)
 				&& angel.getChild("grant").getRequirement().test(p2)
 				&& genesis.getChild("reset").getRequirement().test(p2)
-				&& dragon.getRequirement().test(p2);
+				&& dragon.getRequirement().test(p2)
+				&& shield.getRequirement().test(p2)
+				&& shield.getChild("clamp") != null;
 		log("命令权限：玩家节点（list/refresh/query/angel query/angel refresh）权限 0 可用=" + playerNodes
 				+ "（应为 true）；管理节点权限 0 被拒=" + adminDenied + "（应为 true）、权限 2 可用=" + adminAllowed
 				+ "（应为 true）");
@@ -4201,9 +4227,39 @@ public final class ForgeDevCheck {
 		var firstTail = godLore.get(0).getSiblings().get(1);
 		log("经文前缀：斗篷=「" + mantle + "」、圣心=「" + heart + "」、神性=「" + godhead + "」→ " + prefix
 				+ "（应 true）");
-		log("圣心 Shift：" + heartLines.size() + " 行（应 5，末行为联动）、配色=" + heartColors
-				+ "（应 #AAAAAA/#FFE4B5/#AAAAAA）、第二行=「" + heartLines.get(1).getString()
-				+ "」、末行=「" + heartLines.get(4).getString() + "」");
+		// 1.8.5：圣心改成「一行一项属性」，与光环同款（`属性名|数值` 两段配色，根组件不带颜色）
+		StringBuilder heartValues = new StringBuilder();
+		boolean heartStatsOk = true;
+		for (int index = 0; index < 7; index++) {
+			String text = heartLines.get(index).getString();
+			heartStatsOk &= !text.contains("%s") && !text.contains("|") && text.contains(" ");
+			if (index > 0) {
+				heartValues.append('、');
+			}
+			heartValues.append(text);
+		}
+		boolean heartNumbers = heartStatsOk && heartLines.size() == 11
+				&& "#FFE4B5/#FFE4B5/#FFE4B5".equals(heartColors)
+				&& heartLines.get(0).getString().contains("+10")
+				&& heartLines.get(6).getString().contains("+30%")
+				&& !heartLines.get(6).getString().contains("相加")
+				&& heartLines.get(7).getString().equals("祂与你同在：")
+				&& "#FFE4B5".equals(colorOf(heartLines.get(7)))
+				&& heartLines.get(9).getString().equals("你不再恐惧深渊");
+		log("圣心 Shift（1.8.5 一行一项）：" + heartLines.size()
+				+ " 行（应 11 = 7 属性 + 金句 + 追踪 + 深渊 + 联动）、属性行配色=" + heartColors
+				+ "（应 #FFE4B5/#FFE4B5/#FFE4B5 = 天使名色，与光环同款两段配色）、第 8 行=「"
+				+ heartLines.get(7).getString() + "」（应 祂与你同在：）、末行=「"
+				+ heartLines.get(heartLines.size() - 1).getString() + "」");
+		log("圣心属性数值（1.8.5）：7 条=「" + heartValues + "」→ 已按配置填数=" + heartNumbers
+				+ "（应 true；细分：7 行格式=" + heartStatsOk + "、行数 11=" + (heartLines.size() == 11)
+				+ "、属性配色=" + "#FFE4B5/#FFE4B5/#FFE4B5".equals(heartColors)
+				+ "、生命 +10=" + heartLines.get(0).getString().contains("+10")
+				+ "、伤害 +30%=" + heartLines.get(6).getString().contains("+30%")
+				+ "、无「相加」=" + !heartLines.get(6).getString().contains("相加")
+				+ "、金句文案=" + heartLines.get(7).getString().equals("祂与你同在：")
+				+ "、金句配色=" + "#FFE4B5".equals(colorOf(heartLines.get(7)))
+				+ "、深渊行=" + heartLines.get(9).getString().equals("你不再恐惧深渊") + "）");
 		log("神性 Shift（功能）：" + godFunctions.size() + " 行（应 8）、首行=「"
 				+ godFunctions.get(0).getString() + "」、末行=「" + godFunctions.get(7).getString() + "」");
 		log("神性 Alt（介绍）：" + godLore.size() + " 行（应 5）、首行=「" + godLore.get(0).getString()
@@ -6630,7 +6686,7 @@ public final class ForgeDevCheck {
 				&& com.summy.reliquary.config.ReliquaryConfig.soulShatterInvulnerableSeconds() == 5.0D;
 		log("魂心 / 咒印口径：戴灵魂的池容量=" + withSoul + "（应 6）、换成咒印后=" + withMark
 				+ "（应 0 = 魂心转黑心）；协议=" + com.summy.reliquary.net.ReliquaryNetworking.protocolVersion()
-				+ "（应 12 = 1.7.2 新增创世纪动画包后升号）、1.6.2 配置默认值=" + config + "（应 true）");
+				+ "（应 14 = 1.8.5 新增「切换神圣光环」包后升号）、1.6.2 配置默认值=" + config + "（应 true）");
 		resetDemonPactState(player);
 	}
 
@@ -6721,10 +6777,18 @@ public final class ForgeDevCheck {
 		resetDemonPactState(player);
 	}
 
-	/** 恶魔线补强：当前持恶魔标记 → 免疫火焰四类伤害、且不着火；换回天使标记后失效 */
+	/**
+	 * 恶魔线补强：当前持恶魔标记 → 免疫火焰四类伤害、且不着火；换回天使标记后失效。
+	 *
+	 * <p>1.8.5：判据扩到 {@code isFireProof}（恶魔线**或**神性环境免疫），并断言"清火会把同步位一起压掉"
+	 * （只清 {@code remainingFireTicks} 不够 —— 客户端画火焰覆盖层看的是那个同步位）。
+	 */
 	private static void checkDemonFireImmunity(ServerPlayer player) {
 		resetDemonPactState(player);
 		prepareBarePlayer(player);
+		// 1.8.5：先摘掉所有 Curios —— 否则身上若还戴着神性，"换回天使标记后恢复正常受伤"会被神性的
+		// 环境免疫接住（那也是防火的一种，本用例只测恶魔线那一档）
+		stripAllCurios(player);
 		var level = player.serverLevel();
 		var registry = level.registryAccess()
 				.registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE);
@@ -6737,8 +6801,27 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
 		player.setHealth(player.getMaxHealth());
 		player.setRemainingFireTicks(200);
-		com.summy.reliquary.ReliquaryEvents.clearDemonFire(player);
+		com.summy.reliquary.ReliquaryEvents.keepNotOnFire(player);
 		boolean cleared = com.summy.reliquary.ReliquaryEvents.isDemonFireImmune(player) && !player.isOnFire();
+		// 1.8.5：清火后"只清 tick"也不该被判成着火 —— 客户端 isOnFire() = 自身 ticks>0 || 同步位，
+		// 所以这里用"再清一次 tick、仍不着火"证明同步位确实被压成了 false
+		player.clearFire();
+		boolean flagCleared = !player.isOnFire();
+		boolean demonFireProof = com.summy.reliquary.ReliquaryEvents.isFireProof(player);
+		// 1.8.5：戴神性也算防火（环境免疫按 #is_fire 全集），且不需要恶魔标记
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		// 启示栏要天使标记才会解锁（否则 equip 装不进去）—— 这一步只是为了让下面真的戴上神性
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		com.summy.reliquary.effect.SlotSizing.syncNow(player);
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		player.setRemainingFireTicks(200);
+		com.summy.reliquary.ReliquaryEvents.keepNotOnFire(player);
+		boolean godheadFireProof = com.summy.reliquary.ReliquaryEvents.isFireProof(player)
+				&& !player.isOnFire();
+		unequip(player, ReliquarySlots.REVELATION);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		com.summy.reliquary.effect.SlotSizing.syncNow(player);
 		boolean inFire = blockedFire(player, sourceOf, net.minecraft.world.damagesource.DamageTypes.IN_FIRE);
 		boolean onFire = blockedFire(player, sourceOf, net.minecraft.world.damagesource.DamageTypes.ON_FIRE);
 		boolean lava = blockedFire(player, sourceOf, net.minecraft.world.damagesource.DamageTypes.LAVA);
@@ -6772,7 +6855,7 @@ public final class ForgeDevCheck {
 			player.hurt(sourceOf.apply(net.minecraft.world.damagesource.DamageTypes.LAVA), 4.0F);
 			player.invulnerableTime = 0;
 			player.hurt(sourceOf.apply(net.minecraft.world.damagesource.DamageTypes.HOT_FLOOR), 1.0F);
-			com.summy.reliquary.ReliquaryEvents.clearDemonFire(player);
+			com.summy.reliquary.ReliquaryEvents.keepNotOnFire(player);
 			if (player.getHealth() < player.getMaxHealth()) {
 				loopIntact = false;
 			}
@@ -6800,7 +6883,10 @@ public final class ForgeDevCheck {
 				+ fireTagAllBlocked + "（应 true）→ " + fireTagOk + "（应 true）；连续 100 tick"
 				+ "（每 tick 点火 + 岩浆 + 热地板 + 清火）血量不掉=" + loopIntact + "、结束时不着火="
 				+ loopNoFire + " → " + loopOk + "（应 true）；"
-				+ "换回天使标记后恢复正常受伤=" + afterAngel + "（应 true）");
+				+ "换回天使标记后恢复正常受伤=" + afterAngel + "（应 true）；"
+				+ "1.8.5：只清 tick 后仍不着火（同步位已压掉）=" + flagCleared + "（应 true）、"
+				+ "恶魔线算防火=" + demonFireProof + "、戴神性也算防火且照样清火=" + godheadFireProof
+				+ "（都应 true）");
 	}
 
 	/** 圣心 / 神性：免疫黑暗与恐惧（拦新增 + 每秒清理），且不影响发光与增伤 */
@@ -7622,7 +7708,7 @@ public final class ForgeDevCheck {
 		boolean soulLineRemoved = !translated("item.summy-reliquary.the_soul.desc.detail");
 		boolean revelationFlight = Component.translatable("item.summy-reliquary.final_revelation.desc.1.detail")
 				.getString().contains("速度减半");
-		boolean sacredHeartLine = Component.translatable("item.summy-reliquary.sacred_heart.shift.4")
+		boolean sacredHeartLine = Component.translatable("item.summy-reliquary.sacred_heart.shift.abyss")
 				.getString().equals("你不再恐惧深渊");
 		boolean occultEye = Component.translatable("item.summy-reliquary.occult_eye.tagline.1").getString()
 				.equals("眼睛睁开了")
@@ -7744,6 +7830,9 @@ public final class ForgeDevCheck {
 	 * <p>只有第一次该介入；第二次必须**原样放过**，既不能重复扣池，也不能把第一次并进去的吸收值对账掉。
 	 */
 	private static void checkPoolDoubleTrigger(ServerPlayer player) {
+		// 1.8.5 第二轮：本用例逐条驱动「并入 + 对账」这套旧机制，必须显式走旧路径
+		com.summy.reliquary.effect.DamagePools.setModeForTest(
+				com.summy.reliquary.effect.DamagePools.Mode.LEGACY);
 		resetDemonPactState(player);
 		player.getInventory().clearContent();
 		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
@@ -7789,6 +7878,7 @@ public final class ForgeDevCheck {
 				+ "换来源实例按新的一击处理=" + otherHitHandled + "（应 true，池 " + poolAfterOtherHit
 				+ " 应为 1 = 上一击的并入先被退还、本击重新扣 3）、对账后无挂起=" + noPending + "（应 true）");
 		resetDemonPactState(player);
+		com.summy.reliquary.effect.DamagePools.setModeForTest(null);
 	}
 
 	/**
@@ -7802,6 +7892,9 @@ public final class ForgeDevCheck {
 	private static void checkPoolsOnFabricSide(ServerPlayer player) {
 		boolean fabricBefore = com.summy.reliquary.effect.DamagePools.fabricSide();
 		com.summy.reliquary.effect.DamagePools.setFabricForTest(true);
+		// 1.8.5 第二轮：本用例模拟 Kilt（收不到 LivingDamageEvent 的环境）→ 显式走旧路径
+		com.summy.reliquary.effect.DamagePools.setModeForTest(
+				com.summy.reliquary.effect.DamagePools.Mode.LEGACY);
 		// 先脱掉所有饰品：灵台三件套的 −20% 受伤减免会出现在事件金额上（我们估算的是"原版减免"，不含它），
 		// 留着会让这里的期望值变复杂；这一条测的是"池子到底扣没扣"
 		stripAllCurios(player);
@@ -7842,6 +7935,7 @@ public final class ForgeDevCheck {
 		double poolAfterSecond = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
 		float healthAfterSecond = player.getHealth();
 		com.summy.reliquary.effect.DamagePools.setFabricForTest(fabricBefore);
+		com.summy.reliquary.effect.DamagePools.setModeForTest(null);
 
 		log("[诊断] 第 1 击：hurt=" + landedFirst + "、对账前吸收=" + absorptionRawFirst + "、有挂起=" + pendingFirst
 				+ "、对账后 池=" + poolAfterFirst + " 生命=" + healthAfterFirst + " 吸收=" + absorptionAfterFirst
@@ -7862,6 +7956,9 @@ public final class ForgeDevCheck {
 
 	/** 被吞掉的命中：prepare 之后没真正打到（吸收值原样）→ 对账要把池与护盾都还原，且不触发破碎 */
 	private static void checkPoolSwallowedHit(ServerPlayer player) {
+		// 1.8.5 第二轮：本用例驱动「并入 + 对账」的旧机制，必须显式走旧路径
+		com.summy.reliquary.effect.DamagePools.setModeForTest(
+				com.summy.reliquary.effect.DamagePools.Mode.LEGACY);
 		resetDemonPactState(player);
 		player.getInventory().clearContent();
 		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
@@ -7889,9 +7986,16 @@ public final class ForgeDevCheck {
 				+ absorptionTopped + "（应 3 = 护盾 2 + 1）；对账后池=" + poolBack + "（应还原 4）、吸收=" + absorptionBack
 				+ "（应还原 2）、未误触发破碎=" + noShatter + "（应 true）");
 		resetDemonPactState(player);
+		com.summy.reliquary.effect.DamagePools.setModeForTest(null);
 	}
 
-	/** 守卫：致命一击被神性整击拦下时，池子不动、对账后护盾还原 */
+	/**
+	 * 守卫：致命一击被神性整击拦下时**直接取消这一击**（1.8.5 补修）。
+	 *
+	 * <p>旧做法是把整击金额并入吸收值、事后写回绝对值 —— 那会污染 Enchantment Reforged 那类
+	 * "读当前值做增量记账"的护盾模组（实测每次拦截吸收值 +一个生命上限）。
+	 * 现在改为取消：伤害不落地、吸收值一个点都不动、不建挂起记录，并把这一击占用的原版无敌帧清 0。
+	 */
 	private static void checkPoolGuardNullify(ServerPlayer player) {
 		resetDemonPactState(player);
 		player.getInventory().clearContent();
@@ -7904,18 +8008,30 @@ public final class ForgeDevCheck {
 		player.setHealth(5.0F);
 		player.setAbsorptionAmount(2.0F);
 		player.invulnerableTime = 0;
-		com.summy.reliquary.effect.DamagePools.prepare(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(player,
-						player.damageSources().generic(), 20.0F));
+		LivingHurtEvent lethal = new LivingHurtEvent(player, player.damageSources().generic(), 20.0F);
+		boolean handled = com.summy.reliquary.effect.DamagePools.prepare(lethal);
 		int guards = com.summy.reliquary.effect.Godhead.deathGuardCount();
 		float healthAfterGuard = player.getHealth();
-		float absorbedTopUp = player.getAbsorptionAmount();
-		// 模拟"整击被吸收"：吸收值被原版吃光 → 对账应把护盾还原到命中前
-		player.setAbsorptionAmount(0.0F);
-		com.summy.reliquary.effect.DamagePools.reconcile(player);
+		float absorptionAfter = player.getAbsorptionAmount();
+		boolean pending = com.summy.reliquary.effect.DamagePools.hasPending(player);
+		int iframe = player.invulnerableTime;
+		// 守卫已在位时的"同一击双事件"（Kilt / Connector）：只取消，不重复拦截（拦截次数不增长）
+		int guardsBeforeRepeat = guards;
+		LivingHurtEvent repeat = new LivingHurtEvent(player, player.damageSources().magic(), 20.0F);
+		com.summy.reliquary.effect.DamagePools.prepare(repeat);
+		boolean repeatCanceled = repeat.isCanceled() && repeat.getAmount() == 0.0F;
+		boolean noRepeatIntercept = com.summy.reliquary.effect.Godhead.deathGuardCount() == guardsBeforeRepeat;
+
+		boolean canceled = handled && lethal.isCanceled() && lethal.getAmount() == 0.0F;
+		boolean untouched = Math.abs(absorptionAfter - 2.0F) < 1.0E-4F && !pending;
+		boolean overall = canceled && untouched && guards >= 1
+				&& Math.abs(healthAfterGuard - 1.0F) < 1.0E-4F && iframe == 0
+				&& repeatCanceled && noRepeatIntercept;
 		log("整击拦下：拦截次数=" + guards + "（应 ≥1）、拦下后生命=" + healthAfterGuard + "（应 1.0）、"
-				+ "并入后吸收=" + absorbedTopUp + "（应 22 = 护盾 2 + 整击 20）、对账后吸收="
-				+ player.getAbsorptionAmount() + "（应还原 2 = 护盾不损失）");
+				+ "取消这一击=" + canceled + "（应 true）、吸收值=" + absorptionAfter
+				+ "（应保持 2.0 = 不并入、不写回）、无挂起记录=" + !pending + "（应 true）、无敌帧=" + iframe
+				+ "（应 0 = 这一击不算数）；守卫内重复事件只取消=" + repeatCanceled
+				+ "、不重复拦截=" + noRepeatIntercept + "（都应 true）→ 整体=" + overall + "（应 true）");
 		resetDemonPactState(player);
 	}
 
@@ -7961,6 +8077,29 @@ public final class ForgeDevCheck {
 		boolean rows = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRows(0.0D) == 0
 				&& com.summy.reliquary.client.SoulHeartOverlay.soulHeartRows(10.0D) == 1
 				&& com.summy.reliquary.client.SoulHeartOverlay.soulHeartRows(22.0D) == 2;
+		// 1.8.5：单排血条适配（Mantle / 经典状态条）与像素偏移
+		// ① 单排模式下生命上限 275 与 20 的结果必须**完全一致**（不再因折行把蓝心顶上去）
+		int tallSingleRow = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(height, 275.0F, 0.0F, 0, true, 0);
+		int shortSingleRow = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(height, 20.0F, 0.0F, 0, true, 0);
+		int tallVanillaRow = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(height, 275.0F, 0.0F, 0, false, 0);
+		// ② 偏移 0 时，4 参重载（读配置）与旧公式逐值一致；偏移 ±10 就是整体平移
+		int configResolved = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(height, 20.0F, 8.0F, 20);
+		int offsetUp = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(height, 20.0F, 8.0F, 20, false, -10);
+		int offsetDown = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(height, 20.0F, 8.0F, 20, false, 10);
+		// ③ 单排模式下盔甲避让仍然保留；黑心仍紧跟在魂心之上（复用同一函数）
+		int singleRowArmor = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(height, 275.0F, 0.0F, 20, true, 0);
+		int blackFollows = com.summy.reliquary.client.DemonBlackHeartOverlay.blackHeartRowY(
+				height, 20.0F, 8.0F, 20, 10.0D);
+		String layoutMode = com.summy.reliquary.config.ReliquaryConfig.soulHeartHudLayout();
+		int layoutOffset = com.summy.reliquary.config.ReliquaryConfig.soulHeartHudOffsetY();
+		boolean hudLayoutOk = tallSingleRow == shortSingleRow
+				&& tallVanillaRow < shortSingleRow
+				&& configResolved == withAbsorption
+				&& offsetUp == configResolved - 10 && offsetDown == configResolved + 10
+				&& singleRowArmor == shortSingleRow - 10
+				&& blackFollows == configResolved - 10
+				&& ("auto".equals(layoutMode) || "vanilla".equals(layoutMode) || "single_row".equals(layoutMode))
+				&& layoutOffset == 0;
 		// 逐个场景断言：蓝心行不与任何原版网格行、也不与盔甲行重合
 		boolean layout = oneRowNoArmor == height - 49 && oneRowArmor == height - 59
 				&& twoRowNoArmor == height - 59 && threeRowArmor == height - 77
@@ -7975,6 +8114,42 @@ public final class ForgeDevCheck {
 				+ "）、单排红心+一行黄心+盔甲 Y=" + withAbsorption + "（应 " + (height - 69) + "）；黑心 Y="
 				+ blackNoSoul + "/" + blackWithSoul + "（应 " + (height - 59) + "/" + (height - 69)
 				+ " = 蓝心之上）、行数 0/1/2=" + rows + "（应 true）、整体=" + layout + "（应 true）");
+		log("HUD 单排适配（1.8.5）：布局模式=" + layoutMode + "（auto/vanilla/single_row）、偏移=" + layoutOffset
+				+ "（应 0）；单排下 生命 275=" + tallSingleRow + " 与 生命 20=" + shortSingleRow
+				+ " 一致=" + (tallSingleRow == shortSingleRow) + "（应 true）、原版折行 275=" + tallVanillaRow
+				+ "（应更小 = 会被顶上去）、偏移 −10/+10=" + offsetUp + "/" + offsetDown + "（应 "
+				+ (configResolved - 10) + "/" + (configResolved + 10) + "）、单排 + 盔甲=" + singleRowArmor
+				+ "（应 " + (shortSingleRow - 10) + "）、黑心跟随=" + blackFollows + "（应 "
+				+ (configResolved - 10) + "）→ 整体=" + hudLayoutOk + "（应 true）");
+		// 1.8.5 补修：经典状态条按实际条堆高度锚定（吸收值与盔甲都并进了 rightHeight）+ 异常吸收值钳制
+		int classicRow = com.summy.reliquary.client.SoulHeartOverlay.classicSoulHeartRowY(height, 59, 0);
+		int classicUp = com.summy.reliquary.client.SoulHeartOverlay.classicSoulHeartRowY(height, 59, -10);
+		com.summy.reliquary.client.SoulHeartOverlay.setLayoutForTest(
+				com.summy.reliquary.client.SoulHeartOverlay.Layout.CLASSIC_ROW);
+		int classicWithBars = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(
+				height, 275.0F, 1100.0F, 20, 59, 0);
+		int classicNoBars = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(
+				height, 275.0F, 1100.0F, 20, 0, 0);
+		com.summy.reliquary.client.SoulHeartOverlay.setLayoutForTest(
+				com.summy.reliquary.client.SoulHeartOverlay.Layout.SINGLE_ROW);
+		int singleWithAbsorption = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(
+				height, 275.0F, 1100.0F, 20, 0, 0);
+		int singleWithoutAbsorption = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(
+				height, 275.0F, 0.0F, 20, 0, 0);
+		com.summy.reliquary.client.SoulHeartOverlay.setLayoutForTest(
+				com.summy.reliquary.client.SoulHeartOverlay.Layout.VANILLA);
+		int clampedBig = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(height, 20.0F, 5000.0F, 0);
+		int clampedCap = com.summy.reliquary.client.SoulHeartOverlay.soulHeartRowY(height, 20.0F, 100.0F, 0);
+		com.summy.reliquary.client.SoulHeartOverlay.resetLayoutProbeForTest();
+		boolean classicOk = classicRow == height - 69 && classicUp == classicRow - 10
+				&& classicWithBars == classicRow && classicNoBars == singleWithoutAbsorption
+				&& singleWithAbsorption == singleWithoutAbsorption && clampedBig == clampedCap;
+		log("HUD 经典状态条锚定（1.8.5）：rightHeight=59 → Y=" + classicRow + "（应 " + (height - 69)
+				+ "）、偏移 −10 → " + classicUp + "（应 " + (classicRow - 10) + "）、吸收值 1100 不影响="
+				+ (classicWithBars == classicRow) + "（应 true）、没有条堆时回退单排="
+				+ (classicNoBars == singleWithoutAbsorption) + "（应 true）；单排下吸收值 1100 与 0 相同="
+				+ (singleWithAbsorption == singleWithoutAbsorption) + "（应 true）、吸收值 5000 与 100 相同="
+				+ (clampedBig == clampedCap) + "（应 true）→ 整体=" + classicOk + "（应 true）");
 	}
 
 	/** 指定生命 / 吸收 / 盔甲下，我们的蓝心行（ourY）是否避开了原版所有网格行与盔甲行 */
@@ -8758,11 +8933,16 @@ public final class ForgeDevCheck {
 				0.0F, 3.0F, 5.0F, 3.0D);
 		String reconcile = com.summy.reliquary.effect.DamagePools.reconcileLogLine("Forge", "测试", "Dev",
 				0.0F, 3.0F, 0.0F, 0.0F, 3.0D, 0.0D);
+		// 1.8.5 第二轮：新路径（LivingDamageEvent 扣池）的日志格式
+		String healthDamage = com.summy.reliquary.effect.DamagePools.healthDamageLogLine("Forge", "Dev",
+				0.0F, 4.0D, 3.0D, 3.0F, 0.0F);
 		boolean ok = prepare.contains("估算血伤=5.0") && !prepare.contains("结算后吸收")
-				&& reconcile.contains("结算后吸收=0.0") && !reconcile.contains("估算血伤");
+				&& reconcile.contains("结算后吸收=0.0") && !reconcile.contains("估算血伤")
+				&& healthDamage.contains("LivingDamage 扣池") && healthDamage.contains("本次扣池=3.0")
+				&& healthDamage.contains("血伤 3.0 → 0.0");
 		log("伤害池日志字段（1.6.9）：prepare=「" + prepare + "」、对账=「" + reconcile + "」→ " + ok
 				+ "（应 true）；协议=" + com.summy.reliquary.net.ReliquaryNetworking.protocolVersion()
-				+ "（应 13 = 1.8.2 新增「神性回溯 / 恶魔形态」包）");
+				+ "（应 14 = 1.8.5 新增「切换神圣光环」包）；新增路径日志=「" + healthDamage + "」");
 	}
 
 	// ==================== 1.6.10：创世纪 / 启示属性 / 条件驱动发放 / 饰品联动 ====================
@@ -9203,7 +9383,7 @@ public final class ForgeDevCheck {
 		String mantle = Component.translatable("item.summy-reliquary.holy_mantle.desc").getString();
 		String mark = Component.translatable("item.summy-reliquary.the_mark.shift.2").getString();
 		String vengeful = Component.translatable("item.summy-reliquary.vengeful_spirit.shift.1").getString();
-		String heart = Component.translatable("item.summy-reliquary.sacred_heart.shift.3").getString();
+		String heart = Component.translatable("item.summy-reliquary.sacred_heart.shift.arrow").getString();
 		String seraph = Component.translatable("item.summy-reliquary.seraph_spear.shift.3").getString();
 		String salvation = Component.translatable("item.summy-reliquary.salvation.desc.extended").getString();
 		String[] providers = {
@@ -10419,12 +10599,12 @@ public final class ForgeDevCheck {
 		boolean teleported = distanceToAnchor <= 2.0D;
 		int animations = com.summy.reliquary.item.GenesisItem.activationCount();
 		int sounds = com.summy.reliquary.item.GenesisItem.soundCount();
-		// 1.8.2：协议升到 13（新增「神性回溯 / 恶魔形态」的 C2S 空包）
-		boolean protocol13 = "13".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
+		// 1.8.5：协议升到 14（新增「切换神性神圣光环」的 C2S 空包）
+		boolean protocol14 = "14".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 
 		log(String.format("创世纪表现（1.7.2）：用掉=%s（应 true）、使用前离重生点 %.1f 格 → 使用后 %.1f 格"
-				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=13=%s（应 true）",
-				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol13));
+				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=14=%s（应 true）",
+				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol14));
 		player.getInventory().clearContent();
 		resetDemonPactState(player);
 		clearRobeAndSeal(player);
@@ -12797,11 +12977,17 @@ public final class ForgeDevCheck {
 		victim.discard();
 
 		boolean multOk = Math.abs(com.summy.reliquary.config.ReliquaryConfig.wrathSelfHitMultiplier() - 0.5D) < 1e-6;
+		// 1.8.5：提示文案必须同时表达「几率」与「自伤倍率」，不能再写「等量」（那是 1.8.0 之前的旧口径）
+		String debuffText = com.summy.reliquary.sin.SinDescriptions
+				.thirdLine(com.summy.reliquary.sin.Sin.WRATH, SinManager.SinState.ACTIVATED).getString();
+		boolean textOk = debuffText.contains("15%") && debuffText.contains("50%")
+				&& !debuffText.contains("等量") && !debuffText.contains("same amount");
 		log("愤怒自伤（1.8.0）：满血被 10 点伤害自伤后掉血=" + String.format("%.1f", lost)
 				+ "（本次结算 " + String.format("%.2f", swing) + " 的 50%）= " + ratioOk
 				+ "（应 true）、残血连打后存活=" + alive
 				+ "（应 true）、剩余生命=" + String.format("%.1f", health) + "（应 ≥ 1.0）、自伤倍率默认 0.5="
-				+ multOk + "（应 true）");
+				+ multOk + "（应 true）、提示含「15% + 50%」且不含「等量」=" + textOk + "（应 true：「"
+				+ debuffText + "」）");
 
 		// 收尾
 		player.setHealth(player.getMaxHealth());
@@ -13335,5 +13521,478 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.ShadowDash.clear();
 		resetDemonPactState(player);
 		resetSinState(player);
+	}
+
+	/**
+	 * 1.8.5：完全拦截类伤害的「提前取消」真值表（{@code ReliquaryEvents.blocksDamageEntirely}）。
+	 *
+	 * <p>为什么要在 Attack 层取消：原版 {@code LivingEntity#hurt} 在触发 {@code LivingHurtEvent} **之前**
+	 * 就已经写出 {@code invulnerableTime = 20} 并调用 {@code markHurt()} —— 只在 Hurt 层取消，
+	 * 玩家仍会抖一下、还会白吃一次无敌帧。这里用真实事件总线（post {@code LivingAttackEvent}）
+	 * 断言各状态下的取消结果，并顺带确认"没戴任何东西时普通伤害不会被误取消"。
+	 *
+	 * <p>覆盖：魂心破碎窗口 / 亚巴顿 8 秒 / 神圣斗篷窗口 / 神性死亡守卫 / 神性环境免疫 /
+	 * 恶魔线完全防火 / 本模组飞行免摔。未覆盖：遁入暗影（需要真实右键起手，已有独立用例）
+	 * 与免死（20% 随机）。
+	 */
+	private static void checkCompleteBlock(ServerPlayer player) {
+		prepareBarePlayer(player);
+		resetDemonPactState(player);
+		clearSpiritAltar(player);
+		clearBlessingSlots(player);
+		player.getInventory().clearContent();
+		player.removeAllEffects();
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, false);
+		com.summy.reliquary.effect.HolyMantle.reset();
+		com.summy.reliquary.effect.Abaddon.reset();
+		com.summy.reliquary.effect.Godhead.clearGuards();
+		com.summy.reliquary.effect.ShadowDash.clear();
+
+		net.minecraft.world.damagesource.DamageSource magic = player.damageSources().magic();
+		net.minecraft.world.damagesource.DamageSource fire = player.damageSources().inFire();
+		net.minecraft.world.damagesource.DamageSource fall = player.damageSources().fall();
+		net.minecraft.world.damagesource.DamageSource outOfWorld = player.damageSources().fellOutOfWorld();
+
+		// ① 对照：什么都没有 → 普通伤害 / 火 / 摔落都不该被拦
+		boolean bareMagic = !attackCanceled(player, magic);
+		boolean bareFire = !attackCanceled(player, fire);
+		boolean bareFall = !attackCanceled(player, fall);
+
+		// ② 魂心完全破碎后的无敌窗口
+		com.summy.reliquary.effect.SoulShield.setGuardForTest(player, 100);
+		boolean soulGuard = attackCanceled(player, magic);
+		com.summy.reliquary.effect.SoulShield.clearGuardForTest(player);
+
+		// ③ 亚巴顿「恶魔形态」的 8 秒无敌
+		com.summy.reliquary.effect.Abaddon.setGuardAndAuraForTest(player, 100);
+		boolean abaddonGuard = attackCanceled(player, magic);
+		com.summy.reliquary.effect.Abaddon.clearGuardForTest(player);
+		com.summy.reliquary.effect.Abaddon.clearAuraForTest(player);
+
+		// ④ 神圣斗篷：先造一次"受击"开启窗口，再验下一击在 Attack 层就被拦
+		equip(player, ReliquarySlots.BLESSING, SummyReliquary.HOLY_MANTLE.get());
+		com.summy.reliquary.effect.HolyMantle.onHurt(
+				new LivingHurtEvent(player, magic, 3.0F));
+		boolean mantleGuard = attackCanceled(player, magic);
+		com.summy.reliquary.effect.HolyMantle.reset();
+		unequip(player, ReliquarySlots.BLESSING);
+
+		// ⑤ 神性：环境免疫（火 / 岩浆类走 #is_fire 标签）+ 死亡拦截后的 2 秒守卫；
+		//    同时它带来的"本模组飞行"应让摔落伤害被拦（虚空不在免疫清单里 → 仍会落地）
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		com.summy.reliquary.effect.SlotSizing.syncNow(player);
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		boolean godheadFire = attackCanceled(player, fire);
+		boolean godheadMagic = !attackCanceled(player, magic);
+		boolean godheadVoid = !attackCanceled(player, outOfWorld);
+		boolean flightGranted = com.summy.reliquary.effect.AttributeManager.hasGrantedFlight(player);
+		boolean godheadFall = attackCanceled(player, fall);
+		// 死亡拦截：直接把守卫置起来（真正的致命一击用例见 checkPoolGuardNullify）
+		com.summy.reliquary.effect.Godhead.tryNullify(player, player.getMaxHealth() * 10.0F);
+		boolean godheadGuard = attackCanceled(player, magic);
+		com.summy.reliquary.effect.Godhead.clearGuards();
+		unequip(player, ReliquarySlots.REVELATION);
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+
+		// ⑥ 恶魔线完全防火：持恶魔标记时火 / 岩浆整类不落地，普通伤害照常
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
+		boolean demonFire = attackCanceled(player, fire);
+		boolean demonMagic = !attackCanceled(player, magic);
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, false);
+
+		boolean truthTable = bareMagic && bareFire && bareFall && soulGuard && abaddonGuard && mantleGuard
+				&& godheadFire && godheadMagic && godheadVoid && godheadFall == flightGranted
+				&& godheadGuard && demonFire && demonMagic;
+		log("完全拦截提前取消（1.8.5）：裸装 普通/火/摔落 都不拦=" + (bareMagic && bareFire && bareFall)
+				+ "（应 true）、魂心破碎窗口拦=" + soulGuard + "、亚巴顿守卫拦=" + abaddonGuard
+				+ "、斗篷窗口拦=" + mantleGuard + "（都应 true）；戴神性 火拦=" + godheadFire
+				+ "、普通不拦=" + godheadMagic + "、虚空不拦=" + godheadVoid + "、飞行免摔=" + godheadFall
+				+ "（飞行已授予=" + flightGranted + "）、死亡守卫拦=" + godheadGuard
+				+ "；恶魔防火拦=" + demonFire + "、普通不拦=" + demonMagic
+				+ "（都应 true）→ 真值表=" + truthTable + "（应 true）");
+
+		player.setHealth(player.getMaxHealth());
+		player.removeAllEffects();
+		clearBlessingSlots(player);
+		clearSpiritAltar(player);
+		player.getInventory().clearContent();
+		resetDemonPactState(player);
+	}
+
+	/** 自检用：post 一次真实的 {@code LivingAttackEvent}，返回它是否被取消 */
+	private static boolean attackCanceled(ServerPlayer player,
+			net.minecraft.world.damagesource.DamageSource source) {
+		net.minecraftforge.event.entity.living.LivingAttackEvent event =
+				new net.minecraftforge.event.entity.living.LivingAttackEvent(player, source, 4.0F);
+		MinecraftForge.EVENT_BUS.post(event);
+		return event.isCanceled();
+	}
+
+	/**
+	 * 1.8.5：复活 / 换维度时必须清掉伤害池的挂起记录。
+	 *
+	 * <p>根因：{@code DamagePools.PENDING} 以玩家 **UUID** 为键，而 UUID 死亡前后不变 ——
+	 * 留着旧记录，复活后的新实体就会拿"旧实体命中前的吸收基线"去还原吸收值，
+	 * 表现为魂心 / 护盾数值异常叠加（用户 2026-10-08 反馈）。
+	 *
+	 * <p>这里直接 post 一次真实的 {@code PlayerEvent.Clone(wasDeath = true)}（同一个实体当新旧两边，
+	 * UUID 与真实复活完全一致），断言处理完后挂起记录已被清掉、多扣的池子点数已退还。
+	 */
+	private static void checkPoolCloneCleanup(ServerPlayer player) {
+		// 1.8.5 第二轮：本用例要验证"复活时清掉挂起记录"，需要先由旧路径造出挂起
+		com.summy.reliquary.effect.DamagePools.setModeForTest(
+				com.summy.reliquary.effect.DamagePools.Mode.LEGACY);
+		prepareBarePlayer(player);
+		player.getInventory().clearContent();
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
+		com.summy.reliquary.effect.DemonPact.grant(player, false);
+		player.setAbsorptionAmount(2.0F);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 4.0D);
+		com.summy.reliquary.effect.DamagePools.clear();
+
+		// 造一条"命中前并入 3 点、池子先扣 1 点"的挂起记录（护盾 2 挡掉 2，魂心 / 黑心出 1）
+		com.summy.reliquary.effect.DamagePools.prepare(new LivingHurtEvent(
+				player, player.damageSources().generic(), 3.0F));
+		boolean beforePending = com.summy.reliquary.effect.DamagePools.hasPending(player);
+		float beforeAbsorption = player.getAbsorptionAmount();
+		double beforePool = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
+
+		MinecraftForge.EVENT_BUS.post(new PlayerEvent.Clone(player, player, true));
+		boolean afterPending = com.summy.reliquary.effect.DamagePools.hasPending(player);
+		double afterPool = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
+		log("复活的伤害池清理（1.8.5）：发车前 有挂起=" + beforePending + "（应 true，吸收 " + beforeAbsorption
+				+ "、黑心 " + beforePool + "）→ Clone 之后 有挂起=" + afterPending + "（应 false）"
+				+ "、黑心 " + afterPool + "（应还原，不再拿旧基线覆盖新实体）");
+
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, false);
+		player.setAbsorptionAmount(0.0F);
+		player.setHealth(player.getMaxHealth());
+		resetDemonPactState(player);
+		com.summy.reliquary.effect.DamagePools.setModeForTest(null);
+	}
+
+	/**
+	 * 1.8.5 第二轮：池子份额改走 {@code LivingDamageEvent}（Forge / Connector 的默认路径）——
+	 * 扣的是"真实会打到血"的那一份，**吸收值全程一个点都不动**（这是与 Enchantment Reforged
+	 * 的生命护盾互不干扰的关键）。
+	 *
+	 * <p>用真实 {@code player.hurt(...)} 驱动：{@code prepare} 只登记本击，真正扣池发生在
+	 * {@code LivingDamageEvent}。
+	 */
+	private static void checkPoolHealthDamagePath(ServerPlayer player) {
+		com.summy.reliquary.effect.DamagePools.setModeForTest(
+				com.summy.reliquary.effect.DamagePools.Mode.HEALTH_DAMAGE);
+		resetDemonPactState(player);
+		player.getInventory().clearContent();
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
+		com.summy.reliquary.effect.DemonPact.grant(player, false);
+		prepareBarePlayer(player);
+		com.summy.reliquary.effect.DamagePools.clear();
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 4.0D);
+		player.setAbsorptionAmount(0.0F);
+		float healthBefore = player.getHealth();
+
+		// ① 池 4 受 3：池 → 1，红血与吸收值都不动
+		player.invulnerableTime = 0;
+		boolean landedFirst = player.hurt(player.damageSources().generic(), 3.0F);
+		double poolAfterFirst = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
+		float absorptionAfterFirst = player.getAbsorptionAmount();
+		float healthAfterFirst = player.getHealth();
+
+		// ② 池 1 受 5：池 → 0，红血只掉护盾挡不住的 4 点
+		player.invulnerableTime = 0;
+		boolean landedSecond = player.hurt(player.damageSources().generic(), 5.0F);
+		double poolAfterSecond = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
+		float absorptionAfterSecond = player.getAbsorptionAmount();
+		float healthAfterSecond = player.getHealth();
+		com.summy.reliquary.effect.DamagePools.setModeForTest(null);
+
+		boolean firstOk = landedFirst && Math.abs(poolAfterFirst - 1.0D) < 1.0E-4D
+				&& Math.abs(healthAfterFirst - healthBefore) < 1.0E-4F
+				&& Math.abs(absorptionAfterFirst) < 1.0E-4F;
+		boolean secondOk = landedSecond && Math.abs(poolAfterSecond) < 1.0E-4D
+				&& Math.abs(absorptionAfterSecond) < 1.0E-4F
+				&& Math.abs((healthBefore - 4.0F) - healthAfterSecond) < 1.0E-4F;
+		log("LivingDamage 扣池（1.8.5 第二轮）：池 4 受 3 → 池 " + poolAfterFirst + "（应 1）、红血 "
+				+ healthAfterFirst + "（应 " + healthBefore + " 不动）、吸收 " + absorptionAfterFirst
+				+ "（应 0 = 全程不动）；再受 5 → 池 " + poolAfterSecond + "（应 0）、红血 "
+				+ healthAfterSecond + "（应 " + (healthBefore - 4.0F) + "）、吸收 " + absorptionAfterSecond
+				+ "（应 0）→ 整体=" + (firstOk && secondOk) + "（应 true）");
+		resetDemonPactState(player);
+	}
+
+	/**
+	 * 1.8.5 第二轮：神性「神圣光环」的玩家开关 —— 关掉时整条光环停摆（返回 0、目标不掉血），
+	 * 再开即恢复每秒 2 点；状态写 NBT、同步到客户端位，创世纪重置会回到默认开启。
+	 */
+	private static void checkGodheadAuraToggle(ServerPlayer player) {
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		com.summy.reliquary.effect.PlayerFlags.setGodheadAuraOff(player, false);
+		Zombie zombie = spawnHolyLightTarget(player, 6.0D);
+		if (zombie == null) {
+			log("神性光环开关：无法生成测试僵尸");
+			return;
+		}
+		boolean defaultOn = com.summy.reliquary.effect.Godhead.auraEnabled(player);
+		// ① 切换 → 关闭
+		boolean toggled = com.summy.reliquary.effect.Godhead.toggleAura(player);
+		boolean offFlag = com.summy.reliquary.effect.PlayerFlags.isGodheadAuraOff(player);
+		boolean clientBit = (com.summy.reliquary.effect.PlayerFlags.clientFlags(player)
+				& com.summy.reliquary.client.ReliquaryClientState.FLAG_GODHEAD_AURA_OFF) != 0;
+		float beforeOff = zombie.getHealth();
+		int hitsOff = com.summy.reliquary.effect.Godhead.judgeAuraNow(player);
+		float damageOff = beforeOff - zombie.getHealth();
+		// ② 再切换 → 开启
+		boolean backToggled = com.summy.reliquary.effect.Godhead.toggleAura(player);
+		boolean backOn = com.summy.reliquary.effect.Godhead.auraEnabled(player);
+		float beforeOn = zombie.getHealth();
+		int hitsOn = com.summy.reliquary.effect.Godhead.judgeAuraNow(player);
+		float damageOn = beforeOn - zombie.getHealth();
+		zombie.discard();
+		// ③ 纯函数：背包右键只对神性生效
+		net.minecraft.world.SimpleContainer container = new net.minecraft.world.SimpleContainer(2);
+		container.setItem(0, new ItemStack(SummyReliquary.GODHEAD.get()));
+		container.setItem(1, new ItemStack(SummyReliquary.SACRED_HEART.get()));
+		boolean slotGodhead = com.summy.reliquary.client.ReliquaryClientInteractions.isGodheadSlot(
+				new net.minecraft.world.inventory.Slot(container, 0, 0, 0));
+		boolean slotOther = !com.summy.reliquary.client.ReliquaryClientInteractions.isGodheadSlot(
+				new net.minecraft.world.inventory.Slot(container, 1, 0, 0));
+		boolean slotNull = !com.summy.reliquary.client.ReliquaryClientInteractions.isGodheadSlot(null);
+		// ③b 1.8.5：右键范围收紧 —— 只有"玩家自己的背包 / Curios 栏目"才被接管，箱子等容器不吃右键
+		var localPlayer = net.minecraft.client.Minecraft.getInstance().player;
+		boolean ownInventorySlot = localPlayer != null
+				&& com.summy.reliquary.client.ReliquaryClientInteractions.isPlayerOwnedSlot(
+						new net.minecraft.world.inventory.Slot(localPlayer.getInventory(), 0, 0, 0));
+		boolean chestSlotIgnored = !com.summy.reliquary.client.ReliquaryClientInteractions.takesOver(
+				new net.minecraft.world.inventory.Slot(container, 0, 0, 0));
+		boolean chestSlotNotOwned = !com.summy.reliquary.client.ReliquaryClientInteractions.isPlayerOwnedSlot(
+				new net.minecraft.world.inventory.Slot(container, 0, 0, 0));
+		// ④ 创世纪重置 → 回到默认开启
+		com.summy.reliquary.effect.PlayerFlags.setGodheadAuraOff(player, true);
+		com.summy.reliquary.item.GenesisItem.resetUsed(player);
+		com.summy.reliquary.item.GenesisItem.requestConfirmation(player);
+		boolean genesisReset = com.summy.reliquary.item.GenesisItem.confirm(player);
+		boolean auraBackOnAfterGenesis = !com.summy.reliquary.effect.PlayerFlags.isGodheadAuraOff(player);
+
+		boolean overall = defaultOn && toggled && offFlag && clientBit && hitsOff == 0
+				&& Math.abs(damageOff) < 1.0E-4F && backToggled && backOn && hitsOn == 1
+				&& Math.abs(damageOn - 2.0F) < 1.0E-4F && slotGodhead && slotOther && slotNull
+				&& ownInventorySlot && chestSlotIgnored && chestSlotNotOwned
+				&& genesisReset && auraBackOnAfterGenesis;
+		log("神性光环开关（1.8.5 第二轮）：默认开启=" + defaultOn + "（应 true）、切到关闭=" + toggled
+				+ "、NBT 关闭位=" + offFlag + "、同步位=" + clientBit + "、关闭时审判 " + hitsOff
+				+ " 个 / 伤害 " + damageOff + "（应 0 / 0）、再切回开启=" + backOn + "、审判 " + hitsOn
+				+ " 个 / 伤害 " + damageOn + "（应 1 / 2）、右键盘位判定（神性/其它/空）=" + slotGodhead + "/"
+				+ slotOther + "/" + slotNull + "（应 true/true/true）、范围收紧（自己背包=玩家所有="
+				+ ownInventorySlot + "、箱子里神性不被接管=" + chestSlotIgnored + "、箱子里不算玩家所有="
+				+ chestSlotNotOwned + "，应 true/true/true）、创世纪重置=" + genesisReset
+				+ " 后回到开启=" + auraBackOnAfterGenesis + " → 整体=" + overall + "（应 true）");
+		com.summy.reliquary.effect.PlayerFlags.setGodheadAuraOff(player, false);
+	}
+
+	/**
+	 * 1.8.5 第二轮补修：魂心 / 黑心是「吸收值之后、生命值之前」的一层 —— 池子还扛得住时**不许**触发
+	 * 死亡拦截。老写法用"忽略池子"的血伤估算判定致命，池子满着也会吃掉神性拦截。
+	 *
+	 * <p>实机证据（Ponder Time）：吸收被打空后一次 1.63 点伤害直接触发拦截，而魂心池还有 9.4 点一动不动。
+	 */
+	private static void checkPoolBeforeDeathGuard(ServerPlayer player) {
+		com.summy.reliquary.effect.DamagePools.setModeForTest(
+				com.summy.reliquary.effect.DamagePools.Mode.HEALTH_DAMAGE);
+		resetDemonPactState(player);
+		player.getInventory().clearContent();
+		com.summy.reliquary.effect.Godhead.reset();
+		com.summy.reliquary.effect.SlotSizing.syncNow(player);
+		// 魂心容量要对得上实机：神性 2 心 + 灵魂 3 心 = 5 心 = 10 点。
+		// 必须凑够容量：deduct 是按 min(点数, 容量) 扣的，容量只有 4 时一次 6 点伤害就会把池子
+		// 打空并触发"破碎无敌"，反而把后面的断言盖掉。顺带清掉咒印（它会把灵魂的魂心转成黑心）。
+		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+			handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 0, ItemStack.EMPTY);
+			for (int index = 0; index < 3; index++) {
+				handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, index, ItemStack.EMPTY);
+			}
+		});
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		equip(player, ReliquarySlots.SPIRIT_ALTAR, SummyReliquary.THE_SOUL.get());
+		prepareBarePlayer(player);
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		com.summy.reliquary.effect.DamagePools.clear();
+		double capacity = com.summy.reliquary.effect.SoulShield.capacityFor(player);
+
+		// ① 生命 4、魂心池 10，受 6 点：池子扛得住 → **不触发**拦截，池子扣 6、红血不动
+		int guardsBefore = com.summy.reliquary.effect.Godhead.deathGuardCount();
+		com.summy.reliquary.effect.SoulShield.setPoints(player, capacity);
+		player.setHealth(4.0F);
+		player.setAbsorptionAmount(0.0F);
+		player.invulnerableTime = 0;
+		player.hurt(player.damageSources().generic(), 6.0F);
+		double poolCovered = com.summy.reliquary.effect.SoulShield.points(player);
+		float healthCovered = player.getHealth();
+		boolean noGuardWhenCovered = com.summy.reliquary.effect.Godhead.deathGuardCount() == guardsBefore;
+
+		// ② 池子 0、生命 4，受 6 点：池子扛不住 → 拦截照常触发（生命保留 1）
+		com.summy.reliquary.effect.SoulShield.clearGuardForTest(player);
+		com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+		player.setHealth(4.0F);
+		player.setAbsorptionAmount(0.0F);
+		player.invulnerableTime = 0;
+		player.hurt(player.damageSources().generic(), 6.0F);
+		boolean guardWithoutPool = com.summy.reliquary.effect.Godhead.deathGuardCount() == guardsBefore + 1;
+		float healthLethal = player.getHealth();
+		com.summy.reliquary.effect.DamagePools.setModeForTest(null);
+
+		boolean overall = Math.abs(capacity - 10.0D) < 1.0E-4D && noGuardWhenCovered
+				&& Math.abs(poolCovered - 4.0D) < 1.0E-4D && Math.abs(healthCovered - 4.0F) < 1.0E-4F
+				&& guardWithoutPool && Math.abs(healthLethal - 1.0F) < 1.0E-4F;
+		log("池子先于死亡拦截（1.8.5 第二轮补修）：魂心容量=" + capacity + "（应 10）；池 10 / 生命 4 受 6 → "
+				+ "拦截次数不增=" + noGuardWhenCovered + "（应 true）、池 " + poolCovered + "（应 4 = 扣 6）、红血 "
+				+ healthCovered + "（应 4 不动）；池 0 再受 6 → 拦截次数 +1=" + guardWithoutPool + "、生命 "
+				+ healthLethal + "（应 1）→ 整体=" + overall + "（应 true）");
+		unequip(player, ReliquarySlots.REVELATION);
+		unequip(player, ReliquarySlots.SPIRIT_ALTAR);
+		resetDemonPactState(player);
+	}
+	/**
+	 * 1.8.5 第二轮补修：创造飞行的能力包除了"服务端值变化"，在**维度 / 游戏模式变化**与 5 秒心跳时也要重推 ——
+	 * 客户端换维度 / 重生会重建 LocalPlayer、飞行能力被重置，而服务端一直是 `mayfly=true`，
+	 * 老实现只在值变化时补包，于是客户端永远拿不回飞行（实机：神性死亡拦截跨维度送返后飞行失效，
+	 * 摘下重装才恢复）。
+	 */
+	private static void checkFlightResync(ServerPlayer player) {
+		prepareBarePlayer(player);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		com.summy.reliquary.effect.Godhead.reset();
+		com.summy.reliquary.effect.SlotSizing.syncNow(player);
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		int afterGrant = com.summy.reliquary.effect.AttributeManager.flightSyncCountForTest();
+		boolean mayfly = player.getAbilities().mayfly;
+		// 同一 tick 再算一次：指纹没变 → **不**重复刷包
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		int afterIdle = com.summy.reliquary.effect.AttributeManager.flightSyncCountForTest();
+		// 指纹失效（= 客户端重建了 LocalPlayer、我们的记号却还在）→ 必须重推一次
+		com.summy.reliquary.effect.AttributeManager.markFlightStampStaleForTest(player);
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		int afterStale = com.summy.reliquary.effect.AttributeManager.flightSyncCountForTest();
+		// 摘下 → 收回我们授予的飞行能力
+		unequip(player, ReliquarySlots.REVELATION);
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		boolean revoked = !player.getAbilities().mayfly;
+		boolean overall = mayfly && afterGrant >= 1 && afterIdle == afterGrant
+				&& afterStale == afterIdle + 1 && revoked;
+		log("创造飞行补推（1.8.5 第二轮补修）：授予后 mayfly=" + mayfly + "（应 true）、累计推送=" + afterGrant
+				+ "（应 ≥1）、同一 tick 重算不刷包=" + (afterIdle == afterGrant) + "（应 true）、指纹失效后重推="
+				+ afterStale + "（应 " + (afterIdle + 1) + "）、摘下后收回 mayfly=" + player.getAbilities().mayfly
+				+ "（应 false）→ 整体=" + overall + "（应 true）");
+	}
+
+	/**
+	 * 1.8.5 补修：{@code /summyreliquary shield clamp} —— 把被"死亡拦截并入吸收值"污染的吸收值
+	 * 夹回"本模组能解释的部分"。
+	 *
+	 * <p>口径：软读 Enchantment Reforged 的生命护盾属性（`enchantment_reforged:life_shield`），
+	 * 取到就设为它的值、取不到就清零。自检环境没有 ER，所以期望值就是 0。
+	 */
+	private static void checkShieldClamp(ServerPlayer player) {
+		MinecraftServer server = player.getServer();
+		if (server == null) {
+			log("护盾夹取命令：服务端不可用");
+			return;
+		}
+		prepareBarePlayer(player);
+		double external = com.summy.reliquary.util.ExternalShields.enchantmentReforgedLifeShield(player);
+		float expected = (float) Math.max(0.0D, external);
+		player.setAbsorptionAmount(1100.0F);
+		int result = server.getCommands().performPrefixedCommand(
+				player.createCommandSourceStack().withPermission(3), "summyreliquary shield clamp");
+		float after = player.getAbsorptionAmount();
+		boolean ok = result > 0 && Math.abs(after - expected) < 1.0E-4F;
+		log("护盾夹取命令（1.8.5）：执行结果=" + result + "（应 >0）、被污染的 1100 → " + after + "（应 "
+				+ expected + " = " + (external > 0.0D ? "ER 生命护盾值" : "未检测到 ER，清零")
+				+ "）→ 整体=" + ok + "（应 true）");
+		player.setAbsorptionAmount(0.0F);
+	}
+
+	/**
+	 * 1.8.5 补修：击杀回复（{@code Feed.feed}）的饥饿上限只在"暴食**未赎罪**"时是 18。
+	 *
+	 * <p>旧实现无条件取 {@code Gluttony.foodCap}（恒 18），于是赎罪后（含美德 / 撒旦圣经）每次击杀回复
+	 * 都会把已经 19 / 20 的饥饿值**压回 18** —— 实机日志里能看到 `20 → 18`、以及在 18 上长时间钉住。
+	 */
+	private static void checkGluttonyKillFeed(ServerPlayer player) {
+		resetSinState(player);
+		prepareBarePlayer(player);
+		prepareSourceOfSins(player);
+		player.getInventory().clearContent();
+		Zombie victim = spawnTestZombie(player, 8.0D);
+		if (victim == null) {
+			log("暴食·击杀回复上限：无法生成测试僵尸");
+			return;
+		}
+		victim.setNoAi(true);
+
+		// ① 未赎罪：18 的上限照旧生效（19 + 1 被夹回 18）
+		SinManager.setState(player, Sin.GLUTTONY, SinManager.SinState.ACTIVATED);
+		player.getFoodData().setFoodLevel(19);
+		player.getFoodData().setSaturation(0.0F);
+		com.summy.reliquary.sin.SinEffects.onKill(player, victim);
+		int activeFood = player.getFoodData().getFoodLevel();
+
+		// ② 已赎罪：不再被夹到 18（19 + 1 = 20）
+		SinManager.setState(player, Sin.GLUTTONY, SinManager.SinState.REDEEMED);
+		player.getFoodData().setFoodLevel(19);
+		player.getFoodData().setSaturation(0.0F);
+		com.summy.reliquary.sin.SinEffects.onKill(player, victim);
+		int redeemedFood = player.getFoodData().getFoodLevel();
+
+		// ③ 已赎罪 + 满饥饿：保持 20，不被压回 18
+		player.getFoodData().setFoodLevel(20);
+		com.summy.reliquary.sin.SinEffects.onKill(player, victim);
+		int fullFood = player.getFoodData().getFoodLevel();
+		victim.discard();
+
+		boolean ok = activeFood == 18 && redeemedFood == 20 && fullFood == 20;
+		log("暴食·击杀回复上限（1.8.5 补修）：未赎罪 饥饿 19 → " + activeFood + "（应 18 = 上限仍生效）、"
+				+ "赎罪后 19 → " + redeemedFood + "（应 20 = 不再夹 18）、赎罪后 20 → " + fullFood
+				+ "（应 20 = 不被压回）→ 整体=" + ok + "（应 true）");
+		resetSinState(player);
+	}
+
+	/**
+	 * 1.8.5 补修：防火时"屏幕上的火焰覆盖层"也要能压掉（零 Mixin）。
+	 *
+	 * <p>第一人称火焰覆盖层的判据是 {@code LocalPlayer#isOnFire()}，而它在客户端的语义是
+	 * 「自身 remainingFireTicks &gt; 0 **或** 同步位为真」；服务端清火管不到客户端本地预测出来的 tick，
+	 * 所以要靠客户端那一刀。这里断言"两步都清干净"：清完之后再只清一次 tick（等于原版客户端每 tick
+	 * 自己做的事），仍然不应被判成着火 —— 那说明同步位也已经是 false。
+	 */
+	private static void checkClientFireOverlay() {
+		net.minecraft.client.player.LocalPlayer local = Minecraft.getInstance().player;
+		if (local == null) {
+			log("防火·客户端火焰覆盖层（1.8.5）：本地玩家不存在，跳过");
+			return;
+		}
+		local.setRemainingFireTicks(200);
+		local.setSharedFlagOnFire(true);
+		boolean before = local.isOnFire();
+		com.summy.reliquary.client.SummyReliquaryClient.ForgeBus.clearLocalFire(local);
+		boolean ticksCleared = local.getRemainingFireTicks() == 0;
+		boolean afterClear = !local.isOnFire();
+		// 只清 tick（原版客户端每 tick 自己做的事）后仍不着火 → 证明同步位也被压掉了
+		local.clearFire();
+		boolean flagCleared = !local.isOnFire();
+		boolean ok = before && ticksCleared && afterClear && flagCleared;
+		log("防火·客户端火焰覆盖层（1.8.5）：清火前 isOnFire=" + before + "（应 true）、清火后 ticks=0="
+				+ ticksCleared + "、isOnFire=false=" + afterClear + "、只清 tick 后仍为 false（同步位已压掉）="
+				+ flagCleared + " → 整体=" + ok + "（应 true）");
 	}
 }

@@ -5,6 +5,7 @@ import com.summy.reliquary.config.ReliquaryConfig;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 import java.util.HashMap;
@@ -39,18 +40,45 @@ import java.util.UUID;
  *     **归零破碎也在这里判定**，所以被吞掉的命中不会假触发；</li>
  *     <li>并入与对账都在命中前后的极短时间内完成，玩家与 HUD 看不到中间态。</li>
  * </ol>
+ *
+ * <p><b>1.8.5 补修</b>：致命一击的「整击拦下」（神性死亡拦截 / 亚巴顿 / 免死）**不再并入吸收值**，
+ * 而是在 {@code prepare} 里直接 {@code event.setCanceled(true)} —— 伤害根本不落地、吸收值一个点都不动，
+ * 并把这一击占用的原版无敌帧清 0。旧做法会让"读当前值做增量记账"的护盾模组（Enchantment Reforged
+ * 的生命护盾）误判自己被吃掉，配合"拦截后回满血 → 治疗转护盾"就会让吸收值每次 +一个生命上限。
  */
 public final class DamagePools {
 	/** 一次命中的挂起记录（1.6.6：额外记住来源与金额，用来识别 Kilt 的"同一击重复事件"） */
 	private record Pending(long tick, float absorptionBefore, float topUp, double chargedSoul,
-			double chargedBlack, boolean nullify, DamageSource source, float amount) {
+			double chargedBlack, DamageSource source, float amount) {
 	}
 
 	private static final Map<UUID, Pending> PENDING = new HashMap<>();
+	/**
+	 * 新路径的"本击登记"（1.8.5 第二轮）：`prepare` 登记、`LivingDamageEvent` 处理器消费，
+	 * 值 = 登记时的游戏 tick（用来识别"这环境根本收不到 LivingDamageEvent"）。
+	 */
+	private static final Map<UUID, Long> NEW_PATH_HITS = new HashMap<>();
+	/**
+	 * 能力探测：当前环境（Forge / Connector）是否真的会派发 {@code LivingDamageEvent}。
+	 * Kilt 上那处注入被跳过 → 永远探测不到 → 自动全程走旧路径（见 {@link Mode}）。
+	 */
+	private static boolean healthDamageEventWorks = false;
 	/** 是否运行在 Fabric 侧（Kilt / Connector）；1.6.6 起**只用于日志标签**，不再参与是否介入的判断 */
 	private static final boolean FABRIC_SIDE = classPresent("net.fabricmc.loader.api.FabricLoader");
 	/** 自检用：在 Forge 上强制按 Fabric 侧处理（复现 Kilt 的行为） */
 	private static boolean fabricForTest = false;
+	/** 自检用：强制走哪条路径（默认 AUTO = 按能力探测自动选） */
+	private static Mode modeForTest = Mode.AUTO;
+
+	/** 池子扣减走哪条路（1.8.5 第二轮） */
+	public enum Mode {
+		/** 按能力探测自动选 */
+		AUTO,
+		/** 新路径：`LivingDamageEvent` 里按真实血伤扣池（吸附值一个点都不动） */
+		HEALTH_DAMAGE,
+		/** 旧路径：并入原版吸收值 + 事后对账（Kilt 等收不到 LivingDamageEvent 的环境） */
+		LEGACY
+	}
 
 	private DamagePools() {
 	}
@@ -63,6 +91,28 @@ public final class DamagePools {
 	/** 自检用：强制按 Fabric 侧处理 */
 	public static void setFabricForTest(boolean value) {
 		fabricForTest = value;
+	}
+
+	/** 自检用：强制走哪条路径（传 {@code null} 回到 AUTO） */
+	public static void setModeForTest(Mode mode) {
+		modeForTest = mode == null ? Mode.AUTO : mode;
+	}
+
+	/** 自检 / 日志用：当前是否已探测到 `LivingDamageEvent` 可用 */
+	public static boolean healthDamageEventWorks() {
+		return healthDamageEventWorks;
+	}
+
+	/** 服务器停止：复位能力探测（换了服务器 / 加载器之后必须重新探测） */
+	public static void resetCapabilityProbe() {
+		healthDamageEventWorks = false;
+		NEW_PATH_HITS.clear();
+	}
+
+	/** 本环境该走哪条路径 */
+	public static boolean useHealthDamagePath() {
+		return modeForTest == Mode.HEALTH_DAMAGE
+				|| (modeForTest == Mode.AUTO && healthDamageEventWorks);
 	}
 
 	/**
@@ -80,6 +130,11 @@ public final class DamagePools {
 		if (player.isInvulnerable() || player.isInvulnerableTo(event.getSource())) {
 			return false;
 		}
+		// 1.8.5 第二轮：能收到 LivingDamageEvent 的环境（Forge / Connector）改走"后置扣池" —— 本击
+		// 完全不在吸收值上做手脚（详见类注释"新路径"）；Kilt 收不到那个事件，自动落回下面的旧路径。
+		if (useHealthDamagePath()) {
+			return prepareHealthDamagePath(player, event);
+		}
 		// Kilt：同一个 actuallyHurt 里会对玩家连发两次 LivingHurtEvent（两处注入锚在同一点）。
 		// 第二次必须**原样放过** —— 既不能再扣一次池，也绝不能把第一次并进去的吸收值当场对账掉。
 		if (isDuplicateEvent(player, event)) {
@@ -91,22 +146,8 @@ public final class DamagePools {
 		float absorptionBefore = player.getAbsorptionAmount();
 		float healthPart = DamageEstimate.healthPart(player, event.getSource(), event.getAmount(),
 				absorptionBefore);
-		// ① 整击拦下：神性死亡拦截 → 亚巴顿（有冷却）→ 灵魂免死
-		boolean nullify = false;
-		// 1.8.2：献祭自伤**不做任何死亡拦截** —— 该致死就致死
-		if (healthPart > 0.0F && healthPart >= player.getHealth()
-				&& !Sacrifice.isSelfDamage(event.getSource())) {
-			nullify = Godhead.tryNullify(player, healthPart)
-					|| Abaddon.tryNullify(player, healthPart, event.getSource())
-					|| DeathImmunity.tryNullify(player, healthPart);
-		}
-		if (nullify) {
-			float topUp = event.getAmount();
-			PENDING.put(player.getUUID(),
-					new Pending(now(player), absorptionBefore, topUp, 0.0D, 0.0D, true, event.getSource(),
-							event.getAmount()));
-			player.setAbsorptionAmount(absorptionBefore + topUp);
-			logPrepare("整击拦下", player, absorptionBefore, topUp, 0.0F, 0.0D);
+		// ① 完全拦下（守卫内 / 致命一击）：两条路径共用
+		if (guardOrNullify(player, event, healthPart, absorptionBefore)) {
 			return true;
 		}
 		// ② 池子：魂心 → 黑心（当场扣，破碎推迟到对账）
@@ -126,11 +167,157 @@ public final class DamagePools {
 		}
 		float topUp = (float) charged;
 		PENDING.put(player.getUUID(),
-				new Pending(now(player), absorptionBefore, topUp, usedSoul, usedBlack, false, event.getSource(),
+				new Pending(now(player), absorptionBefore, topUp, usedSoul, usedBlack, event.getSource(),
 						event.getAmount()));
 		player.setAbsorptionAmount(absorptionBefore + topUp);
 		logPrepare("命中前扣池", player, absorptionBefore, topUp, healthPart, charged);
 		return true;
+	}
+
+	/**
+	 * 新路径的 {@code LivingHurtEvent} 阶段（1.8.5 第二轮）：**不并入吸收值**，只做"完全拦下"判定并登记本击，
+	 * 真正的扣池搬到 {@link #applyToHealthDamage(LivingDamageEvent)}（那里能拿到"真实会打到血"的金额）。
+	 */
+	private static boolean prepareHealthDamagePath(ServerPlayer player, LivingHurtEvent event) {
+		// 兜底：刚切换模式时可能还残留旧路径的挂起记录
+		reconcile(player);
+		float absorptionBefore = player.getAbsorptionAmount();
+		float healthPart = DamageEstimate.healthPart(player, event.getSource(), event.getAmount(),
+				absorptionBefore);
+		if (guardOrNullify(player, event, healthPart, absorptionBefore)) {
+			return true;
+		}
+		if (effectiveSoul(player) + effectiveBlack(player) <= 0.0D) {
+			return false;
+		}
+		NEW_PATH_HITS.put(player.getUUID(), now(player));
+		logPrepare("命中登记（LivingDamage 扣池）", player, absorptionBefore, 0.0F, healthPart, 0.0D);
+		return true;
+	}
+
+	/**
+	 * 完全拦下判定（两条路径共用）：
+	 *
+	 * <p>① 已经在守卫窗口里（Kilt / Connector 的"同一击双事件"会走到这里）：只取消、不重复拦截
+	 * （重复拦截会再传送一次、重置守卫计时）。
+	 *
+	 * <p>② 致命一击 → 神性死亡拦截 → 亚巴顿（有冷却）→ 灵魂免死：拦下后**直接取消这一击** ——
+	 * {@code ForgeHooks#onLivingHurt} 在事件被取消时返回 0，原版 {@code actuallyHurt} 随即 return，
+	 * 伤害根本不落地、吸收值与血量都不被碰（1.8.5 之前的"并入整击金额再写回绝对值"会污染
+	 * Enchantment Reforged 那类增量记账的护盾模组，实测每次拦截吸收值 +一个生命上限）。
+	 *
+	 * @param healthPart 估算"会打到生命值"的那部分（见 {@link DamageEstimate}）
+	 */
+	private static boolean guardOrNullify(ServerPlayer player, LivingHurtEvent event, float healthPart,
+			float absorptionBefore) {
+		if (healthPart <= 0.0F) {
+			return false;
+		}
+		// ① 已经在守卫窗口里（神性 2 秒 / 亚巴顿 8 秒 / 免死 2 秒）：只取消、不重复拦截
+		//    （Kilt / Connector 的"同一击双事件"会走到这里；重复拦截会再传送一次并重置守卫计时）。
+		//    注意这一支**不看池子** —— 那几个窗口的语义是"完全免疫"，不能因为魂心还能扛就改成扣魂心。
+		if (Godhead.isGuarded(player) || Abaddon.isGuarded(player) || DeathImmunity.isGuarded(player)) {
+			if (healthPart < player.getHealth()) {
+				return false;
+			}
+			cancelHit(event);
+			logPrepare("守卫内拦下·不重复拦截", player, absorptionBefore, 0.0F, healthPart, 0.0D);
+			return true;
+		}
+		// ② 致命一击：魂心 / 黑心是"吸收值之后、生命值之前"的一层 —— 先把池子能扛的份额算掉，
+		//    只有**扣完池子仍然致死**才轮到死亡拦截。
+		//
+		//    1.8.5 第二轮补修：老写法直接用"忽略池子"的血伤估算判定致命，于是池子还满着也会触发拦截。
+		//    实机（Ponder Time）证据：吸收被打空后一次 1.63 点伤害直接吃掉神性拦截，而魂心池还有 9.4 点
+		//    一动不动 —— 玩家看到的就是"魂心没生效"。
+		double poolTotal = effectiveSoul(player) + effectiveBlack(player);
+		float uncovered = (float) Math.max(0.0D, healthPart - poolTotal);
+		if (uncovered < player.getHealth()) {
+			return false;
+		}
+		// 1.8.2：献祭自伤**不做任何死亡拦截** —— 该致死就致死
+		if (!Sacrifice.isSelfDamage(event.getSource())
+				&& (Godhead.tryNullify(player, healthPart)
+						|| Abaddon.tryNullify(player, healthPart, event.getSource())
+						|| DeathImmunity.tryNullify(player, healthPart))) {
+			cancelHit(event);
+			logPrepare("整击拦下·取消这一击", player, absorptionBefore, 0.0F, healthPart, 0.0D);
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * 新路径的核心（1.8.5 第二轮）：在 {@code LivingDamageEvent}（LOWEST）里按**真实**"将打到血"的金额扣池。
+	 *
+	 * <p>为什么可行（1.20.1 原版 {@code LivingEntity#actuallyHurt} 的顺序，已核字节码）：
+	 * {@code onLivingHurt}（护甲 / 抗性**之前**）→ 护甲 → 抗性 + 保护 → **扣吸收值** → {@code onLivingDamage}
+	 * （金额 = 扣完吸收后剩下的、将打到血的那份；**返回值直接用于扣血**）。所以在这里：
+	 * {@code share = min(池子总量, 事件金额)} → 扣魂心 / 黑心 → {@code event.setAmount(amount - share)}，
+	 * 玩家少掉的血正好等于池子承担的量，而**吸收值一个点都不动** —— 读吸收值做记账的模组
+	 * （Enchantment Reforged 的生命护盾）不会再被"先并入、再退还"牵连。
+	 *
+	 * <p>顺带收益：不依赖 {@link DamageEstimate} 的估算，也就没有"估算偏大 → 退还"这一说。
+	 *
+	 * <p>注意：这里把金额改小之后，原版在扣血之后还会执行一次 {@code setAbsorptionAmount(getAbsorptionAmount() - amount)}
+	 * —— 但 {@code share > 0} 意味着"血伤 > 0"，也就意味着吸收值早已被扣到 0（否则血伤为 0），
+	 * 那次减法会被原版钳到 0，**不会额外扣任何东西**（已核字节码）。
+	 */
+	public static void applyToHealthDamage(LivingDamageEvent event) {
+		// 能力探测：能收到这个事件，就说明当前环境没有跳过 LivingDamageEvent（Connector 走的是 Forge 管线）
+		if (!healthDamageEventWorks) {
+			healthDamageEventWorks = true;
+			SummyReliquary.LOGGER.info(
+					"[Summy Reliquary] 伤害池：本环境会派发 LivingDamageEvent → 池子份额改走「后置扣血」口径"
+							+ "（不再并入吸收值，与 Enchantment Reforged 的生命护盾互不干扰）");
+		}
+		if (!(event.getEntity() instanceof ServerPlayer player)) {
+			return;
+		}
+		Long stamp = NEW_PATH_HITS.remove(player.getUUID());
+		if (stamp == null) {
+			// 不是新口径的命中（旧路径 / 被完全拦下 / 没登记）
+			return;
+		}
+		if (event.isCanceled() || event.getAmount() <= 0.0F) {
+			return;
+		}
+		double soul = effectiveSoul(player);
+		double black = effectiveBlack(player);
+		double poolBefore = soul + black;
+		float amountBefore = event.getAmount();
+		double share = Math.min(poolBefore, amountBefore);
+		if (share <= 0.0D) {
+			return;
+		}
+		double usedSoul = Math.min(soul, share);
+		double usedBlack = Math.min(black, share - usedSoul);
+		if (usedSoul > 0.0D) {
+			SoulShield.deduct(player, usedSoul);
+		}
+		if (usedBlack > 0.0D) {
+			DemonPact.deductBlackHearts(player, usedBlack);
+		}
+		event.setAmount((float) (amountBefore - share));
+		// 池子被打空 → 破碎（与旧路径同口径：只有真的吃到池子才判定）
+		SoulShield.shatterIfEmpty(player);
+		DemonPact.shatterBlackHeartsIfEmpty(player);
+		logHealthDamage(player, player.getAbsorptionAmount(), poolBefore, share, amountBefore, event.getAmount());
+	}
+
+	/**
+	 * 把这一击整击取消：伤害不落地、吸收值不动，并把原版无敌帧还回去（1.8.5 补修）。
+	 *
+	 * <p>时机说明：取消发生在 {@code LivingHurtEvent}，此时原版 {@code hurt()} 早已写过
+	 * {@code invulnerableTime = 20} 并调用 {@code markHurt()} —— 后者（客户端"抖一下"）已经来不及补救，
+	 * 前者可以在这里清 0：这一击既然不算数，就不该占掉一次原版无敌帧。
+	 */
+	private static void cancelHit(LivingHurtEvent event) {
+		event.setAmount(0.0F);
+		event.setCanceled(true);
+		if (event.getEntity() instanceof ServerPlayer player) {
+			player.invulnerableTime = 0;
+		}
 	}
 
 	/**
@@ -142,13 +329,6 @@ public final class DamagePools {
 	public static void reconcile(ServerPlayer player) {
 		Pending pending = PENDING.remove(player.getUUID());
 		if (pending == null) {
-			return;
-		}
-		if (pending.nullify()) {
-			// 整击被吸收：护盾与池子都不损失
-			player.setAbsorptionAmount(pending.absorptionBefore());
-			logReconcile("对账·整击拦下", player, pending.absorptionBefore(), pending.topUp(), 0.0F, 0.0F,
-					0.0D, 0.0D);
 			return;
 		}
 		float after = player.getAbsorptionAmount();
@@ -168,18 +348,42 @@ public final class DamagePools {
 				SoulShield.refund(player, refundSoul);
 			}
 		}
-		player.setAbsorptionAmount(Math.max(0.0F, pending.absorptionBefore() - shieldConsumed));
+		// 1.8.5：把"还原吸收值"从**写回绝对值**改成**增量退还** —— 只减掉自己那一份没被吃掉的并入量
+		// （FIFO 口径：先扣原版护盾，再扣我们并入的那一份，所以剩下的并入量 = min(T, 结算后吸收)）。
+		//
+		// 为什么必须改：Enchantment Reforged 那类护盾模组是「读当前值 ± delta」的增量写法，
+		// 写回绝对值会把它们在本击窗口内的护盾增长一并抹掉（ER 的 tick 记账还会据此误判"自己被打掉"，
+		// 顺手缩小自己的护盾）。改增量之后，无外部写入时结果与旧公式**逐值相同**，有外部写入时则是
+		// "在对方结果之上再减掉我们那一份"，两边的账都不丢。
+		float leftoverTopUp = Math.min(pending.topUp(), after);
+		player.setAbsorptionAmount(Math.max(0.0F, after - leftoverTopUp));
 		if (ourActual > 0.0D) {
 			// 这一击确实吃到池子 → 检查是否被打空（被吞掉的命中不会走到这里）
 			SoulShield.shatterIfEmpty(player);
 			DemonPact.shatterBlackHeartsIfEmpty(player);
 		}
+		// 1.8.5 第二轮：旧路径（Kilt 等收不到 LivingDamageEvent 的环境）里，把 Enchantment Reforged 那套
+		// 「读当前值做增量记账」的护盾值也校正到与我们一致 —— 否则它会把我们退还的那一份记成自己的消耗。
+		EnchantmentReforgedShieldCompat.reconcileAfterPoolWrite(player, player.getAbsorptionAmount(),
+				shieldConsumed);
 		logReconcile("对账", player, pending.absorptionBefore(), pending.topUp(), after, shieldConsumed,
 				ourActual, refund);
 	}
 
 	/** 服务端每 tick（玩家 tick 结束）：上一 tick 的挂起项已经走完，可以安全对账 */
 	public static void tickPlayer(ServerPlayer player) {
+		// 新路径的登记只对"本 tick"有效：若到了 tick 末尾登记还在，说明这个环境其实**收不到**
+		// LivingDamageEvent（例如 Kilt 跳过注入的那个版本）→ 立刻回退旧路径，避免池子干脆不生效。
+		Long stamp = NEW_PATH_HITS.get(player.getUUID());
+		if (stamp != null && stamp < now(player)) {
+			NEW_PATH_HITS.remove(player.getUUID());
+			if (modeForTest == Mode.AUTO && healthDamageEventWorks) {
+				healthDamageEventWorks = false;
+				SummyReliquary.LOGGER.warn(
+						"[Summy Reliquary] 伤害池：本环境没有收到 LivingDamageEvent（注入被跳过），"
+								+ "已回退到旧的「并入吸收值」口径");
+			}
+		}
 		Pending pending = PENDING.get(player.getUUID());
 		if (pending == null || pending.tick() == now(player)) {
 			return;
@@ -195,6 +399,7 @@ public final class DamagePools {
 
 	public static void clear() {
 		PENDING.clear();
+		NEW_PATH_HITS.clear();
 	}
 
 	/** 自检用：该玩家是否有挂起记录 */
@@ -205,7 +410,7 @@ public final class DamagePools {
 	/** 自检用：直接挂一条"待对账"记录（1.7.3 用来验证创世纪会把它清掉） */
 	public static void markPendingForTest(ServerPlayer player) {
 		PENDING.put(player.getUUID(), new Pending(now(player), player.getAbsorptionAmount(), 0.0F,
-				0.0D, 0.0D, false, player.damageSources().generic(), 0.0F));
+				0.0D, 0.0D, player.damageSources().generic(), 0.0F));
 	}
 
 	// ==================== 内部 ====================
@@ -273,6 +478,31 @@ public final class DamagePools {
 		return String.format(
 				"伤害池[%s|%s] %s：护盾 A0=%s、并入 T=%s、结算后吸收=%s（护盾扣 %s / 池扣 %s）、退还=%s",
 				side, tag, playerName, absorptionBefore, topUp, after, shieldConsumed, ourActual, refund);
+	}
+
+	/**
+	 * 新路径的日志文本（1.8.5 第二轮）：`LivingDamageEvent` 里按真实血伤扣池的那一行。
+	 *
+	 * <p>做成 public 方法是为了让自检能直接断言字段（与另外两个日志辅助一致）。
+	 */
+	public static String healthDamageLogLine(String side, String playerName, float absorptionAfter,
+			double poolBefore, double share, float amountBefore, float amountAfter) {
+		return String.format(
+				"伤害池[%s|LivingDamage 扣池] %s：结算后护盾=%s（本击不动吸收值）、池子 %s → %s、"
+						+ "本次扣池=%s、血伤 %s → %s",
+				side, playerName, absorptionAfter, poolBefore, Math.max(0.0D, poolBefore - share), share,
+				amountBefore, amountAfter);
+	}
+
+	/** 新路径的日志（受 {@code [combat] log_damage_pools} 控制） */
+	private static void logHealthDamage(ServerPlayer player, float absorptionAfter, double poolBefore,
+			double share, float amountBefore, float amountAfter) {
+		if (!ReliquaryConfig.logDamagePools()) {
+			return;
+		}
+		SummyReliquary.LOGGER.info("[Summy Reliquary] {}", healthDamageLogLine(
+				fabricSide() ? "Fabric" : "Forge", player.getName().getString(), absorptionAfter, poolBefore,
+				share, amountBefore, amountAfter));
 	}
 
 	/** prepare 阶段的日志（字段：估算血伤） */

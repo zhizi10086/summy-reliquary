@@ -218,7 +218,18 @@ public final class ReliquaryCommand {
 													? "message.summy-reliquary.angel.yes"
 													: "message.summy-reliquary.angel.no").getString()).getString());
 									return 1;
-								}))))				.then(Commands.literal("dragon").requires(OP_ONLY)
+								}))))
+				// 1.8.5 补修：把被"死亡拦截并入吸收值"污染的吸收值夹回本模组能解释的部分（手动清一次）
+				.then(Commands.literal("shield").requires(OP_ONLY)
+						.then(Commands.literal("clamp")
+								.executes(context -> clampShield(context,
+										context.getSource().getPlayerOrException()))
+								.then(Commands.argument("player",
+												net.minecraft.commands.arguments.EntityArgument.player())
+										.executes(context -> clampShield(context,
+												net.minecraft.commands.arguments.EntityArgument
+														.getPlayer(context, "player"))))))
+				.then(Commands.literal("dragon").requires(OP_ONLY)
 						.then(Commands.literal("query").executes(context -> {
 							ServerPlayer player = context.getSource().getPlayer();
 							if (player == null) {
@@ -495,6 +506,32 @@ public final class ReliquaryCommand {
 
 	private static void post(CommandContext<CommandSourceStack> context, String line) {
 		context.getSource().sendSuccess(() -> Component.literal(line), false);
+	}
+
+	/**
+	 * OP：把目标玩家的吸收值夹回「本模组能解释的部分」（1.8.5 补修）。
+	 *
+	 * <p>只处理"死亡拦截把整击金额并入吸收值"留下的残留：软读 Enchantment Reforged 的生命护盾
+	 * 属性（{@code enchantment_reforged:life_shield}），取到就设为它的基础值、取不到就清零。
+	 * **金苹果等其它来源的吸收值会被一并清掉** —— 这是本命令的明确语义，且只由 OP 手动执行，
+	 * 不做任何自动夹取。
+	 */
+	private static int clampShield(CommandContext<CommandSourceStack> context, ServerPlayer target) {
+		float before = target.getAbsorptionAmount();
+		double external = com.summy.reliquary.util.ExternalShields.enchantmentReforgedLifeShield(target);
+		float after = (float) Math.max(0.0D, external);
+		target.setAbsorptionAmount(after);
+		post(context, "已把「" + target.getName().getString() + "」的吸收值从 " + shieldText(before)
+				+ " 夹回 " + shieldText(after)
+				+ (external > 0.0D
+						? "（保留检测到的 Enchantment Reforged 生命护盾 " + shieldText(after) + "）"
+						: "（未检测到 Enchantment Reforged 生命护盾，直接清零）"));
+		return 1;
+	}
+
+	/** 吸收值的显示文本（统一一位小数，避免科学计数法糊在聊天框里） */
+	private static String shieldText(float value) {
+		return String.format(java.util.Locale.ROOT, "%.1f", value);
 	}
 
 	private static List<String> collect(ServerPlayer player) {

@@ -31,6 +31,10 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.IntValue SOUL_REFRESH_SECONDS;
 	/** 魂心 HUD：是否用自绘的蓝色魂心覆盖原版黄心的对应位置 */
 	private static final ForgeConfigSpec.BooleanValue ENABLE_SOUL_HEART_HUD;
+	/** 魂心 HUD（1.8.5）：布局模式 —— auto / vanilla / single_row */
+	private static final ForgeConfigSpec.ConfigValue<String> SOUL_HEART_HUD_LAYOUT;
+	/** 魂心 HUD（1.8.5）：在布局结果之上再整体下移多少像素（正数向下） */
+	private static final ForgeConfigSpec.IntValue SOUL_HEART_HUD_OFFSET_Y;
 	/** 受伤无敌帧（1.6.3）：帧伤/持续伤害的有效窗口（tick） */
 	private static final ForgeConfigSpec.IntValue INVULNERABILITY_TICKS_FRAME_DAMAGE;
 	/** 受伤无敌帧（1.6.3）：额外按"帧伤"处理的伤害类型 id 列表 */
@@ -483,6 +487,18 @@ public final class ReliquaryConfig {
 		ENABLE_SOUL_HEART_HUD = builder
 				.comment("魂心 HUD：用自绘的蓝色魂心覆盖在原版黄心的对应位置（只表示本模组魂心份额，不隐藏原版黄心）")
 				.define("enable_soul_heart_hud", true);
+		SOUL_HEART_HUD_LAYOUT = builder
+				.comment("魂心 HUD：布局模式 —— auto = 自动识别（检测到 Mantle 或经典状态条 Classic Bar 时按 single_row 处理）、"
+						+ "vanilla = 完全复刻原版心网格折行（无 HUD 模组时的原口径）、"
+						+ "single_row = 把血条视为恒定一排（Mantle 的血条恒为一行、Classic Bar 是一条横条），"
+						+ "蓝心不再随生命上限往上折行，只保留盔甲条的避让、也不再为原版吸收值留行、"
+						+ "classic_row = 按「经典状态条」的实际条位锚定（y = 屏幕高 − gui.rightHeight − 10），"
+						+ "红心 / 黄心 / 盔甲都已并入它的条堆，因此不再叠加任何行")
+				.define("soul_heart_hud_layout", "auto");
+		SOUL_HEART_HUD_OFFSET_Y = builder
+				.comment("魂心 HUD：在上述布局结果之上再整体下移 / 上移多少像素（正数向下、负数向上），"
+						+ "主要用于把蓝心对准 Classic Bar 的实际条位")
+				.defineInRange("soul_heart_hud_offset_y", 0, -40, 40);
 		SOUL_SHATTER_KNOCKBACK = builder
 				.comment("魂心完全破碎时对范围内敌人的击退强度（越大越远）")
 				.defineInRange("soul_shatter_knockback", 2.0D, 0.0D, 20.0D);
@@ -1013,11 +1029,13 @@ public final class ReliquaryConfig {
 		builder.comment("遁入暗影（1.7.5）：献祭匕首 / 暗仪刺刀的右键技能")
 				.push("shadow_dash");
 		ENABLE_SHADOW_DASH = builder.comment("遁入暗影：总开关").define("enable_shadow_dash", true);
-		SHADOW_SACRIFICIAL_DURATION_TICKS = builder.comment("献祭匕首：技能判定时长（tick，20 = 1 秒）")
+		SHADOW_SACRIFICIAL_DURATION_TICKS = builder
+				.comment("【1.8.2 起废弃】献祭匕首已改走「献祭」技能，本键仅保留兼容旧配置；判定时长（tick，20 = 1 秒）")
 				.defineInRange("sacrificial_duration_ticks", 20, 1, 200);
 		SHADOW_DARK_ARTS_DURATION_TICKS = builder.comment("暗仪刺刀：技能判定时长（tick，40 = 2 秒）")
 				.defineInRange("dark_arts_duration_ticks", 40, 1, 200);
-		SHADOW_SACRIFICIAL_MULTIPLIER = builder.comment("献祭匕首：基础斩击倍率（乘玩家近战面板伤害）")
+		SHADOW_SACRIFICIAL_MULTIPLIER = builder
+				.comment("【1.8.2 起废弃】献祭匕首已改走「献祭」技能，本键仅保留兼容旧配置；基础斩击倍率（乘玩家近战面板伤害）")
 				.defineInRange("sacrificial_slash_multiplier", 1.0D, 0.0D, 100.0D);
 		SHADOW_DARK_ARTS_MULTIPLIER = builder.comment("暗仪刺刀：基础斩击倍率（乘玩家近战面板伤害）")
 				.defineInRange("dark_arts_slash_multiplier", 2.0D, 0.0D, 100.0D);
@@ -1223,6 +1241,33 @@ public final class ReliquaryConfig {
 	/** 魂心 HUD：是否启用自绘魂心 */
 	public static boolean enableSoulHeartHud() {
 		return boolOr(ENABLE_SOUL_HEART_HUD, true);
+	}
+
+	/**
+	 * 魂心 HUD 的布局模式（1.8.5）：`auto` / `vanilla` / `single_row`，统一小写。
+	 *
+	 * <p>非法值一律按 `auto` 处理，避免手改配置文件写出拼写错误时 HUD 直接消失。
+	 */
+	public static String soulHeartHudLayout() {
+		String raw;
+		try {
+			raw = SOUL_HEART_HUD_LAYOUT.get();
+		} catch (IllegalStateException exception) {
+			return "auto";
+		}
+		if (raw == null) {
+			return "auto";
+		}
+		String normalized = raw.trim().toLowerCase(java.util.Locale.ROOT);
+		return switch (normalized) {
+			case "vanilla", "single_row", "classic_row" -> normalized;
+			default -> "auto";
+		};
+	}
+
+	/** 魂心 HUD 的额外纵向偏移（像素，正数向下） */
+	public static int soulHeartHudOffsetY() {
+		return intOr(SOUL_HEART_HUD_OFFSET_Y, 0);
 	}
 
 	/** 魂心破碎：击退强度 */

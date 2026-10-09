@@ -111,13 +111,47 @@ public final class Godhead {
 
 	// ==================== 8 格光环审判 ====================
 
+	/**
+	 * 光环此刻是否生效（1.8.5）：佩戴神性 **且** 没有被玩家自己关掉。
+	 *
+	 * <p>开关存在玩家 NBT（{@code godhead_aura_off}），由「背包里右键神性」或「手持神性 + 潜行右键」切换；
+	 * 只影响"每秒审判"这一条，神性的其它效果（光柱 / 飞行 / 环境免疫 / 死亡拦截 / 回溯 / 联动）不受影响。
+	 */
+	public static boolean auraEnabled(LivingEntity entity) {
+		return active(entity) && !PlayerFlags.isGodheadAuraOff(entity);
+	}
+
+	/**
+	 * 切换「神圣光环」开关（1.8.5）：写 NBT + 动作栏反馈 + 音效 + 立刻同步给客户端（提示当场刷新）。
+	 *
+	 * @return true 表示切换成功（永远成功，除非玩家为 null）
+	 */
+	public static boolean toggleAura(ServerPlayer player) {
+		if (player == null) {
+			return false;
+		}
+		boolean off = !PlayerFlags.isGodheadAuraOff(player);
+		PlayerFlags.setGodheadAuraOff(player, off);
+		player.displayClientMessage(net.minecraft.network.chat.Component.translatable(off
+				? "message.summy-reliquary.godhead.aura.off"
+				: "message.summy-reliquary.godhead.aura.on"), true);
+		// 音效与邦邦女仆同款：开启音调高、关闭音调低
+		player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+				net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_CHIME,
+				net.minecraft.sounds.SoundSource.PLAYERS, 0.8F, off ? 0.8F : 1.4F);
+		// 立刻补发状态包，提示里的第 2 行（已关闭后缀）与第 9 行（操作说明）当场刷新
+		RevelationTracker.sync(player);
+		return true;
+	}
+
 	/** 服务端每秒：对光环内目标结算圣光伤害（真实伤害口径） */
 	public static void tickAura(MinecraftServer server) {
 		if (server.getTickCount() % 20 != 0 || !ReliquaryConfig.enableGodhead()) {
 			return;
 		}
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-			if (!active(player)) {
+			// 1.8.5：佩戴神性 **且** 玩家自己没关掉，才每秒结算
+			if (!auraEnabled(player)) {
 				continue;
 			}
 			judgeAuraNow(player);
@@ -126,6 +160,12 @@ public final class Godhead {
 
 	/** 单次光环结算（自检直接调用，避免依赖秒边界） */
 	public static int judgeAuraNow(ServerPlayer player) {
+		// 1.8.5：被玩家关掉时整条光环停摆（不结算、不造成任何伤害）。
+		// 这里**只查开关、不查是否佩戴** —— 「佩戴」的判定由调用方（tickAura）负责，
+		// 自检历来是"在裸场景下直接调用 judgeAuraNow"来验证审判口径的，多查一层会把既有断言打偏。
+		if (PlayerFlags.isGodheadAuraOff(player)) {
+			return 0;
+		}
 		ServerLevel level = player.serverLevel();
 		double radius = ReliquaryConfig.godheadAuraRadius();
 		int damage = ReliquaryConfig.godheadAuraDamage();

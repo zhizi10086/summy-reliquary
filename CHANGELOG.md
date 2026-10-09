@@ -3,6 +3,124 @@
 > 本文档收录 Summy Reliquary 的历史版本变更；**当前版本的内容与玩法以 [README.md](README.md) 为准**
 > （README 只保留最新一版变更，历史记录全部收在这里）。
 
+## 1.8.5 变更
+
+**① 「完全拦截」提前到 Attack 层（不再抖、不再白吃无敌帧）**
+
+- 新增 `ReliquaryEvents.blocksDamageEntirely(ServerPlayer, DamageSource)`，判定 9 类"完全拦截"：神性环境免疫、神性死亡守卫（拦截后 2 秒）、亚巴顿恶魔形态 8 秒、免死 2 秒、神圣斗篷无敌期、魂心完全破碎无敌、遁入暗影、**恶魔线完全防火**（`#is_fire` 全集）、**本模组授予飞行时的免摔**。
+- `ReliquaryEvents.onLivingAttack`（原本只做受伤节流统计）在命中这些条件时 `event.setCanceled(true)`。原版 `LivingEntity#hurt` 的**第一行**就是 `ForgeHooks.onLivingAttack`，取消后整个 `hurt()` 直接返回 —— 于是在 `invulnerableTime = 20` 与 `markHurt()` 之前就结束，**客户端不会抖、也不会占掉一次原版无敌帧**。此前只在 `LivingHurtEvent` 取消，两种副作用都在，还会把紧接其后的真伤害一起挡掉。
+- `LivingHurtEvent` 里的原判定**全部保留**作双保险（斗篷"首次受击开窗"必须留在那一层，它要看实际伤害）；「武器门槛归零」仍然只在 Hurt 层（那是"这次攻击无效"，提前取消会连击退与音效一起吞掉）。
+- **已知缺口**：死亡拦截的**首次触发**走 `DamagePools.prepare` → `tryNullify`（LOWEST 优先级的 `LivingHurtEvent`，在 `markHurt()` 之后），客户端仍会抖一次。**无敌帧那一半已在本轮修掉**（见 ⑨：拦截改为取消这一击并归还无敌帧）；彻底消除抖动需要把致命判定也前移，属中等改动，本轮不做。
+- 自检新增 `case 2259`：用真实事件总线 post `LivingAttackEvent`，断言真值表（裸装普通 / 火 / 摔落都不拦；魂心破碎 / 亚巴顿 / 斗篷 / 神性环境 / 神性死亡守卫 / 恶魔防火都拦；戴神性时普通与虚空不拦；飞行免摔与"是否授予飞行"一致）。
+
+**② 复活 / 换维度时清掉伤害池挂起记录（护盾数值异常叠加的根因）**
+
+- `DamagePools.PENDING` 以**玩家 UUID** 为键，而 UUID 死亡前后不变：复活后残留的记录会让新实体拿"旧实体命中前的吸收基线"去还原吸收值，表现就是魂心 / 护盾数值异常（超过容量、翻倍）。
+- `ReliquaryEvents.onPlayerClone` 现在**在复制持久化数据之前**调用 `DamagePools.forget(event.getOriginal())` —— 对账会把多扣的池子点数退回旧实体的 NBT，而那正是要带给新实体的数据。
+- 自检新增 `case 2261`：`markPendingForTest` 之外改用真实 `prepare` 造一条挂起记录，post 一次 `PlayerEvent.Clone(wasDeath = true)`，断言处理完后 `hasPending == false` 且黑心池已还原。
+
+**③ 伤害池的"还原吸收值"由写绝对值改为增量退还**
+
+- 普通分支：`setAbsorptionAmount(A0 − 护盾消耗)` 改为 `max(0, after − min(T, after))`（`T` = 本次并入量、`after` = 结算后吸收值）—— 只减掉自己那份**没被吃掉**的并入量。无外部写入时与旧公式**逐值相同**（自检既有断言全部照旧），有外部写入时则是"在对方结果之上再减掉我们那一份"。
+- 为什么必须改：Enchantment Reforged 这类护盾是「读当前值 ± delta」的增量写法（还有自己的 `SHIELD_TRACK` 记账），SR 写回绝对值会把它同期加进来的护盾一并抹掉，ER 的记账还会据此误判"自己被打掉"而缩小护盾。
+- ~~整击拦下分支保持写回基线~~ → **1.8.5 补修后这一支已不存在**：致命一击不再并入吸收值，改为直接取消这一击（见 ⑨）。
+
+**④ 魂心 / 黑心 HUD 适配 Mantle 与「经典状态条」（Classic Bar）**
+
+- `[spirit_altar]` 新增 `soul_heart_hud_layout`（`auto` / `vanilla` / `single_row` / `classic_row`，默认 `auto`）与 `soul_heart_hud_offset_y`（`-40~40` px，正数向下）。
+- `SoulHeartOverlay` 新增 `Layout` 枚举与 `layout()` 解析：`auto` 先看**经典状态条** → `CLASSIC_ROW`，再看 **Mantle** → `SINGLE_ROW`，都没有才 `VANILLA`。`CLASSIC_ROW` 用 `gui.rightHeight` 锚定（`screenHeight − rightHeight − 10 + offsetY`，与 ER 的额外饥饿行同一套公式），**不再叠加吸收值与盔甲行**（红心 / 黄心 / 盔甲已被 Classic Bar 并进 `rightHeight`）；`SINGLE_ROW` 红心恒按一排、**不再为原版吸收值留行**、盔甲避让保留；`rightHeight <= 0` 时自动回退单排公式。
+- **HUD 注册锚点从 `PLAYER_HEALTH` 挪到 `ITEM_NAME`**：只有在这个锚点之后读到的 `ForgeGui.rightHeight` 才是 Classic Bar 累加完的值（ER 也是这么做的）。`DemonBlackHeartOverlay` 复用同一套行位解析，黑心跟着魂心排。
+- **环境探测修 Connector 漏检**：`FabricLoader#isModLoaded` 与 `ModList#isLoaded` **两侧都问、取或**（Connector / 信雅互联环境里 `FabricLoader` 只认识 Fabric 模组，Forge 侧的 Mantle 以前会被漏掉）；用反射 + 缓存，任何异常都按"没有该模组"处理。
+- **防御性钳制**：参与行数计算的吸收值上限 100 点（50 颗心），超出按上限绘制并整局只打一条 INFO —— 以后吸收值再被叠到几千也不会把蓝心顶出屏幕。
+- 自检扩展 `checkHudRows`（新增 `setLayoutForTest` 钩子）：经典档 `rightHeight=59` → `Y=171`、偏移平移、吸收值 1100 不影响行位、没有条堆时回退单排；单排下吸收值 1100 与 0 相同、吸收值 5000 与 100 相同；原版档既有断言逐值不变。
+
+**⑤ 三处遗留口径订正**
+
+- **愤怒提示**：`item.summy-reliquary.sin.wrath.debuff` 由「每次攻击 %s%% 几率自伤**等量**」改为「每次攻击 %s%% 几率自伤**本次伤害的 %s%%**」，`SinDescriptions` 的 WRATH `debuff` 分支补第二个参数（`wrath_self_hit_multiplier × 100`，默认渲染为「15% / 50%」）—— 1.8.0 起实际口径就是"15% 几率 × 50% 伤害、永不致死"，旧文案早已过期。自检在 `checkWrathSelfHitNeverKills` 里追加"必须含 15% 与 50%、不含「等量」"。
+- **受伤节流日志**：「被无敌帧挡下 N 次」改为「**被挡下（未落地）N 次**」，javadoc 写明这个差值包含**所有**落地前被取消的情况（原版无敌帧 / 环境免疫 / 斗篷 / 魂心破碎 / 免死 / 其它模组的取消）。
+- **「属性更新」日志降噪**：`AttributeManager.logIfChanged` 的变化判定只保留关键字段（生命加成、光环、魂心池、黑心、套装），「原版吸收」不再参与"值变了没有"的判断、但仍随行打印 —— 那个值会被 ER 的护盾 / 恢复每 2~3 秒微调一次，是 41 分钟 998 行刷屏的来源。
+
+**⑥ 暗仪刺刀的遗留描述（写百科条目时发现）**
+
+- `item.summy-reliquary.dark_arts.shift.5` 原写「（无敌更久，斩击更痛）」—— 这是相对**献祭匕首的遁入暗影**做的对比，而献祭匕首 1.8.2 起已改走「献祭」，比较对象早已不存在；改为自述式「（无敌覆盖全程，直到斩击结算完毕）」，英文同步。
+- `ShadowDash` 类注释与 `@param darkArts` 改成"仅暗仪刺刀使用"（旧 `false` 档自 1.8.2 起无调用方，仅保留兼容旧配置与自检）。
+- `[shadow_dash] sacrificial_duration_ticks` / `sacrificial_slash_multiplier` 两个键的注释标注「【1.8.2 起废弃】」。
+
+**⑦ 交付**
+
+- 版本 `1.8.5-forge`；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议 `"13"` → **`"14"`**（第二轮新增 `ToggleAuraMessage`）、伤害类型数不变；配置段仍 26、源码口径 264 → **266 键**；自检 **585 行全绿**（1.8.4 为 574；实测区间 583~587）；jar 已部署四个测试实例（含 Ponder Time）。
+
+**⑧ 伯列恒之星的坐标提示显示真实维度名**
+
+- `item.summy-reliquary.star_of_bethlehem.guided` 原写「前往 %s（**纬度**）聆听你的启示」——「维度」被写成了「纬度」；现在改成「前往 %s（%s）聆听你的启示」，第二个参数由代码传入**维度名**。
+- 启示坐标固定派生自主世界（1.8.3 起），所以这里恒为「主世界」：新增语言键 `item.summy-reliquary.dimension.overworld`（中「主世界」/ 英「the Overworld」）。日后若坐标改成跟随维度，只需把传参换成对应维度的语言键。
+
+**⑨ 死亡拦截改为「取消这一击」：不再污染吸收值（1.8.5 补修）**
+
+- **根因（Ponder Time 实例日志 + 两边源码共同确认）**：`DamagePools.prepare` 的 nullify 支把**整击原始金额**并入吸收值（玩家 `/kill` 时日志实测 `T=1.1040296E38`），随后又用**绝对值**把吸收值写回基线。Enchantment Reforged 的生命护盾是「读当前值做增量记账」（`SHIELD_TRACK`），看到池子先暴涨再暴跌就判定自己被打掉、把自己的护盾清零；而拦截把血量设成 1 之后玩家又被治回满血，ER 的 `LivingEntityMixin#heal` → `onHeal` 会按「治疗量 × `life_shield_percent_per_level`(0.2) × 等级」补一份护盾（上限 = 生命上限 ×0.2×5 = **正好一个生命上限**），正好加在 SR 还原出的基线上 —— 于是**每拦截一次吸收值 +275**，日志实测 **275 → 550 → 825 → 1100**。
+- **改法**：nullify 支不再碰吸收值，改为 `event.setCanceled(true)` + `setAmount(0.0F)`：`ForgeHooks.onLivingHurt` 在事件被取消时返回 0，`LivingEntity#actuallyHurt` 随即 return —— 伤害根本不落地、护盾与血量都不动，也不再建立挂起记录。同时把这一击占掉的原版无敌帧清 0（`hurt()` 早已写过 `invulnerableTime = 20`，取消只来得及救回它；`markHurt()` 的抖动仍在，见 ① 的已知缺口）。
+- **同一击的重复事件**（Kilt / Connector 会对玩家连发两次 `LivingHurtEvent`）在守卫已就位时**只取消、不重复拦截** —— 以前会二次传送并重置守卫计时。`Pending` 记录随之删掉 `nullify` 字段与「对账·整击拦下」分支，普通分支的并入 / 对账逻辑一行未动。
+- 自检 `case 2128` 改写为断言「取消这一击 + 吸收值保持 2.0 + 无挂起记录 + 无敌帧 0 + 守卫内重复事件只取消、不重复拦截」。
+
+**⑩ 新 OP 子命令 `/summyreliquary shield clamp [<玩家>]`**
+
+- 权限等级 2（与 `genesis` / `angel` 一致），省略玩家时作用于自己；回执为一行聊天文本（不新增语言键）。
+- 语义：把目标玩家的吸收值夹回"本模组能解释的部分" —— 软查 ER 属性 `enchantment_reforged:life_shield`（`ForgeRegistries.ATTRIBUTES` / `BuiltInRegistries.ATTRIBUTE` 两处都试，取不到就当没有 ER），取到就设为它的基础值、取不到就清零。新增 `util/ExternalShields` 只按 id 查注册表，不引用 ER 的任何类。
+- **金苹果等其它来源的吸收值会被一并清掉**，属该命令的明确语义；只在 OP 显式调用时执行，不做任何自动夹取。自检在 `checkCommandPermissions` 补了节点权限断言，并用 `case 2263` 实跑一次命令（自检环境没有 ER → 期望夹到 0）。
+
+**⑪ 暴食的击杀回复不再被 18 的上限夹住（1.8.5 补修）**
+
+- **现象（实机 + 日志）**：赎罪后（含佩戴美德 / 撒旦圣经）每击杀一只生物，饥饿值都被**压回 18** —— 日志里能看到 `19 → 18`、`20 → 18`，以及在 18 上长时间钉住（连续 13 / 21 / 16 条 `[ER-HUD]` 记录）。
+- **根因**：击杀回复走的是独立的一条路径 `Feed.feed`（`onKill` → `awakened(GLUTTONY)` → `Feed.feed`），它**无条件**取 `Gluttony.foodCap(player)`（恒 18，与罪的状态无关）来夹结果；而该路径的触发条件恰恰包含"已赎罪"。对比另外两条压制路径（`tickPlayerEveryTick` 与 `Gluttony.upkeep`）都带了 `active(...)` 门，所以只有这一条漏了。
+- **改法**：`Feed.feed` 的上限改为「`active(player, GLUTTONY)`（七罪之源 + 未赎罪）→ 18；否则 → `RiceHungerLock.foodCap`（原版 20 / 「大胃袋」抬高的上限）」。口径与"减益只认七罪之源"的既有约定一致，撒旦圣经（只继承激活档的增益）因此也不再吃 18 上限。
+- 自检新增 `case 2264`：未赎罪 19 → **18**（上限仍生效）、赎罪后 19 → **20**（不再夹 18）、赎罪后 20 → **20**（不被压回）。
+
+**⑫ 防火时连「火焰特效」一起拦掉（零 Mixin，1.8.5 补修）**
+
+- **现象**：持恶魔标记站在岩浆 / 火块里**血不掉，但屏幕上的火焰覆盖层照常显示**；`clearDemonFire` 里"屏幕上的火焰覆盖层也随之完全不出现"的注释是不准确的。
+- **根因（1.20.1 实现细节）**：① 客户端 `Entity#baseTick()` 里的 `isInLava() → lavaHurt()` 与 `BaseFireBlock#entityInside` → `setSecondsOnFire` **两端都执行**，客户端会把自己本地预测成"着火"；② 客户端 `Entity#isOnFire()` = `!fireImmune() && (自身 remainingFireTicks > 0 || (客户端 && 同步标记位))`，而第一人称覆盖层的判据正是 `LocalPlayer#isOnFire()`；③ 服务端写同步标记（`setSharedFlagOnFire(ticks > 0)`，内部还会 `|| hasVisualFire`）发生在 `baseTick` 里 `lavaHurt()` **之后**，而旧实现只调 `clearFire()`（只清 tick 计数、不动同步位）。
+- **改法（零 Mixin）**：① 服务端 `ReliquaryEvents.clearDemonFire` 改名 `keepNotOnFire` 并**把同步位一起压回 false**，判据扩成新的 `isFireProof`（**恶魔线完全防火** 或 **佩戴神性带来的 `#is_fire` 环境免疫**；其它无敌窗口不算防火）；② **客户端补一刀** —— `SummyReliquaryClient.ForgeBus.keepNotOnFireOnClient()` 在每个客户端 tick（END 段、渲染之前）对本地玩家做同样的 `clearFire()` + `setSharedFlagOnFire(false)`，判据与服务端共用（客户端读同步标记 + 本地 Curios 数据）。`isDemonFireImmune` 参数放宽到 `LivingEntity`。
+- 自检：`checkDemonFireImmunity` 补「只清 tick 后仍不着火（同步位已压掉）」「恶魔线算防火」「戴神性也算防火且照样清火」三条断言（并先摘掉 Curios，避免神性把"换回天使标记后恢复正常受伤"接住）；新增客户端用例 `checkClientFireOverlay`（`clientTick == 2015`），断言清火 helper 后本地玩家 `ticks == 0` 且"只清 tick 仍不着火"。构建后的包体继续断言 `mixin = 0`。
+
+**⑬ 伤害池份额改走 `LivingDamageEvent`（与 Enchantment Reforged 的生命护盾互不干扰，1.8.5 第二轮）**
+
+- **新路径（Forge / Connector）**：`DamagePools.prepare` 在 `LivingHurtEvent` 里只做「完全拦下」判定并**登记本击**，真正的扣池搬到 `LivingDamageEvent`（`ReliquaryEvents.onLivingDamagePools`，同为 LOWEST）：那里拿到的金额正是「扣完护甲 / 抗性 / 吸收之后、即将打到血」的那一份，于是 `share = min(池子总量, 金额)` → 扣魂心 / 黑心 → `event.setAmount(金额 − share)`。玩家的血正好少掉池子没扛住的那部分，而**吸收值一个点都不动** —— Enchantment Reforged 这类「读当前值做增量记账」的护盾看不到任何"先涨后跌"。附带收益：扣池不再依赖 `DamageEstimate` 的受伤前估算，也就不存在"估算偏大 → 退还"。
+- **能力探测 + Kilt 兜底**：能力位由 `LivingDamageEvent` 处理器**第一次收到事件**时置真（Kilt 会跳过那处注入 → 永远收不到 → 自动全程走旧路径）；`tickPlayer` 对"登记了却始终没等到事件"的残留做回退并打一条 WARN。旧路径的对账末尾新增 `EnchantmentReforgedShieldCompat.reconcileAfterPoolWrite(...)`：反射把 ER 的 `SHIELD_TRACK` 校正成我们写回的池值、并按"真实护盾消耗"调小它的护盾（全部软依赖，ER 缺席或字段改名时静默跳过）。
+- **保留旧机制**：`PENDING` / `reconcile` / `tickPlayer` / `isDuplicateEvent` 与 `DamageEstimate` 都留着（Kilt 路径与"死亡拦截用估算"仍在用），并新增测试钩子 `DamagePools.setModeForTest(AUTO / HEALTH_DAMAGE / LEGACY)`。
+- 自检新增 `case 2266`：用真实 `player.hurt(...)` 驱动新路径，断言「池 4 受 3 → 池 1、红血与吸收值都不动」与「池 1 受 5 → 池 0、红血 −4、吸收仍 0」；既有的 `case 2124 / 2126 / 2138 / 2261` 显式切到 `LEGACY` 继续驱动旧机制。另在 `checkPoolLogFields` 里补一条新日志格式（`伤害池[Forge|LivingDamage 扣池] ……`）的字段断言。
+
+**⑭ 神性「神圣光环」的玩家开关（右键物品切换，1.8.5 第二轮）**
+
+- **状态**：`PlayerFlags` 新增 NBT 键 `godhead_aura_off`（默认 `false` = 开启）与 `isGodheadAuraOff / setGodheadAuraOff`；`ReliquaryClientState` 新增位 `FLAG_GODHEAD_AURA_OFF = 4096`（bit12），`clientFlags(...)` 带上它。
+- **闸门**：`Godhead` 新增 `auraEnabled(...)`（佩戴神性 **且** 未关闭）与 `toggleAura(...)`（翻转 + 动作栏文本 + 紫水晶音效（开启 1.4 / 关闭 0.8）+ `RevelationTracker.sync`）。`tickAura` 按 `auraEnabled` 跳过；`judgeAuraNow` 只查"开关"这一层（佩戴判定留给调用方），关闭时直接返回 0、不造成任何伤害。
+- **交互（零 Mixin）**：新增客户端类 `ReliquaryClientInteractions`（`@Mod.EventBusSubscriber(bus = FORGE, value = CLIENT)`），订阅 `ScreenEvent.MouseButtonPressed.Pre` —— 右键 + `AbstractContainerScreen` + `getSlotUnderMouse()` 命中神性 → `setCanceled(true)`（吃掉原版的"取半栈"）+ `ReliquaryNetworking.sendToggleAura()`；Curios 面板里的那一件也是真 `Slot`，同样命中。手持潜行右键走 `GodheadItem#use`。
+- **网络**：新增 `ToggleAuraMessage`（C2S 空包，注册序号 **10**）与 `sendToggleAura()`；`VERSION` 由 `"13"` 升到 **`"14"`**。
+- **文本（中英同步，4 条新键）**：`item.summy-reliquary.godhead.shift.9` =「开关|背包里对着它右键，或手持时潜行右键」；`item.summy-reliquary.godhead.shift.2.off` =「神圣光环|……（已关闭）」；`message.summy-reliquary.godhead.aura.on / .off` =「神圣光环：开启 / 关闭」。既有键名与编号一律未动（`functionLines()` 改为循环 1..9，第 2 行按客户端状态二选一）。
+- **创世纪重置**：`performReset` 追加 `PlayerFlags.setGodheadAuraOff(player, false)`，回到默认开启。
+- 自检新增 `case 2267`：默认开启 → 切换后 NBT 与同步位都置上、`judgeAuraNow` 返回 0 且目标血量不变 → 再切回来又每秒 2 点；另断言 `isGodheadSlot(...)`（神性 / 其它 / 空）与创世纪重置后回到开启。
+
+**⑮ 魂心 / 黑心先于死亡拦截结算（1.8.5 第二轮补修）**
+
+- **现象（Ponder Time 实机日志）**：吸收被打空后，一次只有 1.63 点的伤害直接吃掉了神性死亡拦截，而魂心池还有 9.4 点、一个点都没动 —— 玩家看到的就是"魂心没生效"。
+- **根因**：`DamagePools.guardOrNullify` 用的是 {@code DamageEstimate.healthPart} —— 那是**忽略魂心 / 黑心**的"会打到血的部分"。池子还满着也会被判成"致命"，于是拦截先于池子触发。
+- **改法**：守卫窗口那一支（神性 2 秒 / 亚巴顿 8 秒 / 免死 2 秒）保持原样 —— 那是"完全免疫"，不能因为魂心能扛就改成扣魂心；**致命判定**则先扣掉池子能扛的份额（`uncovered = healthPart − min(点数, 容量)` 的合计），只有 `uncovered ≥ 当前生命` 才轮到神性拦截 / 亚巴顿 / 免死。两条路径（新路径 `LivingDamageEvent` 与 Kilt 旧路径）共用这一段。
+- 自检新增 `case 2268`：魂心容量 10（神性 2 心 + 灵魂 3 心）、生命 4 受 6 点 → 拦截次数不增、池 10 → 4、红血不动；池子清空后再受 6 点 → 拦截次数 +1、生命保留 1。
+
+**⑯ 创造飞行在换维度 / 重生后自动补推（1.8.5 第二轮补修）**
+
+- **现象**：神性死亡拦截把玩家从**下界送回主世界**后，创造飞行失效，摘下神性再戴上才恢复。
+- **根因**：客户端在换维度 / 重生时会**重建 LocalPlayer**，飞行能力被重置成默认值；而服务端这边的 `abilities.mayfly` 一直是 true —— 旧实现只在"服务端值变化"时才 `onUpdateAbilities()`，于是**再也不会**把飞行推回客户端。摘下重装恰好强制了一次值变化，才显得"能修好"。
+- **改法**：`AttributeManager.applyFlight` 增加「推送指纹」= 维度 # 游戏模式 # (游戏 tick / 100)；指纹变了（换维度 / 换模式）或每 5 秒一到，就重推一次能力包。安全性已核：`ServerGamePacketListenerImpl#handlePlayerAbilities(ServerboundPlayerAbilitiesPacket)` 写的是 `flying = 包里的 flying && mayfly`，即服务端本来就跟着客户端同步 flying，所以补包不会把人从飞行中踢下来。
+- 自检新增 `case 2269`：授予后 `mayfly=true` 且推送计数 +1；同一 tick 重算**不**刷包；把指纹标脏后再算一次必须重推；摘下后收回 `mayfly`。
+
+**⑰ 圣心 Shift 改为「一行一项属性」（1.8.5）**
+
+- 原先 Shift 里只有一行「大量属性提升」，看不到任何数字。现在改用**与「光环」同款**的两段配色 `属性名|数值`，一行一项：
+  `最大生命 +10` / `护甲 +5` / `护甲韧性 +5` / `攻击速度 +0.5` / `移动速度 +15%` / `挖掘速度 +15%` / `造成伤害 +30%`（数值全部取 `[sacred_heart]` 配置）。
+- 七条数值之后保留旧版的金色引言行「祂与你同在：」（新键 `shift.presence`，配色仍是淡金 `#FFE4B5`），用来引出后面的「·射出的箭矢在 %s 格内追踪目标」与「你不再恐惧深渊」；「造成伤害」行**不再带「与神性相加」这类跨条目标注**（乘区说明留在配置注释与文档里）。整块共 11 行。
+- 键位整理：`shift.1~7` 为七条属性行；金句用新键 `shift.presence`、箭矢追踪行移到 `shift.arrow`、`你不再恐惧深渊` 移到 `shift.abyss`（旧 `shift.2` / `shift.3` / `shift.4` 的旧内容一并撤掉，中英同步）。
+- 自检：`checkNewItemTexts` 断言圣心 Shift 为 11 行、前 7 行为两段配色、第 8 行为金句且配色 `#FFE4B5`、第 7 行不含「相加」、数值已按配置填好；`checkTextsAndIcons` 与 `checkSynergyTooltips` 里的旧键名同步改成 `shift.abyss` / `shift.arrow`。
+
 ## 1.8.4 变更
 
 **① 长矛左键门禁（零 Mixin）｜第一人称戳刺动画已回退**
