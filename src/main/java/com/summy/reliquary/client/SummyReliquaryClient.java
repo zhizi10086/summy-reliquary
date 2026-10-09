@@ -119,13 +119,19 @@ public final class SummyReliquaryClient {
 							SummyReliquary.GENESIS.get()));
 		}
 
-		/** 黑心 HUD（1.6.0）+ 魂心 HUD（1.6.1）：都挂在原版血条之上，客户端专用、无需 mixin */
+		/**
+		 * 黑心 HUD（1.6.0）+ 魂心 HUD（1.6.1）：客户端专用、无需 mixin。
+		 *
+		 * <p>1.8.5 补修：注册锚点从 {@code PLAYER_HEALTH} 挪到 {@code ITEM_NAME} —— 经典状态条
+		 * （Classic Bar）会把自己的血条画在 Forge 的右侧堆叠里（{@code ForgeGui.rightHeight}），
+		 * 只有在这个锚点之后读到的偏移才是累加完的（Enchantment Reforged 的额外饥饿行用的也是这一招）。
+		 */
 		@SubscribeEvent
 		public static void onRegisterGuiOverlays(net.minecraftforge.client.event.RegisterGuiOverlaysEvent event) {
-			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.PLAYER_HEALTH.id(),
+			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
 					"demon_black_hearts", new DemonBlackHeartOverlay());
 			// 魂心：把属于我们的那几颗黄心重新画成蓝心（不隐藏原版黄心）
-			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.PLAYER_HEALTH.id(),
+			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
 					"soul_hearts_hud", new SoulHeartOverlay());
 		}
 
@@ -175,6 +181,42 @@ public final class SummyReliquaryClient {
 			RecipeVisibility.tick(client.level, wantedRecipeVisibility());
 
 			tickRevelationBeam(client);
+			// 1.8.5：防火（恶魔线 / 神性）时把本地玩家身上的火压掉 —— 服务端的清火管不到
+			// 客户端本地预测出来的剩余着火 tick，屏幕上的火焰覆盖层得在这里清。
+			keepNotOnFireOnClient();
+		}
+
+		/**
+		 * 1.8.5：防火生效时，把**本地玩家**身上的着火状态（含屏幕上的火焰覆盖层）压掉。
+		 *
+		 * <p>为什么需要这一刀：客户端 {@code Entity#baseTick} 里 {@code isInLava() → lavaHurt()} 与
+		 * {@code BaseFireBlock#entityInside} 都会在**客户端**把玩家点着（本地预测 300 tick），而
+		 * {@code Entity#isOnFire()} 在客户端的判据是「自身 ticks &gt; 0 **或** 同步位为真」——
+		 * 服务端清火与同步位都管不到客户端本地那一份，于是"血不掉但屏幕上全是火"。
+		 *
+		 * <p>判据与服务端同一份（{@link com.summy.reliquary.ReliquaryEvents#isFireProof}）：
+		 * 客户端读的是同步过来的恶魔标记 + 本地 Curios 数据。
+		 */
+		public static void keepNotOnFireOnClient() {
+			Minecraft client = Minecraft.getInstance();
+			net.minecraft.client.player.LocalPlayer player = client.player;
+			if (player == null || !com.summy.reliquary.ReliquaryEvents.isFireProof(player)) {
+				return;
+			}
+			clearLocalFire(player);
+		}
+
+		/**
+		 * 自检与上面的 tick 共用：清掉本地玩家的着火 tick **与同步位**。
+		 *
+		 * <p>两步都不能少 —— 只清 tick，客户端仍会因为同步位而判定"着着火"（画火焰覆盖层）。
+		 */
+		public static void clearLocalFire(net.minecraft.client.player.LocalPlayer player) {
+			if (player == null) {
+				return;
+			}
+			player.clearFire();
+			player.setSharedFlagOnFire(false);
 		}
 
 		/** 目标可见性：赎罪配方看「七罪是否全部已赎罪」，天使线配方看「是否有天使标记」，法袍看「是否已签约」 */

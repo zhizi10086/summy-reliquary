@@ -73,7 +73,9 @@ public final class SinDescriptions {
 			case WRATH -> switch (suffix) {
 				case "condition" -> new Object[]{ReliquaryConfig.wrathKillRequired()};
 				case "buff" -> new Object[]{ReliquaryConfig.wrathRandomMin(), ReliquaryConfig.wrathRandomMax()};
-				case "debuff" -> new Object[]{ReliquaryConfig.wrathSelfHitPercent()};
+				// 1.8.5：同时给出「几率」与「自伤倍率」两个参数，与实际口径（15% 几率 × 50% 伤害）一致
+				case "debuff" -> new Object[]{ReliquaryConfig.wrathSelfHitPercent(),
+						Math.round(ReliquaryConfig.wrathSelfHitMultiplier() * 100.0D)};
 				case "redeemed" -> new Object[]{ReliquaryConfig.wrathRandomMaxRedeemed()};
 				default -> new Object[0];
 			};

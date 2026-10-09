@@ -1,13 +1,13 @@
-# Summy Reliquary 进度文档（截至 1.8.4-forge）
+# Summy Reliquary 进度文档（截至 1.8.5-forge）
 
-> 更新时间：2026-10-07（1.8.4）　｜　对应版本：**1.8.4-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-10-08（1.8.5）　｜　对应版本：**1.8.5-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > 本文档由当前代码与资源逐一核对后整理，内容与 `README.md` 一致（README 是随版本更新的主文档，本文档是更全的"总台账"）。
 
 ---
 
 ## 0. 一句话概览
 
-以 **Curios** 为前置的 Forge 1.20.1 饰品模组：**7 个本模组栏位（含 1.6.0 的动态「恶魔契约」）+ Curios 自带的「护符」「背饰」两栏 + 50 件已注册物品（1.7.5 起含武器，1.7.8 起含两把天使线长矛，1.7.10 起含金刀片）+ 24 个进度（1 个新根 + 恶魔线 9 + 天使线 3 + 原有 10 + 近乎完美 1）+ 10 个网络包 + 26 个配置段 / 264 个键（源码口径；实例 config 因历史残留键 `frame_damage_ids` 会多 1）（1.7.1 新增 `[devil_crown]`，1.7.5 新增 `[shadow_dash]`，1.7.10 新增 `[golden_razor]`）**。
+以 **Curios** 为前置的 Forge 1.20.1 饰品模组：**7 个本模组栏位（含 1.6.0 的动态「恶魔契约」）+ Curios 自带的「护符」「背饰」两栏 + 50 件已注册物品（1.7.5 起含武器，1.7.8 起含两把天使线长矛，1.7.10 起含金刀片）+ 24 个进度（1 个新根 + 恶魔线 9 + 天使线 3 + 原有 10 + 近乎完美 1）+ 10 个网络包 + 26 个配置段 / 266 个键（源码口径；实例 config 因历史残留键 `frame_damage_ids` 会多 1）（1.7.1 新增 `[devil_crown]`，1.7.5 新增 `[shadow_dash]`，1.7.10 新增 `[golden_razor]`）**。
 核心玩法链：**七罪之源 → 赎罪（碎片/配方）→ 美德 → 纯洁之人（天使标记）→ 灵台三件套 → 伯列恒之星 → 终末天启 / 神性**；
 另有一条**加护**支线（救恩 / 圣光 / 神圣斗篷 / 圣心）与**启示之光**体系（光柱 + 领域 + buff + 心之碎片）。
 
@@ -22,12 +22,14 @@
 | 前置 | **Curios** `5.14.1+1.20.1`（`mods.toml` 只有 forge + minecraft + curios） |
 | Fabric 侧 | 通过 **Kilt** 跑同一个 jar（实测组合：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；另需 Sodium + Indium；Kilt 不兼容 Async / Embeddium） |
 | 构建 | `gradlew clean build`（产物自动复制到 `../JAR/summy-reliquary/`） |
-| 当前版本 | `1.7.10-forge`（协议 `"12"`）；历史 jar 全保留（含 1.7.10 之前的全部版本，均在 `JAR/summy-reliquary/`） |
+| 当前版本 | `1.8.5-forge`（协议 `"14"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
 | 二创与致谢 | 本模组是基于《以撒的结合》（The Binding of Isaac）的**粉丝二创作品**：物品贴图与部分设定有相当数量直接取自或改编自该作，**不主张任何权利**、不用于商业用途；`LICENSE` 的 MIT **只覆盖原创代码与原创素材**。完整中英声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`；联系邮箱 **525277385@qq.com** |
 | 实例部署 | 把新 jar 放进整合包 `mods/`，旧版本就地改名为 `*.jar.disabled`（同名双版本会因 mod id 重复报错） |
 | 诊断开关 | `-Pnodata`（去掉自定义伤害类型 + 原版伤害类型标签覆盖）、`-Pnotags`（只去掉标签覆盖）、`-Pnomodel`（去掉终末天启模型/贴图）；产物改名进 `_test/` |
 
-### 1.1 版本历史（1.5.x ~ 1.8.4）
+### 1.1 版本历史（1.5.x ~ 1.8.5）
+
+**1.8.5**：把待办清单里计划 1.8.5 的 **7 项全部落地**（第一轮）+ 补修 5 项 + 第二轮 2 项 + 第三轮 3 项；协议由 `"13"` 升到 **`"14"`**（第二轮新增 `ToggleAuraMessage`），配置段不变。①**愤怒自伤提示订正** —— `sin.wrath.debuff` 由「每次攻击 %s%% 几率自伤**等量**」改为「每次攻击 %s%% 几率自伤**本次伤害的 %s%%**」（`SinDescriptions` 的 WRATH `debuff` 分支补第二个参数 = `wrath_self_hit_multiplier × 100`，默认渲染成「每次攻击 15% 几率自伤本次伤害的 50%」），与实际口径（15% 几率 × 50% 伤害、永不致死）一致。②**完全拦截类伤害改在 Attack 层提前取消** —— 新增 `ReliquaryEvents.blocksDamageEntirely(...)`，覆盖神性环境免疫 / 神性死亡守卫 / 亚巴顿 8 秒 / 免死 2 秒 / 斗篷无敌期 / 魂心破碎 / 遁入暗影 / 恶魔线完全防火 / 本模组飞行免摔 共 9 类，在 `LivingAttackEvent` 里 `setCanceled(true)`：原版 `hurt()` 第一行就是该事件钩子，整个方法直接返回 —— **既不抖、也不白吃一次原版无敌帧**（此前"戴神性走进火里仍抖一下、紧接着被怪打反而免伤"就是这个原因）；Hurt 层的原判定全部保留作双保险。已知缺口：**死亡拦截的首次触发**走 `DamagePools.prepare` → `tryNullify`（在 `markHurt()` 之后），那一下仍会抖。③**复活清挂起 + 还原改增量** —— `onPlayerClone` 在复制持久化数据前先 `DamagePools.forget(旧玩家)`（`PENDING` 以 UUID 为键、死亡前后不变，残留记录会让新实体拿旧基线覆盖吸收值，即"复活后护盾数值异常叠加"）；`reconcile` 的普通分支把"写回绝对值"改成「只减掉自己那份没被吃掉的并入量」（`after − min(T, after)`）—— 无外部写入时与旧公式**逐值相同**，有外部写入（Enchantment Reforged 的增量护盾）时不再抹掉对方同期变化；整击拦下分支仍写回基线（那一支的"消耗量"无法从结算后的吸收值反推）。④**受伤节流日志措辞** —— 「被无敌帧挡下」改为「**被挡下（未落地）**」，javadoc 写明该差值包含所有落地前被取消的情况。⑤**「属性更新」日志降噪** —— `AttributeManager.logIfChanged` 的变化判定只保留关键字段（生命加成 / 光环 / 魂心池 / 黑心 / 套装），「原版吸收」不再参与判定、仅随行打印（此前会被 ER 的护盾与恢复每 2~3 秒微调一次而刷屏）。⑥**暗仪刺刀的遗留对照** —— `dark_arts.shift.5` 由「（无敌更久，斩击更痛）」（相对早已改走「献祭」的献祭匕首作比）改为自述式「（无敌覆盖全程，直到斩击结算完毕）」；`ShadowDash` 类注释与 `@param darkArts` 改成"仅暗仪刺刀调用"；两个 `sacrificial_*` 配置键标注 **1.8.2 起废弃**。⑦**魂心 / 黑心 HUD 适配 Mantle 与「经典状态条」** —— 新增 `[spirit_altar] soul_heart_hud_layout`（`auto` / `vanilla` / `single_row`；`auto` = 检测到 `mantle` 或 `classicbar` 已加载时按单排处理）与 `soul_heart_hud_offset_y`（±40px 兜底微调）；`soulHeartRowY` 新增 `singleRow` / `offsetY` 重载并保留原四参重载 —— 单排模式下**红心恒按一排算**（实测生命 275 与 20 的结果完全一致，不再把蓝心顶到天上）、**盔甲避让保留**，`DemonBlackHeartOverlay` 复用同一函数自动跟随；探测两端都试（Kilt 走 `FabricLoader`、Forge 走 `ModList`）。⑧**伯列恒之星的坐标提示改显真实维度名** —— `star_of_bethlehem.guided` 由「前往 %s（纬度）聆听你的启示」改成「前往 %s（%s）聆听你的启示」，第二个参数传**维度名**（启示坐标固定主世界 → 恒为「主世界」，新增语言键 `item.summy-reliquary.dimension.overworld`），修掉"维度"被写成"纬度"的错字。⑨**死亡拦截改为「取消这一击」（补修）** —— `DamagePools.prepare` 的 nullify 支不再把整击金额并入吸收值，改为 `event.setCanceled(true)`（伤害不落地、吸收值一个点不动、不建挂起记录）并把这一击占掉的原版无敌帧清 0；守卫已就位时的同一击重复事件只取消、不重复拦截（不再二次传送）。根因是旧做法与 Enchantment Reforged 的「读当前值做增量记账」互相污染：日志实测每次拦截吸收值 +275（275 → 550 → 825 → 1100）。⑩**新 OP 子命令 `/summyreliquary shield clamp [<玩家>]`** —— 软读 ER 的 `life_shield` 属性把被污染的吸收值夹回（没有 ER 则清零），用于清理已存进 NBT 的老存档。⑪**暴食的击杀回复不再被 18 的上限夹住（补修）** —— 击杀回复走独立路径 `Feed.feed`，旧实现无条件取 `Gluttony.foodCap`（恒 18），赎罪后（含美德 / 撒旦圣经）每杀一只怪都把 19 / 20 的饥饿值压回 18；现在只有「七罪之源 + 暴食未赎罪」才是 18。⑫**防火时连火焰特效一起拦掉（零 Mixin，补修）** —— 服务端 `keepNotOnFire` 把着火同步位一起压回 false（判据 `isFireProof` = 恶魔线完全防火 ∪ 神性 `#is_fire` 环境免疫），客户端每 tick 也对本地玩家清一刀，解决"血不掉但屏幕上全是火"。自检新增 `case 2259`（完全拦截真值表）、`case 2261`（Clone 清挂起）与 `case 2263`（护盾夹取命令），并扩展 HUD（经典状态条锚定 / 单排不吃吸收值 / 吸收值钳制）与愤怒提示断言；自检 **585 行全绿**（1.8.4 为 574；第一轮 +7 条、第二三轮共 +4 条固定日志）。⑬**伤害池份额改走 `LivingDamageEvent`（第二轮）** —— Forge / Connector 走"后置扣池"：`prepare` 在 `LivingHurtEvent` 里只登记，`LivingDamageEvent`（LOWEST）里按"扣完吸收后真正要打到血"的真实金额扣魂心 / 黑心、把剩余写回事件金额，**吸收值全程一个点都不动**（Enchantment Reforged 那类增量记账的护盾不再被"先涨后跌"牵连）；收不到该事件的环境（Kilt）自动保留旧的「并入 + 对账」路径，对账末尾用反射（`EnchantmentReforgedShieldCompat`）把 ER 的 `SHIELD_TRACK` 与护盾校正到一致；新增测试钩子 `DamagePools.setModeForTest(AUTO / HEALTH_DAMAGE / LEGACY)`、新日志 `伤害池[Forge|LivingDamage 扣池] ……`。⑭**神性「神圣光环」的玩家开关（第二轮）** —— 背包 / Curios 面板里右键神性、或手持神性潜行右键即可切换（`ToggleAuraMessage`，协议 `"13"` → **`"14"`**）；开关存 `PlayerFlags.godhead_aura_off` 并同步到客户端位 bit12，关闭只停"每秒审判"（光柱 / 飞行 / 环境免疫 / 死亡拦截 / 回溯 / 联动照旧），创世纪重置后回到默认开启。⑮**魂心 / 黑心先于死亡拦截（第三轮补修）** —— `guardOrNullify` 原先用 `DamageEstimate` 的"忽略池子"血伤估算判致命，池子还满着也会吃掉拦截（实机：吸收打空后一次 1.63 点伤害直接触发神性拦截，魂心池 9.4 点一动不动）；现在先扣掉池子能扛的份额、`uncovered ≥ 当前生命` 才轮到拦截，守卫窗口那一支（2 秒 / 8 秒完全免疫）不受影响，两条路径共用。⑯**创造飞行在换维度 / 重生后自动补推（第三轮补修）** —— `applyFlight` 增加"推送指纹"（维度 # 游戏模式 # tick/100）：客户端换维度会重建 LocalPlayer 把飞行能力清零，而服务端 `mayfly` 一直是 true，旧实现只在值变化时补包 → 神性死亡拦截跨维度送返后飞行失效、摘下重装才恢复；现在指纹变化或每 5 秒就重推一次能力包（已核服务端本来就同步客户端的 flying，补包不会把人从飞行中踢下来）。⑰**圣心 Shift 改成"一行一项属性"** —— 与光环同款两段配色（`属性名|数值`）：最大生命 +10 / 护甲 +5 / 护甲韧性 +5 / 攻击速度 +0.5 / 移动速度 +15% / 挖掘速度 +15% / 造成伤害 +30%（**不带"与神性相加"这类跨条目标注**，乘区说明留在配置注释与文档里），七条数值之后保留旧版金色引言行「祂与你同在：」（新键 `shift.presence`），再跟追踪行 `shift.arrow` 与"你不再恐惧深渊" `shift.abyss` —— 整块 11 行。另给"换维度后补推飞行能力"加了一条只在维度 / 游戏模式变化时打印的 INFO（`创造飞行补推：旧 → 新（维度 / 游戏模式变化）`），便于实机确认。
 
 **1.8.4**：把待办清单里的 3 项全部落地（长矛第一人称戳刺动画 + 联动数值按状态显示 + 暗仪刺刀斩击轨迹连线），无新增内容、无协议与配置变更。①**长矛左键门禁** —— 新增客户端类 `SpearAttackGate`（顶层 `@Mod.EventBusSubscriber`）：冷却未满时不出手 / 不挥臂 / 不重置攻击强度，**瞄准方块一律放行**（否则冷却中挖不动方块）；第一人称戳刺动画连调三版后**整体回退**（四个坑与重启思路见 `CHANGELOG.md` 1.8.4 段与待办）。②**联动数值改回按当前佩戴状态显示** —— 十处受益方提示从写死的联动值改回占位符 + 实时取值（`Synergies` / `VengefulSpirit` / `SalvationDomain` / `DemonPact`），玄秘魔眼与深渊领主的亚巴顿专属句拆成独立键，两处过期的「献祭匕首已被强化」声明清掉。③**暗仪刺刀斩击轨迹连线** —— 遁入暗影按斩击顺序用 `SQUID_INK` 墨汁粒子把「起点 → 各目标 → 强力斩击释放点」连成折线（步长 0.4 格、单段 2~64 点），无目标时退化为「起点 → 玩家」直线。自检 **574 行全绿**（与 1.8.3 持平）。
 
@@ -287,7 +289,7 @@
 - **1.6.2 起魂心是独立池**（不再写进原版吸收值）：结算顺序 **原版吸收 / 护盾 → 魂心 → 黑心 → 真实血量**；
   容量 =（灵魂 +3 / 终末天启·神性 +2 心）× `absorption_per_soul_heart`；装备时补满、每 30 秒补缺额、卸下清空；
   **完全破碎**（从 >0 归零）时击退 7 格内同口径敌人 + 给玩家 5 秒无敌（只触发一次）。
-NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（当前协议 `"12"`）。
+NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（当前协议 `"14"`）。
 - ⚠️ 下面这段"把份额加进吸收池"的口径是 **1.6.1 及以前**的行为，已作废，保留供对照：
 
 - 总黄血 = 原版吸收 + 其它模组的吸收（如 enchantment-reforged 的生命护盾）+ 本模组魂心；**纯加法**（例：护盾 40 + 魂心 6 = 46）。
@@ -302,7 +304,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | 受击后无敌 | 神圣斗篷 | 受击后 **1 秒**内一切伤害被取消（不区分来源） |
 | 死亡拦截 | 神性 | 致命伤清零、保留 **1 点生命**、传送回个人重生点（无则世界出生点）、落地金色粒子、**无冷却** |
 | 黑心池（1.6.0，1.6.1 扩展） | 契约 / 仪式法袍 / 撒旦圣经 | **独立于原版吸收**的专属池；**最后一道防线**（ER 护盾 → 魂心黄血 → **黑心** → 红血），能挡住致命伤；**只在佩戴契约时生效**。**容量＝各来源相加**：契约 `black_hearts`(2) + 仪式法袍 `robe_black_hearts`(2) + 撒旦圣经 `satanic_bible_black_hearts`(1) + 咒印 3 心 = **8 颗 = 16 点**（四个数值都可配置），**不设固定总量上限**；卸下某个来源导致容量下降时**把当前值夹回**；**回复手段**只有撒旦圣经的每 30 秒补满；**池子从 >0 归零**时触发**碎裂反噬**（18 格 24 点 `pact_shatter`，只炸一次）。HUD 用自绘黑心**独立占一行**（画在魂心那行之上，不再压黄心 / 盔甲） |
-| 魂心 HUD（1.6.1，1.6.6 定稿行位） | 灵魂 / 天启 / 神性 | 把本模组魂心**独立池**的点数（自定义属性 `summy-reliquary:soul_hearts` × `absorption_per_soul_heart`）用**蓝色心**画出来。行位**完全复刻原版 `Gui#renderPlayerHealth` 的心网格**：红心与黄心共用一张网格，行数 `rows = ceil((生命上限 + ceil(吸收)) / 2 / 10)`、行距 `spacing = max(10 − (rows − 2), 3)`、网格**顶行** `= (height − 39) − (rows − 1) × spacing`，盔甲固定画在顶行**再上一排**；于是 **蓝心基准行 = 网格顶行 − 10 × (1 + 有盔甲?1:0)**、**黑心基准行 = 蓝心区域之上**。每行 10 颗、左起 `x = 屏幕中心 − 91`、间距 8px、多行继续往上，奇数点最后一颗半心；**不隐藏也不接管**原版黄心，份额为 0 时不画；创造 / 旁观 / F1 不画；`[spirit_altar] enable_soul_heart_hud` 可关。（1.6.5 只按"一排红心"估算，生命上限 >20 时会压住第二排红心，1.6.6 修） |
+| 魂心 HUD（1.6.1，1.6.6 定稿行位） | 灵魂 / 天启 / 神性 | 把本模组魂心**独立池**的点数（自定义属性 `summy-reliquary:soul_hearts` × `absorption_per_soul_heart`）用**蓝色心**画出来。行位**完全复刻原版 `Gui#renderPlayerHealth` 的心网格**：红心与黄心共用一张网格，行数 `rows = ceil((生命上限 + ceil(吸收)) / 2 / 10)`、行距 `spacing = max(10 − (rows − 2), 3)`、网格**顶行** `= (height − 39) − (rows − 1) × spacing`，盔甲固定画在顶行**再上一排**；于是 **蓝心基准行 = 网格顶行 − 10 × (1 + 有盔甲?1:0)**、**黑心基准行 = 蓝心区域之上**。每行 10 颗、左起 `x = 屏幕中心 − 91`、间距 8px、多行继续往上，奇数点最后一颗半心；**不隐藏也不接管**原版黄心，份额为 0 时不画；创造 / 旁观 / F1 不画；`[spirit_altar] enable_soul_heart_hud` 可关。（1.6.5 只按"一排红心"估算，生命上限 >20 时会压住第二排红心，1.6.6 修；**1.8.5 适配 Mantle / 经典状态条**：`[spirit_altar] soul_heart_hud_layout` 默认 `auto`，检测到这两个模组时按 `single_row` 处理 —— 红心恒按**一排**参与网格计算（生命 275 与 20 的结果完全一致，不再把蓝心顶上天）、**盔甲避让保留**，`DemonBlackHeartOverlay` 复用同一函数自动跟随；再用 `soul_heart_hud_offset_y`（±40px）对准 Classic Bar 的实际条位） |
 | 受伤无敌帧 | `[combat]` | 默认 5 tick（0.25 秒）；本模组的真实伤害会先清无敌帧再结算 |
 | 魂心破碎无敌（1.6.2） | 魂心池 | **完全破碎**时给玩家 **5 秒无敌**（取消一切来源伤害，与神圣斗篷同一套写法），只触发一次 |
 
@@ -477,7 +479,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | --- | --- |
 | `[maid]` | `radius`(10) |
 | `[start]` | `grant_items`(true)、`auto_equip_source_of_sins`(false) |
-| `[spirit_altar]` | `body_health`(10)、`body_set_damage_reduction_percent`(20)、`glow_radius`(24)、`mind_bonus_percent`(10)、`soul_hearts`(3)、`absorption_per_soul_heart`(2.0)、`soul_refresh_seconds`(30)、`death_immunity_percent`(20)、**`enable_soul_heart_hud`(true，1.6.1)**、**`soul_shatter_radius`(7) / `soul_shatter_knockback`(2.0) / `soul_shatter_invulnerable_seconds`(5.0)（1.6.2）** |
+| `[spirit_altar]` | `body_health`(10)、`body_set_damage_reduction_percent`(20)、`glow_radius`(24)、`mind_bonus_percent`(10)、`soul_hearts`(3)、`absorption_per_soul_heart`(2.0)、`soul_refresh_seconds`(30)、`death_immunity_percent`(20)、**`enable_soul_heart_hud`(true，1.6.1)**、**`soul_shatter_radius`(7) / `soul_shatter_knockback`(2.0) / `soul_shatter_invulnerable_seconds`(5.0)（1.6.2）**、**`soul_heart_hud_layout`(auto，1.8.5；补修新增 `classic_row` 档) / `soul_heart_hud_offset_y`(0，1.8.5)** |
 | `[revelation]` | `reveal_seconds`(600)、`coordinate_radius`(1000)、`attack_speed_percent`(20)、`damage_percent`(20)、`final_soul_hearts`(2)、`flight_speed_multiplier`(0.5)、`transform_radius`(8)、`transform_seconds`(5)、`transform_max_move_blocks`(1.0)、`beam_length`(**21**)、`beam_radius`(2)、`beam_damage_per_tick`(7)、`beam_duration_seconds`(1.5)、`beam_damage_interval_seconds`(0.1)、`beam_charge_seconds`(2.5)、`beam_cooldown_seconds`(10)、`beam_broadcast_radius`(128)、`charge_fov_scale`(0.15) |
 | `[sins]` | `enable_sin_effects`(true) + 35 项（该段共 36 个键）：`pride_kill_required`(10)、`pride_damage_per_percent`(1.0)、`pride_incoming_damage_percent`(50)、`envy_observe_radius`(16)、`envy_bonus_percent`(50)、`envy_hostile_radius`(8)、`envy_hostile_refresh_ticks`(20)、`wrath_kill_required`(**100**)、`wrath_random_min`(0.5)、`wrath_random_max`(1.5)、`wrath_random_max_redeemed`(2.0)、`wrath_self_hit_percent`(15)、`sloth_sleep_required`(3)、`sloth_sleep_before_hour`(20)、`sloth_resistance_amplifier`(0)、`sloth_resistance_amplifier_redeemed`(1)、`sloth_slowdown_percent`(20)、`greed_diamond_threshold`(36)、`greed_damage_per_diamond_percent`(1)、`greed_damage_cap_percent`(64)、`greed_low_diamond_damage_factor`(0.10)、`greed_death_diamond_min`(3)、`greed_death_diamond_max`(8)、`gluttony_meal_required`(**10**)、`gluttony_saturation_threshold`(**8.0**)、`gluttony_kill_heal`(2.0)、`gluttony_kill_food`(1)、`gluttony_food_cap`(18)、`gluttony_drain_seconds`(20)、`gluttony_weak_food_threshold`(10)、`lust_breed_required`(10)、`lust_strip_armor_percent`(15)、`lust_armor_reduction_percent`(30)、`lust_self_strip_percent`(15) |
 | `[virtues]` | `enable_virtue_effects`(true)、`humility_damage_bonus_percent`(15)、`charity_speed_percent_per_drop`(2)、`charity_speed_cap_percent`(10)、`charity_duration_seconds`(30)、`chastity_durability_per_second`(1)、`kindness_heal_per_second`(1.0)、`kindness_radius`(7)、`patience_bonus_percent_per_hit`(6)、`patience_cap_percent`(30)、`patience_reset_seconds`(4)、`diligence_speed_percent`(10) |
@@ -502,7 +504,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | `[shadow_dash]`（**1.7.5 新增，14 键**） | `enable_shadow_dash`(true)、`sacrificial_duration_ticks`(20)、`dark_arts_duration_ticks`(40)、`sacrificial_slash_multiplier`(1.0)、`dark_arts_slash_multiplier`(2.0)、`contact_radius`(2.0)、`heavy_slash_radius`(3.0)、`movement_percent`(100)、`cooldown_ticks`(120)、`resolve_interval_ticks`(2)、`recovery_missing_seconds`(300，1.7.6 起：连续多少秒没匕首才开放防丢失配方)；**1.7.10 新增**：`abaddon_duration_bonus_ticks`(20)、`abaddon_contact_radius_bonus`(1.0)、`abaddon_heavy_radius_bonus`(2.0)（亚巴顿联动：技能时长 +1 秒 / 接触半径 +1 / 强力斩击半径 +2） |
 | `[golden_razor]`（**1.7.10 新增，7 键**） | `enable_golden_razor`(true)、`razor_damage`(5.0)、`razor_cooldown_ticks`(10)、`razor_velocity`(1.8，1.7.10 收尾由 1.5 提高)、`razor_pierce_level`(127)、`razor_max_life_ticks`(200)、`razor_stuck_ticks`(100，1.7.10 收尾新增：命中方块后插在原地停留 5 秒再清除) |
 
-> **配置段总览（1.8.2 实测）**：共 **26 个配置段 / 264 个键**（**源码口径**：`ReliquaryConfig` 里的 `.define*` 调用数；实例 config 因历史残留键 `frame_damage_ids` 会多 1） —— `[maid]`(1)、`[spirit_altar]`(12)、`[combat]`(8)、`[the_halo]`(11)、`[devil_crown]`(9)、`[revelation]`(18)、`[start]`(2)、`[sins]`(38)、`[virtues]`(12)、`[blessing]`(5)、`[holy_light]`(9)、`[holy_mantle]`(3)、`[sacred_heart]`(11)、`[godhead]`(9)、`[revelation_light]`(7)、`[pentagram]`(2)、`[demon_deal]`(6)、`[demon_pact]`(38)、`[brimstone]`(8)、`[occult_eye]`(13)、`[abyss_lord]`(7)、`[abaddon]`(9)、`[shadow_dash]`(14)、`[golden_razor]`(7)、`[sacrifice]`(5)、`[divine_action]`(1)。
+> **配置段总览（1.8.5 实测）**：共 **26 个配置段 / 266 个键**（**源码口径**：`ReliquaryConfig` 里的 `.define*` 调用数；实例 config 因历史残留键 `frame_damage_ids` 会多 1） —— `[maid]`(1)、`[spirit_altar]`(14)、`[combat]`(8)、`[the_halo]`(11)、`[devil_crown]`(9)、`[revelation]`(18)、`[start]`(2)、`[sins]`(38)、`[virtues]`(12)、`[blessing]`(5)、`[holy_light]`(9)、`[holy_mantle]`(3)、`[sacred_heart]`(11)、`[godhead]`(9)、`[revelation_light]`(7)、`[pentagram]`(2)、`[demon_deal]`(6)、`[demon_pact]`(38)、`[brimstone]`(8)、`[occult_eye]`(13)、`[abyss_lord]`(7)、`[abaddon]`(9)、`[shadow_dash]`(14)、`[golden_razor]`(7)、`[sacrifice]`(5)、`[divine_action]`(1)。
 
 ---
 
@@ -554,12 +556,12 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 
 ---
 
-## 9. 网络（协议版本 "12"）
+## 9. 网络（协议版本 "14"）
 
 | 包 | 方向 | 用途 |
 | --- | --- | --- |
 | `ToggleMaidMessage` | C2S | 按 R 切换邦邦女仆 |
-| `PlayerStateMessage` | S2C | 七罪/赎罪掩码、启示坐标与剩余秒数、标记位（bit0 天使 / bit1 放弃一切 / bit2 启示已降临 / bit3 主世界有个人重生点 / bit4 五芒星那句话已说过 / **bit5 持恶魔标记 / bit6 曾签契约 / bit7 已受邀** / **bit8 创世纪已知（1.6.10）** / **bit9 已锁天使线 `hell_locked`（1.7.1）** / **bit10 匕首防丢失配方已开放（1.7.6）** / **bit11 长矛防丢失配方已开放（1.7.9）**）+ **自己的 UUID** + **1.6.0 新增：邪恶度 / 黑心池点数（int）/ 邪恶解锁位图（int）** + **1.6.2 新增：魂心池点数（int）**；**1.6.4：邪恶度改成 double**（一位小数） |
+| `PlayerStateMessage` | S2C | 七罪/赎罪掩码、启示坐标与剩余秒数、标记位（bit0 天使 / bit1 放弃一切 / bit2 启示已降临 / bit3 主世界有个人重生点 / bit4 五芒星那句话已说过 / **bit5 持恶魔标记 / bit6 曾签契约 / bit7 已受邀** / **bit8 创世纪已知（1.6.10）** / **bit9 已锁天使线 `hell_locked`（1.7.1）** / **bit10 匕首防丢失配方已开放（1.7.6）** / **bit11 长矛防丢失配方已开放（1.7.9）** / **bit12 神性光环已被玩家关闭（1.8.5）**）+ **自己的 UUID** + **1.6.0 新增：邪恶度 / 黑心池点数（int）/ 邪恶解锁位图（int）** + **1.6.2 新增：魂心池点数（int）**；**1.6.4：邪恶度改成 double**（一位小数） |
 | `FireRevelationMessage` | C2S | 请求发射启示之光 |
 | `RevelationBeamMessage` | S2C | 广播光柱（供客户端渲染）；**1.6.4 新增 `kind` 字段**（启示之光 / 恶魔之焰，客户端据此配色） |
 | `ChargeBeamMessage` | C2S | 蓄力状态（附近可见的蓄力粒子） |
@@ -567,13 +569,15 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | `DemonRosterMessage` | S2C | 广播「有恶魔标记的在线玩家名单」（名字染深红用，1.5.9） |
 | `DemonDealMessage` | S2C | 契约签署成功 → 客户端播放不死图腾动画（贴图换成五芒星，1.5.9） |
 | `GenesisUsedMessage` | S2C | **1.7.2 新增（注册序号 8）**：创世纪生效 → 客户端播放不死图腾动画（贴图换成创世纪） |
+| `DivineActionMessage` | C2S | **1.8.2 新增（注册序号 9）**：请求执行神性回溯 / 亚巴顿主动恶魔形态 |
+| `ToggleAuraMessage` | C2S | **1.8.5 新增（注册序号 10）**：请求切换神性「神圣光环」的开关 |
 
 协议不一致时两端必须同版本（**1.6.2 起是 8**：`PlayerStateMessage` 追加魂心池点数，供魂心 HUD 画"剩余"蓝心）。
 历史：1.6.0 是 7（新增邪恶度 / 黑心点数 / 邪恶解锁位图）、1.6.1 没改协议（当时魂心 HUD 读的是同步过来的自定义属性）。
 **1.6.4 起协议是 9**：状态包里的**邪恶度由 int 改成 double**（契约提示显示一位小数），
 光柱广播包 `RevelationBeamMessage` 新增 **kind** 字段（启示之光 / 恶魔之焰，客户端据此配色）。
 （1.6.3 没有新增报文，当时仍是 8。）
-**后续**：1.6.5 起 10（`RegisterParticleProviders` 时代的粒子与后续状态位扩展）、1.6.9/1.6.10 起 **11**（状态包扩展）、**1.7.2 起 12**（新增 `GenesisUsedMessage` 创世纪动画包）。当前协议常量 = **`"12"`**（`ReliquaryNetworking`），1.7.9/1.7.10 只往既有 flags 里加位（bit11）、**没有新增报文**。
+**后续**：1.6.5 起 10（`RegisterParticleProviders` 时代的粒子与后续状态位扩展）、1.6.9/1.6.10 起 **11**（状态包扩展）、**1.7.2 起 12**（新增 `GenesisUsedMessage` 创世纪动画包）。**1.8.2 起 13**（新增 `DivineActionMessage`）、**1.8.5 起 14**（新增 `ToggleAuraMessage`）。当前协议常量 = **`"14"`**（`ReliquaryNetworking`）；1.7.9/1.7.10 只往既有 flags 里加位（bit11），1.8.5 又加了 bit12。
 
 ---
 
@@ -612,7 +616,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 - **1.7.7 / 1.7.8 / 1.7.9 新增资源与数据**：`holy_spear` / `seraph_spear` 两张 32×32 贴图与模型 + `models/item/spear_in_hand.json`（矛式横握父模型）+ **1.7.9 的两个 `*_using.json`**（第三人称 Z +180° 的蓄力模型）+ `damage_type/holy_light_burst.json`（落点圣光爆发）+ 两张配方（`recipes/holy_spear.json`、`recipes/seraph_spear.json`）+ 伤害标签 `bypasses_effects/enchantments/resistance` 各补 `holy_light_burst`。
 - **1.7.10 新增资源与数据**：`textures/item/golden_razor.png`（32×32、主轴垂直）+ `models/item/golden_razor.json`（`parent: item/handheld`）+ `recipes/golden_razor.json`（金锭×6 + 金粒×2）+ `damage_type/golden_razor.json`（无 bypass 标签 = 普通物理）；`icon.png` 由 `duality_stat.png` **32× 最近邻放大（16×16 → 512×512）**而成（MOD 图标）；`thrown_razor` 实体与其渲染器在代码侧注册。
 - **配方总数（1.7.10 实测）**：**34 张**（`data/summy-reliquary/recipes/*.json`）。
-- **当前计数（1.8.4 实测）**：注册物品 **50**、进度 **24**、配方 **34**、配置段 **26**（**264 键**，源码口径；其中 `[sacrifice]` / `[divine_action]` 为 1.8.2 新增）、伤害类型 **11**、网络包 **10**、自检 **574 行**。
+- **当前计数（1.8.5 实测）**：注册物品 **50**、进度 **24**、配方 **34**、配置段 **26**（**266 键**，源码口径；其中 `[sacrifice]` / `[divine_action]` 为 1.8.2 新增）、伤害类型 **11**、网络包 **11**、自检 **585 行**。
 - **二创与素材声明（1.7.10 收尾）**：物品贴图与部分设定**有相当数量直接取自或改编自《以撒的结合》**（本作素材不主张任何权利、不用于商业用途）；`LICENSE` 的 **MIT 只覆盖原创代码与原创素材**。完整中英致谢与免责声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`，联系邮箱 **525277385@qq.com**；`mods.toml` 的游戏内描述也加了一行二创说明。
 - **日志归档（1.7.10 收尾第三批）**：工程根只保留最新一份 `build-*.log` / `devcheck-*.log` / `server-*.log`；1.7.x 的历史日志归档在 `logs/archive/1.7.x/`，更早的已清理。整理入口：`scripts/clean-logs.ps1`（默认只打印计划，加 `-Apply` 执行）。
 - **文案约定**：**所有经文引用统一加 `——` 前缀**（如 `——《诗篇》32:11`）；提示文案里的数字按配置生成，"数值进配置、纯表现常量留在代码里"。
@@ -622,7 +626,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 ## 11. 开发与验证流程
 
 1. **构建**：`gradlew clean build`（JDK 17，路径写在 `gradle.properties`），产物自动复制到 `../JAR/summy-reliquary/`；旧 jar 一律保留，部署时把实例里旧版改名 `.disabled`。
-2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。当前自检共输出 **574 行 `[DEVCHECK]`**（本轮 1.8.4 实测，与 1.8.3 持平。**浮动原因**：`clientTick==700` 那两条「光环 / 美德提示行」dump 会读 DevCheckWorld 存档里的赎罪状态，与代码无关；历史值：1.8.3 为 574、1.8.2 为 569、1.8.1 为 537、1.7.10 为 526~529、1.7.9 为 515~517、1.7.8 为 510、1.7.7 为 509、1.7.6 为 508。逐项断言行，**全部通过**），1.8.4 新增 `case 2260`（长矛戳刺曲线：两端归零 / 关键节点 / 不跳变 / 简化阈值 3.0），并改写 `checkSynergyTooltips` 为「受益方全部动态 + 亚巴顿专属句拆分 + 旧匕首声明已清」。覆盖：
+2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。当前自检共输出 **585 行 `[DEVCHECK]`**（1.8.5 实测；第一轮比 1.8.4 多 7 行、第二三轮再 +4 行 = 新增 `case 2266 / 2267 / 2268 / 2269`。**浮动原因**：① `clientTick==700` 那两条「光环 / 美德提示行」dump 会读 DevCheckWorld 存档里的赎罪状态；② 只在"属性摘要变化"时才打印的 `属性更新` 行数会随每次运行的状态序列微调 —— 两者都与代码无关（1.8.5 实测 583~587）；历史值：1.8.4 为 574、1.8.3 为 574、1.8.2 为 569、1.8.1 为 537、1.7.10 为 526~529、1.7.9 为 515~517、1.7.8 为 510、1.7.7 为 509、1.7.6 为 508。逐项断言行，**全部通过**），1.8.4 的 `case 2260`（长矛戳刺曲线）已随动画整体回退移除；1.8.5 新增 `case 2259`（完全拦截提前取消的真值表）、`case 2261`（复活的伤害池挂起清理）、`case 2263`（护盾夹取命令）、`case 2264`（暴食击杀回复上限）、`case 2266`（LivingDamage 扣池）、`case 2267`（神性光环开关）、`case 2268`（池子先于死亡拦截）与 `case 2269`（创造飞行补推），并扩展 `checkHudRows`（单排血条适配 + 像素偏移）与 `checkWrathSelfHitNeverKills`（愤怒提示文案）。覆盖：
    - 栏位校验矩阵 10×5、套装切换与提示去重/着色、魂心与吸收（含外部清零模拟、与生命护盾相加 46/36/2、卸下只收我方份额）
    - 发光（含视线）、伤害加成、启示计时与**静止 5 秒**转化、不可重复佩戴、七罪三态与碎片赎罪、赎罪配方门槛（JEI 可见性）
    - 战斗手感（无敌帧/攻速上限）、启示之光（105 点 / 几何 / 中途离开 / CD / 射程 21 / 粒子）
@@ -670,7 +674,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 4. **YSM（yes_steve_model）模型设置重置与本模组无关**——日志证据：`yes_steve_model-client.toml is not correct. Correcting`（YSM 自己重写客户端配置）。
 5. **旧配置文件需要手改**：Forge 不改写已存在的键，涉及 `beam_length`、`salvation_radius`、`salvation_extended_radius`、`wrath_kill_required`、`gluttony_meal_required`、`gluttony_saturation_threshold`、`[demon_deal] line_delay_ticks`（旧值 `20` → 想用 2 秒/行请手改 `40`）。
    **1.6.6 追加两条**：① `[combat] log_damage_pools` 在旧配置里是 `false`，要排查"池子到底扣没扣"必须手动改成 `true`（新配置文件默认就是 true）；② `[occult_eye] fear_blindness` 已改名为 `fear_darkness`，新键默认 true，旧键仍参与判定（写 false 依旧关闭）。
-6. **网络协议 12**（1.7.2 起：创世纪激活表现新增一条 S2C 空包；1.7.3 与 1.7.4 均未变）；
+6. **网络协议 14**（1.7.2 起 12 新增创世纪动画包，1.8.2 起 13 新增神性回溯 / 恶魔形态包，1.8.5 起 14 新增神圣光环开关包）；
    客户端与服务端必须同 jar，否则拒绝连接。
 7. **Kilt 组合要求**：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；需 Sodium + Indium；Kilt 与 Async / Embeddium 不兼容。
 8. **交互口径提醒**：神性死亡拦截无冷却（可能连续触发，属预期）；神性光环不击退，但**救恩领域仍会击退**（未改动）；训练人偶被我们打中会回满血（刻意设计）。
@@ -763,6 +767,8 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 **注（启示坐标的口径）**：坐标 = f(世界种子, 玩家 UUID, 主世界共享出生点) —— 因此**不同存档之间独立、同一存档内不同玩家之间也独立**（理论上仍有极小的哈希碰撞概率）。主世界基准与「首次进入世界即冻结」见上面第 35 条的 ③。
 
 36. **1.8.4（待办 3 项全部落地）**：① **长矛左键门禁（第一人称戳刺动画已回退）** —— 新增 `client/SpearAttackGate.java`（顶层 `@Mod.EventBusSubscriber`）：冷却未满时 `setCanceled(true)` + `setSwingHand(false)`（不出手 / 不挥臂 / 不重置攻击强度），**瞄准方块一律放行**（Forge 在挖方块路径上也会 post 同一事件，否则冷却中挖不动方块）。本轮曾尝试两把长矛的第一人称「放平 → 前戳 → 收回」动画（`SpearStabClient` + `SpearItem#initializeClient` 接管 `applyForgeHandTransform`），连调三版（攻击冷却驱动 → `swingProcess` 驱动 → 加 −90° 绕握持点放平）仍未达预期，**整体移除**、只保留门禁；四个坑（打空不重置冷却 / `swingProcess` 才是挥击进度 / 装备位移之后的 `mulPose` 才是绕握持点 / 放平需 −90°）已同步进 `CHANGELOG.md` 与待办。自检原 `case 2260` 随动画一并移除，另把投掷初速断言的容差 0.05 → 0.15（原版 `Projectile#shoot` 有 ±1.7% 随机扰动，旧容差会随机失败）。② **联动数值改回「按当前佩戴状态显示」** —— 1.8.2 曾把受益方数值写死在语言文件里（没戴联动件也显示强化值），本版改回占位符 + 实时取值：语言文件十处改动（圣光 `%s%%`、神斗篷 `%s 秒`、圣心 `%s 格`、炽天使之枪 `%s 格 / %s 点`、救恩 `%s 格`、咒印 `%s`、复仇之魂 `%s 格 / %s 点`、暗仪刺刀 `%s 秒 / %s 格 / %s 格`），物品类改用 `ReliquaryTooltips.number(...)` 配 `Synergies` / `VengefulSpirit.effectiveRadius` / `SalvationDomain.radiusFor`（参数由 `ServerPlayer` 放宽为 `LivingEntity`，取消服务端专用依赖）/ `DemonPact.shatterDamage` 实时取值；新增 `occult_eye.shift.3.abaddon` 与 `abyss_lord.shift.4.abaddon` 两个亚巴顿专属键；契约与深渊领主的联动行删掉已过期的「献祭匕首」（1.8.2 起献祭匕首不再走遁入暗影）。自检 `checkSynergyTooltips` 改写为「受益方全部动态 + 专属句已拆 + 旧声明已清」。③ **暗仪刺刀斩击轨迹连线** —— `ShadowDash.State` 新增起点坐标快照（按下右键那一刻的胸口高度）/ 启动维度 / 连线游标；结算期每完成一次基础斩击就 `connectLine` 到该目标胸口，`heavySlash` 补最后一段到玩家；`drawInkLine` 用 `ParticleTypes.SQUID_INK` 等距采样（步长 0.4 格、单段 2~64 点、每段只发一遍）；未标记到目标时退化为「起点 → 玩家」直线；跨维度跳过。纯表现，零网络包、零配置键。④ **献祭匕首提示文案订正** —— 中英 `sacrificial_dagger.shift.2` 由「受到 4 点伤害（不会致死）」改为「受到 4 点真实伤害（护盾可抵挡；会致死，且不触发死亡拦截）」；1.8.2 起实现本就是可致死（旧文案没跟上，属遗留不一致），`Sacrifice` 的类注释与 `tryUse` 注释（"同愤怒自伤 / 钳到生命−1 / 生命≤1 拒绝"）同步按实际实现改写，并新增一条负向自检断言防回归。协议不变；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；自检 **574 行全绿**；jar 已部署三个测试实例。
+
+37. **1.8.5（待办第一批 7 项 + 补修 5 项 + 第二轮 2 项 + 第三轮 3 项）**：① **愤怒提示订正** —— `item.summy-reliquary.sin.wrath.debuff` 中英同步改成「每次攻击 %s%% 几率自伤本次伤害的 %s%%」（`SinDescriptions` 补第二个参数 = 倍率 ×100，默认「15% / 50%」）；自检加"含 15% 与 50%、不含「等量」"断言。② **完全拦截提前到 Attack 层** —— 新增 `ReliquaryEvents.blocksDamageEntirely(...)`（9 类：神性环境免疫 / 神性死亡守卫 / 亚巴顿 8 秒 / 免死 2 秒 / 斗篷无敌期 / 魂心破碎 / 遁入暗影 / 恶魔防火 / 飞行免摔），`onLivingAttack` 命中即 `setCanceled(true)`；原版 `hurt()` 首行就是该钩子 → 整个方法直接返回，**不抖、不占无敌帧**（Hurt 层判定全部保留作双保险，"武器门槛归零"仍留在 Hurt 层）。已知缺口：死亡拦截首触走 `DamagePools.tryNullify`（`markHurt()` 之后）仍会抖一下。自检 `case 2259` 用真实事件总线断言真值表。③ **复活清挂起 + 还原改增量** —— `onPlayerClone` 在复制持久化数据前 `DamagePools.forget(event.getOriginal())`（`PENDING` 以 UUID 为键、UUID 死亡前后不变 → 残留记录会让新实体拿旧基线覆盖吸收值）；`reconcile` 普通分支改为 `max(0, after − min(T, after))`（增量退还自己那份没被吃掉的并入量，无外部写入时与旧公式逐值相同，有 ER 类增量写入时不再抹掉对方），整击拦下分支仍写回基线（消耗量无法从结算后吸收值反推）。自检 `case 2261` post `PlayerEvent.Clone(wasDeath = true)` 断言挂起清零 + 池子还原。④ **受伤节流日志措辞** 「被无敌帧挡下」→「被挡下（未落地）」+ javadoc 说明该差值包含所有落地前取消。⑤ **「属性更新」日志降噪** —— `AttributeManager.logIfChanged` 判定只留关键字段，「原版吸收」仅随行打印（不再每 2~3 秒刷一条）。⑥ **暗仪刺刀遗留描述** —— `dark_arts.shift.5` 改自述式「（无敌覆盖全程，直到斩击结算完毕）」；`ShadowDash` 注释改为"仅暗仪刺刀调用"；`[shadow_dash] sacrificial_*` 两键标注 1.8.2 起废弃。⑦ **魂心 / 黑心 HUD 适配** —— 新增 `[spirit_altar] soul_heart_hud_layout`(auto/vanilla/single_row) 与 `soul_heart_hud_offset_y`(±40px)；`soulHeartRowY` 加 `singleRow` / `offsetY` 重载并保留原四参重载，单排时红心恒按一排（275 与 20 结果一致）、盔甲避让保留，黑心复用同函数跟随；`auto` 探测 Mantle / Classic Bar（Kilt 走 `FabricLoader`、Forge 走 `ModList`，反射 + 缓存）。自检扩展 `checkHudRows`（单排一致性 / 偏移平移 / 盔甲避让 / 黑心跟随 / 经典状态条锚定 / 吸收值钳制）。⑧ **伯列恒之星坐标提示** —— 中英 `item.summy-reliquary.star_of_bethlehem.guided` 由「前往 %s（纬度）聆听你的启示」改为「前往 %s（%s）聆听你的启示」，第二个参数传**维度名**（坐标固定主世界 → 「主世界」，新增 `item.summy-reliquary.dimension.overworld`），修掉错字。⑨ **死亡拦截改为取消这一击**（补修）—— `DamagePools.prepare` 的 nullify 支不再并入整击金额：改为 `event.setCanceled(true)` + `setAmount(0)`（`ForgeHooks.onLivingHurt` 返回 0 → `actuallyHurt` 直接 return），吸收值一个点不动、不建挂起记录，并把这一击占掉的原版无敌帧清 0；守卫已就位时同一击的重复事件只取消、不重复拦截。旧做法与 ER 的增量记账互相污染，实测每次拦截 +275（275 → 550 → 825 → 1100）。⑩ **新命令 `/summyreliquary shield clamp [<玩家>]`**（OP 2 级）—— 新增 `util/ExternalShields` 软查 `enchantment_reforged:life_shield`，把被污染的吸收值夹回（没有 ER 则清零）。⑪ **暴食的击杀回复不再被 18 的上限夹住（补修）** —— 击杀回复走独立路径 `Feed.feed`，旧实现**无条件**取 `Gluttony.foodCap`（恒 18）夹结果，赎罪后（含美德 / 撒旦圣经）每杀一只怪就把 19 / 20 的饥饿值压回 18（日志实测 `19→18`、`20→18`、并长时间钉在 18）；现在只有「七罪之源 + 暴食未赎罪」才是 18，其余按 `RiceHungerLock.foodCap`（原版 20 / 大胃袋上限）。自检 `case 2264` 覆盖三档。⑫ **防火时连火焰特效一起拦掉（零 Mixin，补修）** —— 旧实现只清服务端 tick 计数，而原版是「`baseTick` 里先 `lavaHurt` 点火、再 `setSharedFlagOnFire` 同步给客户端」，客户端自己也会本地预测着火 → 「血不掉但屏幕上全是火」；现在服务端把同步位一起压回 false（`clearDemonFire` → `keepNotOnFire`，判据扩成 `isFireProof` = 恶魔线完全防火 ∪ 神性 `#is_fire` 环境免疫），客户端每 tick 也对本地玩家清一刀（`SummyReliquaryClient.ForgeBus.keepNotOnFireOnClient`）。自检补三条防火断言 + 客户端用例 `checkClientFireOverlay`；包体继续断言 `mixin = 0`。⑬ **伤害池份额改走 `LivingDamageEvent`（第二轮）** —— `prepare` 只登记、`LivingDamageEvent`（LOWEST）里按"扣完吸收后真正要打到血"的真实金额扣魂心 / 黑心并把剩余写回金额，**吸收值全程不动**（ER 那类增量记账护盾不再被"先涨后跌"牵连）；收不到该事件的环境（Kilt）自动保留旧路径，对账末尾用反射（`EnchantmentReforgedShieldCompat`）把 ER 的 `SHIELD_TRACK` 与护盾校正到一致；新增 `DamagePools.setModeForTest`。⑭ **神性「神圣光环」的玩家开关（第二轮）** —— 背包 / Curios 面板右键神性、或手持潜行右键切换（新包 `ToggleAuraMessage`，协议升 **`"14"`**）；开关存 `PlayerFlags.godhead_aura_off`、同步位 bit12，关闭只停"每秒审判"，创世纪重置回默认开启。协议 `"13"` → **`"14"`**；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；配置段仍 26、键 264 → **266**；⑮ **魂心 / 黑心先于死亡拦截（第三轮补修）** —— 先扣池子能扛的份额，`uncovered ≥ 当前生命` 才轮到神性拦截 / 亚巴顿 / 免死；守卫窗口那一支（完全免疫）不动。⑯ **创造飞行换维度后补推（第三轮补修）** —— `applyFlight` 增加"维度#游戏模式#tick/100"指纹，指纹变化或每 5 秒重推一次能力包，修掉"神性跨维度送返后飞行失效、摘下重装才恢复"。⑰ **圣心 Shift 一行一项属性（第三轮）** —— 与光环同款 `属性名|数值` 两段配色，7 条数值 + 追踪行 + 深渊行 + 联动行；旧键 `shift.2/3/4` 撤掉、追踪与深渊移到 `shift.arrow` / `shift.abyss`。自检 **585 行全绿**（实测 583~587）；jar 已部署四个测试实例（含 Ponder Time）。
 
 ---
 
@@ -943,6 +949,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | **1.7.10-forge** | **`"12"`** | **50** | **46** | **526~529 行全绿（0 条失败断言）** |
 | **1.8.0-forge** | **`"12"`** | **50** | **46** | **535 行全绿（0 条失败断言）** |
 | **1.8.1-forge** | **`"12"`** | **50** | **46** | **537 行全绿（0 条失败断言）** |
+| **1.8.5-forge** | **`"14"`（新增神性光环开关包）** | **50** | **46** | **585 行全绿（0 条失败断言）** |
 | **1.8.4-forge** | **`"13"`** | **50** | **46** | **574 行全绿（0 条失败断言）** |
 | **1.8.3-forge** | **`"13"`** | **50** | **46** | **574 行全绿（0 条失败断言）** |
 | **1.8.2-forge** | **`"13"`** | **50** | **46** | **569 行全绿（0 条失败断言）** |
@@ -1317,7 +1324,7 @@ seraph_spear : [下界之星][      ][心之碎片] / [  ][圣光短矛][      ]
 
 | 工程 | 说明 |
 | --- | --- |
-| **Summy Reliquary**（本工程） | 上述内容；版本 1.8.4-forge |
+| **Summy Reliquary**（本工程） | 上述内容；版本 1.8.5-forge |
 | **Enchantment Reforged**（`../enchantment-reforged`） | 26 个附魔、9 组配置页；与 SR 的交互点：**魂心是独立池**（1.6.2 起，不再写原版吸收值，所以与 ER 的生命护盾**互不挤占**、结算顺序为 护盾 → 魂心 → 黑心 → 红血）、ER 的「出其不意」= 同源第二次命中（SR 视为两次攻击）、ER 的「魔剑」= 同一击的追加段（SR 求和后只掷一次；1.6.3 起两档窗口改写只发生在「新的一击」，ER 追加段自己清冷却所以照常落地）、「大胃袋」会抬饥饿上限（SR 暴食未赎罪时取 `min(18, 上限)`） |
 
 ---

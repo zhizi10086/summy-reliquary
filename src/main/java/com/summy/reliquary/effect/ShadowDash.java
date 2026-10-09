@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 「遁入暗影」（1.7.5）：献祭匕首 / 暗仪刺刀的右键技能。
+ * 「遁入暗影」（1.7.5）：**暗仪刺刀**的右键技能 —— 献祭匕首自 1.8.2 起改走 {@code Sacrifice}，不再调用本类。
  *
  * <p>流程（口径见进度文档）：
  * <ol>
@@ -109,7 +109,8 @@ public final class ShadowDash {
 	/**
 	 * 按下右键触发技能。
 	 *
-	 * @param darkArts true = 暗仪刺刀（2 秒 / 2 倍），false = 献祭匕首（1 秒 / 1 倍）
+	 * @param darkArts true = 暗仪刺刀（2 秒 / 2 倍）；false = 旧的献祭匕首档（1 秒 / 1 倍），
+	 *                 自 1.8.2 起已无调用方，仅保留以便旧配置与自检继续可用
 	 * @return true 表示这次真的开始了技能
 	 */
 	public static boolean tryStart(ServerPlayer player, ItemStack weapon, boolean darkArts) {

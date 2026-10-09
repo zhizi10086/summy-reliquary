@@ -705,7 +705,14 @@ public final class SinEffects {
 		private Feed() {
 		}
 
-		/** 回复生命与饥饿值 / 饱和度（不越过暴食的饥饿上限） */
+		/**
+		 * 回复生命与饥饿值 / 饱和度（不越过当前状态的饥饿上限）。
+		 *
+		 * <p>1.8.5 补修：**只有"暴食未赎罪（佩戴七罪之源 + 已激活）"才是 18 的上限** ——
+		 * 已赎罪 / 美德 / 撒旦圣经都按当前环境上限（原版 20 或「大胃袋」抬高的值）结算。
+		 * 旧实现无条件取 {@code Gluttony.foodCap}（恒 18），于是击杀回复会把已经 19 / 20 的饥饿值
+		 * **一次击杀就压回 18**（实机与日志都能复现）。
+		 */
 		static void feed(ServerPlayer player, double heal, int foodAmount) {
 			if (heal > 0.0D) {
 				player.heal((float) heal);
@@ -714,7 +721,9 @@ public final class SinEffects {
 				return;
 			}
 			FoodData food = player.getFoodData();
-			int cap = Math.min(Gluttony.foodCap(player), RiceHungerLock.foodCap(player));
+			int cap = active(player, Sin.GLUTTONY)
+					? Gluttony.foodCap(player)
+					: RiceHungerLock.foodCap(player);
 			food.setFoodLevel(Math.min(cap, food.getFoodLevel() + foodAmount));
 			food.setSaturation(Math.min(cap, food.getSaturationLevel() + foodAmount));
 		}

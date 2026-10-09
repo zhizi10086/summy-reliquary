@@ -76,6 +76,27 @@ public final class AttributeManager {
 	private static final Map<UUID, String> LAST_SUMMARY = new HashMap<>();
 	/** 由我们授予过飞行的玩家（卸下终末天启时要收回） */
 	private static final Set<UUID> GRANTED_FLIGHT = new HashSet<>();
+	/**
+	 * 创造飞行能力的「最近一次推送指纹」（1.8.5 第二轮补修）。
+	 *
+	 * <p>值 = {@code 维度#游戏模式#(游戏 tick / }{@link #FLIGHT_RESYNC_TICKS_PER_STAMP}{@code )}。
+	 * 指纹变了就重推一次能力包。
+	 *
+	 * <p>为什么需要它（实机根因）：客户端在**换维度 / 重生**时会重建 LocalPlayer，飞行能力被重置成默认值；
+	 * 而服务端这边的 {@code abilities.mayfly} 一直是 true —— 旧实现只在"服务端值变化"时才补包，
+	 * 于是客户端永远拿不回飞行。实测：神性死亡拦截把玩家从**下界送回主世界**后创造飞行失效，
+	 * 摘下神性再戴上（强制一次值变化）才恢复。
+	 */
+	private static final Map<UUID, String> FLIGHT_STAMP = new HashMap<>();
+	/**
+	 * 飞行能力的「维度 / 游戏模式」上下文（1.8.5 第三轮）：只在它**变化**时打一条 INFO，
+	 * 用来在实机日志里直接确认"换维度后补推"生效（5 秒心跳那种周期性重推不打印，避免刷屏）。
+	 */
+	private static final Map<UUID, String> FLIGHT_CONTEXT = new HashMap<>();
+	/** 指纹里的时间分量：每这么多 tick 变一次 = 5 秒一道心跳，兜住其它会重置客户端能力的场景 */
+	private static final long FLIGHT_RESYNC_TICKS_PER_STAMP = 100L;
+	/** 自检用：累计推给客户端的飞行能力包数量 */
+	private static int flightSyncCount;
 
 	private AttributeManager() {
 	}
@@ -292,12 +313,30 @@ public final class AttributeManager {
 		if (worn) {
 			// 真正的创造 / 旁观、或佩戴神性时保持原版飞行速度（0.05）；半速只作用于"我们授予的飞行"
 			float target = (nativeFlight || noSlowdown) ? defaultSpeed : desired;
-			boolean changed = !abilities.mayfly || Math.abs(abilities.getFlyingSpeed() - target) > 1.0E-4F;
+			// 1.8.5 第二轮补修：除了"服务端值变化"，维度 / 游戏模式变化（客户端会重建 LocalPlayer，
+			// 能力被重置）与 5 秒心跳也各算一次"需要重推"，否则客户端会永远卡在 mayfly=false。
+			// 安全性：能力包里的 flying 取自服务端，而服务端在收到 ServerboundPlayerAbilitiesPacket 时
+			// 就已经同步过客户端的 flying（`flying = 包里的 flying && mayfly`），所以补包不会把人从飞行中踢下来。
+			String stamp = flightStamp(player);
+			boolean stampChanged = !stamp.equals(FLIGHT_STAMP.get(id));
+			FLIGHT_STAMP.put(id, stamp);
+			// 维度 / 游戏模式变化 → 打一条 INFO（客户端这时会重建 LocalPlayer、能力被重置，
+			// 正是最需要补推的时刻；首次授予不留旧上下文，所以不会误报）
+			String context = flightContext(player);
+			String previousContext = FLIGHT_CONTEXT.put(id, context);
+			if (previousContext != null && !previousContext.equals(context)) {
+				SummyReliquary.LOGGER.info(
+						"[Summy Reliquary] 创造飞行补推：{} → {}（维度 / 游戏模式变化），已重推能力包",
+						previousContext, context);
+			}
+			boolean changed = stampChanged || !abilities.mayfly
+					|| Math.abs(abilities.getFlyingSpeed() - target) > 1.0E-4F;
 			abilities.mayfly = true;
 			abilities.setFlyingSpeed(target);
 			GRANTED_FLIGHT.add(id);
 			if (changed) {
 				player.onUpdateAbilities();
+				flightSyncCount++;
 			}
 			return;
 		}
@@ -308,6 +347,35 @@ public final class AttributeManager {
 			}
 			abilities.setFlyingSpeed(defaultSpeed);
 			player.onUpdateAbilities();
+			flightSyncCount++;
+			FLIGHT_STAMP.remove(id);
+		}
+	}
+
+	/** 飞行能力的「维度 / 游戏模式」上下文（诊断日志与指纹共用） */
+	private static String flightContext(LivingEntity entity) {
+		String dimension = entity.level().dimension().location().toString();
+		String mode = entity instanceof ServerPlayer player ? player.gameMode.getGameModeForPlayer().name() : "-";
+		return dimension + "#" + mode;
+	}
+
+	/** 飞行能力的「推送指纹」：上下文 + 每 5 秒变一次的时间片 */
+	private static String flightStamp(LivingEntity entity) {
+		return flightContext(entity) + "#" + (entity.level().getGameTime() / FLIGHT_RESYNC_TICKS_PER_STAMP);
+	}
+
+	/** 自检用：累计推送过多少次飞行能力包 */
+	public static int flightSyncCountForTest() {
+		return flightSyncCount;
+	}
+
+	/**
+	 * 自检用：把"最近一次推送指纹"清掉 —— 等价于"客户端重建了 LocalPlayer、我们的记号却还在"，
+	 * 下一次 {@code apply} 必须重推一次能力包。
+	 */
+	public static void markFlightStampStaleForTest(LivingEntity entity) {
+		if (entity != null) {
+			FLIGHT_STAMP.remove(entity.getUUID());
 		}
 	}
 
@@ -315,6 +383,8 @@ public final class AttributeManager {
 	public static void forget(LivingEntity entity) {
 		LAST_SUMMARY.remove(entity.getUUID());
 		GRANTED_FLIGHT.remove(entity.getUUID());
+		FLIGHT_STAMP.remove(entity.getUUID());
+		FLIGHT_CONTEXT.remove(entity.getUUID());
 	}
 
 	/**
@@ -338,21 +408,24 @@ public final class AttributeManager {
 		}
 		double healthBonus = bodyHealth
 				+ (haloWorn ? ReliquaryConfig.haloMaxHealth() * factor : 0.0D);
+		// 1.8.5：变化判定只用**关键字段**，不再包含「原版吸收」——
+		// 那个值会被 Enchantment Reforged 那类护盾 / 恢复机制每 tick 微调（7.0 → 7.5 → 8.0 …），
+		// 带上它会让这条日志每 2~3 秒刷一条。吸收值仍然会打印，只是不再参与"值变了没有"的判断。
 		String summary = String.format(
 				"生命加成 +%.0f（上限 %.0f）、光环=%s（倍率 ×%.2f）、魂心=%.1f、魂心池=%.1f（上限 %.1f）、"
-						+ "%s、原版吸收=%.1f、套装=%s",
+						+ "%s、套装=%s",
 				healthBonus, player.getMaxHealth(),
 				haloWorn ? "已佩戴" : "未佩戴", factor, soulHearts,
 				SoulShield.points(player), SoulShield.capacityFor(player),
 				blackHeartSummary(player),
-				player.getAbsorptionAmount(),
 				SpiritAltarSet.isFullSet(player) ? "激活" : "未激活");
 		String previous = LAST_SUMMARY.put(player.getUUID(), summary);
 		if (summary.equals(previous)) {
 			return;
 		}
-		SummyReliquary.LOGGER.info("[Summy Reliquary] {} 属性更新：{}",
-				player.getGameProfile().getName(), summary);
+		SummyReliquary.LOGGER.info("[Summy Reliquary] {} 属性更新：{}、原版吸收={}",
+				player.getGameProfile().getName(), summary,
+				String.format(java.util.Locale.ROOT, "%.1f", player.getAbsorptionAmount()));
 	}
 
 	/**

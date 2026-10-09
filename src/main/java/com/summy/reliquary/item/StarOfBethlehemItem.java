@@ -69,9 +69,13 @@ public class StarOfBethlehemItem extends Item implements ICurioItem {
 			tooltip.add(Component.translatable("item.summy-reliquary.star_of_bethlehem.ascended")
 					.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x55FFFF))));
 		} else if (ReliquaryClientState.isRevealed()) {
+			// 1.8.5：坐标后面的括注改为显示**维度名**（原先把「维度」误写成了「纬度」）。
+			// 启示坐标固定派生自主世界，所以这里恒为「主世界」；日后若坐标改为跟随维度，
+			// 只需把第二个参数换成对应维度的语言键即可。
 			tooltip.add(Component.translatable("item.summy-reliquary.star_of_bethlehem.guided",
 					RevelationTracker.coordinateText(
-							ReliquaryClientState.revealX(), ReliquaryClientState.revealZ()))
+							ReliquaryClientState.revealX(), ReliquaryClientState.revealZ()),
+					Component.translatable("item.summy-reliquary.dimension.overworld"))
 					.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x55FFFF))));
 		} else {
 			tooltip.add(Component.translatable("item.summy-reliquary.star_of_bethlehem.countdown",

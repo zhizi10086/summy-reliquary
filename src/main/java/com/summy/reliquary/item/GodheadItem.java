@@ -40,6 +40,24 @@ public class GodheadItem extends Item implements ICurioItem {
 		return CurioItemSupport.canEquipInto(slotContext, stack, ReliquarySlots.REVELATION, true);
 	}
 
+	/**
+	 * 手持神性 + **潜行右键** → 切换「神圣光环」开关（1.8.5）。
+	 *
+	 * <p>背包 / Curios 面板里右键那条走 {@code client/ReliquaryClientInteractions}；这里只处理"拿在手上"的情况。
+	 * 实际切换放在服务端（客户端只负责回一个成功以播放挥臂动作）。
+	 */
+	@Override
+	public net.minecraft.world.InteractionResultHolder<ItemStack> use(net.minecraft.world.level.Level level,
+			net.minecraft.world.entity.player.Player player, net.minecraft.world.InteractionHand hand) {
+		if (player.isShiftKeyDown()) {
+			if (!level.isClientSide() && player instanceof net.minecraft.server.level.ServerPlayer server) {
+				com.summy.reliquary.effect.Godhead.toggleAura(server);
+			}
+			return net.minecraft.world.InteractionResultHolder.success(player.getItemInHand(hand));
+		}
+		return super.use(level, player, hand);
+	}
+
 	@Override
 	public List<Component> getSlotsTooltip(List<Component> tooltips, ItemStack stack) {
 		return CurioItemSupport.keepLines(tooltips);
@@ -77,13 +95,22 @@ public class GodheadItem extends Item implements ICurioItem {
 		}
 	}
 
-	/** Shift 八行功能：按「标题|说明」两段配色（天使线） */
+	/**
+	 * Shift 功能行：按「标题|说明」两段配色（天使线）。
+	 *
+	 * <p>1.8.5：第 2 行（神圣光环）在**被玩家关掉**时换成 {@code shift.2.off} 的文案（结尾多一个「（已关闭）」）；
+	 * 另加第 9 行「开关|背包里对着它右键，或手持时潜行右键」作为操作说明（既有键名与编号一律未动）。
+	 */
 	public static java.util.List<Component> functionLines() {
 		java.util.List<Component> lines = new java.util.ArrayList<>();
-		for (int index = 1; index <= 8; index++) {
+		for (int index = 1; index <= 9; index++) {
+			String key = "item.summy-reliquary.godhead.shift." + index;
+			if (index == 2 && com.summy.reliquary.client.ReliquaryClientState.isGodheadAuraOff()) {
+				key = "item.summy-reliquary.godhead.shift.2.off";
+			}
 			lines.add(ReliquaryTooltips.statComponent(
 					com.summy.reliquary.text.ReliquaryFaction.ANGEL,
-					"item.summy-reliquary.godhead.shift." + index));
+					key));
 		}
 		return lines;
 	}

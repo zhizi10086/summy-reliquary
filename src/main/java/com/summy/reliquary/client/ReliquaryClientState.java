@@ -62,6 +62,8 @@ public final class ReliquaryClientState {
 	public static final int FLAG_DAGGER_RECOVERY = 1024;
 	/** 1.7.9：圣光短矛的「防丢失配方」是否已开放（bit11；决定 JEI 可见性） */
 	public static final int FLAG_SPEAR_RECOVERY = 2048;
+	/** 1.8.5：神性「神圣光环」是否被玩家关掉（bit12；提示里的状态后缀要用） */
+	public static final int FLAG_GODHEAD_AURA_OFF = 4096;
 
 	private ReliquaryClientState() {
 	}
@@ -132,6 +134,11 @@ public final class ReliquaryClientState {
 	/** 圣光短矛的「防丢失配方」是否已开放（1.7.9；决定 JEI 可见性） */
 	public static boolean isSpearRecoveryOpen() {
 		return (flags & FLAG_SPEAR_RECOVERY) != 0;
+	}
+
+	/** 神性「神圣光环」是否被玩家关掉（1.8.5；提示第 2 行据此切换成「（已关闭）」的文案） */
+	public static boolean isGodheadAuraOff() {
+		return (flags & FLAG_GODHEAD_AURA_OFF) != 0;
 	}
 
 	/** 是否已经「放弃一切」（无法再佩戴七罪之源） */

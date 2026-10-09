@@ -188,7 +188,10 @@ public final class CombatTuning {
 
 	/**
 	 * 每 5 秒汇总一条 INFO（`[combat] log_iframe_throttle`）：
-	 * 打印"尝试 / 落地 / 被无敌帧挡下"的次数与来源，方便确认"帧伤"到底是谁在打。
+	 * 打印"尝试 / 落地 / 被挡下（未落地）"的次数与来源，方便确认"帧伤"到底是谁在打。
+	 *
+	 * <p>注意措辞（1.8.5 订正）：这里的"被挡下"是「尝试 − 落地」的差值，**包含所有**在落地前被取消的情况 ——
+	 * 原版无敌帧、神性环境免疫、神圣斗篷、魂心破碎、免死、以及其它模组的取消，不只是"无敌帧"。
 	 */
 	public static void flushLog(ServerPlayer player) {
 		Map<String, int[]> perSource = STATS.remove(player.getUUID());
@@ -214,7 +217,7 @@ public final class CombatTuning {
 			return;
 		}
 		com.summy.reliquary.SummyReliquary.LOGGER.info(
-				"[Summy Reliquary] 受伤节流（最近 5 秒）：尝试 {} 次、落地 {} 次、被无敌帧挡下 {} 次{}",
+				"[Summy Reliquary] 受伤节流（最近 5 秒）：尝试 {} 次、落地 {} 次、被挡下（未落地）{} 次{}",
 				attempts, landed, Math.max(0, attempts - landed),
 				detail.length() == 0 ? "" : "（挡住来源：" + detail + "）");
 	}

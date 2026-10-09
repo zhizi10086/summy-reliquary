@@ -67,23 +67,49 @@ public class SacredHeartItem extends Item implements ICurioItem {
 		}
 	}
 
-	/** Shift 五行：末两行是「·追踪能力」与「你不再恐惧深渊」，最后一行为联动声明（1.8.2） */
+	/**
+	 * Shift 功能行（**一行一项属性**，与「光环」同款格式：{@code 属性名|+数值} 两段配色）：
+	 * 7 条数值取 {@code [sacred_heart]} 配置的实测值，随后是金色引言行「祂与你同在：」、
+	 * 两条效果行（「·追踪能力」/「你不再恐惧深渊」）与联动声明（1.8.2）。
+	 *
+	 * <p>1.8.5：原先只有一行「大量属性提升」，看不到任何数字；现在逐项列出生命 / 护甲 / 护甲韧性 /
+	 * 攻击速度 / 移动速度 / 挖掘速度 / 造成伤害。**乘区口径不写进提示**（"与神性相加"这类跨条目标注
+	 * 属于冗余，机制说明留在配置注释与文档里）；数值之后保留旧版的金色引言行「祂与你同在：」，
+	 * 用来引出下面两条效果行。
+	 * 追踪半径仍按"当前是否同时佩戴神性"实时显示（基础 8 格 / 联动 12 格）。
+	 */
 	public static java.util.List<Component> shiftLines() {
-		// 1.8.4：追踪半径按"当前是否同时佩戴神性"实时显示（基础 8 格 / 联动 12 格）
 		String radius = ReliquaryTooltips.number(com.summy.reliquary.effect.Synergies
 				.sacredHeartArrowRadius(ReliquaryTooltips.localPlayer()));
-		return java.util.List.of(
-				Component.translatable("item.summy-reliquary.sacred_heart.shift.1")
-						.withStyle(ChatFormatting.GRAY),
-				Component.translatable("item.summy-reliquary.sacred_heart.shift.2")
-						.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(PALE_GOLD))),
-				Component.translatable("item.summy-reliquary.sacred_heart.shift.3", radius)
-						.withStyle(ChatFormatting.GRAY),
-				Component.translatable("item.summy-reliquary.sacred_heart.shift.4")
-						.withStyle(ChatFormatting.GRAY),
-				ReliquaryTooltips.statComponent(
-						com.summy.reliquary.text.ReliquaryFaction.ANGEL,
-						"item.summy-reliquary.sacred_heart.linkage"));
+		java.util.List<Component> lines = new java.util.ArrayList<>();
+		lines.add(stat("item.summy-reliquary.sacred_heart.shift.1",
+				ReliquaryTooltips.number(com.summy.reliquary.config.ReliquaryConfig.sacredHeartMaxHealth())));
+		lines.add(stat("item.summy-reliquary.sacred_heart.shift.2",
+				ReliquaryTooltips.number(com.summy.reliquary.config.ReliquaryConfig.sacredHeartArmor())));
+		lines.add(stat("item.summy-reliquary.sacred_heart.shift.3",
+				ReliquaryTooltips.number(com.summy.reliquary.config.ReliquaryConfig.sacredHeartToughness())));
+		lines.add(stat("item.summy-reliquary.sacred_heart.shift.4",
+				ReliquaryTooltips.number(com.summy.reliquary.config.ReliquaryConfig.sacredHeartAttackSpeed())));
+		lines.add(stat("item.summy-reliquary.sacred_heart.shift.5",
+				com.summy.reliquary.config.ReliquaryConfig.sacredHeartMovementPercent()));
+		lines.add(stat("item.summy-reliquary.sacred_heart.shift.6",
+				com.summy.reliquary.config.ReliquaryConfig.sacredHeartBreakSpeedPercent()));
+		lines.add(stat("item.summy-reliquary.sacred_heart.shift.7",
+				com.summy.reliquary.config.ReliquaryConfig.sacredHeartDamagePercent()));
+		// 金色引言行（旧版第 2 行）：位置固定在七条属性之后、两条效果行之前
+		lines.add(Component.translatable("item.summy-reliquary.sacred_heart.shift.presence")
+				.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(PALE_GOLD))));
+		lines.add(Component.translatable("item.summy-reliquary.sacred_heart.shift.arrow", radius)
+				.withStyle(ChatFormatting.GRAY));
+		lines.add(Component.translatable("item.summy-reliquary.sacred_heart.shift.abyss")
+				.withStyle(ChatFormatting.GRAY));
+		lines.add(stat("item.summy-reliquary.sacred_heart.linkage"));
+		return lines;
+	}
+
+	/** 一条「属性名|+数值」行（天使配色，与光环同款） */
+	private static Component stat(String key, Object... args) {
+		return ReliquaryTooltips.statComponent(com.summy.reliquary.text.ReliquaryFaction.ANGEL, key, args);
 	}
 
 	/** 1.6.3：物品名按派系上色（天使线 = 白→金对称渐变） */

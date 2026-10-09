@@ -119,6 +119,8 @@ public final class ReliquaryEvents {
 		SoulShield.clear();
 		com.summy.reliquary.effect.CombatTuning.clear();
 		com.summy.reliquary.effect.DamagePools.clear();
+		// 1.8.5 第二轮：换服务器 / 换加载器后必须重新探测 LivingDamageEvent 是否可用
+		com.summy.reliquary.effect.DamagePools.resetCapabilityProbe();
 		com.summy.reliquary.effect.Abaddon.clear();
 		com.summy.reliquary.effect.Godhead.clearGuards();
 		com.summy.reliquary.effect.Sacrifice.clear();
@@ -153,8 +155,8 @@ public final class ReliquaryEvents {
 		}
 		// 复仇之魂（1.6.3）：范围圈每 tick 一批火焰粒子（逆时针、与救恩反相）；伤害仍是每秒结算
 		com.summy.reliquary.effect.VengefulSpirit.tickRing(player);
-		// 恶魔线补强（1.6.7）：当前持恶魔标记时保持"不着火"（服务端清火会同步，客户端火焰 HUD 覆盖层随之不显示）
-		clearDemonFire(player);
+		// 防火（1.6.7 恶魔线 / 1.8.5 扩到神性）：保持"不着火"，连同步位一起压掉
+		keepNotOnFire(player);
 		// 亚巴顿（1.6.8）：恶魔光环每 tick 结算 + 球内黑烟；顺带清理过期的无敌记录
 		com.summy.reliquary.effect.Abaddon.tickPlayer(player);
 		// 神性（1.8.2）：清理过期的"死亡拦截后 2 秒无敌"记录
@@ -214,13 +216,58 @@ public final class ReliquaryEvents {
 		}
 	}
 
-	/** 受伤（原版已扣完吸收）时记录扣完后的吸收总量，供黄血份额结算使用 */
-	/** 受伤尝试（在原版无敌帧判定之前）：只用于受伤节流的汇总日志 */
+	/**
+	 * 受伤尝试（在原版 {@code invulnerableTime = 20} 与 {@code markHurt()} **之前**）：
+	 * 既用于受伤节流的汇总日志，也承担"完全拦截"的**提前取消**（1.8.5）。
+	 *
+	 * <p>为什么必须提前到这一层：原版 {@code LivingEntity#hurt} 在触发 {@code LivingHurtEvent} 之前
+	 * 就已经写好了 {@code invulnerableTime = 20} 并调用 {@code markHurt()}。只在 Hurt 层取消的话，
+	 * 伤害虽然不落地，但 ① 客户端仍会因为速度同步**抖一下**；② 这一击**白吃一次原版无敌帧**，
+	 * 会把紧接其后的真伤害一起挡掉（"戴神性站火里被打反而不掉血"这种假象）。
+	 * 在 Attack 层取消则整个 {@code hurt()} 直接返回，两者都不会发生。
+	 *
+	 * <p>注意 {@link #blocksDamageEntirely} 覆盖不到「死亡拦截的首次触发」—— 那一次走的是
+	 * {@code DamagePools.prepare} → {@code tryNullify}，位于 {@code markHurt()} 之后，
+	 * 所以那一下仍会抖一次并占用一次无敌帧（已知缺口，见待办文档 1.2）。
+	 */
 	@SubscribeEvent
 	public static void onLivingAttack(net.minecraftforge.event.entity.living.LivingAttackEvent event) {
-		if (!event.getEntity().level().isClientSide()) {
-			com.summy.reliquary.effect.CombatTuning.recordAttempt(event);
+		if (event.getEntity().level().isClientSide()) {
+			return;
 		}
+		com.summy.reliquary.effect.CombatTuning.recordAttempt(event);
+		if (event.getEntity() instanceof ServerPlayer player
+				&& blocksDamageEntirely(player, event.getSource())) {
+			event.setCanceled(true);
+		}
+	}
+
+	/**
+	 * 这次伤害是否会被本模组**完全拦下**（不落地、也不该产生任何受伤反馈）。
+	 *
+	 * <p>只收"玩家处在无敌 / 免疫状态"这类判定。**不含**「武器门槛归零」——那种语义是"这次攻击无效"，
+	 * 提前取消会连击退与音效一起吞掉，必须留在 {@code LivingHurtEvent} 里。
+	 *
+	 * <p>设为 public 是为了让自检直接断言真值表。
+	 */
+	public static boolean blocksDamageEntirely(ServerPlayer player,
+			net.minecraft.world.damagesource.DamageSource source) {
+		if (player == null || source == null) {
+			return false;
+		}
+		return com.summy.reliquary.effect.Godhead.isEnvironmentImmune(player, source)
+				|| com.summy.reliquary.effect.Godhead.isGuarded(player)
+				|| com.summy.reliquary.effect.Abaddon.isGuarded(player)
+				|| com.summy.reliquary.effect.DeathImmunity.isGuarded(player)
+				|| com.summy.reliquary.effect.HolyMantle.isGuarded(player)
+				|| com.summy.reliquary.effect.SoulShield.isGuarded(player)
+				|| com.summy.reliquary.effect.ShadowDash.isInvulnerable(player)
+				// 恶魔线完全防火（1.6.7）：按住 #is_fire 标签全集拦截，同属"完全拦截"
+				|| (isDemonFireImmune(player)
+						&& source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE))
+				// 本模组授予飞行时免摔（1.6.8）：同理
+				|| (com.summy.reliquary.effect.AttributeManager.hasGrantedFlight(player)
+						&& source.is(net.minecraft.tags.DamageTypeTags.IS_FALL));
 	}
 
 	/** 生物死亡：七罪的击杀计数与暴食的击杀回复；玩家自己死亡时结算贪婪的死亡惩罚 */
@@ -546,6 +593,12 @@ public final class ReliquaryEvents {
 	/** 死亡/切换维度后把本模组的存档数据带到新实体上 */
 	@SubscribeEvent
 	public static void onPlayerClone(PlayerEvent.Clone event) {
+		// 1.8.5：先把旧实体的伤害池挂起记录对账并清掉。这张表以 **UUID** 为键，而 UUID 死亡前后不变 ——
+		// 留着它会让新实体拿"旧实体命中前的吸收基线"去还原，表现为复活后魂心 / 护盾数值异常叠加。
+		// 必须放在复制持久化数据**之前**：对账会把多扣的池子点数退回旧实体的 NBT，那正是要带给新实体的。
+		if (event.getOriginal() instanceof ServerPlayer oldPlayer) {
+			com.summy.reliquary.effect.DamagePools.forget(oldPlayer);
+		}
 		CompoundTag oldData = event.getOriginal().getPersistentData();
 		if (oldData.contains(SinManager.ROOT, CompoundTag.TAG_COMPOUND)) {
 			event.getEntity().getPersistentData().put(SinManager.ROOT,
@@ -720,24 +773,48 @@ public final class ReliquaryEvents {
 	 * 恶魔线火焰免疫的判定（1.6.7）：开关开、且**当前**持恶魔标记。
 	 *
 	 * <p>忏悔换回天使标记后自动失效（= "仅当前恶魔线"，与"签过约就永久"区分开）。
+	 *
+	 * <p>1.8.5：参数放宽到 {@code LivingEntity} —— 客户端（本地玩家）也要用这条判据清火焰特效；
+	 * {@code PlayerFlags.isDemon} 在客户端读的是同步过来的标记，两端语义一致。
 	 */
 	public static boolean isDemonFireImmune(net.minecraft.world.entity.LivingEntity entity) {
-		if (!(entity instanceof ServerPlayer player)) {
+		if (entity == null) {
 			return false;
 		}
 		return com.summy.reliquary.config.ReliquaryConfig.enableDemonFireImmunity()
-				&& com.summy.reliquary.effect.PlayerFlags.isDemon(player);
+				&& com.summy.reliquary.effect.PlayerFlags.isDemon(entity);
 	}
 
 	/**
-	 * 恶魔线：保持"不着火"。
+	 * 该玩家此刻是否「完全防火」（1.8.5）：恶魔线完全防火（当前持恶魔标记）**或**佩戴神性带来的
+	 * {@code #is_fire} 环境免疫。两端通用（客户端只看同步标记 + 本地 Curios 数据）。
 	 *
-	 * <p>服务端清火会同步给客户端，所以屏幕上的火焰覆盖层（HUD）也随之完全不出现。
+	 * <p>口径说明：只收这两种"防火"；其它无敌窗口（神圣斗篷 / 魂心破碎 / 免死 / 亚巴顿 / 遁入暗影）
+	 * **不算防火**，因此不会去压掉它们身上的火焰视觉。
 	 */
-	public static void clearDemonFire(ServerPlayer player) {
-		if (isDemonFireImmune(player) && player.isOnFire()) {
+	public static boolean isFireProof(net.minecraft.world.entity.LivingEntity entity) {
+		return entity != null && (isDemonFireImmune(entity)
+				|| com.summy.reliquary.effect.Godhead.active(entity));
+	}
+
+	/**
+	 * 防火时保持"不着火"（1.6.7 起是恶魔线专用，1.8.5 扩到 {@link #isFireProof} 的两种防火）。
+	 *
+	 * <p><b>为什么不能只调 {@code clearFire()}</b>：原版 {@code Entity#baseTick} 里是
+	 * 「先 {@code lavaHurt()}/{@code setSecondsOnFire} 点火 → 再 {@code setSharedFlagOnFire(ticks > 0)}
+	 * 把"着火"同步给客户端」，而 {@code clearFire()} 只清 {@code remainingFireTicks}、**不动那个同步位**；
+	 * 客户端自己的 {@code isOnFire()} 又会因为本地预测的剩余 tick 而为真 —— 两边叠加的结果就是
+	 * "血不掉但屏幕上全是火"。所以这里把**同步位一起压回 false**（客户端侧另有一刀，见
+	 * {@code SummyReliquaryClient.ForgeBus#keepNotOnFireOnClient}）。
+	 */
+	public static void keepNotOnFire(ServerPlayer player) {
+		if (!isFireProof(player)) {
+			return;
+		}
+		if (player.isOnFire()) {
 			player.clearFire();
 		}
+		player.setSharedFlagOnFire(false);
 	}
 
 	/** 挖掘速度：Forge 1.20.1 没有"挖掘速度"属性，用 BreakSpeed 事件实现 */
@@ -763,6 +840,9 @@ public final class ReliquaryEvents {
 	 * <p>这样原版自己就会按「吸收 / 护盾 → 生命」的顺序结算；多并入的部分由 {@code DamagePools.reconcile}
 	 * （下一次命中前 / 玩家 tick 末尾）退还并还原吸收值。必须排在 LOWEST 的最后，所以写在
 	 * {@code onLivingHurtRecordHolyLight} 之后。
+	 *
+	 * <p>1.8.5 第二轮起：能收到 {@code LivingDamageEvent} 的环境（Forge / Connector）会改走
+	 * {@link #onLivingDamagePools} 的「后置扣池」——本方法那时只登记、不并入吸收值。
 	 */
 	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
 	public static void onLivingHurtPreparePools(LivingHurtEvent event) {
@@ -770,6 +850,22 @@ public final class ReliquaryEvents {
 			return;
 		}
 		com.summy.reliquary.effect.DamagePools.prepare(event);
+	}
+
+	/**
+	 * 伤害池（1.8.5 第二轮）：在 {@code LivingDamageEvent}（LOWEST）里按**真实**"将打到血"的金额扣池。
+	 *
+	 * <p>原版 {@code LivingEntity#actuallyHurt} 的顺序是 护甲 → 抗性 / 保护 → **扣吸收值** →
+	 * {@code LivingDamageEvent}（金额＝扣完吸收后剩下的那份，返回值直接用于扣血）。在这里把金额改小、
+	 * 同时扣池，玩家少掉的血正好等于池子承担的量，而**吸收值一个点都不动** ——
+	 * 读吸收值做增量记账的模组（Enchantment Reforged 的生命护盾）不再被"先并入、再退还"牵连。
+	 *
+	 * <p>同一个处理器顺带做**能力探测**：能收到这个事件就说明当前环境没有跳过它（Kilt 会跳过，
+	 * 于是自动回退旧路径）。
+	 */
+	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+	public static void onLivingDamagePools(net.minecraftforge.event.entity.living.LivingDamageEvent event) {
+		com.summy.reliquary.effect.DamagePools.applyToHealthDamage(event);
 	}
 
 	/** 挖掘速度：Forge 1.20.1 没有"挖掘速度"属性，用 BreakSpeed 事件实现 */
