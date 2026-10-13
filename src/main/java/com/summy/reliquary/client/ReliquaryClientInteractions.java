@@ -13,7 +13,8 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * 客户端「玩家动作」交互（1.8.5）。
  *
- * <p>目前只有一条：**在背包 / Curios 面板里对着「神性」右键** → 切换它的「神圣光环」开关。
+ * <p>目前有两条：**在背包 / Curios 面板里对着「神性」右键** → 切换它的「神圣光环」开关；
+ * **对着「邦邦咔邦光环」右键** → 切换邦邦女仆状态（1.8.6 起该开关从 R 键搬到这里）。
  *
  * <p>实现说明（1.20.1 实测口径，零 Mixin）：
  * <ul>
@@ -51,17 +52,27 @@ public final class ReliquaryClientInteractions {
 		}
 		// 吃掉这次右键：不取半栈、不触发其它模组的容器点击逻辑
 		event.setCanceled(true);
-		ReliquaryNetworking.sendToggleAura();
+		if (isGodheadSlot(screen.getSlotUnderMouse())) {
+			ReliquaryNetworking.sendToggleAura();
+		} else {
+			// 邦邦咔邦光环：复用既有的「切换邦邦女仆状态」包（服务端仍是 MaidModeManager.toggle）
+			ReliquaryNetworking.sendToggleMaid();
+		}
 	}
 
-	/** 这次右键要不要被我们接管：既是神性，又位于玩家自己的背包 / Curios 栏目里 */
+	/** 这次右键要不要被我们接管：是神性或邦邦咔邦光环，且位于玩家自己的背包 / Curios 栏目里 */
 	public static boolean takesOver(Slot slot) {
-		return isGodheadSlot(slot) && isPlayerOwnedSlot(slot);
+		return (isGodheadSlot(slot) || isBangBangHaloSlot(slot)) && isPlayerOwnedSlot(slot);
 	}
 
 	/** 该栏位是不是装着「神性」（抽成纯函数，自检直接断言） */
 	public static boolean isGodheadSlot(Slot slot) {
 		return slot != null && slot.getItem().is(SummyReliquary.GODHEAD.get());
+	}
+
+	/** 1.8.6：该栏位是不是装着「邦邦咔邦光环」（抽成纯函数，自检直接断言） */
+	public static boolean isBangBangHaloSlot(Slot slot) {
+		return slot != null && slot.getItem().is(SummyReliquary.BANG_BANG_HALO.get());
 	}
 
 	/**

@@ -1,4 +1,4 @@
-# Summy Reliquary 事件文本与触发关系总台账（1.8.5-forge）
+﻿# Summy Reliquary 事件文本与触发关系总台账（1.8.6-forge）
 
 > 更新时间：2026-10-08（1.8.5）　｜　对应版本：**1.8.5-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > 用途：把所有"会显示给玩家的话"按**触发条件**整理成一张表，方便改文案、查文案、加功能时对照。

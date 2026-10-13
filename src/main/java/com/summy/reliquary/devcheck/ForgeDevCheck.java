@@ -433,6 +433,8 @@ public final class ForgeDevCheck {
 				case 2268 -> checkPoolBeforeDeathGuard(player);
 				// 1.8.5 第二轮补修：创造飞行的能力包在换维度 / 重生后要补推
 				case 2269 -> checkFlightResync(player);
+				// 1.8.6：整击拦下的消耗顺序统一为「免死 → 神性 → 亚巴顿」
+				case 2270 -> checkGuardOrder(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -4009,11 +4011,90 @@ public final class ForgeDevCheck {
 		boolean sphereOk = picked == axial;
 		log(String.format("圣心追踪·球体半径（%.1f 格）：斜角目标距离 %.2f 格（旧方盒内、球外）、轴向目标 %.2f 格，"
 				+ "选中轴向目标=%s（应 true）", radius, Math.sqrt(2.0D) * radius * 0.8D, radius - 0.01D, sphereOk));
+
+		// 1.8.6 ④：停滞即直航 —— 纯函数：连续 10 tick 未变近 → 追猎态（强度 1.0）；一旦变近立刻回 0.5
+		// 第 1 次调用只建立"历史最近距离"基准，之后 10 次"没有变近"才凑满停滞计数
+		com.summy.reliquary.effect.SacredHeart.StallState stall =
+				com.summy.reliquary.effect.SacredHeart.advanceStall(null, 5.0D);
+		for (int index = 0; index < 10; index++) {
+			stall = com.summy.reliquary.effect.SacredHeart.advanceStall(stall, 5.0D);
+		}
+		boolean hunting = stall != null && stall.hunting()
+				&& com.summy.reliquary.effect.SacredHeart.strengthFor(stall) == 1.0D;
+		com.summy.reliquary.effect.SacredHeart.StallState progressed =
+				com.summy.reliquary.effect.SacredHeart.advanceStall(stall, stall.bestDistance() - 0.5D);
+		boolean stallReset = !progressed.hunting()
+				&& com.summy.reliquary.effect.SacredHeart.strengthFor(progressed) == 0.5D;
+		log("圣心追踪·停滞即直航（1.8.6）：连续 10 次未变近 → 转追猎态=" + hunting + "（应 true）、"
+				+ "一旦变近立刻回退到 0.5=" + stallReset + "（应 true）");
+
+		// 1.8.6 ⑤：迷你仿真 —— 3.8 格、速度与视线垂直、速率 3.0，60 tick 内应逼近到 0.5 格以内
+		double closest = simulateHomingClosestApproach();
+		log(String.format("圣心追踪·迷你仿真（3.8 格 / 垂直 / 速率 3.0）：60 tick 内最近接近 %.3f 格"
+				+ "（应 ≤ 0.5；未修复的旧规则 400 tick 内都进不去 0.5）", closest));
+
+		// 1.8.6 ⑥：穿透后索敌 —— 这支箭碰过的目标不再计入候选
+		Zombie piercedA = spawnHolyLightTarget(player, 4.0D);
+		Zombie nextB = spawnHolyLightTarget(player, 6.0D);
+		if (piercedA != null && nextB != null) {
+			net.minecraft.world.entity.projectile.Arrow pierceProbe =
+					new net.minecraft.world.entity.projectile.Arrow(player.serverLevel(), player);
+			pierceProbe.setPos(player.getX() + 1.0D, player.getY() + 1.0D, player.getZ());
+			pierceProbe.setPierceLevel((byte) 1);
+			player.serverLevel().addFreshEntity(pierceProbe);
+			LivingEntity pickedFirst = com.summy.reliquary.effect.SacredHeart.nearestEnemyForTest(
+					player.serverLevel(), pierceProbe, radius);
+			com.summy.reliquary.effect.SacredHeart.recordHit(pierceProbe, piercedA);
+			LivingEntity pickedSecond = com.summy.reliquary.effect.SacredHeart.nearestEnemyForTest(
+					player.serverLevel(), pierceProbe, radius);
+			boolean piercedSwitch = pickedFirst == piercedA && pickedSecond != null
+					&& pickedSecond != piercedA
+					&& com.summy.reliquary.effect.SacredHeart.hitTargetCountForTest(pierceProbe) == 1;
+			log("圣心追踪·穿透后索敌（1.8.6）：登记前选中 A=" + (pickedFirst == piercedA) + "（应 true）、"
+					+ "登记 A 已碰过后改选 B=" + (pickedSecond != null && pickedSecond != piercedA)
+					+ "（应 true）→ 合计=" + piercedSwitch + "（应 true）");
+			pierceProbe.discard();
+			piercedA.discard();
+			nextB.discard();
+		}
 		diagonal.discard();
 		axial.discard();
 		probe.discard();
 		arrow.discard();
 		near.discard();
+	}
+
+	/**
+	 * 1.8.6（自检用）：圣心追踪的纯函数迷你仿真 —— 目标在原点、起点 3.8 格、速度与视线垂直、速率 3.0。
+	 *
+	 * <p>返回 60 tick 内的最近接近距离：修复后（停滞即直航）会反复穿过目标，最近接近 ≈ 0.02 格；
+	 * 未修复的旧规则在 400 tick 内都进不去 0.5 格。
+	 */
+	private static double simulateHomingClosestApproach() {
+		net.minecraft.world.phys.Vec3 target = new net.minecraft.world.phys.Vec3(0.0D, 0.0D, 0.0D);
+		net.minecraft.world.phys.Vec3 pos = new net.minecraft.world.phys.Vec3(3.8D, 0.0D, 0.0D);
+		net.minecraft.world.phys.Vec3 velocity = new net.minecraft.world.phys.Vec3(0.0D, 0.0D, 3.0D);
+		com.summy.reliquary.effect.SacredHeart.StallState state = null;
+		double closest = Double.MAX_VALUE;
+		for (int tick = 0; tick < 60; tick++) {
+			net.minecraft.world.phys.Vec3 direction = target.subtract(pos).normalize();
+			state = com.summy.reliquary.effect.SacredHeart.advanceStall(state, pos.distanceTo(target));
+			velocity = com.summy.reliquary.effect.SacredHeart.homingDirection(velocity, direction,
+					com.summy.reliquary.effect.SacredHeart.strengthFor(state));
+			pos = pos.add(velocity);
+			closest = Math.min(closest, pos.distanceTo(target));
+		}
+		return closest;
+	}
+
+	/** 1.8.6（自检用）：按 SR 的伤害类型路径造一个伤害源（数据包缺失时退回原版魔法伤害） */
+	private static net.minecraft.world.damagesource.DamageSource srSource(ServerPlayer player, String path) {
+		var registry = player.serverLevel().registryAccess()
+				.registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE);
+		var holder = registry.getHolder(net.minecraft.resources.ResourceKey.create(
+				net.minecraft.core.registries.Registries.DAMAGE_TYPE, SummyReliquary.id(path))).orElse(null);
+		return holder == null ? player.damageSources().magic()
+				: new net.minecraft.world.damagesource.DamageSource(holder, player, player);
 	}
 
 	/** 神性：互斥、继承属性、飞行不减速、光柱覆盖值、救恩半径 */
@@ -7998,6 +8079,13 @@ public final class ForgeDevCheck {
 	 */
 	private static void checkPoolGuardNullify(ServerPlayer player) {
 		resetDemonPactState(player);
+		// 1.8.6：本用例只验"神性拦截"这一支，先把灵台三件套（免死）摘掉 ——
+		// 否则免死会按 20% 概率抢在神性之前消耗掉这一击（1.8.6 起免死排在链首），断言会随机失败。
+		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+			for (int cell = 0; cell < 3; cell++) {
+				handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, cell, ItemStack.EMPTY);
+			}
+		});
 		player.getInventory().clearContent();
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
 		com.summy.reliquary.effect.Godhead.reset();
@@ -8050,6 +8138,34 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.CombatTuning.clampFabricWindow(player);
 		int frame = player.invulnerableTime;
 		com.summy.reliquary.effect.CombatTuning.setFabricForTest(fabricBefore);
+
+		// 1.8.6：真伤"命中后清帧" —— Forge 侧直接清零；Fabric 侧登记后在 tick 末尾清（必须排在钳位之后）
+		com.summy.reliquary.effect.CombatTuning.setFabricForTest(false);
+		player.invulnerableTime = 15;
+		com.summy.reliquary.effect.CombatTuning.clearIframesAfterHit(player);
+		int clearForge = player.invulnerableTime;
+		com.summy.reliquary.effect.CombatTuning.setFabricForTest(true);
+		player.invulnerableTime = 19;
+		com.summy.reliquary.effect.CombatTuning.clearIframesAfterHit(player);
+		boolean pendingRegistered = com.summy.reliquary.effect.CombatTuning.pendingClearCount() > 0;
+		com.summy.reliquary.effect.CombatTuning.clampFabricWindow(player);
+		int beforeFabricClear = player.invulnerableTime;
+		com.summy.reliquary.effect.CombatTuning.applyFabricClear(player);
+		int afterFabricClear = player.invulnerableTime;
+		com.summy.reliquary.effect.CombatTuning.setFabricForTest(fabricBefore);
+		boolean clearOk = clearForge == 0 && pendingRegistered && beforeFabricClear == 19 && afterFabricClear == 0;
+		// 名单口径：真伤族要清帧；金刀片（物理）与普通伤害不清
+		boolean trueDamageOk = com.summy.reliquary.effect.HolyLightEffect.isTrueDamage(
+				srSource(player, "holy_light"))
+				&& com.summy.reliquary.effect.HolyLightEffect.isTrueDamage(srSource(player, "godhead_aura"))
+				&& com.summy.reliquary.effect.HolyLightEffect.isTrueDamage(srSource(player, "sacrifice_self"))
+				&& !com.summy.reliquary.effect.HolyLightEffect.isTrueDamage(srSource(player, "golden_razor"))
+				&& !com.summy.reliquary.effect.HolyLightEffect.isTrueDamage(player.damageSources().generic());
+		log("真伤命中后清帧（1.8.6）：Forge 侧 15 → " + clearForge + "（应 0）、Fabric 侧登记=" + pendingRegistered
+				+ "（应 true）、钳位后 " + beforeFabricClear + " → tick 末尾清帧 " + afterFabricClear
+				+ "（应 19 → 0）→ 合计=" + clearOk + "（应 true）、名单口径（圣光/神性光环/献祭自伤清、"
+				+ "金刀片与普通伤害不清）=" + trueDamageOk + "（应 true）");
+
 		player.invulnerableTime = 0;
 		log("Fabric 窗口钳位：一般档 19 → " + general + "（应 15 = 5 tick 档）、帧伤档 19 → " + frame
 				+ "（应仍是 19 = 10 tick 档不缩窗）");
@@ -11425,6 +11541,21 @@ public final class ForgeDevCheck {
 		}
 		boolean removedAfter20 = life.isRemoved() && ticks == 20;
 
+		// ⑤ 1.8.6：命中后定格到撞击点（沿来向回退 0.30 格），不再停在"撞击前一个 tick"的位置
+		com.summy.reliquary.entity.ThrownSpear snap =
+				new com.summy.reliquary.entity.ThrownSpear(level, player, seraph, panel);
+		Vec3 snapFrom = player.position().add(0.0D, 1.0D, 0.0D);
+		snap.setPos(snapFrom.x, snapFrom.y, snapFrom.z);
+		snap.setDeltaMovement(2.5D, 0.0D, 0.0D);
+		Vec3 snapImpact = snapFrom.add(2.5D, 0.0D, 0.0D);
+		snap.markLandedAtForTest(snapImpact);
+		Vec3 landedPoint = snap.landedPositionForTest();
+		double snapOffset = landedPoint == null ? 99.0D : landedPoint.distanceTo(snapImpact);
+		boolean snapOk = landedPoint != null
+				&& Math.abs(snapOffset - 0.30D) < 1.0E-6D
+				&& snap.position().distanceTo(landedPoint) < 1.0E-6D;
+		snap.discard();
+
 		near.discard();
 		far.discard();
 		player.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
@@ -11438,7 +11569,9 @@ public final class ForgeDevCheck {
 				+ "，不吃护甲 / 抗性 / 无敌帧）=" + exact + "、4 格外（距落点约 6 格）扣血="
 				+ String.format("%.2f", farLost)
 				+ "（应 0）=" + outOfRange + "、同一枚只爆一次=" + burstOnce + "（应 true）；命中后停留 "
-				+ ticks + " tick 再删除（应 20）=" + removedAfter20 + "（应 true）");
+				+ ticks + " tick 再删除（应 20）=" + removedAfter20 + "（应 true）；"
+				+ "1.8.6 命中定格：与撞击点偏差=" + String.format("%.2f", snapOffset)
+				+ "（应 0.30）、实体已定格到该点=" + snapOk + "（应 true）");
 	}
 
 	/** 1.7.9：圣光短矛的获取（赎罪→美德自动发放）+ 防丢失配方状态机 + 掉落 / 死亡保护 */
@@ -13173,6 +13306,21 @@ public final class ForgeDevCheck {
 		boolean stuckGone = stuckRazor.isRemoved() && stuckRazor.stuckTicks() == 100;
 		boolean stuckOk = tuningOk && stuckEntered && stuckFrozen && stuckAlive && stuckGone;
 
+		// 1.8.6 实测：金刀片走原版 onHitBlock（含 0.05 格贴面回退），定格位置与撞击点偏差应 ≤ 0.35 ——
+		// 达标就不动它的代码（只有超标才需要像长矛那样自己补定格）。
+		com.summy.reliquary.entity.ThrownRazor measureRazor =
+				new com.summy.reliquary.entity.ThrownRazor(level, player);
+		Vec3 razorFrom = player.position().add(0.0D, 1.0D, 0.0D);
+		measureRazor.setPos(razorFrom.x, razorFrom.y, razorFrom.z);
+		measureRazor.setDeltaMovement(0.4D, -0.3D, 0.2D);
+		Vec3 razorImpact = razorFrom.add(0.6D, 0.0D, 0.0D);
+		measureRazor.hitBlockForTest(razorImpact);
+		double razorOffset = measureRazor.position().distanceTo(razorImpact);
+		boolean razorCloseEnough = razorOffset <= 0.35D;
+		measureRazor.discard();
+		log("金刀片定格偏差（1.8.6 实测）：与撞击点相差 " + String.format("%.2f", razorOffset)
+				+ " 格（应 ≤ 0.35，走原版贴面回退）=" + razorCloseEnough + "（应 true）");
+
 		log("金刀片（1.7.10）：注册（物品 + 投掷实体）=" + registered + "（应 true）、素材（32×32 贴图 + handheld 模型且无 overrides）="
 				+ assets + "（应 true）、语言键（名 / 风味 / Shift / 两条死亡文本）=" + lang + "（应 true）、"
 				+ "无属性（无主手修饰符、非剑、不进 #swords）=" + noAttributes + "（应 true）、无门槛=" + ungated
@@ -13776,6 +13924,22 @@ public final class ForgeDevCheck {
 				new net.minecraft.world.inventory.Slot(container, 0, 0, 0));
 		boolean chestSlotNotOwned = !com.summy.reliquary.client.ReliquaryClientInteractions.isPlayerOwnedSlot(
 				new net.minecraft.world.inventory.Slot(container, 0, 0, 0));
+		// ③c 1.8.6：邦邦咔邦光环的开关也搬到"背包 / 手持潜行右键"，且 R 键位已删除
+		net.minecraft.world.SimpleContainer haloContainer = new net.minecraft.world.SimpleContainer(2);
+		haloContainer.setItem(0, new ItemStack(SummyReliquary.BANG_BANG_HALO.get()));
+		haloContainer.setItem(1, new ItemStack(SummyReliquary.SACRED_HEART.get()));
+		boolean slotHalo = com.summy.reliquary.client.ReliquaryClientInteractions.isBangBangHaloSlot(
+				new net.minecraft.world.inventory.Slot(haloContainer, 0, 0, 0));
+		boolean slotHaloOther = !com.summy.reliquary.client.ReliquaryClientInteractions.isBangBangHaloSlot(
+				new net.minecraft.world.inventory.Slot(haloContainer, 1, 0, 0));
+		boolean haloIgnoredInChest = !com.summy.reliquary.client.ReliquaryClientInteractions.takesOver(
+				new net.minecraft.world.inventory.Slot(haloContainer, 0, 0, 0));
+		boolean maidKeyRemoved = java.util.Arrays.stream(
+				com.summy.reliquary.client.SummyReliquaryClient.class.getDeclaredFields())
+				.noneMatch(field -> field.getName().equals("TOGGLE_MAID_KEY"));
+		log("邦邦咔邦光环开关（1.8.6）：右键判定（光环/其它）=" + slotHalo + "/" + slotHaloOther
+				+ "（应 true/true）、箱子里不被接管=" + haloIgnoredInChest + "（应 true）、"
+				+ "R 键位已删除=" + maidKeyRemoved + "（应 true）");
 		// ④ 创世纪重置 → 回到默认开启
 		com.summy.reliquary.effect.PlayerFlags.setGodheadAuraOff(player, true);
 		com.summy.reliquary.item.GenesisItem.resetUsed(player);
@@ -13797,6 +13961,79 @@ public final class ForgeDevCheck {
 				+ chestSlotNotOwned + "，应 true/true/true）、创世纪重置=" + genesisReset
 				+ " 后回到开启=" + auraBackOnAfterGenesis + " → 整体=" + overall + "（应 true）");
 		com.summy.reliquary.effect.PlayerFlags.setGodheadAuraOff(player, false);
+	}
+
+	/**
+	 * 1.8.6：整击拦下的消耗顺序统一为「免死 → 神性 → 亚巴顿」。
+	 *
+	 * <p>只验"免死被提到神性之前"这一段（神性与亚巴顿的相对顺序没动）：免死是 20% 概率触发，
+	 * 所以跑多轮，断言两件事同时成立 —— ① 至少有一轮**免死先触发**且神性计数未增长；
+	 * ② 至少有一轮**神性**拦截成功（证明神性确实处于"能拦"的状态，否则断言①没有判别力）。
+	 * 旧的「神性优先」顺序下，神性无随机、永远先拦，断言①**不可能**成立。
+	 */
+	private static void checkGuardOrder(ServerPlayer player) {
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		com.summy.reliquary.effect.SlotSizing.syncNow(player);
+		// 灵台三件套齐 → 免死就绪；启示之座放神性 → 神性死亡拦截就绪
+		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+			for (int cell = 0; cell < 3; cell++) {
+				handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, cell, ItemStack.EMPTY);
+			}
+			handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, 0,
+					new ItemStack(SummyReliquary.THE_BODY.get()));
+			handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, 1,
+					new ItemStack(SummyReliquary.THE_MIND.get()));
+			handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, 2,
+					new ItemStack(SummyReliquary.THE_SOUL.get()));
+		});
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		com.summy.reliquary.effect.PlayerFlags.setSoulHeartPoints(player, 0.0D);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+
+		int rounds = 60;
+		int deathImmunityWins = 0;
+		int godheadIntercepts = 0;
+		for (int round = 0; round < rounds; round++) {
+			com.summy.reliquary.effect.DeathImmunity.reset();
+			com.summy.reliquary.effect.Godhead.reset();
+			// 关键：把两者的"守卫窗口"也清掉 —— 否则第一轮之后每一轮都会走
+			// 「守卫内只取消、不重复拦截」那一支，后面的轮次根本没经过拦截链，断言就失去意义。
+			com.summy.reliquary.effect.DeathImmunity.forget(player);
+			com.summy.reliquary.effect.Godhead.forget(player);
+			com.summy.reliquary.effect.DamagePools.clear();
+			player.invulnerableTime = 0;
+			player.setAbsorptionAmount(0.0F);
+			player.setHealth(player.getMaxHealth() * 0.25F);
+			int guardsBefore = com.summy.reliquary.effect.Godhead.deathGuardCount();
+			net.minecraftforge.event.entity.living.LivingHurtEvent lethal =
+					new net.minecraftforge.event.entity.living.LivingHurtEvent(player,
+							player.damageSources().generic(), player.getMaxHealth() * 2.0F);
+			com.summy.reliquary.effect.DamagePools.prepare(lethal);
+			boolean immunityFired = com.summy.reliquary.effect.DeathImmunity.isGuarded(player);
+			boolean godheadFired = com.summy.reliquary.effect.Godhead.deathGuardCount() > guardsBefore;
+			if (immunityFired && !godheadFired) {
+				deathImmunityWins++;
+			}
+			if (godheadFired) {
+				godheadIntercepts++;
+			}
+		}
+		boolean orderOk = deathImmunityWins >= 1 && godheadIntercepts >= 1;
+		log("整击拦下顺序（1.8.6）：免死 + 神性同时就绪，" + rounds + " 轮致命一击中 → 免死先消耗 "
+				+ deathImmunityWins + " 轮（应 ≥ 1；旧顺序「神性优先」下恒为 0）、神性拦截 " + godheadIntercepts
+				+ " 轮（应 ≥ 1 = 神性确实处于能拦状态）→ 顺序 免死 → 神性 → 亚巴顿 =" + orderOk + "（应 true）");
+		// 收尾：清掉这一轮留下的状态
+		com.summy.reliquary.effect.DeathImmunity.reset();
+		com.summy.reliquary.effect.Godhead.reset();
+		com.summy.reliquary.effect.DamagePools.clear();
+		player.invulnerableTime = 0;
+		player.setHealth(player.getMaxHealth());
+		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+			for (int cell = 0; cell < 3; cell++) {
+				handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, cell, ItemStack.EMPTY);
+			}
+		});
 	}
 
 	/**

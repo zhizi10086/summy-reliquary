@@ -53,6 +53,10 @@ public class ThrownRazor extends AbstractArrow {
 	private boolean stuck;
 	/** 1.7.10 收尾：落地停留已经过去的 tick 数 */
 	private int stuckTicks;
+	/** 1.8.6：命中方块后沿来向回退多少格再定格（与长矛同款口径） */
+	private static final double STICK_BACKOFF = 0.30D;
+	/** 1.8.6：定格位置（撞击点沿来向回退）—— 见 {@link #recordImpact} */
+	private Vec3 stuckPos;
 	/**
 	 * 1.7.10：**自己的**穿透记账。
 	 *
@@ -132,6 +136,9 @@ public class ThrownRazor extends AbstractArrow {
 	@Override
 	protected void onHitBlock(BlockHitResult result) {
 		super.onHitBlock(result);
+		// 1.8.6：原版贴面回退是"沿撞击方向回退 0.05 格"，方向上把刀片留在了撞击点**之前**
+		// （自检实测偏差 0.65 格）—— 这里改成与长矛同款：贴住撞击点。
+		recordImpact(result.getLocation());
 		// 1.7.10 收尾：命中方块后不再立刻消失，而是插在原地停留 5 秒（默认 100 tick）再清除。
 		// super 已经置好 inGround / 法线贴墙，之后原版不再做实体碰撞 —— 停留期间不会误伤路过的生物。
 		setDeltaMovement(Vec3.ZERO);
@@ -139,6 +146,26 @@ public class ThrownRazor extends AbstractArrow {
 		playSound(SoundEvents.TRIDENT_HIT_GROUND, 1.0F, 1.6F);
 		this.stuck = true;
 		this.stuckTicks = 0;
+		snapToStuckPosition();
+	}
+
+	/** 1.8.6：记下"定格位置"—— 撞击点沿来向（当前坐标 → 撞击点）回退 {@value #STICK_BACKOFF} 格 */
+	private void recordImpact(Vec3 hitLocation) {
+		if (hitLocation == null) {
+			return;
+		}
+		Vec3 delta = hitLocation.subtract(position());
+		double length = delta.length();
+		this.stuckPos = length > 1.0E-6D
+				? hitLocation.subtract(delta.scale(STICK_BACKOFF / length))
+				: hitLocation;
+	}
+
+	/** 1.8.6：把位置钉到定格点（每 tick 都钉一次，防被原版逻辑拉回） */
+	private void snapToStuckPosition() {
+		if (stuckPos != null) {
+			setPos(stuckPos.x, stuckPos.y, stuckPos.z);
+		}
 	}
 
 	/** 专属伤害源（数据包缺失时退回原版投掷物伤害，避免抛异常） */
@@ -163,6 +190,8 @@ public class ThrownRazor extends AbstractArrow {
 		}
 		// 1.7.10 收尾：落地后由"停留计时"接管（不再累加寿命，避免两个计时器打架）
 		if (this.stuck) {
+			// 1.8.6：停留期间每 tick 钉住定格位置
+			snapToStuckPosition();
 			advanceStuck();
 		} else if (++lifeTicks > ReliquaryConfig.razorMaxLifeTicks()) {
 			discard();

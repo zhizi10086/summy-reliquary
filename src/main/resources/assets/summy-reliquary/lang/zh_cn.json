@@ -4,7 +4,7 @@
 
   "item.summy-reliquary.bangbang_halo": "邦邦咔邦光环",
   "item.summy-reliquary.bangbang_halo.tagline": "爱丽丝不是扫地机器人",
-  "item.summy-reliquary.bangbang_halo.desc": "按 R 切换「邦邦女仆」状态，自动吸取周围掉落物",
+  "item.summy-reliquary.bangbang_halo.desc": "背包里对着它右键、或手持时潜行右键，可切换「邦邦女仆」状态；开启后自动吸取周围掉落物",
 
   "item.summy-reliquary.freeloaders_rice": "白饭",
   "item.summy-reliquary.freeloaders_rice.tagline": "不知道为什么越吃越饱",
@@ -163,7 +163,6 @@
   "advancements.summy-reliquary.revelation.description": "祂为你降下启示之光，你已重获新生",
 
   "key.categories.summy-reliquary": "Summy Reliquary",
-  "key.summy-reliquary.toggle_maid": "切换邦邦女仆状态",
   "key.summy-reliquary.revelation_beam": "启示之光（长按蓄力）",
   "key.summy-reliquary.divine_action": "神性回溯 / 恶魔形态",
   "message.summy-reliquary.godhead.recall": "你回到了上一次的死亡地点",

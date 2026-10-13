@@ -12,6 +12,13 @@ import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.WeakHashMap;
+
 /**
  * 「圣心」的箭矢追踪（1.5.5）。
  *
@@ -28,6 +35,33 @@ public final class SacredHeart {
 	private static final double MIN_TURN_ANGLE = 0.02D;
 	/** 1.8.3：混合结果长度平方低于该值时视为"正后方"（零向量），直接朝目标 */
 	private static final double BLEND_EPSILON = 1.0E-8D;
+	/** 1.8.6：连续这么多 tick 都没有变近，就转入「追猎态」（直接朝目标） */
+	private static final int STALL_TICKS = 10;
+	/** 1.8.6：算不算"变近了"的阈值（格）——轨道上忽远忽近不算进展 */
+	private static final double PROGRESS_EPSILON = 0.02D;
+
+	/** 1.8.6：箭矢 UUID → 停滞状态（只存内存，不写 NBT） */
+	private static final Map<UUID, StallState> STALL = new HashMap<>();
+	/** 初始状态：还没有过"最近距离" */
+	private static final StallState INITIAL = new StallState(Double.MAX_VALUE, 0, false);
+
+	/**
+	 * 1.8.6：投射物 → 它碰过的目标 UUID 集合（键弱引用，箭消失后自动回收，无需手工清理）。
+	 *
+	 * <p>登记时机是 {@code ProjectileImpactEvent}（原版 {@code AbstractArrow.onHit} 内就会触发，
+	 * **早于伤害结算**）—— 因此"碰过但没打成"（目标处于无敌帧 / 被完全拦下）的目标同样会被记下来，
+	 * 与原版穿透箭的"已命中记账"语义一致。
+	 */
+	private static final Map<AbstractArrow, Set<UUID>> HIT_TARGETS = new WeakHashMap<>();
+
+	/**
+	 * 1.8.6：一支箭的跟踪状态。
+	 *
+	 * <p>{@code bestDistance} = 历史最近距离；{@code stallTicks} = 连续"没有变近"的 tick 数；
+	 * {@code hunting} = 是否已进入追猎态（偏转强度提到 1.0，直接朝目标）。
+	 */
+	public record StallState(double bestDistance, int stallTicks, boolean hunting) {
+	}
 
 	private SacredHeart() {
 	}
@@ -35,8 +69,10 @@ public final class SacredHeart {
 	/** 服务端每 tick：为所有佩戴者的箭矢做追踪 */
 	public static void tick(MinecraftServer server) {
 		if (!ReliquaryConfig.enableArrowHoming()) {
+			STALL.clear();
 			return;
 		}
+		Set<UUID> seen = new HashSet<>();
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
 			if (!CurioHelper.wears(player, SummyReliquary.SACRED_HEART.get())) {
 				continue;
@@ -57,10 +93,20 @@ public final class SacredHeart {
 				}
 				LivingEntity target = nearestEnemy(level, arrow, radius);
 				if (target != null) {
-					steer(arrow, target);
+					// 1.8.6：停滞检测 —— 连续 STALL_TICKS 没有变近就转入追猎态（直接朝目标）
+					seen.add(arrow.getUUID());
+					double distance = arrow.position().distanceTo(target.getEyePosition());
+					StallState state = advanceStall(STALL.getOrDefault(arrow.getUUID(), INITIAL), distance);
+					STALL.put(arrow.getUUID(), state);
+					steer(arrow, target, strengthFor(state));
+				} else {
+					// 没有目标就不再保留状态（下次重新锁定从零开始）
+					STALL.remove(arrow.getUUID());
 				}
 			}
 		}
+		// 清理已消失 / 已不再追踪的条目
+		STALL.keySet().retainAll(seen);
 	}
 
 	/** 以箭矢为中心的半径内最近的敌对生物 */
@@ -73,7 +119,10 @@ public final class SacredHeart {
 		for (LivingEntity candidate : level.getEntitiesOfClass(LivingEntity.class,
 				arrow.getBoundingBox().inflate(radius),
 				entity -> entity instanceof Enemy && entity.isAlive()
-						&& entity.distanceToSqr(arrow) <= radiusSqr)) {
+						&& entity.distanceToSqr(arrow) <= radiusSqr
+						// 1.8.6：这支箭已经碰过的目标不再计入可选 ——
+						// 否则箭会被拽回一个"打不动"的目标身边打转。
+						&& !alreadyHit(arrow, entity))) {
 			double distance = candidate.distanceToSqr(arrow);
 			if (distance < bestDistance) {
 				bestDistance = distance;
@@ -83,8 +132,32 @@ public final class SacredHeart {
 		return best;
 	}
 
-	/** 朝目标偏转：保持速率，只改方向 */
-	private static void steer(AbstractArrow arrow, LivingEntity target) {
+	/**
+	 * 1.8.6：登记"这支投射物碰过这个目标"（调用方：{@code ReliquaryEvents} 的 {@code ProjectileImpactEvent}）。
+	 *
+	 * <p>只登记玩家所属的投射物 —— 供圣心追踪排除已经打过的目标用。
+	 */
+	public static void recordHit(AbstractArrow arrow, Entity target) {
+		if (arrow == null || target == null || !(arrow.getOwner() instanceof ServerPlayer)) {
+			return;
+		}
+		HIT_TARGETS.computeIfAbsent(arrow, key -> new HashSet<>()).add(target.getUUID());
+	}
+
+	/** 这支箭是否已经碰过该目标 */
+	private static boolean alreadyHit(AbstractArrow arrow, Entity candidate) {
+		Set<UUID> hits = HIT_TARGETS.get(arrow);
+		return hits != null && hits.contains(candidate.getUUID());
+	}
+
+	/** 1.8.6（自检用）：这支箭已登记的目标数 */
+	public static int hitTargetCountForTest(AbstractArrow arrow) {
+		Set<UUID> hits = HIT_TARGETS.get(arrow);
+		return hits == null ? 0 : hits.size();
+	}
+
+	/** 朝目标偏转：保持速率，只改方向（1.8.6：偏转强度由停滞状态决定） */
+	private static void steer(AbstractArrow arrow, LivingEntity target, double strength) {
 		Vec3 velocity = arrow.getDeltaMovement();
 		double speed = velocity.length();
 		if (speed < MIN_SPEED) {
@@ -96,9 +169,34 @@ public final class SacredHeart {
 		if (Math.acos(cos) < MIN_TURN_ANGLE) {
 			return;
 		}
-		arrow.setDeltaMovement(homingDirection(velocity, direction));
+		arrow.setDeltaMovement(homingDirection(velocity, direction, strength));
 		// 让客户端也同步这次速度变化
 		arrow.hurtMarked = true;
+	}
+
+	/**
+	 * 1.8.6（自检用）：推进一次停滞状态 —— 纯函数，不碰实体。
+	 *
+	 * <p>比历史最近距离小了不止 {@value #PROGRESS_EPSILON} 格 → 算"有进展"，状态清回 0；
+	 * 否则累计停滞 tick，达到 {@value #STALL_TICKS} 就进入追猎态（并保持到重新有进展为止）。
+	 */
+	public static StallState advanceStall(StallState state, double distance) {
+		StallState from = state == null ? INITIAL : state;
+		if (distance < from.bestDistance() - PROGRESS_EPSILON) {
+			return new StallState(distance, 0, false);
+		}
+		int stall = from.stallTicks() + 1;
+		return new StallState(from.bestDistance(), stall, from.hunting() || stall >= STALL_TICKS);
+	}
+
+	/** 1.8.6（自检用）：当前状态该用的偏转强度（追猎态 = 1.0，直接朝目标） */
+	public static double strengthFor(StallState state) {
+		return state != null && state.hunting() ? 1.0D : HOMING_STRENGTH;
+	}
+
+	/** 1.8.6（自检用）：当前正在跟踪的箭矢条数 */
+	public static int trackedArrowCount() {
+		return STALL.size();
 	}
 
 	/**
@@ -110,9 +208,14 @@ public final class SacredHeart {
 	 * <p>自检用：纯计算，不碰实体。
 	 */
 	public static Vec3 homingDirection(Vec3 velocity, Vec3 toTargetUnit) {
+		return homingDirection(velocity, toTargetUnit, HOMING_STRENGTH);
+	}
+
+	/** 1.8.6：带偏转强度的版本（追猎态传 1.0 就是直接朝目标） */
+	public static Vec3 homingDirection(Vec3 velocity, Vec3 toTargetUnit, double strength) {
 		double speed = velocity.length();
-		Vec3 blended = velocity.normalize().scale(1.0D - HOMING_STRENGTH)
-				.add(toTargetUnit.scale(HOMING_STRENGTH));
+		Vec3 blended = velocity.normalize().scale(1.0D - strength)
+				.add(toTargetUnit.scale(strength));
 		if (blended.lengthSqr() < BLEND_EPSILON) {
 			return toTargetUnit.scale(speed);
 		}
@@ -131,7 +234,7 @@ public final class SacredHeart {
 
 	/** 自检用：单次偏转（把逻辑暴露出来，便于直接断言方向） */
 	public static void steerForTest(AbstractArrow arrow, LivingEntity target) {
-		steer(arrow, target);
+		steer(arrow, target, HOMING_STRENGTH);
 	}
 
 	/** 自检用：最近的敌对生物（半径内） */

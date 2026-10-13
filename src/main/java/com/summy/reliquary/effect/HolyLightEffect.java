@@ -83,6 +83,9 @@ public final class HolyLightEffect {
 	/** 1.6.4：契约献祭的真伤类型 */
 	private static final String SACRIFICE_ID = "summy-reliquary.sacrifice";
 
+	/** 1.8.6：献祭匕首自身那 4 点自损的真伤类型 */
+	private static final String SACRIFICE_SELF_ID = "summy-reliquary.sacrifice_self";
+
 	/** 还没结算的攻击（同一 tick 内累积） */
 	private static final List<Attack> PENDING = new ArrayList<>();
 	/** 还在重画的光柱 */
@@ -351,6 +354,25 @@ public final class HolyLightEffect {
 		return HOLY_LIGHT_BURST_ID.equals(id) || GOLDEN_RAZOR_ID.equals(id) || REVELATION_ID.equals(id)
 				|| GODHEAD_AURA_ID.equals(id) || SACRIFICE_ID.equals(id) || DEMON_FLAME_ID.equals(id)
 				|| ABYSS_AURA_ID.equals(id);
+	}
+
+	/**
+	 * 1.8.6：本模组的**真伤**（用来决定"命中后要不要清掉受害者的保护帧"）。
+	 *
+	 * <p>= {@link #isDivine} ∪ {@link #isExactDamage} ∪ 献祭自伤。两份名单**互不包含**
+	 * （{@code isDivine} 独有圣光 / 黑心碎裂 / 狱火；{@code isExactDamage} 独有神性光环 / 契约献祭），
+	 * 所以必须取并集；{@code sacrifice_self} 两边都没有，单独补。
+	 * {@code golden_razor}（金刀片）是**物理**伤害、不算真伤，所以显式排除（它两份名单里都有）。
+	 */
+	public static boolean isTrueDamage(DamageSource source) {
+		if (source == null) {
+			return false;
+		}
+		String id = source.getMsgId();
+		if (GOLDEN_RAZOR_ID.equals(id)) {
+			return false;
+		}
+		return isDivine(source) || isExactDamage(source) || SACRIFICE_SELF_ID.equals(id);
 	}
 
 	/**

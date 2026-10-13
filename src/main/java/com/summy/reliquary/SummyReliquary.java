@@ -109,7 +109,7 @@ public class SummyReliquary {
 	public static final ReliquaryTrigger EVENT_TRIGGER =
 			net.minecraft.advancements.CriteriaTriggers.register(new ReliquaryTrigger(id("event")));
 
-	/** 邦邦咔邦光环：装进「光环」栏位，按 R 切换邦邦女仆状态 */
+	/** 邦邦咔邦光环：装进「光环」栏位，右键（背包 / 手持潜行）切换邦邦女仆状态（1.8.6 起不再占用 R 键） */
 	public static final RegistryObject<Item> BANG_BANG_HALO =
 			ITEMS.register("bangbang_halo", () -> new BangBangHaloItem(new Item.Properties().stacksTo(1)));
 

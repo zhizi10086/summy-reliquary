@@ -337,6 +337,8 @@ public final class ReliquaryConfig {
 
 	// ===== 战斗手感 =====
 	private static final ForgeConfigSpec.BooleanValue ENABLE_INVULNERABILITY_CHANGE;
+	/** 1.8.6：真伤命中后是否清掉受害者的保护帧 */
+	private static final ForgeConfigSpec.BooleanValue CLEAR_IFRAMES_AFTER_TRUE_DAMAGE;
 	private static final ForgeConfigSpec.IntValue INVULNERABILITY_TICKS;
 	private static final ForgeConfigSpec.DoubleValue MAX_ATTACK_SPEED;
 
@@ -727,6 +729,10 @@ public final class ReliquaryConfig {
 		ENABLE_INVULNERABILITY_CHANGE = builder
 				.comment("是否修改生物受伤后的无敌帧（默认开启）")
 				.define("enable_invulnerability_change", true);
+		CLEAR_IFRAMES_AFTER_TRUE_DAMAGE = builder
+				.comment("本模组的真伤（圣光 / 启示之光 / 神性光环 / 狱火 / 恶魔之焰 / 深渊光环 / 黑心碎裂 / 献祭等）"
+						+ "命中后是否再清一次受害者的保护帧（默认开启）；关闭则恢复「只在命中前清帧」的旧行为")
+				.define("clear_iframes_after_true_damage", true);
 		INVULNERABILITY_TICKS = builder
 				.comment("一般受伤的有效无敌窗口（tick，默认 5 = 0.25 秒）；"
 						+ "实现上会写成 窗口+10（原版判定是 invulnerableTime > 10），0 = 这一档交回原版")
@@ -1188,6 +1194,15 @@ public final class ReliquaryConfig {
 	public static boolean enableInvulnerabilityChange() {
 		try {
 			return ENABLE_INVULNERABILITY_CHANGE.get();
+		} catch (IllegalStateException exception) {
+			return true;
+		}
+	}
+
+	/** 1.8.6：真伤命中后是否清帧（默认开） */
+	public static boolean clearIframesAfterTrueDamage() {
+		try {
+			return CLEAR_IFRAMES_AFTER_TRUE_DAMAGE.get();
 		} catch (IllegalStateException exception) {
 			return true;
 		}

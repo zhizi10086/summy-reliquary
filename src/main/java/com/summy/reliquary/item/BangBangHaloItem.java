@@ -41,6 +41,25 @@ public class BangBangHaloItem extends Item implements ICurioItem {
 		return CurioItemSupport.keepLines(tooltips);
 	}
 
+	/**
+	 * 1.8.6：手持邦邦咔邦光环 + **潜行右键** → 切换「邦邦女仆」状态。
+	 *
+	 * <p>背包 / Curios 面板里右键那条走 {@code client/ReliquaryClientInteractions}；
+	 * 这里只处理"拿在手上"的情况（写法与 {@code GodheadItem#use} 一致）。
+	 * 实际切换放在服务端（客户端只回一个成功以播放挥臂动作）。
+	 */
+	@Override
+	public net.minecraft.world.InteractionResultHolder<ItemStack> use(net.minecraft.world.level.Level level,
+			net.minecraft.world.entity.player.Player player, net.minecraft.world.InteractionHand hand) {
+		if (player.isShiftKeyDown()) {
+			if (!level.isClientSide() && player instanceof net.minecraft.server.level.ServerPlayer server) {
+				com.summy.reliquary.maid.MaidModeManager.toggle(server);
+			}
+			return net.minecraft.world.InteractionResultHolder.success(player.getItemInHand(hand));
+		}
+		return super.use(level, player, hand);
+	}
+
 	@Override
 	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
 		// 栏位行交给 Curios 自带文本，这里只输出风味文本与 Shift 提示

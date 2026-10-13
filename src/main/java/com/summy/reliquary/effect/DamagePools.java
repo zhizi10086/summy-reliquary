@@ -201,7 +201,7 @@ public final class DamagePools {
 	 * <p>① 已经在守卫窗口里（Kilt / Connector 的"同一击双事件"会走到这里）：只取消、不重复拦截
 	 * （重复拦截会再传送一次、重置守卫计时）。
 	 *
-	 * <p>② 致命一击 → 神性死亡拦截 → 亚巴顿（有冷却）→ 灵魂免死：拦下后**直接取消这一击** ——
+	 * <p>② 致命一击 → 免死 → 神性死亡拦截 → 亚巴顿（有冷却）（1.8.6 统一消耗顺序）：拦下后**直接取消这一击** ——
 	 * {@code ForgeHooks#onLivingHurt} 在事件被取消时返回 0，原版 {@code actuallyHurt} 随即 return，
 	 * 伤害根本不落地、吸收值与血量都不被碰（1.8.5 之前的"并入整击金额再写回绝对值"会污染
 	 * Enchantment Reforged 那类增量记账的护盾模组，实测每次拦截吸收值 +一个生命上限）。
@@ -236,10 +236,12 @@ public final class DamagePools {
 			return false;
 		}
 		// 1.8.2：献祭自伤**不做任何死亡拦截** —— 该致死就致死
+		// 1.8.6：整击拦下的消耗顺序统一为「免死 → 神性 → 亚巴顿」——
+		// 免死最轻（只给 2 秒无敌、无冷却、无附加效果），先消耗；神性与亚巴顿各有附加效果与冷却，排在其后。
 		if (!Sacrifice.isSelfDamage(event.getSource())
-				&& (Godhead.tryNullify(player, healthPart)
-						|| Abaddon.tryNullify(player, healthPart, event.getSource())
-						|| DeathImmunity.tryNullify(player, healthPart))) {
+				&& (DeathImmunity.tryNullify(player, healthPart)
+						|| Godhead.tryNullify(player, healthPart)
+						|| Abaddon.tryNullify(player, healthPart, event.getSource()))) {
 			cancelHit(event);
 			logPrepare("整击拦下·取消这一击", player, absorptionBefore, 0.0F, healthPart, 0.0D);
 			return true;

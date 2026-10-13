@@ -56,6 +56,8 @@ public class ThrownSpear extends AbstractArrow {
 	public static final int THROW_BLOCK_TICKS = 600;
 	/** 幻影总寿命（60 秒，照抄 ER 的 PHANTOM_CLEANUP_TICKS） */
 	public static final int MAX_LIFE_TICKS = 1200;
+	/** 1.8.6：命中后沿来向回退多少格再定格（与原版箭矢的贴面做法同量级） */
+	private static final double STICK_BACKOFF = 0.30D;
 
 	/** 渲染用的物品堆栈（同步到客户端） */
 	private static final EntityDataAccessor<ItemStack> DATA_ITEM =
@@ -71,6 +73,13 @@ public class ThrownSpear extends AbstractArrow {
 	private int stuckTicks;
 	/** 落点圣光爆发是否已经放过了（避免实体 / 方块双触发） */
 	private boolean burstDone;
+	/**
+	 * 1.8.6：命中时算好的"定格位置"（撞击点沿来向回退 {@value #STICK_BACKOFF} 格）。
+	 *
+	 * <p>为什么需要它：我们冻结速度、又不走原版的位置推进，于是幻影会停在"撞击前一个 tick"的位置，
+	 * 看起来与目标隔一条缝（渲染又把模型居中画在实体坐标上，更明显）。
+	 */
+	private Vec3 landedPos;
 
 	public ThrownSpear(EntityType<? extends ThrownSpear> type, Level level) {
 		super(type, level);
@@ -146,6 +155,7 @@ public class ThrownSpear extends AbstractArrow {
 				}
 			}
 		}
+		recordImpact(result.getLocation());
 		markLanded();
 		playSound(SoundEvents.TRIDENT_HIT, 1.0F, 1.0F);
 		holyBurst(result.getLocation());
@@ -154,15 +164,34 @@ public class ThrownSpear extends AbstractArrow {
 	@Override
 	protected void onHitBlock(BlockHitResult result) {
 		super.onHitBlock(result);
+		recordImpact(result.getLocation());
 		markLanded();
 		playSound(SoundEvents.TRIDENT_HIT_GROUND, 1.0F, 1.0F);
 		holyBurst(result.getLocation());
+	}
+
+	/**
+	 * 1.8.6：记下"定格位置"—— 撞击点沿来向（当前坐标 → 撞击点）回退 {@value #STICK_BACKOFF} 格，
+	 * 与原版箭矢命中方块时的贴面回退同款做法。
+	 */
+	private void recordImpact(Vec3 hitLocation) {
+		if (hitLocation == null) {
+			return;
+		}
+		Vec3 delta = hitLocation.subtract(position());
+		double length = delta.length();
+		this.landedPos = length > 1.0E-6D
+				? hitLocation.subtract(delta.scale(STICK_BACKOFF / length))
+				: hitLocation;
 	}
 
 	private void markLanded() {
 		this.landed = true;
 		this.setDeltaMovement(Vec3.ZERO);
 		this.setNoGravity(true);
+		if (landedPos != null) {
+			setPos(landedPos.x, landedPos.y, landedPos.z);
+		}
 	}
 
 	// ==================== 每 tick ====================
@@ -172,6 +201,10 @@ public class ThrownSpear extends AbstractArrow {
 		if (landed) {
 			// 命中 / 落地后原地停留 1 秒：位置已经冻住，不再走原版的箭矢逻辑
 			setDeltaMovement(Vec3.ZERO);
+			// 1.8.6：每 tick 钉住定格位置（防被任何外部写入拉回"撞击前"的位置）
+			if (landedPos != null) {
+				setPos(landedPos.x, landedPos.y, landedPos.z);
+			}
 			if (++stuckTicks >= STUCK_TICKS) {
 				discard();
 			}
@@ -225,6 +258,17 @@ public class ThrownSpear extends AbstractArrow {
 	/** 自检用：把幻影标记成"已落地"（此后每 tick 计数，满 20 tick 自动删除） */
 	public void markLandedForTest() {
 		markLanded();
+	}
+
+	/** 1.8.6 自检用：按指定的撞击点走"记位置 + 定格"两步，用于断言定格位置与撞击点的偏差 */
+	public void markLandedAtForTest(Vec3 hitLocation) {
+		recordImpact(hitLocation);
+		markLanded();
+	}
+
+	/** 1.8.6 自检用：当前的定格位置（没记录过则为 null） */
+	public Vec3 landedPositionForTest() {
+		return landedPos;
 	}
 
 	/** 自检用：直接触发一次落点圣光爆发 */

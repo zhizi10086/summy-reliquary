@@ -149,6 +149,8 @@ public final class ReliquaryEvents {
 		com.summy.reliquary.effect.DamagePools.tickPlayer(player);
 		// 无敌帧窗口（1.6.5）：Fabric 侧在 tick 末尾把窗口钳到"有效窗口 + 10"
 		com.summy.reliquary.effect.CombatTuning.clampFabricWindow(player);
+		// 真伤"命中后清帧"（1.8.6）：Fabric 侧登记的清除要排在窗口钳位之后
+		com.summy.reliquary.effect.CombatTuning.applyFabricClear(player);
 		// 受伤节流汇总日志（1.6.3）：每 5 秒一条，便于确认"帧伤"来自哪个伤害类型
 		if (player.tickCount % 100 == 0) {
 			com.summy.reliquary.effect.CombatTuning.flushLog(player);
@@ -240,6 +242,29 @@ public final class ReliquaryEvents {
 				&& blocksDamageEntirely(player, event.getSource())) {
 			event.setCanceled(true);
 		}
+	}
+
+	/**
+	 * 投射物命中（{@code ProjectileImpactEvent}：原版 {@code AbstractArrow.onHit} 内就会触发，**早于伤害结算**）。
+	 *
+	 * <p>1.8.6：把「这支投射物碰过谁」记给圣心的箭矢追踪 —— 追踪据此把已经打过（含"碰过但打不动"）的目标
+	 * 排除在候选之外，避免箭被拽回同一个目标身边打转。
+	 */
+	@SubscribeEvent
+	public static void onProjectileImpact(net.minecraftforge.event.entity.ProjectileImpactEvent event) {
+		if (event.getProjectile().level().isClientSide()) {
+			return;
+		}
+		if (!(event.getProjectile() instanceof net.minecraft.world.entity.projectile.AbstractArrow arrow)) {
+			return;
+		}
+		if (!(event.getRayTraceResult() instanceof net.minecraft.world.phys.EntityHitResult hit)) {
+			return;
+		}
+		if (!(hit.getEntity() instanceof LivingEntity target) || target == arrow.getOwner()) {
+			return;
+		}
+		com.summy.reliquary.effect.SacredHeart.recordHit(arrow, target);
 	}
 
 	/**
@@ -741,6 +766,29 @@ public final class ReliquaryEvents {
 			// 1.6.10：把攻击者一并传进去 —— 同时佩戴亚巴顿时要打"抗性联动"时间戳
 			com.summy.reliquary.effect.AbyssLord.applyStack(event.getEntity(), hellfireOwner);
 		}
+	}
+
+	/**
+	 * 1.8.6：真伤「命中后清帧」—— 本模组的真伤命中后不再给受害者留保护帧
+	 * （否则下一次真伤会被上一次留下的无敌帧吞掉，表现为"连打同一目标伤害不足额"）。
+	 *
+	 * <p>放在 {@code LOWEST}：要排在其它无敌帧处理之后执行，保证最终写进字段的是 0。
+	 * Kilt / Connector 侧事件早于原版写字段 → 交给玩家 tick 末尾清
+	 * （见 {@code CombatTuning.applyFabricClear}）。开关
+	 * {@code [combat] clear_iframes_after_true_damage}（默认 true，关掉恢复旧行为）。
+	 */
+	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+	public static void onLivingHurtClearTrueDamageIframes(LivingHurtEvent event) {
+		if (event.getEntity().level().isClientSide() || event.isCanceled() || event.getAmount() <= 0.0F) {
+			return;
+		}
+		if (!ReliquaryConfig.clearIframesAfterTrueDamage()) {
+			return;
+		}
+		if (!com.summy.reliquary.effect.HolyLightEffect.isTrueDamage(event.getSource())) {
+			return;
+		}
+		com.summy.reliquary.effect.CombatTuning.clearIframesAfterHit(event.getEntity());
 	}
 
 	/**

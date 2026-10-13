@@ -32,6 +32,8 @@ public final class CombatTuning {
 	private static final Map<UUID, Map<String, int[]>> STATS = new HashMap<>();
 	/** Fabric 侧（Kilt）：本 tick 该用的有效窗口（tick 末尾钳位用） */
 	private static final Map<UUID, Integer> FABRIC_WINDOW = new HashMap<>();
+	/** 1.8.6：Fabric 侧（Kilt）要"命中后清帧"的受害者（tick 末尾清零） */
+	private static final java.util.Set<UUID> FABRIC_CLEAR = new java.util.HashSet<>();
 	/** 自检用：在 Forge 上强制按 Fabric 侧处理 */
 	private static boolean fabricForTest = false;
 
@@ -155,6 +157,39 @@ public final class CombatTuning {
 	/** 是否按 Fabric 侧处理（Kilt / Connector，或自检强制） */
 	public static boolean fabricSide() {
 		return fabricForTest || com.summy.reliquary.effect.DamagePools.fabricSide();
+	}
+
+	/**
+	 * 1.8.6：真伤**命中后**清掉受害者的保护帧（不让这一击给对手留下无敌保护）。
+	 *
+	 * <p>Forge 侧：事件发生在原版把字段写成 20 **之后** → 直接清零即可。
+	 * Kilt / Connector 侧：事件发生在 {@code hurt} 开头（字段还没写）→ 只能登记，
+	 * 等玩家 tick 末尾再清（与窗口钳位同一时机，且必须排在钳位**之后**）。
+	 */
+	public static void clearIframesAfterHit(LivingEntity entity) {
+		if (entity == null) {
+			return;
+		}
+		if (fabricSide() && entity instanceof ServerPlayer player) {
+			FABRIC_CLEAR.add(player.getUUID());
+			return;
+		}
+		entity.invulnerableTime = 0;
+	}
+
+	/** 1.8.6：玩家 tick 末尾执行 Fabric 侧登记的"命中后清帧"（在 {@link #clampFabricWindow} 之后调用） */
+	public static void applyFabricClear(ServerPlayer player) {
+		if (player == null || FABRIC_CLEAR.isEmpty()) {
+			return;
+		}
+		if (FABRIC_CLEAR.remove(player.getUUID())) {
+			player.invulnerableTime = 0;
+		}
+	}
+
+	/** 1.8.6 自检用：当前登记的"待清帧"条数 */
+	public static int pendingClearCount() {
+		return FABRIC_CLEAR.size();
 	}
 
 	/** 自检用：强制按 Fabric 侧处理 */

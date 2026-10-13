@@ -3,6 +3,37 @@
 > 本文档收录 Summy Reliquary 的历史版本变更；**当前版本的内容与玩法以 [README.md](README.md) 为准**
 > （README 只保留最新一版变更，历史记录全部收在这里）。
 
+## 1.8.6 变更
+
+**① 真伤命中后清帧**
+
+- `HolyLightEffect.isTrueDamage(DamageSource)` = `isDivine ∪ isExactDamage ∪ 献祭自伤`；`golden_razor`（金刀片）是物理伤害，显式排除。
+- `ReliquaryEvents` 新增 LOWEST 优先级的处理：真伤落地后把受害者的 `invulnerableTime` 清零，避免这一击给对手留下保护帧、把紧随其后的真伤吞掉（典型表现：连打同一目标伤害不足额）。Forge 侧直接清；Kilt / Connector 侧事件早于原版写字段 → 登记后在玩家 tick 末尾清（`CombatTuning.clearIframesAfterHit` / `applyFabricClear`，排在窗口钳位之后）。
+- 开关 `[combat] clear_iframes_after_true_damage`（默认 true，关闭恢复旧行为）。
+
+**② 圣心箭矢追踪：停滞即直航 + 排除碰过的目标**
+
+- `SacredHeart` 新增 `StallState`（历史最近距离 / 停滞计数 / 追猎态）：连续 10 tick 未变近（阈值 0.02 格）→ 偏转强度提到 1.0 直航，重新接近立刻回 0.5；状态只存内存、按箭 UUID 维护、每 tick 清理。纯追踪在切向接近时会形成半径 ≈1.27×速率 的稳定圆轨道（只有阻力能让它在 6~7 秒后勉强缩进命中圈），追猎态把这个过程压到 0.5 秒左右。
+- `nearestEnemy` 排除「这支箭已经碰过的目标」：新增 `ReliquaryEvents.onProjectileImpact`（Forge `ProjectileImpactEvent`，在原版 `AbstractArrow.onHit` 内触发、**早于伤害结算**）登记进 `SacredHeart` 的弱引用表 —— 穿透后不会再被拽回同一个（可能已经打不动的）目标。
+- 自检（扩既有 `case 2017`，不新增编号）：停滞纯函数断言、迷你仿真（3.8 格 / 速度与视线垂直 / 速率 3.0 → 60 tick 内最近接近 0.017 格）、穿透后改选下一个目标。
+
+**③ 投掷长矛 / 金刀片命中后定格到撞击点**
+
+- `ThrownSpear` 与 `ThrownRazor` 命中时记录 `撞击点 − 来向 × 0.30` 并每 tick 钉住位置：旧行为停在"撞击前一个 tick"的坐标（渲染还把模型居中画在实体坐标上），看起来与目标隔一条缝。金刀片走原版贴面回退只能贴到 0.65 格外（自检实测 > 阈值 0.35），因此一并接管定格。
+- 自检：长矛定格偏差 0.30、金刀片定格偏差 0.30（阈值 0.35）。
+
+**④ 整击拦下的消耗顺序改为「免死 → 神性 → 亚巴顿」**
+
+- `DamagePools.guardOrNullify` 调整顺序：免死最轻（2 秒无敌、无冷却、无附加效果）先消耗，神性与亚巴顿各有附加效果与冷却排在其后。
+- 自检新增 `case 2270`（免死 + 神性同时就绪跑 60 轮致命一击，要求"免死先消耗"与"神性仍能拦"同时出现）；并给既有 `case 2128` 补一句"先摘掉灵台三件套"的确定性加固（否则免死会按 20% 概率抢在神性之前，断言随机失败）。
+
+**⑤ 邦邦咔邦光环开关改右键交互、R 键腾空**
+
+- 删除 `TOGGLE_MAID_KEY`（语言键 `key.summy-reliquary.toggle_maid` 一并移除）；`ReliquaryClientInteractions` 的背包右键判定从「神性」扩展到「光环」栏位里的 `bangbang_halo`；`BangBangHaloItem` 新增 `use()`（手持潜行右键）。
+- 复用既有 `ToggleMaidMessage`（服务端仍是 `MaidModeManager.toggle`）→ **协议号不变**。
+
+**交付**：`1.8.6-forge`；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；配置段 26；协议 **`"14"`**；自检 **594 行全绿**（1.8.5 为 585）。
+
 ## 1.8.5 变更
 
 **① 「完全拦截」提前到 Attack 层（不再抖、不再白吃无敌帧）**

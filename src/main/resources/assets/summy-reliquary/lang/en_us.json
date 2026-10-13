@@ -4,7 +4,7 @@
 
   "item.summy-reliquary.bangbang_halo": "BangBang Halo",
   "item.summy-reliquary.bangbang_halo.tagline": "Alice is not a robot vacuum",
-  "item.summy-reliquary.bangbang_halo.desc": "Press R to toggle BangBang Maid Mode; nearby dropped items are pulled toward you",
+  "item.summy-reliquary.bangbang_halo.desc": "Right-click it in your inventory (or sneak-right-click while holding) to toggle BangBang Maid Mode; nearby dropped items are pulled toward you",
 
   "item.summy-reliquary.freeloaders_rice": "Freeloader's Rice",
   "item.summy-reliquary.freeloaders_rice.tagline": "Somehow, the more you eat, the fuller you get",
@@ -163,7 +163,6 @@
   "advancements.summy-reliquary.revelation.description": "He sent down the light of revelation; you are born anew",
 
   "key.categories.summy-reliquary": "Summy Reliquary",
-  "key.summy-reliquary.toggle_maid": "Toggle BangBang Maid Mode",
   "key.summy-reliquary.revelation_beam": "Revelation Light (hold to charge)",
   "key.summy-reliquary.divine_action": "Godhead Recall / Demon Form",
   "message.summy-reliquary.godhead.recall": "You return to where you last died",

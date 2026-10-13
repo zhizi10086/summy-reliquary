@@ -20,18 +20,11 @@ import org.lwjgl.glfw.GLFW;
 import top.theillusivec4.curios.api.client.CuriosRendererRegistry;
 
 /**
- * 客户端入口：注册按键 R、发送切换请求、把光环渲染器挂到 Curios 上。
+ * 客户端入口：注册按键（V 光柱蓄力 / X 神性回溯·亚巴顿形态）、发送请求、把光环渲染器挂到 Curios 上。
  *
  * <p>两个内部类分别订阅模组事件总线（注册阶段）与 Forge 事件总线（游戏运行阶段）。
  */
 public final class SummyReliquaryClient {
-	/** 切换邦邦女仆状态的按键：默认 R，玩家可在原版「控制」里改键 */
-	public static final KeyMapping TOGGLE_MAID_KEY = new KeyMapping(
-			"key.summy-reliquary.toggle_maid",
-			InputConstants.Type.KEYSYM,
-			GLFW.GLFW_KEY_R,
-			"key.categories.summy-reliquary");
-
 	/** 启示之光：长按蓄力，默认 V，玩家可在原版「控制」里改键 */
 	public static final KeyMapping REVELATION_BEAM_KEY = new KeyMapping(
 			"key.summy-reliquary.revelation_beam",
@@ -95,7 +88,6 @@ public final class SummyReliquaryClient {
 
 		@SubscribeEvent
 		public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-			event.register(TOGGLE_MAID_KEY);
 			event.register(REVELATION_BEAM_KEY);
 			event.register(DIVINE_ACTION_KEY);
 		}
@@ -167,12 +159,6 @@ public final class SummyReliquaryClient {
 			// 1.7.9：蓄力谓词的兜底注册（Kilt 上模组总线事件可能不触发，这里每 tick 幂等补一次）
 			registerUsingProperty();
 			Minecraft client = Minecraft.getInstance();
-			// 用 while 把所有排队的按下事件都消费掉，避免连按时输入堆积
-			while (TOGGLE_MAID_KEY.consumeClick()) {
-				if (client.player != null && client.getConnection() != null) {
-					ReliquaryNetworking.sendToggleMaid();
-				}
-			}
 			// 1.8.2：X 键 —— 神性回溯 / 亚巴顿主动恶魔形态（长按蓄力后发包，服务端再校验装备）
 			tickDivineAction(client);
 
