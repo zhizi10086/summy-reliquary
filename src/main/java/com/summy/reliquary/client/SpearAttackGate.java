@@ -24,7 +24,7 @@ import net.minecraftforge.fml.common.Mod;
  *
  * <p><b>历史</b>：1.8.4 曾在这里实现过第一人称「左键戳刺」动画（接管
  * {@code applyForgeHandTransform}），因观感调不到位已**整体移除**，只保留本门禁；
- * 重启该动画的思路与踩过的坑记在 {@code docs/SummyReliquary-待办与借鉴.md}。
+ * 重启该动画的思路与踩过的坑记在本地维护的开发待办中（不随仓库分发）。
  */
 @Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE,
 		value = Dist.CLIENT)

@@ -64,7 +64,7 @@ Thank you to every player for your support and feedback.
 - **箭矢追踪（圣心）**的制导思路参考了**合作者 mofeng945** 的 [TinkersNewlife](https://github.com/mofeng945/TinkersNewlife)
   中 `src/main/java/com/mofengbaizhi/tinkersnewlife/content/entity/SwordGuidance.java`（飞剑制导）。
   当前只借鉴三项：正后方 180° 兜底、小角度死区、追踪半径的球体距离判定；
-  具体改法与验收标准记录在 `docs/SummyReliquary-待办与借鉴.md`（尚未实施）。
+  具体改法与验收标准记录在本地维护的开发待办中（不随仓库分发）。
 
 ## 依赖与兼容
 
