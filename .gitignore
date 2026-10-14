@@ -27,3 +27,7 @@ run/
 # 本地依赖与映射备份（不入库）
 /libs/
 /_backup-mappings/
+
+# 内部文档：本地留存、不入库
+/docs/SR真伤限伤破除-方案.md
+/docs/SR主动-v2.md
