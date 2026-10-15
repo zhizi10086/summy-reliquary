@@ -1,4 +1,4 @@
-﻿# Summy Reliquary 事件文本与触发关系总台账（1.8.6-forge）
+# Summy Reliquary 事件文本与触发关系总台账（1.8.6-forge）
 
 > 更新时间：2026-10-08（1.8.5）　｜　对应版本：**1.8.5-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > 用途：把所有"会显示给玩家的话"按**触发条件**整理成一张表，方便改文案、查文案、加功能时对照。
@@ -1067,7 +1067,7 @@
 
 | 触发 | 条件 | 文本 | 位置 | 备注 |
 | --- | --- | --- | --- | --- |
-| 执行 `/summyreliquary shield clamp [<玩家>]` | OP（权限等级 2） | 「已把「<玩家名>」的吸收值从 <旧值> 夹回 <新值>（保留检测到的 Enchantment Reforged 生命护盾 <值>）」/「……（未检测到 Enchantment Reforged 生命护盾，直接清零）」 | 聊天框（命令回执） | **1.8.5 补修**：修复"死亡拦截把整击金额并入吸收值"留下的残留（与 Enchantment Reforged 的生命护盾互相污染，实测每次拦截 +一个生命上限）。文本用 `Component.literal` 拼装、**不新增语言键**（与既有命令一致）；数值统一 `%.1f` 一位小数 |
+| 执行 `/summyreliquary shield clamp [<玩家>]` | OP（权限等级 2） | 「已把「<玩家名>」的吸收值从 <旧值> 夹回 <新值>（保留检测到的 Summy Enchantment 生命护盾 <值>）」/「……（未检测到 Summy Enchantment 生命护盾，直接清零）」 | 聊天框（命令回执） | **1.8.5 补修**：修复"死亡拦截把整击金额并入吸收值"留下的残留（与 Summy Enchantment 的生命护盾互相污染，实测每次拦截 +一个生命上限）。文本用 `Component.literal` 拼装、**不新增语言键**（与既有命令一致）；数值统一 `%.1f` 一位小数 |
 
 ---
 
@@ -1092,7 +1092,7 @@
 | 查看「神性」的功能行（第 2 行，光环**已关闭**时） | 佩戴神性 + 客户端位 `FLAG_GODHEAD_AURA_OFF` | 「神圣光环｜半径 8 格内的敌人每秒受到 2 点圣光真伤。**（已关闭）**」（英文 `Divine Aura｜Enemies within 8 blocks take 2 true holy damage every second. (Disabled)`） | 物品提示（`item.summy-reliquary.godhead.shift.2.off`） | **1.8.5 第二轮**：`GodheadItem.functionLines()` 改为循环 1..9，第 2 行按 `ReliquaryClientState.isGodheadAuraOff()` 在 `shift.2` 与 `shift.2.off` 之间二选一（前缀在启用时仍显示原键 `shift.2`） |
 | 查看「神性」的功能行（第 9 行） | 佩戴神性 | 「开关｜背包里对着它右键，或手持时潜行右键。」（英文 `Toggle｜Right-click it in your inventory, or sneak-right-click while holding it.`） | 物品提示（`item.summy-reliquary.godhead.shift.9`） | **1.8.5 第二轮**：新增的操作说明行；`functionLines()` 的上界由 8 改成 9 |
 
-> **1.8.5 第二轮的其余改动不涉及文本**：伤害池份额改走 `LivingDamageEvent`（扣池口径与日志格式，新增的只是日志文本，不是语言键）、Kilt 旧路径上的 Enchantment Reforged 记账校正 —— 都不进本台账的语言键表。
+> **1.8.5 第二轮的其余改动不涉及文本**：伤害池份额改走 `LivingDamageEvent`（扣池口径与日志格式，新增的只是日志文本，不是语言键）、Kilt 旧路径上的 Summy Enchantment 记账校正 —— 都不进本台账的语言键表。
 
 ---
 

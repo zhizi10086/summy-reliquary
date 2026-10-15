@@ -425,7 +425,7 @@ public final class ForgeDevCheck {
 				case 2263 -> checkShieldClamp(player);
 				// 1.8.5 补修：击杀回复的饥饿上限只在"暴食未赎罪"时是 18
 				case 2264 -> checkGluttonyKillFeed(player);
-				// 1.8.5 第二轮：池子份额改走 LivingDamageEvent（吸收值全程不动，与 ER 生命护盾互不干扰）
+				// 1.8.5 第二轮：池子份额改走 LivingDamageEvent（吸收值全程不动，与 SE 生命护盾互不干扰）
 				case 2266 -> checkPoolHealthDamagePath(player);
 				// 1.8.5 第二轮：神性「神圣光环」的玩家开关（右键物品切换）
 				case 2267 -> checkGodheadAuraToggle(player);
@@ -1413,7 +1413,7 @@ public final class ForgeDevCheck {
 				com.summy.reliquary.effect.SoulShield.points(player)));
 	}
 
-	/** 原版吸收被外部清零不影响魂心池（ER 兼容性） */
+	/** 原版吸收被外部清零不影响魂心池（SE 兼容性） */
 	private static void checkSoulShieldAfterWipe(ServerPlayer player) {
 		log(String.format("外部清零原版吸收后：池子=%.1f（应仍为 6，独立池互不干扰）、吸收=%.1f（应为 0）",
 				com.summy.reliquary.effect.SoulShield.points(player), player.getAbsorptionAmount()));
@@ -6479,7 +6479,7 @@ public final class ForgeDevCheck {
 	 * <p>原版字段值是"窗口 + 10"（判定 {@code invulnerableTime > 10}、每 tick 减 1），
 	 * 所以一般受伤写 5 + 10、帧伤写 10 + 10。这里的断言：
 	 * ① 一般伤害字段 = 15、② 帧伤字段 = 20（= 原版）、③ 逐 tick 模拟落地间隔分别是 5 / 10 tick、
-	 * ④ ER 两段（主击 → 追加段前自己清冷却）都落地、⑤ 窗口内更大的一击只结算差值、
+	 * ④ SE 两段（主击 → 追加段前自己清冷却）都落地、⑤ 窗口内更大的一击只结算差值、
 	 * ⑥ 帧伤集合识别 + 自定义 id 配置项存在。
 	 */
 	private static void checkIframeWindows(ServerPlayer player) {
@@ -6526,7 +6526,7 @@ public final class ForgeDevCheck {
 		int frameLandings = simulateDamageTicks(player, player.damageSources().inFire(), 30, 1.0F);
 		player.clearFire();
 
-		// ④ ER 的魔剑 / 出其不意：追加段之前 ER 自己会把冷却清零 → 两段都要落地
+		// ④ SE 的魔剑 / 出其不意：追加段之前 SE 自己会把冷却清零 → 两段都要落地
 		player.setHealth(player.getMaxHealth());
 		player.invulnerableTime = 0;
 		float beforeMain = player.getHealth();
@@ -6559,7 +6559,7 @@ public final class ForgeDevCheck {
 
 		log(String.format("无敌帧（1.6.3 原版逻辑 + 两档窗口）：一般字段=%d（应 %d = %d+10）、帧伤字段=%d"
 						+ "（应 %d = %d+10）、30 tick 内落地 一般=%d 次（应 6 = 每 5 tick）、帧伤=%d 次（应 3 = 每 10 tick）、"
-						+ "ER 主击=%.1f / 追加段=%.1f（都应落地：2.0 / 3.0）、窗口内更大一击只结算差值=%.1f（应 3.0）、"
+						+ "SE 主击=%.1f / 追加段=%.1f（都应落地：2.0 / 3.0）、窗口内更大一击只结算差值=%.1f（应 3.0）、"
 						+ "帧伤集合识别=%s（应 true）、frame_damage_ids 默认空=%s（应 true）",
 				genericField, genericWindow + 10, genericWindow, frameField, frameWindow + 10, frameWindow,
 				genericLandings, frameLandings, mainDealt, extraDealt, diffDealt, frameSet, extraIdsEmpty));
@@ -8073,7 +8073,7 @@ public final class ForgeDevCheck {
 	/**
 	 * 守卫：致命一击被神性整击拦下时**直接取消这一击**（1.8.5 补修）。
 	 *
-	 * <p>旧做法是把整击金额并入吸收值、事后写回绝对值 —— 那会污染 Enchantment Reforged 那类
+	 * <p>旧做法是把整击金额并入吸收值、事后写回绝对值 —— 那会污染 Summy Enchantment 那类
 	 * "读当前值做增量记账"的护盾模组（实测每次拦截吸收值 +一个生命上限）。
 	 * 现在改为取消：伤害不落地、吸收值一个点都不动、不建挂起记录，并把这一击占用的原版无敌帧清 0。
 	 */
@@ -13828,7 +13828,7 @@ public final class ForgeDevCheck {
 
 	/**
 	 * 1.8.5 第二轮：池子份额改走 {@code LivingDamageEvent}（Forge / Connector 的默认路径）——
-	 * 扣的是"真实会打到血"的那一份，**吸收值全程一个点都不动**（这是与 Enchantment Reforged
+	 * 扣的是"真实会打到血"的那一份，**吸收值全程一个点都不动**（这是与 Summy Enchantment
 	 * 的生命护盾互不干扰的关键）。
 	 *
 	 * <p>用真实 {@code player.hurt(...)} 驱动：{@code prepare} 只登记本击，真正扣池发生在
@@ -14136,8 +14136,8 @@ public final class ForgeDevCheck {
 	 * 1.8.5 补修：{@code /summyreliquary shield clamp} —— 把被"死亡拦截并入吸收值"污染的吸收值
 	 * 夹回"本模组能解释的部分"。
 	 *
-	 * <p>口径：软读 Enchantment Reforged 的生命护盾属性（`enchantment_reforged:life_shield`），
-	 * 取到就设为它的值、取不到就清零。自检环境没有 ER，所以期望值就是 0。
+	 * <p>口径：软读 Summy Enchantment 的生命护盾属性（`summy_enchantment:life_shield`），
+	 * 取到就设为它的值、取不到就清零。自检环境没有 SE，所以期望值就是 0。
 	 */
 	private static void checkShieldClamp(ServerPlayer player) {
 		MinecraftServer server = player.getServer();
@@ -14154,7 +14154,7 @@ public final class ForgeDevCheck {
 		float after = player.getAbsorptionAmount();
 		boolean ok = result > 0 && Math.abs(after - expected) < 1.0E-4F;
 		log("护盾夹取命令（1.8.5）：执行结果=" + result + "（应 >0）、被污染的 1100 → " + after + "（应 "
-				+ expected + " = " + (external > 0.0D ? "ER 生命护盾值" : "未检测到 ER，清零")
+				+ expected + " = " + (external > 0.0D ? "SE 生命护盾值" : "未检测到 SE，清零")
 				+ "）→ 整体=" + ok + "（应 true）");
 		player.setAbsorptionAmount(0.0F);
 	}

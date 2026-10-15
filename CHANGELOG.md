@@ -53,14 +53,14 @@
 **③ 伤害池的"还原吸收值"由写绝对值改为增量退还**
 
 - 普通分支：`setAbsorptionAmount(A0 − 护盾消耗)` 改为 `max(0, after − min(T, after))`（`T` = 本次并入量、`after` = 结算后吸收值）—— 只减掉自己那份**没被吃掉**的并入量。无外部写入时与旧公式**逐值相同**（自检既有断言全部照旧），有外部写入时则是"在对方结果之上再减掉我们那一份"。
-- 为什么必须改：Enchantment Reforged 这类护盾是「读当前值 ± delta」的增量写法（还有自己的 `SHIELD_TRACK` 记账），SR 写回绝对值会把它同期加进来的护盾一并抹掉，ER 的记账还会据此误判"自己被打掉"而缩小护盾。
+- 为什么必须改：Summy Enchantment 这类护盾是「读当前值 ± delta」的增量写法（还有自己的 `SHIELD_TRACK` 记账），SR 写回绝对值会把它同期加进来的护盾一并抹掉，SE 的记账还会据此误判"自己被打掉"而缩小护盾。
 - ~~整击拦下分支保持写回基线~~ → **1.8.5 补修后这一支已不存在**：致命一击不再并入吸收值，改为直接取消这一击（见 ⑨）。
 
 **④ 魂心 / 黑心 HUD 适配 Mantle 与「经典状态条」（Classic Bar）**
 
 - `[spirit_altar]` 新增 `soul_heart_hud_layout`（`auto` / `vanilla` / `single_row` / `classic_row`，默认 `auto`）与 `soul_heart_hud_offset_y`（`-40~40` px，正数向下）。
-- `SoulHeartOverlay` 新增 `Layout` 枚举与 `layout()` 解析：`auto` 先看**经典状态条** → `CLASSIC_ROW`，再看 **Mantle** → `SINGLE_ROW`，都没有才 `VANILLA`。`CLASSIC_ROW` 用 `gui.rightHeight` 锚定（`screenHeight − rightHeight − 10 + offsetY`，与 ER 的额外饥饿行同一套公式），**不再叠加吸收值与盔甲行**（红心 / 黄心 / 盔甲已被 Classic Bar 并进 `rightHeight`）；`SINGLE_ROW` 红心恒按一排、**不再为原版吸收值留行**、盔甲避让保留；`rightHeight <= 0` 时自动回退单排公式。
-- **HUD 注册锚点从 `PLAYER_HEALTH` 挪到 `ITEM_NAME`**：只有在这个锚点之后读到的 `ForgeGui.rightHeight` 才是 Classic Bar 累加完的值（ER 也是这么做的）。`DemonBlackHeartOverlay` 复用同一套行位解析，黑心跟着魂心排。
+- `SoulHeartOverlay` 新增 `Layout` 枚举与 `layout()` 解析：`auto` 先看**经典状态条** → `CLASSIC_ROW`，再看 **Mantle** → `SINGLE_ROW`，都没有才 `VANILLA`。`CLASSIC_ROW` 用 `gui.rightHeight` 锚定（`screenHeight − rightHeight − 10 + offsetY`，与 SE 的额外饥饿行同一套公式），**不再叠加吸收值与盔甲行**（红心 / 黄心 / 盔甲已被 Classic Bar 并进 `rightHeight`）；`SINGLE_ROW` 红心恒按一排、**不再为原版吸收值留行**、盔甲避让保留；`rightHeight <= 0` 时自动回退单排公式。
+- **HUD 注册锚点从 `PLAYER_HEALTH` 挪到 `ITEM_NAME`**：只有在这个锚点之后读到的 `ForgeGui.rightHeight` 才是 Classic Bar 累加完的值（SE 也是这么做的）。`DemonBlackHeartOverlay` 复用同一套行位解析，黑心跟着魂心排。
 - **环境探测修 Connector 漏检**：`FabricLoader#isModLoaded` 与 `ModList#isLoaded` **两侧都问、取或**（Connector / 信雅互联环境里 `FabricLoader` 只认识 Fabric 模组，Forge 侧的 Mantle 以前会被漏掉）；用反射 + 缓存，任何异常都按"没有该模组"处理。
 - **防御性钳制**：参与行数计算的吸收值上限 100 点（50 颗心），超出按上限绘制并整局只打一条 INFO —— 以后吸收值再被叠到几千也不会把蓝心顶出屏幕。
 - 自检扩展 `checkHudRows`（新增 `setLayoutForTest` 钩子）：经典档 `rightHeight=59` → `Y=171`、偏移平移、吸收值 1100 不影响行位、没有条堆时回退单排；单排下吸收值 1100 与 0 相同、吸收值 5000 与 100 相同；原版档既有断言逐值不变。
@@ -69,7 +69,7 @@
 
 - **愤怒提示**：`item.summy-reliquary.sin.wrath.debuff` 由「每次攻击 %s%% 几率自伤**等量**」改为「每次攻击 %s%% 几率自伤**本次伤害的 %s%%**」，`SinDescriptions` 的 WRATH `debuff` 分支补第二个参数（`wrath_self_hit_multiplier × 100`，默认渲染为「15% / 50%」）—— 1.8.0 起实际口径就是"15% 几率 × 50% 伤害、永不致死"，旧文案早已过期。自检在 `checkWrathSelfHitNeverKills` 里追加"必须含 15% 与 50%、不含「等量」"。
 - **受伤节流日志**：「被无敌帧挡下 N 次」改为「**被挡下（未落地）N 次**」，javadoc 写明这个差值包含**所有**落地前被取消的情况（原版无敌帧 / 环境免疫 / 斗篷 / 魂心破碎 / 免死 / 其它模组的取消）。
-- **「属性更新」日志降噪**：`AttributeManager.logIfChanged` 的变化判定只保留关键字段（生命加成、光环、魂心池、黑心、套装），「原版吸收」不再参与"值变了没有"的判断、但仍随行打印 —— 那个值会被 ER 的护盾 / 恢复每 2~3 秒微调一次，是 41 分钟 998 行刷屏的来源。
+- **「属性更新」日志降噪**：`AttributeManager.logIfChanged` 的变化判定只保留关键字段（生命加成、光环、魂心池、黑心、套装），「原版吸收」不再参与"值变了没有"的判断、但仍随行打印 —— 那个值会被 SE 的护盾 / 恢复每 2~3 秒微调一次，是 41 分钟 998 行刷屏的来源。
 
 **⑥ 暗仪刺刀的遗留描述（写百科条目时发现）**
 
@@ -88,7 +88,7 @@
 
 **⑨ 死亡拦截改为「取消这一击」：不再污染吸收值（1.8.5 补修）**
 
-- **根因（Ponder Time 实例日志 + 两边源码共同确认）**：`DamagePools.prepare` 的 nullify 支把**整击原始金额**并入吸收值（玩家 `/kill` 时日志实测 `T=1.1040296E38`），随后又用**绝对值**把吸收值写回基线。Enchantment Reforged 的生命护盾是「读当前值做增量记账」（`SHIELD_TRACK`），看到池子先暴涨再暴跌就判定自己被打掉、把自己的护盾清零；而拦截把血量设成 1 之后玩家又被治回满血，ER 的 `LivingEntityMixin#heal` → `onHeal` 会按「治疗量 × `life_shield_percent_per_level`(0.2) × 等级」补一份护盾（上限 = 生命上限 ×0.2×5 = **正好一个生命上限**），正好加在 SR 还原出的基线上 —— 于是**每拦截一次吸收值 +275**，日志实测 **275 → 550 → 825 → 1100**。
+- **根因（Ponder Time 实例日志 + 两边源码共同确认）**：`DamagePools.prepare` 的 nullify 支把**整击原始金额**并入吸收值（玩家 `/kill` 时日志实测 `T=1.1040296E38`），随后又用**绝对值**把吸收值写回基线。Summy Enchantment 的生命护盾是「读当前值做增量记账」（`SHIELD_TRACK`），看到池子先暴涨再暴跌就判定自己被打掉、把自己的护盾清零；而拦截把血量设成 1 之后玩家又被治回满血，SE 的 `LivingEntityMixin#heal` → `onHeal` 会按「治疗量 × `life_shield_percent_per_level`(0.2) × 等级」补一份护盾（上限 = 生命上限 ×0.2×5 = **正好一个生命上限**），正好加在 SR 还原出的基线上 —— 于是**每拦截一次吸收值 +275**，日志实测 **275 → 550 → 825 → 1100**。
 - **改法**：nullify 支不再碰吸收值，改为 `event.setCanceled(true)` + `setAmount(0.0F)`：`ForgeHooks.onLivingHurt` 在事件被取消时返回 0，`LivingEntity#actuallyHurt` 随即 return —— 伤害根本不落地、护盾与血量都不动，也不再建立挂起记录。同时把这一击占掉的原版无敌帧清 0（`hurt()` 早已写过 `invulnerableTime = 20`，取消只来得及救回它；`markHurt()` 的抖动仍在，见 ① 的已知缺口）。
 - **同一击的重复事件**（Kilt / Connector 会对玩家连发两次 `LivingHurtEvent`）在守卫已就位时**只取消、不重复拦截** —— 以前会二次传送并重置守卫计时。`Pending` 记录随之删掉 `nullify` 字段与「对账·整击拦下」分支，普通分支的并入 / 对账逻辑一行未动。
 - 自检 `case 2128` 改写为断言「取消这一击 + 吸收值保持 2.0 + 无挂起记录 + 无敌帧 0 + 守卫内重复事件只取消、不重复拦截」。
@@ -96,12 +96,12 @@
 **⑩ 新 OP 子命令 `/summyreliquary shield clamp [<玩家>]`**
 
 - 权限等级 2（与 `genesis` / `angel` 一致），省略玩家时作用于自己；回执为一行聊天文本（不新增语言键）。
-- 语义：把目标玩家的吸收值夹回"本模组能解释的部分" —— 软查 ER 属性 `enchantment_reforged:life_shield`（`ForgeRegistries.ATTRIBUTES` / `BuiltInRegistries.ATTRIBUTE` 两处都试，取不到就当没有 ER），取到就设为它的基础值、取不到就清零。新增 `util/ExternalShields` 只按 id 查注册表，不引用 ER 的任何类。
-- **金苹果等其它来源的吸收值会被一并清掉**，属该命令的明确语义；只在 OP 显式调用时执行，不做任何自动夹取。自检在 `checkCommandPermissions` 补了节点权限断言，并用 `case 2263` 实跑一次命令（自检环境没有 ER → 期望夹到 0）。
+- 语义：把目标玩家的吸收值夹回"本模组能解释的部分" —— 软查 SE 属性 `summy_enchantment:life_shield`（`ForgeRegistries.ATTRIBUTES` / `BuiltInRegistries.ATTRIBUTE` 两处都试，取不到就当没有 SE），取到就设为它的基础值、取不到就清零。新增 `util/ExternalShields` 只按 id 查注册表，不引用 SE 的任何类。
+- **金苹果等其它来源的吸收值会被一并清掉**，属该命令的明确语义；只在 OP 显式调用时执行，不做任何自动夹取。自检在 `checkCommandPermissions` 补了节点权限断言，并用 `case 2263` 实跑一次命令（自检环境没有 SE → 期望夹到 0）。
 
 **⑪ 暴食的击杀回复不再被 18 的上限夹住（1.8.5 补修）**
 
-- **现象（实机 + 日志）**：赎罪后（含佩戴美德 / 撒旦圣经）每击杀一只生物，饥饿值都被**压回 18** —— 日志里能看到 `19 → 18`、`20 → 18`，以及在 18 上长时间钉住（连续 13 / 21 / 16 条 `[ER-HUD]` 记录）。
+- **现象（实机 + 日志）**：赎罪后（含佩戴美德 / 撒旦圣经）每击杀一只生物，饥饿值都被**压回 18** —— 日志里能看到 `19 → 18`、`20 → 18`，以及在 18 上长时间钉住（连续 13 / 21 / 16 条 `[SE-HUD]` 记录）。
 - **根因**：击杀回复走的是独立的一条路径 `Feed.feed`（`onKill` → `awakened(GLUTTONY)` → `Feed.feed`），它**无条件**取 `Gluttony.foodCap(player)`（恒 18，与罪的状态无关）来夹结果；而该路径的触发条件恰恰包含"已赎罪"。对比另外两条压制路径（`tickPlayerEveryTick` 与 `Gluttony.upkeep`）都带了 `active(...)` 门，所以只有这一条漏了。
 - **改法**：`Feed.feed` 的上限改为「`active(player, GLUTTONY)`（七罪之源 + 未赎罪）→ 18；否则 → `RiceHungerLock.foodCap`（原版 20 / 「大胃袋」抬高的上限）」。口径与"减益只认七罪之源"的既有约定一致，撒旦圣经（只继承激活档的增益）因此也不再吃 18 上限。
 - 自检新增 `case 2264`：未赎罪 19 → **18**（上限仍生效）、赎罪后 19 → **20**（不再夹 18）、赎罪后 20 → **20**（不被压回）。
@@ -113,10 +113,10 @@
 - **改法（零 Mixin）**：① 服务端 `ReliquaryEvents.clearDemonFire` 改名 `keepNotOnFire` 并**把同步位一起压回 false**，判据扩成新的 `isFireProof`（**恶魔线完全防火** 或 **佩戴神性带来的 `#is_fire` 环境免疫**；其它无敌窗口不算防火）；② **客户端补一刀** —— `SummyReliquaryClient.ForgeBus.keepNotOnFireOnClient()` 在每个客户端 tick（END 段、渲染之前）对本地玩家做同样的 `clearFire()` + `setSharedFlagOnFire(false)`，判据与服务端共用（客户端读同步标记 + 本地 Curios 数据）。`isDemonFireImmune` 参数放宽到 `LivingEntity`。
 - 自检：`checkDemonFireImmunity` 补「只清 tick 后仍不着火（同步位已压掉）」「恶魔线算防火」「戴神性也算防火且照样清火」三条断言（并先摘掉 Curios，避免神性把"换回天使标记后恢复正常受伤"接住）；新增客户端用例 `checkClientFireOverlay`（`clientTick == 2015`），断言清火 helper 后本地玩家 `ticks == 0` 且"只清 tick 仍不着火"。构建后的包体继续断言 `mixin = 0`。
 
-**⑬ 伤害池份额改走 `LivingDamageEvent`（与 Enchantment Reforged 的生命护盾互不干扰，1.8.5 第二轮）**
+**⑬ 伤害池份额改走 `LivingDamageEvent`（与 Summy Enchantment 的生命护盾互不干扰，1.8.5 第二轮）**
 
-- **新路径（Forge / Connector）**：`DamagePools.prepare` 在 `LivingHurtEvent` 里只做「完全拦下」判定并**登记本击**，真正的扣池搬到 `LivingDamageEvent`（`ReliquaryEvents.onLivingDamagePools`，同为 LOWEST）：那里拿到的金额正是「扣完护甲 / 抗性 / 吸收之后、即将打到血」的那一份，于是 `share = min(池子总量, 金额)` → 扣魂心 / 黑心 → `event.setAmount(金额 − share)`。玩家的血正好少掉池子没扛住的那部分，而**吸收值一个点都不动** —— Enchantment Reforged 这类「读当前值做增量记账」的护盾看不到任何"先涨后跌"。附带收益：扣池不再依赖 `DamageEstimate` 的受伤前估算，也就不存在"估算偏大 → 退还"。
-- **能力探测 + Kilt 兜底**：能力位由 `LivingDamageEvent` 处理器**第一次收到事件**时置真（Kilt 会跳过那处注入 → 永远收不到 → 自动全程走旧路径）；`tickPlayer` 对"登记了却始终没等到事件"的残留做回退并打一条 WARN。旧路径的对账末尾新增 `EnchantmentReforgedShieldCompat.reconcileAfterPoolWrite(...)`：反射把 ER 的 `SHIELD_TRACK` 校正成我们写回的池值、并按"真实护盾消耗"调小它的护盾（全部软依赖，ER 缺席或字段改名时静默跳过）。
+- **新路径（Forge / Connector）**：`DamagePools.prepare` 在 `LivingHurtEvent` 里只做「完全拦下」判定并**登记本击**，真正的扣池搬到 `LivingDamageEvent`（`ReliquaryEvents.onLivingDamagePools`，同为 LOWEST）：那里拿到的金额正是「扣完护甲 / 抗性 / 吸收之后、即将打到血」的那一份，于是 `share = min(池子总量, 金额)` → 扣魂心 / 黑心 → `event.setAmount(金额 − share)`。玩家的血正好少掉池子没扛住的那部分，而**吸收值一个点都不动** —— Summy Enchantment 这类「读当前值做增量记账」的护盾看不到任何"先涨后跌"。附带收益：扣池不再依赖 `DamageEstimate` 的受伤前估算，也就不存在"估算偏大 → 退还"。
+- **能力探测 + Kilt 兜底**：能力位由 `LivingDamageEvent` 处理器**第一次收到事件**时置真（Kilt 会跳过那处注入 → 永远收不到 → 自动全程走旧路径）；`tickPlayer` 对"登记了却始终没等到事件"的残留做回退并打一条 WARN。旧路径的对账末尾新增 `EnchantmentReforgedShieldCompat.reconcileAfterPoolWrite(...)`：反射把 SE 的 `SHIELD_TRACK` 校正成我们写回的池值、并按"真实护盾消耗"调小它的护盾（全部软依赖，SE 缺席或字段改名时静默跳过）。
 - **保留旧机制**：`PENDING` / `reconcile` / `tickPlayer` / `isDuplicateEvent` 与 `DamageEstimate` 都留着（Kilt 路径与"死亡拦截用估算"仍在用），并新增测试钩子 `DamagePools.setModeForTest(AUTO / HEALTH_DAMAGE / LEGACY)`。
 - 自检新增 `case 2266`：用真实 `player.hurt(...)` 驱动新路径，断言「池 4 受 3 → 池 1、红血与吸收值都不动」与「池 1 受 5 → 池 0、红血 −4、吸收仍 0」；既有的 `case 2124 / 2126 / 2138 / 2261` 显式切到 `LEGACY` 继续驱动旧机制。另在 `checkPoolLogFields` 里补一条新日志格式（`伤害池[Forge|LivingDamage 扣池] ……`）的字段断言。
 
@@ -229,7 +229,7 @@
 
 - **贴图与旋转**：换成新的 32×32 竖直图，模型套用与暗仪刺刀相同的 `display` 补偿（第三人称 ±190°、第一人称 ±160°，不加 `gui` 覆盖）。
 - **右键由「遁入暗影」改为「献祭」**：自损 **4 点**、换取 **+40% 严格左键近战伤害**、**8 秒内线性衰减到 0%**、独立 **8 秒冷却**（走原版物品冷却，图标显示冷却扇形；**成功时不弹任何文字**，反馈只有冷却扇形与受伤表现）。
-- **自伤口径**：新增专用伤害类型 `summy-reliquary:sacrifice_self`（`bypasses_armor` / `effects` / `enchantments` / `resistance`），**不吃护甲 / 保护 / 抗性**；**护盾照常抵扣**（原版吸收 → 魂心 → 黑心，含 ER 生命护盾这类同步到吸收的护盾）；**不造成击退**（结算前后保存 / 恢复速度）。
+- **自伤口径**：新增专用伤害类型 `summy-reliquary:sacrifice_self`（`bypasses_armor` / `effects` / `enchantments` / `resistance`），**不吃护甲 / 保护 / 抗性**；**护盾照常抵扣**（原版吸收 → 魂心 → 黑心，含 SE 生命护盾这类同步到吸收的护盾）；**不造成击退**（结算前后保存 / 恢复速度）。
 - **致死与拦截**：不再钳制伤害、不再因生命过低拒绝（**恶咒锁血 1 点也能献祭**），并且这一击**不触发任何死亡拦截**（神性 / 亚巴顿 / 免死都不接管）——可致死属刻意设计；死亡文本新增「**%s 成为了祭品**」。
 - **不触发副作用**：不自伤触发神圣斗篷的无敌窗口、不触发七罪的受击修正（傲慢放大 / 色欲脱甲）；被无敌窗口吃掉时按「被打断」处理（提示 + 不消耗、不给增益、不进冷却）。
 
@@ -376,7 +376,7 @@
 - 创造页图标与 MOD 图标都换成**根成就图标** `duality_stat`（「遗物：七罪」）：创造页用 `new ItemStack(duality_stat)`；`logoFile` 路径不变（`assets/summy-reliquary/icon.png`），内容换成 `duality_stat.png` 的 **32× 最近邻放大（16×16 → 512×512）**（16×16 → 32×32，保持像素风）。
 - `mods.toml` 描述改写为「七罪主题饰品合集 + 天使线 / 恶魔线 / 武器 / 流程」四行。
 
-**⑤ 交付**：版本 `1.7.10-forge`；协议仍 `"12"`；注册物品 **49 → 50**、创造页 **45 → 46**、配方 **33 → 34**；自检 **526~528 行全绿**（随存档赎罪状态浮动 2 行）；`enchantment-reforged` 不动。
+**⑤ 交付**：版本 `1.7.10-forge`；协议仍 `"12"`；注册物品 **49 → 50**、创造页 **45 → 46**、配方 **33 → 34**；自检 **526~528 行全绿**（随存档赎罪状态浮动 2 行）；`summy-enchantment` 不动。
 
 **⑥ 1.7.10 修订（本轮收尾）**
 
@@ -465,7 +465,7 @@
 
 **⑤ 交付**
 
-- 版本 `1.7.9-forge`；协议仍 `"12"`（只扩展既有位掩码，无新包）；注册物品 / 创造页不变（**49 / 45**）；`enchantment-reforged` 不动；实例 config 的 `[holy_light]` 新增三个键。
+- 版本 `1.7.9-forge`；协议仍 `"12"`（只扩展既有位掩码，无新包）；注册物品 / 创造页不变（**49 / 45**）；`summy-enchantment` 不动；实例 config 的 `[holy_light]` 新增三个键。
 - 自检 **515~517 行全绿**（差异来自两处"仅打印"的提示 dump 行随客户端 tick 时序变化，**0 条失败断言**）：新增 7 个用例（两张配方与门禁 / 投掷与圣光爆发 / 获取与防丢失 / 四把武器门槛与攻击距离 / 文案与模型 / 10% 圣光 proc / 创世纪的没收），并把 1.7.8 的"两把矛没有 overrides"断言改成"主模型带 `using` overrides"；"文案与模型"用例另加两条**防回归**断言：两个 `*_using` 模型的第三人称 Z 比主模型多 180°、第一人称 Z 与主模型一致，且 `ThrownSpearRenderer.Z_TILT_DEGREES == 225`（以后把轴、符号或翻转改错都会直接报红）。
 
 ## 1.7.8 变更
@@ -480,13 +480,13 @@
 - 两把都是**剑类**（可附锋利、可横扫）、都进 `#minecraft:swords`、名字走**天使线**白金渐变、**无门槛无配方**（只进创造页）。
 - **放弃 16×16 双图方案**：GUI / 掉落物 / 展示框 / 手持**全部**用同一张 32×32 长杆图，手持横握由共享父模型 `models/item/spear_in_hand.json` 的 display 提供；删除了手持专用贴图与模型、也删除了上一轮那套 `in_gui` 谓词（它无法区分 GUI 与手持，见 1.7.7 的教训）。
 
-**② 长按右键投掷（架构参考 enchantment-reforged 的「忠诚改版」）**
+**② 长按右键投掷（架构参考 summy-enchantment 的「忠诚改版」）**
 
-| 环节 | 我们的做法（与 ER 对照） |
+| 环节 | 我们的做法（与 SE 对照） |
 | --- | --- |
-| 本体不消耗 | ER 用 mixin 拦住 `PlayerInventory.removeOne`；我们是自己的物品类，**直接不消耗**，只**扣 1 点耐久** |
+| 本体不消耗 | SE 用 mixin 拦住 `PlayerInventory.removeOne`；我们是自己的物品类，**直接不消耗**，只**扣 1 点耐久** |
 | 飞出去的东西 | 自定义实体 `ThrownSpear`（"幻影矛"），命中照常结算伤害 |
-| 不可拾取 / 绝不复制 | 拾取权限 `DISALLOWED` + `getPickupItem()` 返回空 → 主人死亡 / 卡进方块 / 区块重载这些分支只会让它消失（ER 特意堵的就是这个坑） |
+| 不可拾取 / 绝不复制 | 拾取权限 `DISALLOWED` + `getPickupItem()` 返回空 → 主人死亡 / 卡进方块 / 区块重载这些分支只会让它消失（SE 特意堵的就是这个坑） |
 | 归位 | 命中或落地后停留 **20 tick** → 朝主人飞回 → 靠近即消失，**不往背包塞任何东西** |
 | 防连投 | 投出时挂原版物品冷却（上限 **600 tick**），每 tick 检查"还有没有在飞的矛"，**回收即撤掉冷却** —— 冷却圈正好持续到矛回来；万一幻影因区块不加载不 tick，冷却本身 30 秒后到期放行 |
 | 兜底 | 幻影总寿命 **1200 tick（60 秒）** 超时强制清除；"是否在飞"的判定半径 **64 格**（与原版实体同步范围一致） |
@@ -754,7 +754,7 @@
 
 **④ 版本 / 协议 / 自检**
 
-- 版本 `1.7.1-forge`；产物 `JAR/summy-reliquary/summy-reliquary-1.7.1-forge.jar`；**协议仍是 `"11"`**（本轮没有新增同步注册表条目）；旧 jar 全部保留；`enchantment-reforged` 不动。
+- 版本 `1.7.1-forge`；产物 `JAR/summy-reliquary/summy-reliquary-1.7.1-forge.jar`；**协议仍是 `"11"`**（本轮没有新增同步注册表条目）；旧 jar 全部保留；`summy-enchantment` 不动。
 - 注册物品 44 → **45**（新增恶魔王冠），创造页 40 → **41 项**，纯图标物品仍是 4 件。
 - Forge 自检（`runClient -Pdevcheck`）：**490 行全绿**；另外 `clean build` → ZipCheck（新贴图 / 模型在包内、无 devcheck / mixin、历史 jar 未变）→ `runServer` 冒烟到 `Done (...)`。
 - 实例 config 已同步写入 6 个新键（`[the_halo]` 的 2 个 + 整个 `[devil_crown]` 段）。
@@ -1068,7 +1068,7 @@
   `@Inject(@At("INVOKE")) Shift.BY=2 on kilt_forge_injects.mixins.json:world.entity.LivingEntityInject ... exceeds the maximum allowed value: 0`
   —— 那处 `LivingDamageEvent` 注入被跳过；同时 Kilt 对玩家会**两次触发 `LivingHurtEvent`**
   （`hurt` 开头一次、`actuallyHurt` 里一次）。1.6.4 的"命中前并入 + `LivingDamageEvent` 事后拆分"因此被第二次触发撤销并入、
-  又被过早点位的事件判成"没被吸收" → **池子永不扣、伤害全落 ER 护盾与红血**（日志里 `原版吸收 8.0 → 7.2 → …… → 0.0` 而 `魂心池` 恒为 10.0 就是这样）。
+  又被过早点位的事件判成"没被吸收" → **池子永不扣、伤害全落 SE 护盾与红血**（日志里 `原版吸收 8.0 → 7.2 → …… → 0.0` 而 `魂心池` 恒为 10.0 就是这样）。
 - **新机制**：池子改成**命中前一次算清** —— 用 `DamageEstimate`（护甲 → 抗性/保护 → 吸收，与原版同序）算出"会打到血的部分"，
   **当场扣池**并按同额**临时并入原版吸收**（原版自己就会把这一份吃掉，血量少掉的部分正好等于池子承担的量）；
   **彻底不再订阅 `LivingDamageEvent`**，改成"下一次命中前 / 玩家 tick 末尾"做**精确对账**：
@@ -1183,7 +1183,7 @@
   （1.6.2 的文档与代码注释把这里写错了，本版一并修正。）
 - **1.6.2 的自定义账本（自己记 tick、把伤害清零）已删除**，改成**沿用原版判定、只改写窗口长度**：
   **字段值 = 有效窗口 + 10**。差值结算、"`#bypasses_cooldown` 走原始数值并刷新窗口"、窗口内挡下，
-  **全部交回原版**——这样 ER 的「魔剑 / 出其不意」自己清冷却后追加的那一段不会被吞掉。
+  **全部交回原版**——这样 SE 的「魔剑 / 出其不意」自己清冷却后追加的那一段不会被吞掉。
 - **两档窗口**（都在 `[combat]` 段）：
 
   | 伤害类别 | 配置项 | 默认有效窗口 | 写入的字段值 |
@@ -1382,7 +1382,7 @@
 
 - 黑心是**独立于原版吸收值**的专属池（2 心 = 4 点吸收上限），**只有佩戴契约时才生效**；
   本轮**没有回复手段**（专属功能与回复留待后续饰品）。
-- 扣伤顺序：**ER 生命护盾 → 魂心黄血 → 黑心 → 红血**（黑心是最后一道防线，能挡住致命伤）。
+- 扣伤顺序：**SE 生命护盾 → 魂心黄血 → 黑心 → 红血**（黑心是最后一道防线，能挡住致命伤）。
 - HUD：在血条上方用**我们自绘的黑色心**绘制（原版贴图不能随模组分发，所以自带 9×9 贴图；
   `textures/gui/demon_black_heart/{full,half}.png`，随时可替换）；有黄血时自动上移一行避免重叠。
 
@@ -1577,7 +1577,7 @@
 - **加护栏位 1 格 → 2 格**：救恩 / 圣光 / 神圣斗篷 任意两件可同时佩戴（第三件没位子）；三者都**需要天使标记**才能佩戴与查阅。
 - **圣光（Holy Light，新物品）**：加护栏位。命中（近战 `directEntity == 玩家`，或 `AbstractArrow` 且 owner 是玩家 —— 含投掷三叉戟）有 **15% 几率**召唤圣光。
   - **基准**：在 `LivingHurtEvent` 的 **LOWEST** 优先级取伤害 —— 各类倍率（本模组七罪/七德/星、其它模组的倍率）都算完、目标**减伤之前**。
-  - **多段口径**：同一 tick、同一攻击者、同一目标内 —— 伤害类型与直接来源**与首段相同**＝**新的一次攻击**（例如 ER「出其不意」的同源第二击 → 两次独立判定）；**类型不同**＝**累加**（例如 ER「魔剑」的 `indirect_magic` 追加段 → 求和后只掷一次）。
+  - **多段口径**：同一 tick、同一攻击者、同一目标内 —— 伤害类型与直接来源**与首段相同**＝**新的一次攻击**（例如 SE「出其不意」的同源第二击 → 两次独立判定）；**类型不同**＝**累加**（例如 SE「魔剑」的 `indirect_magic` 追加段 → 求和后只掷一次）。
   - **伤害**：`基准 × 120%`（配置），走新注册的伤害类型 `summy-reliquary:holy_light`（列入原版 `bypasses_armor` 标签 → **原版魔法口径**：无视护甲、保护附魔与抗性仍生效、先扣黄血），落地前清无敌帧 → **无视无敌帧**；圣光自身不再吃七罪/七德倍率，也不会反哺触发。
   - **独立死亡文本**：`%1$s 被圣光审判了`（玩家击杀变体带击杀者名；顺带给启示之光补了同款 `.player` 变体）。
   - **特效**：目标碰撞箱**顶部 + 7 格 → 底部**的 `ELECTRIC_SPARK` 光柱，打击瞬间画一帧后每 tick 重画、共 **3 tick（0.15 秒）**、步距 0.125 格、每点 2 颗；生效瞬间在**碰撞箱底部**放与救恩完全相同的爆发（8 颗环绕 + 1 颗 `FLASH`）。

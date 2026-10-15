@@ -70,7 +70,7 @@ Thank you to every player for your support and feedback.
 
 - [Forge](https://files.minecraftforge.net/) `47.4.10`（Minecraft 1.20.1）：模组加载器（**必需**）。
 - [Curios](https://modrinth.com/mod/curios)：饰品槽位系统（**必需的前置模组**，本模组的 7 个栏位都基于它）。
-- [Enchantment Reforged](https://www.mcmod.cn/class/23213.html)：**可选的软依赖** —— 影响「大胃袋」饥饿上限、
+- [Summy Enchantment](https://www.mcmod.cn/class/23213.html)：**可选的软依赖** —— 影响「大胃袋」饥饿上限、
   「出其不意 / 魔剑」与圣光的交互、以及嗜血与契约吸血的结算口径；没装也能正常玩。
 - [JEI](https://modrinth.com/mod/jei)（可选）：装了之后本模组会按玩家状态隐藏 / 放开受门禁管制的配方
   （天使线看天使标记、仪式法袍看是否已签约、恶魔线看邪恶度解锁位图、防丢失配方看是否处于丢失态）。

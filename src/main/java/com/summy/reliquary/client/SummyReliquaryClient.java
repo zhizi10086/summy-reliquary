@@ -116,7 +116,7 @@ public final class SummyReliquaryClient {
 		 *
 		 * <p>1.8.5 补修：注册锚点从 {@code PLAYER_HEALTH} 挪到 {@code ITEM_NAME} —— 经典状态条
 		 * （Classic Bar）会把自己的血条画在 Forge 的右侧堆叠里（{@code ForgeGui.rightHeight}），
-		 * 只有在这个锚点之后读到的偏移才是累加完的（Enchantment Reforged 的额外饥饿行用的也是这一招）。
+		 * 只有在这个锚点之后读到的偏移才是累加完的（Summy Enchantment 的额外饥饿行用的也是这一招）。
 		 */
 		@SubscribeEvent
 		public static void onRegisterGuiOverlays(net.minecraftforge.client.event.RegisterGuiOverlaysEvent event) {

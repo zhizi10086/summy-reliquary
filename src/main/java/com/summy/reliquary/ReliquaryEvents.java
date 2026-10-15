@@ -130,7 +130,7 @@ public final class ReliquaryEvents {
 	 * 玩家 tick 结束后维护黄血。
 	 *
 	 * <p>时机很关键：{@code PlayerTickEvent} 的 END 阶段发生在 {@code Player#tick()} 的最后，
-	 * 也就是 enchantment-reforged 那类"在 {@code LivingEntity#tick()} 末尾重写吸收值"的模组之后，
+	 * 也就是 summy-enchantment 那类"在 {@code LivingEntity#tick()} 末尾重写吸收值"的模组之后，
 	 * 因此被它们清掉的黄血能在同一 tick 内补回来。
 	 */
 	@SubscribeEvent
@@ -744,7 +744,7 @@ public final class ReliquaryEvents {
 				// 圣心 + 神性：同一个「全伤害最终倍率」乘区（相加），并且不吃到本模组的神性伤害上
 				event.setAmount(virtueDamage * finalDamageMultiplier(attacker, event.getSource()));
 			}
-			// 恶魔契约（1.6.0）：诅咒 > 阈值时按本次出伤值吸血（口径同 ER 嗜血）
+			// 恶魔契约（1.6.0）：诅咒 > 阈值时按本次出伤值吸血（口径同 SE 嗜血）
 			if (com.summy.reliquary.effect.DemonPact.lifestealActive(attacker)) {
 				attacker.heal(event.getAmount()
 						* (float) (ReliquaryConfig.pactLifestealPercent() / 100.0D));
@@ -906,7 +906,7 @@ public final class ReliquaryEvents {
 	 * <p>原版 {@code LivingEntity#actuallyHurt} 的顺序是 护甲 → 抗性 / 保护 → **扣吸收值** →
 	 * {@code LivingDamageEvent}（金额＝扣完吸收后剩下的那份，返回值直接用于扣血）。在这里把金额改小、
 	 * 同时扣池，玩家少掉的血正好等于池子承担的量，而**吸收值一个点都不动** ——
-	 * 读吸收值做增量记账的模组（Enchantment Reforged 的生命护盾）不再被"先并入、再退还"牵连。
+	 * 读吸收值做增量记账的模组（Summy Enchantment 的生命护盾）不再被"先并入、再退还"牵连。
 	 *
 	 * <p>同一个处理器顺带做**能力探测**：能收到这个事件就说明当前环境没有跳过它（Kilt 会跳过，
 	 * 于是自动回退旧路径）。

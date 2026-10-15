@@ -79,7 +79,7 @@ public final class SoulHeartOverlay implements IGuiOverlay {
 		// 1.6.6 修正：以前只按"一排红心"估算，玩家生命心超过一排（例如灵魂 +18 生命 = 19 颗心）时
 		// 会正好压住第二排红心。现在完全复刻原版 Gui#renderPlayerHealth 的网格行数与行距。
 		// 1.8.5 补修：经典状态条环境改用它的实际条堆高度（gui.rightHeight）锚定 —— 注册锚点已挪到
-		// ITEM_NAME 之上，保证读到的偏移是累加完的（与 Enchantment Reforged 的额外饥饿行同一套做法）。
+		// ITEM_NAME 之上，保证读到的偏移是累加完的（与 Summy Enchantment 的额外饥饿行同一套做法）。
 		int startY = soulHeartRowY(height, maxHealthOf(player), player.getAbsorptionAmount(),
 				player.getArmorValue(), gui.rightHeight, ReliquaryConfig.soulHeartHudOffsetY());
 		for (int index = 0; index < ourHearts; index++) {
@@ -124,7 +124,7 @@ public final class SoulHeartOverlay implements IGuiOverlay {
 	/**
 	 * 纯函数（自检直接断言）：按「经典状态条」的实际条堆高度取基准行。
 	 *
-	 * <p>与 Enchantment Reforged 的额外饥饿行同一套公式（{@code screenHeight − rightHeight − 10}）；
+	 * <p>与 Summy Enchantment 的额外饥饿行同一套公式（{@code screenHeight − rightHeight − 10}）；
 	 * 该档**不再叠加**吸收值与盔甲行 —— 红心 / 黄心 / 盔甲条都已经被 Classic Bar 并进了 `rightHeight`。
 	 */
 	public static int classicSoulHeartRowY(int screenHeight, int classicBarRightHeight, int offsetY) {

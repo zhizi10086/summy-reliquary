@@ -511,8 +511,8 @@ public final class ReliquaryCommand {
 	/**
 	 * OP：把目标玩家的吸收值夹回「本模组能解释的部分」（1.8.5 补修）。
 	 *
-	 * <p>只处理"死亡拦截把整击金额并入吸收值"留下的残留：软读 Enchantment Reforged 的生命护盾
-	 * 属性（{@code enchantment_reforged:life_shield}），取到就设为它的基础值、取不到就清零。
+	 * <p>只处理"死亡拦截把整击金额并入吸收值"留下的残留：软读 Summy Enchantment 的生命护盾
+	 * 属性（{@code summy_enchantment:life_shield}），取到就设为它的基础值、取不到就清零。
 	 * **金苹果等其它来源的吸收值会被一并清掉** —— 这是本命令的明确语义，且只由 OP 手动执行，
 	 * 不做任何自动夹取。
 	 */
@@ -524,8 +524,8 @@ public final class ReliquaryCommand {
 		post(context, "已把「" + target.getName().getString() + "」的吸收值从 " + shieldText(before)
 				+ " 夹回 " + shieldText(after)
 				+ (external > 0.0D
-						? "（保留检测到的 Enchantment Reforged 生命护盾 " + shieldText(after) + "）"
-						: "（未检测到 Enchantment Reforged 生命护盾，直接清零）"));
+						? "（保留检测到的 Summy Enchantment 生命护盾 " + shieldText(after) + "）"
+						: "（未检测到 Summy Enchantment 生命护盾，直接清零）"));
 		return 1;
 	}
 

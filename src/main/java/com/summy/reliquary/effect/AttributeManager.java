@@ -409,7 +409,7 @@ public final class AttributeManager {
 		double healthBonus = bodyHealth
 				+ (haloWorn ? ReliquaryConfig.haloMaxHealth() * factor : 0.0D);
 		// 1.8.5：变化判定只用**关键字段**，不再包含「原版吸收」——
-		// 那个值会被 Enchantment Reforged 那类护盾 / 恢复机制每 tick 微调（7.0 → 7.5 → 8.0 …），
+		// 那个值会被 Summy Enchantment 那类护盾 / 恢复机制每 tick 微调（7.0 → 7.5 → 8.0 …），
 		// 带上它会让这条日志每 2~3 秒刷一条。吸收值仍然会打印，只是不再参与"值变了没有"的判断。
 		String summary = String.format(
 				"生命加成 +%.0f（上限 %.0f）、光环=%s（倍率 ×%.2f）、魂心=%.1f、魂心池=%.1f（上限 %.1f）、"

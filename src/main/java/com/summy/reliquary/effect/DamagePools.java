@@ -43,7 +43,7 @@ import java.util.UUID;
  *
  * <p><b>1.8.5 补修</b>：致命一击的「整击拦下」（神性死亡拦截 / 亚巴顿 / 免死）**不再并入吸收值**，
  * 而是在 {@code prepare} 里直接 {@code event.setCanceled(true)} —— 伤害根本不落地、吸收值一个点都不动，
- * 并把这一击占用的原版无敌帧清 0。旧做法会让"读当前值做增量记账"的护盾模组（Enchantment Reforged
+ * 并把这一击占用的原版无敌帧清 0。旧做法会让"读当前值做增量记账"的护盾模组（Summy Enchantment
  * 的生命护盾）误判自己被吃掉，配合"拦截后回满血 → 治疗转护盾"就会让吸收值每次 +一个生命上限。
  */
 public final class DamagePools {
@@ -204,7 +204,7 @@ public final class DamagePools {
 	 * <p>② 致命一击 → 免死 → 神性死亡拦截 → 亚巴顿（有冷却）（1.8.6 统一消耗顺序）：拦下后**直接取消这一击** ——
 	 * {@code ForgeHooks#onLivingHurt} 在事件被取消时返回 0，原版 {@code actuallyHurt} 随即 return，
 	 * 伤害根本不落地、吸收值与血量都不被碰（1.8.5 之前的"并入整击金额再写回绝对值"会污染
-	 * Enchantment Reforged 那类增量记账的护盾模组，实测每次拦截吸收值 +一个生命上限）。
+	 * Summy Enchantment 那类增量记账的护盾模组，实测每次拦截吸收值 +一个生命上限）。
 	 *
 	 * @param healthPart 估算"会打到生命值"的那部分（见 {@link DamageEstimate}）
 	 */
@@ -257,7 +257,7 @@ public final class DamagePools {
 	 * （金额 = 扣完吸收后剩下的、将打到血的那份；**返回值直接用于扣血**）。所以在这里：
 	 * {@code share = min(池子总量, 事件金额)} → 扣魂心 / 黑心 → {@code event.setAmount(amount - share)}，
 	 * 玩家少掉的血正好等于池子承担的量，而**吸收值一个点都不动** —— 读吸收值做记账的模组
-	 * （Enchantment Reforged 的生命护盾）不会再被"先并入、再退还"牵连。
+	 * （Summy Enchantment 的生命护盾）不会再被"先并入、再退还"牵连。
 	 *
 	 * <p>顺带收益：不依赖 {@link DamageEstimate} 的估算，也就没有"估算偏大 → 退还"这一说。
 	 *
@@ -271,7 +271,7 @@ public final class DamagePools {
 			healthDamageEventWorks = true;
 			SummyReliquary.LOGGER.info(
 					"[Summy Reliquary] 伤害池：本环境会派发 LivingDamageEvent → 池子份额改走「后置扣血」口径"
-							+ "（不再并入吸收值，与 Enchantment Reforged 的生命护盾互不干扰）");
+							+ "（不再并入吸收值，与 Summy Enchantment 的生命护盾互不干扰）");
 		}
 		if (!(event.getEntity() instanceof ServerPlayer player)) {
 			return;
@@ -353,8 +353,8 @@ public final class DamagePools {
 		// 1.8.5：把"还原吸收值"从**写回绝对值**改成**增量退还** —— 只减掉自己那一份没被吃掉的并入量
 		// （FIFO 口径：先扣原版护盾，再扣我们并入的那一份，所以剩下的并入量 = min(T, 结算后吸收)）。
 		//
-		// 为什么必须改：Enchantment Reforged 那类护盾模组是「读当前值 ± delta」的增量写法，
-		// 写回绝对值会把它们在本击窗口内的护盾增长一并抹掉（ER 的 tick 记账还会据此误判"自己被打掉"，
+		// 为什么必须改：Summy Enchantment 那类护盾模组是「读当前值 ± delta」的增量写法，
+		// 写回绝对值会把它们在本击窗口内的护盾增长一并抹掉（SE 的 tick 记账还会据此误判"自己被打掉"，
 		// 顺手缩小自己的护盾）。改增量之后，无外部写入时结果与旧公式**逐值相同**，有外部写入时则是
 		// "在对方结果之上再减掉我们那一份"，两边的账都不丢。
 		float leftoverTopUp = Math.min(pending.topUp(), after);
@@ -364,7 +364,7 @@ public final class DamagePools {
 			SoulShield.shatterIfEmpty(player);
 			DemonPact.shatterBlackHeartsIfEmpty(player);
 		}
-		// 1.8.5 第二轮：旧路径（Kilt 等收不到 LivingDamageEvent 的环境）里，把 Enchantment Reforged 那套
+		// 1.8.5 第二轮：旧路径（Kilt 等收不到 LivingDamageEvent 的环境）里，把 Summy Enchantment 那套
 		// 「读当前值做增量记账」的护盾值也校正到与我们一致 —— 否则它会把我们退还的那一份记成自己的消耗。
 		EnchantmentReforgedShieldCompat.reconcileAfterPoolWrite(player, player.getAbsorptionAmount(),
 				shieldConsumed);

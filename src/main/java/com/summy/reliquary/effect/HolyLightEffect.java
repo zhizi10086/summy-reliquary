@@ -172,11 +172,11 @@ public final class HolyLightEffect {
 		if (last != null && last.attacker.equals(attacker.getUUID()) && last.target.equals(target)
 				&& last.tick == tick) {
 			if (last.msgId.equals(source.getMsgId()) && last.direct == source.getDirectEntity()) {
-				// 同源重复（例如 ER「出其不意」的第二击）＝ 新的一次攻击，单独掷点
+				// 同源重复（例如 SE「出其不意」的第二击）＝ 新的一次攻击，单独掷点
 				PENDING.add(new Attack(attacker.getUUID(), target, tick, source.getMsgId(),
 						source.getDirectEntity(), amount, ornament, weapon));
 			} else {
-				// 不同类型的追加段（例如 ER「魔剑」的 indirect_magic）＝ 累加进当前这次攻击
+				// 不同类型的追加段（例如 SE「魔剑」的 indirect_magic）＝ 累加进当前这次攻击
 				last.baseline += amount;
 				last.ornament |= ornament;
 				last.weapon |= weapon;

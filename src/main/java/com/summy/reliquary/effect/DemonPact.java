@@ -217,7 +217,7 @@ public final class DemonPact {
 	 * 生效诅咒条数：4 件盔甲 + 主手 + 副手，统计 {@code Enchantment#isCurse()} 的条数。
 	 *
 	 * <p>用 `Enchantment#isCurse()` 而不是物品标签（1.20.1 没有诅咒标签），这样**原版的消失诅咒 /
-	 * 绑定诅咒**与其它模组（如 enchantment-reforged）自定的诅咒附魔都会被算进来。
+	 * 绑定诅咒**与其它模组（如 summy-enchantment）自定的诅咒附魔都会被算进来。
 	 */
 	public static int curseCount(LivingEntity entity) {
 		if (entity == null) {

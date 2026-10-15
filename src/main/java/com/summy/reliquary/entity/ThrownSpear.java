@@ -30,7 +30,7 @@ import net.minecraft.world.phys.Vec3;
  * 天使线长矛的"幻影矛"（1.7.8）。
  *
  * <p>本体始终留在玩家物品栏里（投掷只扣耐久），飞出去的是这个实体 —— 架构照搬
- * ER（enchantment-reforged）的「忠诚改版」：
+ * SE（summy-enchantment）的「忠诚改版」：
  * <ul>
  *     <li>拾取权限恒为 {@code DISALLOWED}、{@code getPickupItem()} 返回空栈 →
  *     主人死亡 / 卡进方块 / 区块重载这些分支只会让它消失，**不会复制出一把真矛**；</li>
@@ -52,9 +52,9 @@ import net.minecraft.world.phys.Vec3;
 public class ThrownSpear extends AbstractArrow {
 	/** 命中 / 落地后停留多久（tick），到点直接删除 */
 	private static final int STUCK_TICKS = 20;
-	/** 投掷冷却与"拦截再次投掷"的时间上限（30 秒，照抄 ER 的 PHANTOM_BLOCK_TICKS） */
+	/** 投掷冷却与"拦截再次投掷"的时间上限（30 秒，照抄 SE 的 PHANTOM_BLOCK_TICKS） */
 	public static final int THROW_BLOCK_TICKS = 600;
-	/** 幻影总寿命（60 秒，照抄 ER 的 PHANTOM_CLEANUP_TICKS） */
+	/** 幻影总寿命（60 秒，照抄 SE 的 PHANTOM_CLEANUP_TICKS） */
 	public static final int MAX_LIFE_TICKS = 1200;
 	/** 1.8.6：命中后沿来向回退多少格再定格（与原版箭矢的贴面做法同量级） */
 	private static final double STICK_BACKOFF = 0.30D;
@@ -293,7 +293,7 @@ public class ThrownSpear extends AbstractArrow {
 
 	/**
 	 * 幻影消失时，如果主人身边已经没有任何在飞的矛，就把投掷冷却撤掉 ——
-	 * 于是"快捷栏冷却圈"的持续时间正好等于"矛在飞的时间"（ER 同款做法）。
+	 * 于是"快捷栏冷却圈"的持续时间正好等于"矛在飞的时间"（SE 同款做法）。
 	 * 万一幻影因为区块不加载一直不 tick，冷却本身也有 {@link #THROW_BLOCK_TICKS} 的到期兜底。
 	 */
 	@Override

@@ -14,7 +14,7 @@ import top.theillusivec4.curios.api.CuriosApi;
 /**
  * 「白饭」效果：佩戴期间把饥饿值锁定为当前饥饿上限、饱和度锁定为 0，并禁止一切吃 / 喝行为。
  *
- * <p>饥饿上限默认是原版的 20；若运行环境里存在 Enchantment Reforged（Kilt/Fabric 侧），
+ * <p>饥饿上限默认是原版的 20；若运行环境里存在 Summy Enchantment（Kilt/Fabric 侧），
  * 则通过反射使用它的 {@code EnchantmentEffects.foodLevelCap}（胸部「大胃袋」附魔会把上限抬高），
  * 因此换上 / 脱下带大胃袋的胸甲时锁定值会自动跟随。
  */
@@ -46,7 +46,7 @@ public final class RiceHungerLock {
 		return false;
 	}
 
-	/** 当前饥饿上限：存在 Enchantment Reforged 时用「大胃袋」算出的上限 */
+	/** 当前饥饿上限：存在 Summy Enchantment 时用「大胃袋」算出的上限 */
 	public static int foodCap(Player player) {
 		return EnchantmentReforgedCompat.foodLevelCap(player).orElse(VANILLA_FOOD_CAP);
 	}
