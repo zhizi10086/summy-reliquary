@@ -1,6 +1,6 @@
-# Summy Reliquary 进度文档（截至 1.8.6-forge）
+# Summy Reliquary 进度文档（截至 1.8.7-forge）
 
-> 更新时间：2026-10-13（1.8.6）　｜　对应版本：**1.8.6-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-10-19（1.8.7）　｜　对应版本：**1.8.7-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > 本文档由当前代码与资源逐一核对后整理，内容与 `README.md` 一致（README 是随版本更新的主文档，本文档是更全的"总台账"）。
 
 ---
@@ -27,7 +27,9 @@
 | 实例部署 | 把新 jar 放进整合包 `mods/`，旧版本就地改名为 `*.jar.disabled`（同名双版本会因 mod id 重复报错） |
 | 诊断开关 | `-Pnodata`（去掉自定义伤害类型 + 原版伤害类型标签覆盖）、`-Pnotags`（只去掉标签覆盖）、`-Pnomodel`（去掉终末天启模型/贴图）；产物改名进 `_test/` |
 
-### 1.1 版本历史（1.5.x ~ 1.8.6）
+### 1.1 版本历史（1.5.x ~ 1.8.7）
+
+**1.8.7**：四项纯修复 + 一条兼容说明。①**定值真伤不再被乘区放大（2.4）** —— `ReliquaryEvents` 的七罪 / 七德 / 最终倍率块守卫由 `!isDivine(source)` 改为 `!(isDivine(source) || isExactDamage(source))`：`godhead_aura`（2 点 / 跳）与 `sacrifice`（10000 点）恢复定值，金刀片仍靠 `isDivine` 排除；自检新增 `case 2272`（圣心 + 神性 ×1.5 的场面下，普通近战 10 → 15、神性光环 10 → 10、契约献祭 10000 → 10000）。②**圣心追踪按维度聚合（2.8）** —— `SacredHeart.tick` 先把佩戴者按 `serverLevel()` 分组（维度 → UUID → 半径），每个维度只遍历一次 `getAllEntities()` 再按 owner 查表；复杂度 O(佩戴者×实体) → O(维度×实体+箭数)，追踪半径 / 停滞直航 / 穿透排除逐项不变；自检在 `case 2017` 里注入一名同维度假佩戴者，断言扫描维度数 = 1。③**攻速上限修正（2.14）** —— `AttributeManager.applyAttackSpeedCap` 改在加法空间反算（`addition = base + Σ ADDITION`、`multiplier = (1 + Σ MULTIPLY_BASE) × Π(1 + MULTIPLY_TOTAL)`、补 `cap / multiplier − addition`）；旧实现把「最终值之差」当 ADDITION 写回、会被 MULTIPLY_TOTAL 再乘一遍（A11 实测 3.46276），自检新增 `case 2271`（−2.0/+0.5/+0.4 ×1.66 → 4.00000；摘掉倍率 → 2.90000）。④**注释订正（2.6①）** —— 「见待办文档 1.2」改为「2.6」。⑤**兼容** —— 跟随 Summy Enchantment 改名（`summy_enchantment:life_shield`、`com.summy.enchantment.combat.EnchantmentEffects`），该提交（`ea2e6d4`）在 1.8.6 之后、未随版本发布。自检 **595 行全绿**；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；配置段 26 / 键 267 不变；协议仍 `"14"`。
 
 **1.8.6**：把待办清单里计划 1.8.6 的 **6 项全部落地**（2.3 投掷矛 / 金刀片落点、2.4 真伤命中后清帧、2.5 圣心停滞即直航、2.6 圣心穿透索敌、2.7 键位腾挪、2.8 拦截优先链），协议保持 **`"14"`**、配置段不变。①**真伤命中后清帧** —— 新增 `HolyLightEffect.isTrueDamage(...)`＝`isDivine ∪ isExactDamage ∪ 献祭自伤`（`golden_razor` 是物理伤害、显式排除，共 10 种真伤 / 去重 9 个 `message_id`），`ReliquaryEvents` 增 LOWEST 优先级清帧：真伤落地后把 `invulnerableTime` 清零（Forge 直接清；Kilt / Connector 侧事件早于原版写字段 → `CombatTuning` 登记后在玩家 tick 末尾清，排在窗口钳位之后）；开关 `[combat] clear_iframes_after_true_damage`（默认 true）。②**圣心停滞即直航** —— `SacredHeart.StallState`（历史最近距离 / 停滞计数 / 追猎态）：连续 10 tick 未变近（阈值 0.02 格）→ 偏转强度 1.0 直航、恢复接近立刻回 0.5；状态按箭 UUID 内存维护、每 tick 清理、不写 NBT。③**圣心穿透索敌** —— `nearestEnemy` 排除"这支箭碰过的目标"；登记点新增 `ReliquaryEvents.onProjectileImpact`（Forge `ProjectileImpactEvent`，在原版 `AbstractArrow.onHit` 内触发、**早于伤害结算**，因此"碰过但打不动"的目标同样被排除）。④**投掷矛 / 金刀片定格到撞击点** —— 命中时记录 `撞击点 − 来向 × 0.30` 并每 tick 钉住位置（旧行为停在撞击前一个 tick 的坐标，渲染又居中画模型，看起来隔一条缝）；金刀片走原版贴面回退自检实测只到 0.65 格（阈值 0.35），故一并接管。⑤**键位腾挪** —— 删 `TOGGLE_MAID_KEY`（语言键 `key.summy-reliquary.toggle_maid` 一并移除），`ReliquaryClientInteractions` 的背包右键判定从「神性」扩到「光环」栏位里的 `bangbang_halo`，`BangBangHaloItem` 增 `use()`（手持潜行右键）；复用既有 `ToggleMaidMessage` → **协议不变**。⑥**拦截优先链** —— `DamagePools.guardOrNullify` 改为 **免死 → 神性 → 亚巴顿**（免死最轻先消耗）；自检新增 `case 2270`（免死 + 神性同时就绪跑 60 轮：免死先消耗 ~13 轮、神性拦截 ~47 轮），并给既有 `case 2128` 补"先摘掉灵台三件套"的确定性加固（否则免死会按 20% 概率抢在神性之前）。自检 **594 行全绿**（1.8.5 为 585；新增 `case 2270` 与五处既有用例扩展，实测 594）；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）。
 
@@ -628,7 +630,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 ## 11. 开发与验证流程
 
 1. **构建**：`gradlew clean build`（JDK 17，路径写在 `gradle.properties`），产物自动复制到 `../JAR/summy-reliquary/`；旧 jar 一律保留，部署时把实例里旧版改名 `.disabled`。
-2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。当前自检共输出 **594 行 `[DEVCHECK]`**（1.8.6 实测；比 1.8.5 的 585 行多 9 行 = 新增 `case 2270` 与五处既有用例扩展。**浮动原因**：① `clientTick==700` 那两条「光环 / 美德提示行」dump 会读 DevCheckWorld 存档里的赎罪状态；② 只在"属性摘要变化"时才打印的 `属性更新` 行数会随每次运行的状态序列微调 —— 两者都与代码无关（1.8.6 实测 594）；历史值：1.8.4 为 574、1.8.3 为 574、1.8.2 为 569、1.8.1 为 537、1.7.10 为 526~529、1.7.9 为 515~517、1.7.8 为 510、1.7.7 为 509、1.7.6 为 508。逐项断言行，**全部通过**），1.8.4 的 `case 2260`（长矛戳刺曲线）已随动画整体回退移除；1.8.5 新增 `case 2259`（完全拦截提前取消的真值表）、`case 2261`（复活的伤害池挂起清理）、`case 2263`（护盾夹取命令）、`case 2264`（暴食击杀回复上限）、`case 2266`（LivingDamage 扣池）、`case 2267`（神性光环开关）、`case 2268`（池子先于死亡拦截）与 `case 2269`（创造飞行补推），并扩展 `checkHudRows`（单排血条适配 + 像素偏移）与 `checkWrathSelfHitNeverKills`（愤怒提示文案）。覆盖：
+2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。当前自检共输出 **595 行 `[DEVCHECK]`**（1.8.7 实测；比 1.8.6 的 594 行多 1 行 = 新增 `case 2271` / `case 2272` / 2.8 聚合断言共 +3，再扣掉 dump 的 ±2 浮动。**浮动原因**：① `clientTick==700` 那两条「光环 / 美德提示行」dump 会读 DevCheckWorld 存档里的赎罪状态；② 只在"属性摘要变化"时才打印的 `属性更新` 行数会随每次运行的状态序列微调 —— 两者都与代码无关（1.8.7 实测 595）；历史值：1.8.6 为 594、1.8.4 为 574、1.8.3 为 574、1.8.2 为 569、1.8.1 为 537、1.7.10 为 526~529、1.7.9 为 515~517、1.7.8 为 510、1.7.7 为 509、1.7.6 为 508。逐项断言行，**全部通过**），1.8.4 的 `case 2260`（长矛戳刺曲线）已随动画整体回退移除；1.8.5 新增 `case 2259`（完全拦截提前取消的真值表）、`case 2261`（复活的伤害池挂起清理）、`case 2263`（护盾夹取命令）、`case 2264`（暴食击杀回复上限）、`case 2266`（LivingDamage 扣池）、`case 2267`（神性光环开关）、`case 2268`（池子先于死亡拦截）与 `case 2269`（创造飞行补推），并扩展 `checkHudRows`（单排血条适配 + 像素偏移）与 `checkWrathSelfHitNeverKills`（愤怒提示文案）。覆盖：
    - 栏位校验矩阵 10×5、套装切换与提示去重/着色、魂心与吸收（含外部清零模拟、与生命护盾相加 46/36/2、卸下只收我方份额）
    - 发光（含视线）、伤害加成、启示计时与**静止 5 秒**转化、不可重复佩戴、七罪三态与碎片赎罪、赎罪配方门槛（JEI 可见性）
    - 战斗手感（无敌帧/攻速上限）、启示之光（105 点 / 几何 / 中途离开 / CD / 射程 21 / 粒子）
@@ -1326,7 +1328,7 @@ seraph_spear : [下界之星][      ][心之碎片] / [  ][圣光短矛][      ]
 
 | 工程 | 说明 |
 | --- | --- |
-| **Summy Reliquary**（本工程） | 上述内容；版本 1.8.6-forge |
+| **Summy Reliquary**（本工程） | 上述内容；版本 1.8.7-forge |
 | **Summy Enchantment**（`../summy-enchantment`） | 26 个附魔、9 组配置页；与 SR 的交互点：**魂心是独立池**（1.6.2 起，不再写原版吸收值，所以与 SE 的生命护盾**互不挤占**、结算顺序为 护盾 → 魂心 → 黑心 → 红血）、SE 的「出其不意」= 同源第二次命中（SR 视为两次攻击）、SE 的「魔剑」= 同一击的追加段（SR 求和后只掷一次；1.6.3 起两档窗口改写只发生在「新的一击」，SE 追加段自己清冷却所以照常落地）、「大胃袋」会抬饥饿上限（SR 暴食未赎罪时取 `min(18, 上限)`） |
 
 ---

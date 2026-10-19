@@ -440,7 +440,19 @@ public final class AttributeManager {
 		return String.format("黑心池=%.1f（上限 %.1f）", points, max);
 	}
 
-	/** 攻速上限：用一个固定 UUID 的负修正把 ATTACK_SPEED 夹到配置值 */
+	/**
+	 * 攻速上限：把 ATTACK_SPEED 夹到配置值（2.14 修正）。
+	 *
+	 * <p>原版 {@code AttributeInstance#calculateValue()} 的结算顺序是
+	 * <b>ADDITION 累加 → MULTIPLY_BASE（各自按加法结果叠加）→ MULTIPLY_TOTAL（逐项相乘）</b>。
+	 * 旧实现把「最终值之差」(cap − current) 当成 ADDITION 写回，这个负值会再被
+	 * MULTIPLY_TOTAL 乘一遍，于是最终值反而低于上限（A11 实测 3.46276 而不是 4.0）。
+	 *
+	 * <p>现在先在加法空间反推修正量：{@code addition} 为全部 ADDITION 之和，
+	 * {@code multiplier = (1 + Σ MULTIPLY_BASE) × Π(1 + MULTIPLY_TOTAL)}，
+	 * 需要补的 ADDITION 就是 {@code cap / multiplier − addition} —— 这样最终的
+	 * {@code getValue()} 精确等于 cap，等价于在 cap 处截断（无需 Mixin / AT）。
+	 */
 	private static void applyAttackSpeedCap(LivingEntity entity) {
 		AttributeInstance instance = entity.getAttribute(Attributes.ATTACK_SPEED);
 		if (instance == null) {
@@ -451,11 +463,28 @@ public final class AttributeManager {
 			instance.removeModifier(ATTACK_SPEED_CAP);
 		}
 		double cap = ReliquaryConfig.maxAttackSpeed();
-		double current = instance.getValue();
-		if (cap > 0.0D && current > cap) {
-			instance.addTransientModifier(new AttributeModifier(ATTACK_SPEED_CAP, "attack_speed_cap",
-					cap - current, AttributeModifier.Operation.ADDITION));
+		if (cap <= 0.0D) {
+			return;
 		}
+		double addition = instance.getBaseValue();
+		double baseFactor = 1.0D;
+		double totalFactor = 1.0D;
+		for (AttributeModifier modifier : instance.getModifiers()) {
+			switch (modifier.getOperation()) {
+				case ADDITION -> addition += modifier.getAmount();
+				case MULTIPLY_BASE -> baseFactor += modifier.getAmount();
+				case MULTIPLY_TOTAL -> totalFactor *= 1.0D + modifier.getAmount();
+			}
+		}
+		double multiplier = baseFactor * totalFactor;
+		if (multiplier <= 0.0D) {
+			return;
+		}
+		if (addition * multiplier <= cap) {
+			return;
+		}
+		instance.addTransientModifier(new AttributeModifier(ATTACK_SPEED_CAP, "attack_speed_cap",
+				cap / multiplier - addition, AttributeModifier.Operation.ADDITION));
 	}
 
 	/** 移除后按需重新添加（值为 0 即视为不生效） */

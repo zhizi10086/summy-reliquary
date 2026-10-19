@@ -435,6 +435,9 @@ public final class ForgeDevCheck {
 				case 2269 -> checkFlightResync(player);
 				// 1.8.6：整击拦下的消耗顺序统一为「免死 → 神性 → 亚巴顿」
 				case 2270 -> checkGuardOrder(player);
+				// 1.8.7：攻速上限在加法空间反算（2.14）、定值真伤不吃乘区（2.4）
+				case 2271 -> checkAttackSpeedCapMath(player);
+				case 2272 -> checkExactDamageMultiplierGuard(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -4057,6 +4060,14 @@ public final class ForgeDevCheck {
 			piercedA.discard();
 			nextB.discard();
 		}
+		// 2.8：按维度聚合 —— 同维度 2 名佩戴者只应扫描 1 次（旧实现每人扫一次 = 2 次）
+		UUID fakeWearer = UUID.randomUUID();
+		com.summy.reliquary.effect.SacredHeart.addWearerForTest(player.serverLevel(), fakeWearer, radius);
+		com.summy.reliquary.effect.SacredHeart.tick(server);
+		int scanLevels = com.summy.reliquary.effect.SacredHeart.lastScanLevelsForTest();
+		com.summy.reliquary.effect.SacredHeart.clearTestWearers();
+		log("圣心追踪·按维度聚合（2.8）：同维度 2 名佩戴者 → 扫描维度数=" + scanLevels
+				+ "（应 1）→ 合计=" + (scanLevels == 1) + "（应 true）");
 		diagonal.discard();
 		axial.discard();
 		probe.discard();
@@ -4095,6 +4106,118 @@ public final class ForgeDevCheck {
 				net.minecraft.core.registries.Registries.DAMAGE_TYPE, SummyReliquary.id(path))).orElse(null);
 		return holder == null ? player.damageSources().magic()
 				: new net.minecraft.world.damagesource.DamageSource(holder, player, player);
+	}
+
+	/** 2.4 自检用：用指定 SR 伤害类型发一次 LivingHurtEvent，返回事件后的金额 */
+	private static float hurtAmount(ServerPlayer player, LivingEntity target, String path, float amount) {
+		var hurt = new net.minecraftforge.event.entity.living.LivingHurtEvent(
+				target, srSource(player, path), amount);
+		net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(hurt);
+		return hurt.getAmount();
+	}
+
+	/**
+	 * 2.4：定值真伤（{@code isExactDamage}）不再被七罪 / 七德 / 最终倍率层放大。
+	 *
+	 * <p>场面：圣心 + 神性（最终倍率 ×1.5）。普通近战 10 → 15；神性光环 10 与契约献祭 10000 必须原样通过。
+	 */
+	private static void checkExactDamageMultiplierGuard(ServerPlayer player) {
+		ensureAngelLine(player);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		resetSinState(player);
+		clearBlessingSlots(player);
+		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+			handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 0, ItemStack.EMPTY);
+			for (int index = 0; index < 3; index++) {
+				handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, index, ItemStack.EMPTY);
+			}
+			handler.setEquippedCurio(ReliquarySlots.REVELATION, 0,
+					new ItemStack(SummyReliquary.GODHEAD.get()));
+			handler.setEquippedCurio(ReliquarySlots.BLESSING, 0,
+					new ItemStack(SummyReliquary.SACRED_HEART.get()));
+		});
+		Zombie target = spawnHolyLightTarget(player, 6.0D);
+		if (target == null) {
+			return;
+		}
+		target.setHealth(target.getMaxHealth());
+		float melee = outgoingDamage(player, target, 10.0F);
+		float aura = hurtAmount(player, target, "godhead_aura", 10.0F);
+		float sacrifice = hurtAmount(player, target, "sacrifice", 10000.0F);
+		boolean ok = Math.abs(melee - 15.0F) < 1.0E-4F
+				&& Math.abs(aura - 10.0F) < 1.0E-4F
+				&& Math.abs(sacrifice - 10000.0F) < 1.0E-2F;
+		log(String.format("定值真伤不吃乘区（2.4）：普通近战 10 → %.2f（应 15 = 圣心+神性 ×1.5）、"
+						+ "神性光环 10 → %.2f（应仍是 10）、契约献祭 10000 → %.1f（应仍是 10000）→ 合计=%s（应 true）",
+				melee, aura, sacrifice, ok));
+		target.discard();
+		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+			handler.setEquippedCurio(ReliquarySlots.REVELATION, 0, ItemStack.EMPTY);
+			handler.setEquippedCurio(ReliquarySlots.BLESSING, 0, ItemStack.EMPTY);
+		});
+	}
+
+	/**
+	 * 2.14：攻速上限必须在 MULTIPLY_TOTAL 之后精确夹到 cap。
+	 *
+	 * <p>复现 A11 的恶魔毕业场面（武器 −2.0、迅捷 +0.5、恶魔王冠 +0.4、契约 ×1.66）：
+	 * 最终值必须是 4.0（旧实现是 3.46276）；把倍率摘掉后必须回到 2.9（低于 cap 不吃夹取）。
+	 */
+	private static void checkAttackSpeedCapMath(ServerPlayer player) {
+		var instance = player.getAttribute(Attributes.ATTACK_SPEED);
+		if (instance == null) {
+			return;
+		}
+		player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+		clearBlessingSlots(player);
+		unequip(player, ReliquarySlots.REVELATION);
+		unequip(player, ReliquarySlots.SOUL_SEAL);
+		unequip(player, ReliquarySlots.HALO);
+		for (int index = 0; index < 3; index++) {
+			final int slot = index;
+			CuriosApi.getCuriosInventory(player).ifPresent(handler ->
+					handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, slot, ItemStack.EMPTY));
+		}
+		resetSinState(player);
+		resetDemonPactState(player);
+		net.minecraft.world.entity.ai.attributes.AttributeModifier weapon =
+				new net.minecraft.world.entity.ai.attributes.AttributeModifier(UUID.randomUUID(),
+						"test_attack_speed_weapon", -2.0D,
+						net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADDITION);
+		net.minecraft.world.entity.ai.attributes.AttributeModifier quick =
+				new net.minecraft.world.entity.ai.attributes.AttributeModifier(UUID.randomUUID(),
+						"test_attack_speed_quick", 0.5D,
+						net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADDITION);
+		net.minecraft.world.entity.ai.attributes.AttributeModifier crown =
+				new net.minecraft.world.entity.ai.attributes.AttributeModifier(UUID.randomUUID(),
+						"test_attack_speed_crown", 0.4D,
+						net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADDITION);
+		net.minecraft.world.entity.ai.attributes.AttributeModifier pact =
+				new net.minecraft.world.entity.ai.attributes.AttributeModifier(UUID.randomUUID(),
+						"test_attack_speed_pact", 0.66D,
+						net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.MULTIPLY_TOTAL);
+		instance.addTransientModifier(weapon);
+		instance.addTransientModifier(quick);
+		instance.addTransientModifier(crown);
+		instance.addTransientModifier(pact);
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		double cap = com.summy.reliquary.config.ReliquaryConfig.maxAttackSpeed();
+		double base = instance.getBaseValue();
+		double capped = player.getAttributeValue(Attributes.ATTACK_SPEED);
+		double expected = Math.min(cap, (base - 2.0D + 0.5D + 0.4D) * 1.66D);
+		instance.removeModifier(pact);
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		double lower = player.getAttributeValue(Attributes.ATTACK_SPEED);
+		double lowerExpected = base - 2.0D + 0.5D + 0.4D;
+		boolean ok = Math.abs(capped - expected) < 1.0E-6D
+				&& Math.abs(lower - lowerExpected) < 1.0E-6D;
+		log(String.format("攻速上限（2.14）：base %.2f + (−2.0/+0.5/+0.4) × 1.66 → %.5f（应 %.5f = cap %.2f）；"
+						+ "摘掉倍率后 %.5f（应 %.5f，不吃 cap）→ 合计=%s（应 true）",
+				base, capped, expected, cap, lower, lowerExpected, ok));
+		instance.removeModifier(weapon);
+		instance.removeModifier(quick);
+		instance.removeModifier(crown);
+		com.summy.reliquary.effect.AttributeManager.apply(player);
 	}
 
 	/** 神性：互斥、继承属性、飞行不减速、光柱覆盖值、救恩半径 */

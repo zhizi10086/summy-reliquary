@@ -1,6 +1,8 @@
-# Summy Reliquary 事件文本与触发关系总台账（1.8.6-forge）
+# Summy Reliquary 事件文本与触发关系总台账（1.8.7-forge）
 
-> 更新时间：2026-10-08（1.8.5）　｜　对应版本：**1.8.5-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-10-19（1.8.7）　｜　对应版本：**1.8.7-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> **1.8.7 不涉文本**：四项修复（2.4 真伤乘区 / 2.6① 注释 / 2.8 圣心扫描 / 2.14 攻速上限）都只改判定、性能与注释，
+> 没有新增或修改任何语言键；SE 改名兼容也只换软引用与日志文案，语言键表不变。
 > 用途：把所有"会显示给玩家的话"按**触发条件**整理成一张表，方便改文案、查文案、加功能时对照。
 > 权威文本源：`src/main/resources/assets/summy-reliquary/lang/zh_cn.json` / `en_us.json`（改文案只改这两个文件，代码里没有硬编码中文）。
 

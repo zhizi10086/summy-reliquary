@@ -3,6 +3,35 @@
 > 本文档收录 Summy Reliquary 的历史版本变更；**当前版本的内容与玩法以 [README.md](README.md) 为准**
 > （README 只保留最新一版变更，历史记录全部收在这里）。
 
+## 1.8.7 变更
+
+**① 定值真伤不再被乘区放大（2.4）**
+
+- `ReliquaryEvents` 里七罪 / 七德 / 「全伤害最终倍率」块的排除条件从 `!isDivine(source)` 改为 `!(isDivine(source) || isExactDamage(source))`。
+- 修复：`godhead_aura`（神性光环，2 点 / 跳）与 `sacrifice`（契约献祭 10000 点）此前不在 `isDivine` 名单里，会被圣心 / 神性 / 星 / 契约 / 七罪 / 七德放大。
+- 金刀片仍在 `isDivine` 名单内，物理伤害口径不变；新增自检 `case 2272`。
+
+**② 圣心追踪按维度聚合（2.8）**
+
+- `SacredHeart.tick` 先把佩戴者按维度分组（维度 → 玩家 UUID → 追踪半径），每个维度只遍历一次 `getAllEntities()`，再用箭的 owner 查表。
+- 复杂度由 O(佩戴者 × 实体) 降为 O(维度 × 实体 + 箭数)；追踪半径 / 停滞直航 / 穿透排除 / 金刀片排除逐项不变。新增自检断言（同维度 2 名佩戴者 → 扫描维度数 = 1）。
+
+**③ 攻速上限修正（2.14）**
+
+- `AttributeManager.applyAttackSpeedCap` 改在加法空间反算：`addition = base + Σ ADDITION`、`multiplier = (1 + Σ MULTIPLY_BASE) × Π(1 + MULTIPLY_TOTAL)`，需要补的 `ADDITION = cap / multiplier − addition`。
+- 旧实现把「最终值之差」(cap − current) 当成 ADDITION 写回，会被 MULTIPLY_TOTAL 再乘一遍；A11 实测 3.46276，修正后精确等于 4.0。新增自检 `case 2271`。
+
+**④ 死亡拦截注释订正（2.6①）**
+
+- `ReliquaryEvents` 里「见待办文档 1.2」改为「见待办文档 2.6」；致命判定前移到 Attack 层的可选项仍留在待办（行为不变）。
+
+**⑤ 跟随 Summy Enchantment 改名（兼容，提交 `ea2e6d4`）**
+
+- 软引用改为 `summy_enchantment:life_shield` 与 `com.summy.enchantment.combat.EnchantmentEffects`；SR 自己的兼容层类名保持不变。
+- 该提交在 1.8.6 之后、未随任何版本发布，故并入本版说明。
+
+**交付**：版本 `1.8.7-forge`；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议保持 **`"14"`**；自检 **595 行全绿**；无新配置键（配置段 26 / 键 267 不变）。
+
 ## 1.8.6 变更
 
 **① 真伤命中后清帧**

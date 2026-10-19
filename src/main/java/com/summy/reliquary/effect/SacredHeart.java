@@ -72,14 +72,30 @@ public final class SacredHeart {
 			STALL.clear();
 			return;
 		}
-		Set<UUID> seen = new HashSet<>();
+		// 2.8：按维度聚合 —— 先把佩戴者分组（维度 → 玩家 UUID → 追踪半径），
+		// 每个维度只遍历一次 getAllEntities()，再用箭的 owner 查表；
+		// 同维度 N 人同戴时，扫描次数由 N 次降到 1 次。
+		lastScanLevels = 0;
+		Map<ServerLevel, Map<UUID, Double>> wearersByLevel = new HashMap<>();
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
 			if (!CurioHelper.wears(player, SummyReliquary.SACRED_HEART.get())) {
 				continue;
 			}
-			ServerLevel level = player.serverLevel();
 			// 1.6.10：神性 + 圣心同时佩戴时半径扩大（配置见 [sacred_heart]）
-			double radius = Synergies.sacredHeartArrowRadius(player);
+			wearersByLevel
+					.computeIfAbsent(player.serverLevel(), level -> new HashMap<>())
+					.put(player.getUUID(), Synergies.sacredHeartArrowRadius(player));
+		}
+		// 2.8 自检：把注入的假佩戴者并进来（生产环境该表恒空）
+		for (Map.Entry<ServerLevel, Map<UUID, Double>> testEntry : TEST_WEARERS.entrySet()) {
+			wearersByLevel.computeIfAbsent(testEntry.getKey(), ignored -> new HashMap<>())
+					.putAll(testEntry.getValue());
+		}
+		Set<UUID> seen = new HashSet<>();
+		for (Map.Entry<ServerLevel, Map<UUID, Double>> entry : wearersByLevel.entrySet()) {
+			ServerLevel level = entry.getKey();
+			Map<UUID, Double> wearers = entry.getValue();
+			lastScanLevels++;
 			for (Entity entity : level.getAllEntities()) {
 				if (!(entity instanceof AbstractArrow arrow) || !arrow.isAlive()) {
 					continue;
@@ -88,7 +104,12 @@ public final class SacredHeart {
 				if (arrow instanceof com.summy.reliquary.entity.ThrownRazor) {
 					continue;
 				}
-				if (arrow.getOwner() != player) {
+				// 2.8：owner 直接查表；不在表里 = 不是圣心佩戴者的箭
+				if (arrow.getOwner() == null) {
+					continue;
+				}
+				Double radius = wearers.get(arrow.getOwner().getUUID());
+				if (radius == null) {
 					continue;
 				}
 				LivingEntity target = nearestEnemy(level, arrow, radius);
@@ -107,6 +128,27 @@ public final class SacredHeart {
 		}
 		// 清理已消失 / 已不再追踪的条目
 		STALL.keySet().retainAll(seen);
+	}
+
+	/** 2.8 自检用：上一次 tick 实际扫描了几个维度（同一维度 N 名佩戴者应仍为 1） */
+	private static int lastScanLevels = 0;
+
+	/** 2.8 自检用：读取上一次 {@link #tick(MinecraftServer)} 的维度扫描次数 */
+	public static int lastScanLevelsForTest() {
+		return lastScanLevels;
+	}
+
+	/** 2.8 自检用：注入的"假佩戴者"（仅自检使用；真实玩家仍照常从服务器玩家列表收集） */
+	private static final Map<ServerLevel, Map<UUID, Double>> TEST_WEARERS = new HashMap<>();
+
+	/** 2.8 自检用：往指定维度再塞一名佩戴者，用于断言"同维度只扫一次" */
+	public static void addWearerForTest(ServerLevel level, UUID id, double radius) {
+		TEST_WEARERS.computeIfAbsent(level, ignored -> new HashMap<>()).put(id, radius);
+	}
+
+	/** 2.8 自检用：清空注入的假佩戴者 */
+	public static void clearTestWearers() {
+		TEST_WEARERS.clear();
 	}
 
 	/** 以箭矢为中心的半径内最近的敌对生物 */

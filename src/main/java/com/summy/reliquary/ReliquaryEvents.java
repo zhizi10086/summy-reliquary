@@ -230,7 +230,7 @@ public final class ReliquaryEvents {
 	 *
 	 * <p>注意 {@link #blocksDamageEntirely} 覆盖不到「死亡拦截的首次触发」—— 那一次走的是
 	 * {@code DamagePools.prepare} → {@code tryNullify}，位于 {@code markHurt()} 之后，
-	 * 所以那一下仍会抖一次并占用一次无敌帧（已知缺口，见待办文档 1.2）。
+	 * 所以那一下仍会抖一次并占用一次无敌帧（已知缺口，见待办文档 2.6）。
 	 */
 	@SubscribeEvent
 	public static void onLivingAttack(net.minecraftforge.event.entity.living.LivingAttackEvent event) {
@@ -735,8 +735,11 @@ public final class ReliquaryEvents {
 		// 七罪：攻击者是本模组玩家时的增伤与暴怒自伤
 		if (event.getSource().getEntity() instanceof ServerPlayer attacker
 				&& attacker != event.getEntity() && !event.isCanceled()
-				// 本模组的神性伤害（圣光 / 启示之光）不再吃一遍七罪七德倍率
-				&& !com.summy.reliquary.effect.HolyLightEffect.isDivine(event.getSource())) {
+				// 本模组的神性伤害（圣光 / 启示之光）与定值真伤（神性光环 / 契约献祭等）
+				// 不再吃一遍七罪七德倍率（2.4：并集口径，与 SpiritAltarSet 那一层一致；
+				// 金刀片本来就在 isDivine 名单里，不会被漏掉）
+				&& !(com.summy.reliquary.effect.HolyLightEffect.isDivine(event.getSource())
+						|| com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource()))) {
 			if (!suppressBonus) {
 				float sinDamage = SinEffects.modifyOutgoingDamage(attacker, event.getEntity(), event.getSource(), event.getAmount());
 				float virtueDamage = com.summy.reliquary.effect.VirtuesEffects.modifyOutgoingDamage(
