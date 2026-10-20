@@ -782,6 +782,20 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
     附带：测试存档仍带旧 ER 注册表数据（`enchantment_reforged:strength / soul_grace` 与旧属性
     `enchantment_reforged:life_shield` 被忽略），属预期；需要干净环境时用新档。
 
+39. **Kilt 20.1.20 的 `LivingDamageEvent` 对玩家金额写回失效（2026-10-20 核验）**：① **现象** —— Kilt 实例连打
+    20 次 `/damage 0.5`，日志每次都输出「池子 10.0 → 9.5、本次扣池=0.5、血伤 0.5 → 0.0」，20 次合计扣池 10 点；
+    但玩家生命值同时下降约 10 点（5 颗心），即「魂心扣一份、红血也扣一份」的双重结算。② **根因（Kilt 侧，非 SR）** ——
+    Kilt 的 `PlayerInject.kilt$callLivingDamage` 用 `@Local(ordinal = 1)` 捕获 `Player.method_6074`（玩家侧
+    `actuallyHurt`）的局部变量，实际绑定到 slot 3 的 `f1`（扣吸收前的值）；真正用于 `setHealth(getHealth() - amount)`
+    的是 slot 2 的 `amount`。SR 把 `LivingDamageEvent` 金额改成 0 只写到 `f1`，扣血仍按 `amount` 执行。对照：非玩家走
+    `LivingEntityInject.kilt$callDamageEvent`，用 `@Local(argsOnly = true)` 正确绑定参数槽 `amount`；玩家侧
+    `LivingHurtEvent` 也用 `@Local(argsOnly = true)`，金额修改有效。③ **处置** —— SR 不做规避，等待 Kilt 上游修复
+    （`@Local(ordinal = 1)` → `@Local(argsOnly = true)`）；在此期间 Kilt 环境的伤害池为「魂心扣、红血也扣」，
+    Forge 原生端与第 38 条 ② 的旧路径结论不受影响。④ **复测判据** —— 升级 Kilt 后，无吸收值时连打 10 次
+    `/damage 0.5`：池子应掉 5 点、`/data get entity @s Health` 不变；若血量仍掉，说明修复未生效。
+    本条与第 38 条 ② 的关系：该击确实派发了 `LivingDamageEvent`（所以 SR 走新路径），但金额写回对**玩家**无效 ——
+    两项结论不冲突。
+
 ---
 
 ## 13. 近期修复的根因记录（便于以后复现/回归）
