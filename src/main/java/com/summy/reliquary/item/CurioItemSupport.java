@@ -6,6 +6,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.ItemStack;
 import top.theillusivec4.curios.api.SlotContext;
+import top.theillusivec4.curios.api.type.capability.ICurio;
 
 import java.util.List;
 import java.util.Set;
@@ -22,6 +23,11 @@ public final class CurioItemSupport {
 	private static final Set<String> LOGGED_REJECTIONS = ConcurrentHashMap.newKeySet();
 
 	private CurioItemSupport() {
+	}
+
+	/** 2.15：所有饰品统一死亡不掉落，Q 键丢弃 / 创造模式摘下不受影响 */
+	public static ICurio.DropRule keepOnDeath() {
+		return ICurio.DropRule.ALWAYS_KEEP;
 	}
 
 	/** 允许装进指定栏位、且同种物品还没被佩戴过 */

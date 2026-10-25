@@ -3,6 +3,40 @@
 > 本文档收录 Summy Reliquary 的历史版本变更；**当前版本的内容与玩法以 [README.md](README.md) 为准**
 > （README 只保留最新一版变更，历史记录全部收在这里）。
 
+## 1.8.8 变更
+
+**① 长矛第一/第三人称完整动画（2.1）**
+
+- 参照 `Backported-Spears` 1.20.1 的已验证注入结构，新增四个 Mixin：`LivingEntityMixin`（挥击时长）、`ItemInHandRendererMixin`（第一人称）、`HumanoidModelMixin`（第三人称手臂）、`HeldItemFeatureRendererMixin`（第三人称手持物品）。
+- 第一人称：蓄力「举起 → 摇晃 → 放下」、左键「放平 → 前戳 → 收回」、投掷后的收手；只移动物品矩阵，手臂仍由原版 `renderPlayerArm` 渲染。
+- 第三人称：`poseRightArm` / `poseLeftArm` 接管持矛与蓄力姿势，`setupAttackAnimation` 处理戳刺挥臂，`ItemInHandLayer#renderArmWithItem` 调整物品前移 / 前突。
+- 动画随攻速：`getCurrentSwingDuration` 对主手长矛返回 `clamp(round(20 / 攻速), 4, 40)`，与攻击冷却严格同步；副手与非长矛走原版 6 tick。
+- 曲线集中在 `client/SpearAnimation`（纯函数），数值照抄对方；新增自检 `checkSpearAnimationCurves`（攻速 1.0/2.0/4.0/100/0.1 → 20/10/5/4/40，蓄力 0→1，戳刺 0→1）。
+
+**② Mixin 基础设施**
+
+- `build.gradle` 接入 `mixingradle 0.7.38` + `mixin 0.8.5` 注解处理器 + `MixinExtras 0.5.5`（`jarJar` 打入产物）；新增 `libs-m2` 本地 Maven 避免回源。
+- 新增 `summy_reliquary.mixins.json`（`required: false`、`defaultRequire: 0`），只登记长矛动画这一组。
+- 发布产物改为 `reobfJarJar`（含 MixinExtras）；正式包继续排除 `devcheck`。
+
+**③ 实机修复（四处）**
+
+- 第一人称注入改用官方名 `applyItemArmTransform` / `applyItemArmAttackTransform`（`m_109382_` / `m_109335_`），去掉错误的 `remap = false`。
+- **右键蓄力移除全部自定义变换**：第一人称、第三人称手臂、第三人称手持物品都不再叠加举矛曲线，直接复用原版 `UseAnim.SPEAR` / 三叉戟动画；第一人称只保留左键戳刺接管。
+- **第三人称删除 `poseArm` 接管**：常态回到原版 `ArmPose.ITEM`、蓄力回到原版 `THROW_TRIDENT`，只保留 `setupAttackAnimation` 的戳刺挥臂。
+- `SpearAttackGate` 除按“上次放行 tick + 20/攻速”计时外，在 `ClientTickEvent.END` 每 tick 通过 `ObfuscationReflectionHelper` 把 `Minecraft.missTime` 拉到“剩余冷却 + 1”：`startAttack` 内部的 `missTime = 10` 不会再覆盖硬限，按住 / 连点 / 空挥 / 对空气 / 对地面都被同一道计时拦住；`BlockHitResult` 只在真正按住挖掘（`gameMode.isDestroying()`）时放行。
+- 第三人称 `translation` 从 `[0, 2, 2]` 调整为 `[0, -2, 5.5]`（`spear_in_hand.json` 与 `holy_spear_using.json` / `seraph_spear_using.json` 同步）：物品更靠前、整体下移、贴图中段握把对准手。
+
+**④ 其余三项（2.6 / 2.12 / 2.15）**
+
+- **2.6**：`ReliquaryEvents` 里死亡拦截首触的注释由「仍会抖一次并占用一次无敌帧」改为「只剩视觉抖动、不占用无敌帧（`DamagePools.cancelHit` 已清 `invulnerableTime`）」；Attack 层前移维持 2026-10-20 的不做决定。
+- **2.12**：`SacredHeart` 改为“发射瞬间蹲下 → 该投射物永久不追踪”：`EntityJoinLevelEvent` 在投射物加入世界时检查 owner 是否蹲下，写入 `summy_reliquary_no_homing`；`tick` 对该标记直接跳过。之后玩家蹲下 / 站起都不改变已发射的箭。
+- **2.15**：`CurioItemSupport.keepOnDeath()` + 22 个饰品补 `getDropRule = ALWAYS_KEEP`，27 件 Curios 饰品全部死亡不掉落；Q 键主动丢弃、创造模式摘下不受影响。
+
+**⑤ 交付**
+
+- 版本 `1.8.8-forge`；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议保持 **`"14"`**；自检 **605 行全绿**。
+
 ## 1.8.7 变更
 
 **① 定值真伤不再被乘区放大（2.4）**

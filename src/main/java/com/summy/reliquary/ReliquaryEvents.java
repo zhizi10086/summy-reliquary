@@ -36,6 +36,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
@@ -230,7 +231,9 @@ public final class ReliquaryEvents {
 	 *
 	 * <p>注意 {@link #blocksDamageEntirely} 覆盖不到「死亡拦截的首次触发」—— 那一次走的是
 	 * {@code DamagePools.prepare} → {@code tryNullify}，位于 {@code markHurt()} 之后，
-	 * 所以那一下仍会抖一次并占用一次无敌帧（已知缺口，见待办文档 2.6）。
+	 * 所以只剩客户端视觉抖动、不占用无敌帧（{@code DamagePools.cancelHit} 已把
+	 * {@code invulnerableTime} 清 0）；Attack 层前移已于 2026-10-20 决定不做
+	 * （估算误判风险大于收益）。
 	 */
 	@SubscribeEvent
 	public static void onLivingAttack(net.minecraftforge.event.entity.living.LivingAttackEvent event) {
@@ -265,6 +268,30 @@ public final class ReliquaryEvents {
 			return;
 		}
 		com.summy.reliquary.effect.SacredHeart.recordHit(arrow, target);
+	}
+
+	/** 1.8.8：发射瞬间玩家蹲下 → 该投射物永久不参与圣心追踪 */
+	public static final String NO_HOMING_TAG = "summy_reliquary_no_homing";
+
+	/**
+	 * 投射物加入世界：在发射瞬间按玩家是否蹲下打标记。
+	 *
+	 * <p>只看发射瞬间；之后玩家蹲下 / 站起都不改变这支投射物的追踪状态。
+	 */
+	@SubscribeEvent
+	public static void onProjectileJoin(EntityJoinLevelEvent event) {
+		if (event.getLevel().isClientSide()) {
+			return;
+		}
+		if (!(event.getEntity() instanceof net.minecraft.world.entity.projectile.AbstractArrow arrow)) {
+			return;
+		}
+		if (!(arrow.getOwner() instanceof Player player)) {
+			return;
+		}
+		if (player.isShiftKeyDown()) {
+			arrow.getPersistentData().putBoolean(NO_HOMING_TAG, true);
+		}
 	}
 
 	/**

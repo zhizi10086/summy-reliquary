@@ -1,6 +1,6 @@
-# Summy Reliquary 进度文档（截至 1.8.7-forge）
+# Summy Reliquary 进度文档（截至 1.8.8-forge）
 
-> 更新时间：2026-10-19（1.8.7）　｜　对应版本：**1.8.7-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-10-25（1.8.8）　｜　对应版本：**1.8.8-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > 本文档由当前代码与资源逐一核对后整理，内容与 `README.md` 一致（README 是随版本更新的主文档，本文档是更全的"总台账"）。
 
 ---
@@ -22,12 +22,18 @@
 | 前置 | **Curios** `5.14.1+1.20.1`（`mods.toml` 只有 forge + minecraft + curios） |
 | Fabric 侧 | 通过 **Kilt** 跑同一个 jar（实测组合：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；另需 Sodium + Indium；Kilt 不兼容 Async / Embeddium） |
 | 构建 | `gradlew clean build`（产物自动复制到 `../JAR/summy-reliquary/`） |
-| 当前版本 | `1.8.5-forge`（协议 `"14"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
+| 当前版本 | `1.8.8-forge`（协议 `"14"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
 | 二创与致谢 | 本模组是基于《以撒的结合》（The Binding of Isaac）的**粉丝二创作品**：物品贴图与部分设定有相当数量直接取自或改编自该作，**不主张任何权利**、不用于商业用途；`LICENSE` 的 MIT **只覆盖原创代码与原创素材**。完整中英声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`；联系邮箱 **525277385@qq.com** |
 | 实例部署 | 把新 jar 放进整合包 `mods/`，旧版本就地改名为 `*.jar.disabled`（同名双版本会因 mod id 重复报错） |
 | 诊断开关 | `-Pnodata`（去掉自定义伤害类型 + 原版伤害类型标签覆盖）、`-Pnotags`（只去掉标签覆盖）、`-Pnomodel`（去掉终末天启模型/贴图）；产物改名进 `_test/` |
 
-### 1.1 版本历史（1.5.x ~ 1.8.7）
+### 1.1 版本历史（1.5.x ~ 1.8.8）
+
+> **1.8.8 实机修复（四处）**：第一人称注入改用官方名 `applyItemArmTransform` / `applyItemArmAttackTransform`（`m_109382_` / `m_109335_`）；右键蓄力移除自定义变换、完全复用原版三叉戟（第一/第三人称都不再叠加举矛曲线）；第三人称删除 `poseArm` 接管，常态回到原版 `ITEM`、蓄力回到原版 `THROW_TRIDENT`，只保留戳刺挥臂；空挥门禁按“上次放行 tick + 20/攻速”计时，并在 `ClientTickEvent.END` 每 tick 通过 `ObfuscationReflectionHelper` 把 `Minecraft.missTime`（`f_91078_`）拉到“剩余冷却 + 1”做硬限（`BlockHitResult` 只在真正挖掘时放行）；第三人称握点 `translation` 调为 `[0, -2, 5.5]`（常态与蓄力模型统一）。
+>
+> **1.8.8 其余三项**：2.6 死亡拦截首触注释订正（只剩视觉抖动、不占用无敌帧）；2.12 发射瞬间蹲下的投射物永久不追踪（`EntityJoinLevelEvent` 写 `summy_reliquary_no_homing`，之后站起也不恢复）；2.15 27 件 Curios 饰品全部 `ALWAYS_KEEP`（22 个类补 `getDropRule` + `CurioItemSupport.keepOnDeath`）。
+
+**1.8.8**：长矛第一/第三人称完整动画（2.1）。① **Mixin 基础设施** —— 首次接入 MixinGradle 0.7.38 + Mixin 0.8.5 + MixinExtras 0.5.5（`jarJar` 打入产物），新增 `summy_reliquary.mixins.json`（`required: false` / `defaultRequire: 0`）；发布产物改取 `reobfJarJar`，正式包继续排除 devcheck。② **四个动画 Mixin** —— `LivingEntityMixin`（`getCurrentSwingDuration` = `clamp(round(20 / 攻速), 4, 40)`，与攻击冷却严格同步）、`ItemInHandRendererMixin`（抑制普通挥击位移 / 换手、替换 `applySwingOffset`、在 `getUseAnimation()` 前插入蓄力动画、蓄力时抑制装备偏移）、`HumanoidModelMixin`（`poseRightArm` / `poseLeftArm` / `setupAttackAnimation`）、`HeldItemFeatureRendererMixin`（第三人称手持物品前移 / 前突）。③ **曲线** —— `client/SpearAnimation` 纯函数复刻 `Backported-Spears` 的 `holdUpAnimation` 与戳刺三段曲线；自检新增 `checkSpearAnimationCurves`（攻速 1.0 / 2.0 / 4.0 / 100 / 0.1 → 20 / 10 / 5 / 4 / 40，蓄力 0→1，戳刺 0→1）。④ **边界** —— Mixin 仅限两把长矛动画；左键门禁 / 冷却 / 投掷结算 / GUI 模型全部不变。自检 **605 行全绿**；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议仍 `"14"`。
 
 **1.8.7**：四项纯修复 + 一条兼容说明。①**定值真伤不再被乘区放大（2.4）** —— `ReliquaryEvents` 的七罪 / 七德 / 最终倍率块守卫由 `!isDivine(source)` 改为 `!(isDivine(source) || isExactDamage(source))`：`godhead_aura`（2 点 / 跳）与 `sacrifice`（10000 点）恢复定值，金刀片仍靠 `isDivine` 排除；自检新增 `case 2272`（圣心 + 神性 ×1.5 的场面下，普通近战 10 → 15、神性光环 10 → 10、契约献祭 10000 → 10000）。②**圣心追踪按维度聚合（2.8）** —— `SacredHeart.tick` 先把佩戴者按 `serverLevel()` 分组（维度 → UUID → 半径），每个维度只遍历一次 `getAllEntities()` 再按 owner 查表；复杂度 O(佩戴者×实体) → O(维度×实体+箭数)，追踪半径 / 停滞直航 / 穿透排除逐项不变；自检在 `case 2017` 里注入一名同维度假佩戴者，断言扫描维度数 = 1。③**攻速上限修正（2.14）** —— `AttributeManager.applyAttackSpeedCap` 改在加法空间反算（`addition = base + Σ ADDITION`、`multiplier = (1 + Σ MULTIPLY_BASE) × Π(1 + MULTIPLY_TOTAL)`、补 `cap / multiplier − addition`）；旧实现把「最终值之差」当 ADDITION 写回、会被 MULTIPLY_TOTAL 再乘一遍（A11 实测 3.46276），自检新增 `case 2271`（−2.0/+0.5/+0.4 ×1.66 → 4.00000；摘掉倍率 → 2.90000）。④**注释订正（2.6①）** —— 「见待办文档 1.2」改为「2.6」。⑤**兼容** —— 跟随 Summy Enchantment 改名（`summy_enchantment:life_shield`、`com.summy.enchantment.combat.EnchantmentEffects`），该提交（`ea2e6d4`）在 1.8.6 之后、未随版本发布。自检 **595 行全绿**；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；配置段 26 / 键 267 不变；协议仍 `"14"`。
 
@@ -630,6 +636,8 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 ## 11. 开发与验证流程
 
 1. **构建**：`gradlew clean build`（JDK 17，路径写在 `gradle.properties`），产物自动复制到 `../JAR/summy-reliquary/`；旧 jar 一律保留，部署时把实例里旧版改名 `.disabled`。
+> **605 行 `[DEVCHECK]`** 是 1.8.8 的当前自检（比 1.8.7 的 595 行多 10 行 = 新增 `checkSpearAnimationCurves`）。下面这段“当前 595 行”是 1.8.7 的历史记录，保留用于对照。
+
 2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。当前自检共输出 **595 行 `[DEVCHECK]`**（1.8.7 实测；比 1.8.6 的 594 行多 1 行 = 新增 `case 2271` / `case 2272` / 2.8 聚合断言共 +3，再扣掉 dump 的 ±2 浮动。**浮动原因**：① `clientTick==700` 那两条「光环 / 美德提示行」dump 会读 DevCheckWorld 存档里的赎罪状态；② 只在"属性摘要变化"时才打印的 `属性更新` 行数会随每次运行的状态序列微调 —— 两者都与代码无关（1.8.7 实测 595）；历史值：1.8.6 为 594、1.8.4 为 574、1.8.3 为 574、1.8.2 为 569、1.8.1 为 537、1.7.10 为 526~529、1.7.9 为 515~517、1.7.8 为 510、1.7.7 为 509、1.7.6 为 508。逐项断言行，**全部通过**），1.8.4 的 `case 2260`（长矛戳刺曲线）已随动画整体回退移除；1.8.5 新增 `case 2259`（完全拦截提前取消的真值表）、`case 2261`（复活的伤害池挂起清理）、`case 2263`（护盾夹取命令）、`case 2264`（暴食击杀回复上限）、`case 2266`（LivingDamage 扣池）、`case 2267`（神性光环开关）、`case 2268`（池子先于死亡拦截）与 `case 2269`（创造飞行补推），并扩展 `checkHudRows`（单排血条适配 + 像素偏移）与 `checkWrathSelfHitNeverKills`（愤怒提示文案）。覆盖：
    - 栏位校验矩阵 10×5、套装切换与提示去重/着色、魂心与吸收（含外部清零模拟、与生命护盾相加 46/36/2、卸下只收我方份额）
    - 发光（含视线）、伤害加成、启示计时与**静止 5 秒**转化、不可重复佩戴、七罪三态与碎片赎罪、赎罪配方门槛（JEI 可见性）
@@ -1350,7 +1358,7 @@ seraph_spear : [下界之星][      ][心之碎片] / [  ][圣光短矛][      ]
 
 | 工程 | 说明 |
 | --- | --- |
-| **Summy Reliquary**（本工程） | 上述内容；版本 1.8.7-forge |
+| **Summy Reliquary**（本工程） | 上述内容；版本 1.8.8-forge |
 | **Summy Enchantment**（`../summy-enchantment`） | 26 个附魔、9 组配置页；与 SR 的交互点：**魂心是独立池**（1.6.2 起，不再写原版吸收值，所以与 SE 的生命护盾**互不挤占**、结算顺序为 护盾 → 魂心 → 黑心 → 红血）、SE 的「出其不意」= 同源第二次命中（SR 视为两次攻击）、SE 的「魔剑」= 同一击的追加段（SR 求和后只掷一次；1.6.3 起两档窗口改写只发生在「新的一击」，SE 追加段自己清冷却所以照常落地）、「大胃袋」会抬饥饿上限（SR 暴食未赎罪时取 `min(18, 上限)`） |
 
 ---

@@ -108,8 +108,13 @@ public final class SacredHeart {
 				if (arrow.getOwner() == null) {
 					continue;
 				}
-				Double radius = wearers.get(arrow.getOwner().getUUID());
+				UUID ownerId = arrow.getOwner().getUUID();
+				Double radius = wearers.get(ownerId);
 				if (radius == null) {
+					continue;
+				}
+				// 1.8.8：发射瞬间蹲下的投射物永久不追踪（不再更新 STALL）
+				if (arrow.getPersistentData().getBoolean(com.summy.reliquary.ReliquaryEvents.NO_HOMING_TAG)) {
 					continue;
 				}
 				LivingEntity target = nearestEnemy(level, arrow, radius);

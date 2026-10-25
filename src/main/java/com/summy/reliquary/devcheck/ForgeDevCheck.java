@@ -2,6 +2,7 @@ package com.summy.reliquary.devcheck;
 
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.attribute.ReliquaryAttributes;
+import com.summy.reliquary.client.SpearAnimation;
 import com.summy.reliquary.effect.RevelationTracker;
 import com.summy.reliquary.effect.RiceHungerLock;
 import com.summy.reliquary.maid.MaidModeManager;
@@ -137,6 +138,7 @@ public final class ForgeDevCheck {
 				case 10 -> diagnose(player);
 				case 20 -> giveItems(player);
 				case 40 -> checkValidators(player);
+				case 45 -> checkSpearAnimationCurves();
 				case 60 -> equipAll(player);
 				case 80 -> checkEquipped(player);
 				case 100 -> startMaidTest(player);
@@ -884,6 +886,26 @@ public final class ForgeDevCheck {
 			}
 			log(builder.toString());
 		}
+	}
+
+	/** 1.8.8：长矛动画曲线与挥击时长（纯函数，不依赖客户端实体） */
+	private static void checkSpearAnimationCurves() {
+		log("===== 长矛动画曲线 =====");
+		log("挥击时长：攻速 1.0 = " + SpearAnimation.swingDuration(1.0F) + "（应 20）");
+		log("挥击时长：攻速 2.0 = " + SpearAnimation.swingDuration(2.0F) + "（应 10）");
+		log("挥击时长：攻速 4.0 = " + SpearAnimation.swingDuration(4.0F) + "（应 5）");
+		log("挥击时长：攻速 100 = " + SpearAnimation.swingDuration(100.0F) + "（应 4）");
+		log("挥击时长：攻速 0.1 = " + SpearAnimation.swingDuration(0.1F) + "（应 40）");
+
+		SpearAnimation.HoldUp start = SpearAnimation.holdUp(0.0F, 72000);
+		SpearAnimation.HoldUp full = SpearAnimation.holdUp(10.0F, 72000);
+		log("蓄力起点 raise = " + start.raiseProgress() + "（应 0.0）");
+		log("蓄力 10 tick raise = " + full.raiseProgress() + "（应 1.0）");
+
+		SpearAnimation.Stab s0 = SpearAnimation.stab(0.0F);
+		SpearAnimation.Stab s1 = SpearAnimation.stab(1.0F);
+		log("戳刺 0：g=" + s0.g() + " h=" + s0.h() + " j=" + s0.j() + "（应 0/0/0）");
+		log("戳刺 1：g=" + s1.g() + " h=" + s1.h() + " j=" + s1.j() + "（应 1/1/1）");
 	}
 
 	private static void equipAll(ServerPlayer player) {

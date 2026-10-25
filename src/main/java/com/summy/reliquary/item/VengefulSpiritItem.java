@@ -80,4 +80,13 @@ public class VengefulSpiritItem extends Item implements ICurioItem {
 		return com.summy.reliquary.text.SinTexts.factionName("item.summy-reliquary.vengeful_spirit",
 				com.summy.reliquary.text.ReliquaryFaction.DEMON);
 	}
+
+	/** 2.15：饰品死亡不掉落 */
+	@Override
+	public top.theillusivec4.curios.api.type.capability.ICurio.DropRule getDropRule(
+			top.theillusivec4.curios.api.SlotContext slotContext,
+			net.minecraft.world.damagesource.DamageSource source,
+			int lootingLevel, boolean recentlyHit, net.minecraft.world.item.ItemStack stack) {
+		return CurioItemSupport.keepOnDeath();
+	}
 }

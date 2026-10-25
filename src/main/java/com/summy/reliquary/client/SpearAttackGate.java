@@ -4,11 +4,17 @@ import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.item.SpearItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
+
+import java.lang.reflect.Field;
+import java.util.UUID;
 
 /**
  * 长矛的「没冷却完不能出手」门禁（1.8.4）。
@@ -29,8 +35,13 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE,
 		value = Dist.CLIENT)
 public final class SpearAttackGate {
-	/** 就绪阈值：攻击强度恢复到这里就放行（原版 1.0 才算满，这里放宽一档避免"差一点点打不出去"） */
-	private static final float READY_SCALE = 0.9F;
+	/** 上一次真正放行的玩家；切换玩家时重置时间戳 */
+	private static UUID lastPlayerId;
+	/** 上一次真正放行的客户端 tick */
+	private static long lastAttackTick = Long.MIN_VALUE;
+	/** Minecraft.missTime：>0 时 startAttack 直接返回 */
+	private static Field missTimeField;
+	private static boolean missTimeWarned;
 
 	private SpearAttackGate() {
 	}
@@ -46,13 +57,63 @@ public final class SpearAttackGate {
 		if (player == null || !isSpearInMainHand(player) || isChargingSpear(player)) {
 			return;
 		}
-		// 挖掘：放行（不干预破坏方块）
-		if (client.hitResult instanceof BlockHitResult) {
+		// 挖掘：只在真正按住破坏方块时放行；点击方块的空挥仍走门禁
+		if (client.hitResult instanceof BlockHitResult && client.gameMode != null && client.gameMode.isDestroying()) {
 			return;
 		}
-		if (player.getAttackStrengthScale(0.5F) <= READY_SCALE) {
+		// 空挥不重置 attackStrengthTicker，attackAnim 也可能在按键事件时尚未更新；
+		// 这里用自己记录的放行 tick，按 20 / 攻速严格拦截。
+		int cooldown = SpearAnimation.swingDuration((float) player.getAttributeValue(Attributes.ATTACK_SPEED));
+		long now = player.tickCount;
+		if (player.getUUID().equals(lastPlayerId) && now - lastAttackTick < cooldown) {
 			event.setCanceled(true);
 			event.setSwingHand(false);
+			// 硬限：把 missTime 拉到剩余冷却，按住 / 连点也不会再进 startAttack
+			applyMissTime(client, (int) (cooldown - (now - lastAttackTick)));
+		} else {
+			lastPlayerId = player.getUUID();
+			lastAttackTick = now;
+		}
+	}
+
+	/**
+	 * 每 tick 结尾重设 missTime。
+	 *
+	 * <p>{@code Minecraft.startAttack} 在 onClickInput 之后会把 missTime 重置成 10，
+	 * 事件里设的剩余冷却会被覆盖；在 END 段再设一次，保证下一 tick 的 startAttack 继续被挡住。
+	 */
+	@SubscribeEvent
+	public static void onClientTick(TickEvent.ClientTickEvent event) {
+		if (event.phase != TickEvent.Phase.END) {
+			return;
+		}
+		Minecraft client = Minecraft.getInstance();
+		LocalPlayer player = client.player;
+		if (player == null || !isSpearInMainHand(player) || isChargingSpear(player)) {
+			return;
+		}
+		if (!client.options.keyAttack.isDown()) {
+			return;
+		}
+		int cooldown = SpearAnimation.swingDuration((float) player.getAttributeValue(Attributes.ATTACK_SPEED));
+		long now = player.tickCount;
+		if (player.getUUID().equals(lastPlayerId) && now - lastAttackTick < cooldown) {
+			applyMissTime(client, (int) (cooldown - (now - lastAttackTick)) + 1);
+		}
+	}
+
+	/** 反射设置 Minecraft.missTime；失败只警告一次，降级为普通事件取消 */
+	private static void applyMissTime(Minecraft client, int ticks) {
+		try {
+			if (missTimeField == null) {
+				missTimeField = ObfuscationReflectionHelper.findField(Minecraft.class, "missTime");
+			}
+			missTimeField.setInt(client, Math.max(1, ticks));
+		} catch (Throwable t) {
+			if (!missTimeWarned) {
+				missTimeWarned = true;
+				SummyReliquary.LOGGER.warn("无法设置 Minecraft.missTime，长矛空挥硬限降级为事件取消", t);
+			}
 		}
 	}
 
