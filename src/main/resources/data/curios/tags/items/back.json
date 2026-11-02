@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "summy-reliquary:ceremonial_robes"
+    "summy-reliquary:ceremonial_robes",
+    "summy-reliquary:habit"
   ]
 }

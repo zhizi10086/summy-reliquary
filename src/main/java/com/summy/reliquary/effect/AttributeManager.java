@@ -72,6 +72,8 @@ public final class AttributeManager {
 	private static final UUID DEVIL_CROWN_TOUGHNESS = id(56);
 	/** 天使线长矛（1.7.9）：近战攻击距离（Forge 的 entity_reach，加法）—— 圣光短矛 +0.5 / 炽天使之枪 +1.0 */
 	private static final UUID SPEAR_REACH = id(62);
+	/** 修女服（2.0）：护甲 +2（加法） */
+	private static final UUID HABIT_ARMOR = id(63);
 	/** 上一次打印过的属性摘要：签名不变就不重复刷日志 */
 	private static final Map<UUID, String> LAST_SUMMARY = new HashMap<>();
 	/** 由我们授予过飞行的玩家（卸下终末天启时要收回） */
@@ -188,6 +190,11 @@ public final class AttributeManager {
 				sacredHeartWorn ? ReliquaryConfig.sacredHeartMovementPercent() / 100.0D : 0.0D,
 				AttributeModifier.Operation.MULTIPLY_TOTAL);
 
+		// 修女服（2.0）：背饰栏，固定护甲 +2；卸下或关闭总开关即回收。
+		apply(entity, Attributes.ARMOR, HABIT_ARMOR, "habit_armor",
+				Habit.wears(entity) ? ReliquaryConfig.habitArmor() : 0.0D,
+				AttributeModifier.Operation.ADDITION);
+
 		// 五芒星（护符栏，1.5.8）：近战伤害 +1（卸下即回收）
 		boolean pentagramWorn = CurioHelper.wears(entity, SummyReliquary.PENTAGRAM.get());
 		apply(entity, Attributes.ATTACK_DAMAGE, PENTAGRAM_DAMAGE, "pentagram_attack_damage",
@@ -242,6 +249,10 @@ public final class AttributeManager {
 		// 神性：继承终末天启的魂心
 		if (CurioHelper.wears(entity, SummyReliquary.GODHEAD.get())) {
 			soulHearts += ReliquaryConfig.finalSoulHearts();
+		}
+		// 修女服：独立魂心来源，与灵魂 / 天启 / 神性相加。
+		if (Habit.wears(entity)) {
+			soulHearts += ReliquaryConfig.habitSoulHearts();
 		}
 		apply(entity, ReliquaryAttributes.SOUL_HEARTS.get(), SOUL_HEARTS, "soul_hearts",
 				soulHearts, AttributeModifier.Operation.ADDITION);

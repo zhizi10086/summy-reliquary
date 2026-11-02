@@ -89,6 +89,12 @@ public final class SpiritAltarRecipeGate {
 				new ItemStack(SummyReliquary.HEART_SHARD.get(), 6),
 				new ItemStack(Items.BLAZE_POWDER, 2),
 				new ItemStack(SummyReliquary.WOODEN_CROSS.get())));
+		// 修女服（2.0）：天使线背饰，黑白羊毛混色版型。
+		register(SummyReliquary.HABIT.get(), Lock.ANGEL, List.of(
+				new ItemStack(Items.GOLD_INGOT, 3),
+				new ItemStack(Items.WHITE_WOOL, 3),
+				new ItemStack(Items.BLACK_WOOL, 2),
+				new ItemStack(SummyReliquary.HEART_SHARD.get())));
 		// 救恩：判据同上，但 JEI 永久隐藏（1.5.6 起的既有行为）
 		register(SummyReliquary.SALVATION.get(), Lock.ALWAYS_HIDDEN, List.of(
 				new ItemStack(Items.BREAD, 5), new ItemStack(Items.COOKED_COD, 2)));

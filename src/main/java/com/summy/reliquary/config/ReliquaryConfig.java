@@ -65,6 +65,14 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.IntValue BODY_SET_DAMAGE_REDUCTION_PERCENT;
 	private static final ForgeConfigSpec.IntValue MIND_BONUS_PERCENT;
 
+	// ===== 修女服（Habit，2.0） =====
+	private static final ForgeConfigSpec.BooleanValue ENABLE_HABIT;
+	private static final ForgeConfigSpec.IntValue HABIT_SOUL_HEARTS;
+	private static final ForgeConfigSpec.DoubleValue HABIT_ARMOR;
+	private static final ForgeConfigSpec.DoubleValue HABIT_CHARGE_PERCENT;
+	private static final ForgeConfigSpec.DoubleValue HABIT_CHARGE_MIN_SECONDS;
+	private static final ForgeConfigSpec.IntValue HABIT_CHARGE_INTERVAL_TICKS;
+
 	// ===== 七罪效果（1.4.0） =====
 	private static final ForgeConfigSpec.BooleanValue ENABLE_SIN_EFFECTS;
 	private static final ForgeConfigSpec.IntValue PRIDE_KILL_REQUIRED;
@@ -515,6 +523,24 @@ public final class ReliquaryConfig {
 				.defineInRange("soul_shatter_invulnerable_seconds", 5.0D, 0.0D, 60.0D);
 		DEATH_IMMUNITY_PERCENT = builder.comment("灵魂：三件套齐时免死的几率（百分比）；触发时保留 1 点生命并播放图腾音效与粒子")
 				.defineInRange("death_immunity_percent", 20, 0, 100);
+		builder.pop();
+
+		builder.comment("修女服（Habit，2.0）：天使线背饰，与仪式法袍共用「背饰」栏").push("habit");
+		ENABLE_HABIT = builder.comment("总开关：关闭后门槛与全部加成都不生效")
+				.define("enable_habit", true);
+		HABIT_SOUL_HEARTS = builder.comment("佩戴时提供的魂心数量（每 1 魂心 = absorption_per_soul_heart 点吸收）")
+				.defineInRange("habit_soul_hearts", 2, 0, 100);
+		HABIT_ARMOR = builder.comment("佩戴时提供的护甲（加法）")
+				.defineInRange("habit_armor", 2.0D, 0.0D, 1024.0D);
+		HABIT_CHARGE_PERCENT = builder
+				.comment("受击充能：推进每个正在冷却的自记技能总冷却的百分比")
+				.defineInRange("habit_charge_percent", 10.0D, 0.0D, 100.0D);
+		HABIT_CHARGE_MIN_SECONDS = builder
+				.comment("受击充能：单次推进的最少秒数")
+				.defineInRange("habit_charge_min_seconds", 1.0D, 0.0D, 600.0D);
+		HABIT_CHARGE_INTERVAL_TICKS = builder
+				.comment("受击充能的节流间隔（tick；10 = 0.5 秒内最多触发一次）")
+				.defineInRange("habit_charge_interval_ticks", 10, 1, 200);
 		builder.pop();
 
 		builder.comment("七罪之源：每一项罪的具体效果数值（只有佩戴七罪之源时才会生效）").push("sins");
@@ -1197,6 +1223,30 @@ public final class ReliquaryConfig {
 
 	public static int bodyHealth() {
 		return intOr(BODY_HEALTH, 10);
+	}
+
+	public static boolean enableHabit() {
+		return boolOr(ENABLE_HABIT, true);
+	}
+
+	public static int habitSoulHearts() {
+		return intOr(HABIT_SOUL_HEARTS, 2);
+	}
+
+	public static double habitArmor() {
+		return doubleOr(HABIT_ARMOR, 2.0D);
+	}
+
+	public static double habitChargePercent() {
+		return doubleOr(HABIT_CHARGE_PERCENT, 10.0D);
+	}
+
+	public static double habitChargeMinSeconds() {
+		return doubleOr(HABIT_CHARGE_MIN_SECONDS, 1.0D);
+	}
+
+	public static int habitChargeIntervalTicks() {
+		return Math.max(1, intOr(HABIT_CHARGE_INTERVAL_TICKS, 10));
 	}
 
 	public static int bodySetDamageReductionPercent() {

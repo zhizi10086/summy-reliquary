@@ -140,6 +140,24 @@ public final class Abaddon {
 		return (int) Math.max(0L, (remaining + 19L) / 20L);
 	}
 
+	/** 修女服：X 恶魔形态是否仍在冷却。 */
+	public static boolean hasActiveCooldown(ServerPlayer player) {
+		return player != null && wears(player)
+				&& PlayerFlags.abaddonReviveReadyAt(player) > player.level().getGameTime();
+	}
+
+	/** 修女服：把 X 恶魔形态的冷却向前推进，至少 minTicks，且不早于当前时刻。 */
+	public static void advanceCooldown(ServerPlayer player, double fraction, int minTicks) {
+		if (!hasActiveCooldown(player)) {
+			return;
+		}
+		long now = player.level().getGameTime();
+		long until = PlayerFlags.abaddonReviveReadyAt(player);
+		int advance = Math.max(minTicks, (int) Math.round(
+				ReliquaryConfig.abaddonReviveCooldownTicks() * Math.max(0.0D, fraction)));
+		PlayerFlags.setAbaddonReviveReadyAt(player, Math.max(now, until - advance));
+	}
+
 	/** 无敌期间：取消一切来源的伤害（与灵魂破碎 / 神圣斗篷同一套写法） */
 	public static void onHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player && isGuarded(player)) {

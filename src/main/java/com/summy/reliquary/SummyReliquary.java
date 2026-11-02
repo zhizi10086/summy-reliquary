@@ -298,6 +298,10 @@ public class SummyReliquary {
 	public static final RegistryObject<Item> SACRED_HEART =
 			ITEMS.register("sacred_heart", () -> new com.summy.reliquary.item.SacredHeartItem(
 					new Item.Properties().stacksTo(1)));
+	/** 修女服（2.0）：天使线背饰，提供魂心、护甲与受击冷却充能 */
+	public static final RegistryObject<Item> HABIT =
+			ITEMS.register("habit", () -> new com.summy.reliquary.item.HabitItem(
+					new Item.Properties().stacksTo(1)));
 
 	/** 心之碎片（1.5.6）：带启示之光的生物死亡时的掉落材料（1.6.1 起用自家贴图） */
 	public static final RegistryObject<Item> HEART_SHARD =
@@ -350,7 +354,7 @@ public class SummyReliquary {
 					new Item.Properties().stacksTo(1)));
 
 	/**
-	 * 创造页物品的**唯一顺序源**（1.7.10 起按「派系 + 用途」分四块排列，共 46 项）。
+	 * 创造页物品的**唯一顺序源**（1.7.10 起按「派系 + 用途」分四块排列，共 47 项）。
 	 *
 	 * <p>抽成方法是为了让自检能直接拿到这份顺序逐项断言（见 {@code ForgeDevCheck#checkCreativeOrder}）；
 	 * 标签页本身只调它一次，所以"页面里看到的顺序"和"自检断言的顺序"永远同源。
@@ -362,7 +366,7 @@ public class SummyReliquary {
 						out.accept(HOLY_SPEAR.get());
 						out.accept(SERAPH_SPEAR.get());
 						out.accept(GOLDEN_RAZOR.get());
-						// ===== ② 天使线饰品（灵台 → 启示之座 → 加护 → 光环 → 护符）=====
+						// ===== ② 天使线饰品（灵台 → 启示之座 → 加护 → 背饰 → 光环 → 护符）=====
 						out.accept(THE_BODY.get());
 						out.accept(THE_MIND.get());
 						out.accept(THE_SOUL.get());
@@ -373,6 +377,7 @@ public class SummyReliquary {
 						out.accept(HOLY_LIGHT.get());
 						out.accept(HOLY_MANTLE.get());
 						out.accept(SACRED_HEART.get());
+						out.accept(HABIT.get());
 						out.accept(THE_HALO.get());
 						out.accept(PENTAGRAM.get());
 						// ===== ③ 恶魔线饰品（魂印 → 灵台 → 契约 → 背饰 → 启示之座 → 加护 → 光环）=====
@@ -409,7 +414,7 @@ public class SummyReliquary {
 	}
 
 	/**
-	 * 专属创造标签页（1.7.10 起按「派系 + 用途」分四块排列；共 46 项）。
+	 * 专属创造标签页（1.7.10 起按「派系 + 用途」分四块排列；共 47 项）。
 	 *
 	 * <p>标签页图标＝根成就图标（{@code duality_stat}，「遗物：七罪」）。
 	 */

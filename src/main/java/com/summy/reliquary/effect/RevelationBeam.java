@@ -244,6 +244,42 @@ public final class RevelationBeam {
 		return per == null ? 0L : per.getOrDefault(id, 0L);
 	}
 
+	/** 修女服：当前 V 键技能的冷却是否仍在进行。 */
+	public static boolean hasActiveCooldown(ServerPlayer player) {
+		BeamKind kind = kindFor(player);
+		return kind != null && player.serverLevel().getGameTime() < readyAt(kind, player.getUUID());
+	}
+
+	/**
+	 * 修女服：把当前 V 键技能的冷却结束时间向前推进。
+	 *
+	 * <p>推进量为“该技能总冷却 × fraction”，并保证至少 {@code minTicks}；结果不早于当前时刻。
+	 */
+	public static void advanceCooldown(ServerPlayer player, double fraction, int minTicks) {
+		BeamKind kind = kindFor(player);
+		if (kind == null) {
+			return;
+		}
+		long now = player.serverLevel().getGameTime();
+		long until = readyAt(kind, player.getUUID());
+		if (until <= now) {
+			return;
+		}
+		int advance = Math.max(minTicks,
+				(int) Math.round(cooldownTicks(player, kind) * Math.max(0.0D, fraction)));
+		readyMap(kind).put(player.getUUID(), Math.max(now, until - advance));
+	}
+
+	/** 自检用：给某一种光束单独设置冷却。 */
+	public static void markCooldownForTest(ServerPlayer player, BeamKind kind, int cooldownTicks) {
+		readyMap(kind).put(player.getUUID(), player.serverLevel().getGameTime() + cooldownTicks);
+	}
+
+	/** 自检用：某种光束的剩余冷却 tick。 */
+	public static int cooldownRemainingForTest(ServerPlayer player, BeamKind kind) {
+		return (int) Math.max(0L, readyAt(kind, player.getUUID()) - player.serverLevel().getGameTime());
+	}
+
 	// ==================== 自检接口（1.6.8：用于断言"亚巴顿强化档"的分流） ====================
 
 	public static int beamLengthForTest(net.minecraft.world.entity.LivingEntity entity, BeamKind kind) {

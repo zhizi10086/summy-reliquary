@@ -7,7 +7,7 @@
 
 ## 0. 一句话概览
 
-以 **Curios** 为前置的 Forge 1.20.1 饰品模组：**7 个本模组栏位（含 1.6.0 的动态「恶魔契约」）+ Curios 自带的「护符」「背饰」两栏 + 50 件已注册物品（1.7.5 起含武器，1.7.8 起含两把天使线长矛，1.7.10 起含金刀片）+ 24 个进度（1 个新根 + 恶魔线 9 + 天使线 3 + 原有 10 + 近乎完美 1）+ 10 个网络包 + 26 个配置段 / 269 个键（源码口径；实例 config 因历史残留键 `frame_damage_ids` 会多 1）（1.7.1 新增 `[devil_crown]`，1.7.5 新增 `[shadow_dash]`，1.7.10 新增 `[golden_razor]`，2.0.0 为 `[combat]` / `[demon_pact]` 各新增 1 键）**。
+以 **Curios** 为前置的 Forge 1.20.1 饰品模组：**7 个本模组栏位（含 1.6.0 的动态「恶魔契约」）+ Curios 自带的「护符」「背饰」两栏 + 51 件已注册物品（1.7.5 起含武器，1.7.8 起含两把天使线长矛，1.7.10 起含金刀片，2.10 起含修女服）+ 24 个进度（1 个新根 + 恶魔线 9 + 天使线 3 + 原有 10 + 近乎完美 1）+ 10 个网络包 + 27 个配置段 / 275 个键（源码口径；实例 config 因历史残留键 `frame_damage_ids` 会多 1）（1.7.1 新增 `[devil_crown]`，1.7.5 新增 `[shadow_dash]`，1.7.10 新增 `[golden_razor]`，2.0.0 新增 `[habit]` 并为 `[combat]` / `[demon_pact]` 各新增 1 键）**。
 核心玩法链：**七罪之源 → 赎罪（碎片/配方）→ 美德 → 纯洁之人（天使标记）→ 灵台三件套 → 伯列恒之星 → 终末天启 / 神性**；
 另有一条**加护**支线（救恩 / 圣光 / 神圣斗篷 / 圣心）与**启示之光**体系（光柱 + 领域 + buff + 心之碎片）。
 
@@ -33,7 +33,7 @@
 >
 > **1.8.8 其余三项**：2.6 死亡拦截首触注释订正（只剩视觉抖动、不占用无敌帧）；2.12 发射瞬间蹲下的投射物永久不追踪（`EntityJoinLevelEvent` 写 `summy_reliquary_no_homing`，之后站起也不恢复）；2.15 27 件 Curios 饰品全部 `ALWAYS_KEEP`（22 个类补 `getDropRule` + `CurioItemSupport.keepOnDeath`）。
 
-**2.0.0**：2.17 定值真伤增伤转正，新增 `[combat] exact_damage_gets_multiplier`（默认 `false`）；开启后 `isExactDamage` 的 7 项享受七罪 / 七德 / 最终倍率与思想、玄秘魔眼、恶魔王冠条件乘区，定值真伤只走无副作用的正面全伤害模式。2.13 新增魂心 / 黑心护盾保护、路线容量校验和黑心破碎无敌：池子非空时整击吞伤，`/kill` 例外；魂心只在天路线、黑心只在恶魔线生效；黑心打空获得 0.5 秒无敌。配置段 / 键为 **26 / 269**；本轮实施轮完成编译与构建，完整 605 行 `[DEVCHECK]` 留到 2.0 联调轮统一运行。
+**2.0.0**：2.17 定值真伤增伤转正，新增 `[combat] exact_damage_gets_multiplier`（默认 `false`）；2.13 新增魂心 / 黑心护盾保护、路线容量校验和黑心破碎无敌；2.10 新增天使线背饰「修女服」，提供魂心 +2 心、护甲 +2 与受击推进自记技能冷却。配置段 / 键为 **27 / 275**；本轮实施轮完成编译与构建，完整 605 行 `[DEVCHECK]` 留到 2.0 联调轮统一运行。
 
 **1.8.8**：长矛第一/第三人称完整动画（2.1）。① **Mixin 基础设施** —— 首次接入 MixinGradle 0.7.38 + Mixin 0.8.5 + MixinExtras 0.5.5（`jarJar` 打入产物），新增 `summy_reliquary.mixins.json`（`required: false` / `defaultRequire: 0`）；发布产物改取 `reobfJarJar`，正式包继续排除 devcheck。② **四个动画 Mixin** —— `LivingEntityMixin`（`getCurrentSwingDuration` = `clamp(round(20 / 攻速), 4, 40)`，与攻击冷却严格同步）、`ItemInHandRendererMixin`（抑制普通挥击位移 / 换手、替换 `applySwingOffset`、在 `getUseAnimation()` 前插入蓄力动画、蓄力时抑制装备偏移）、`HumanoidModelMixin`（`poseRightArm` / `poseLeftArm` / `setupAttackAnimation`）、`HeldItemFeatureRendererMixin`（第三人称手持物品前移 / 前突）。③ **曲线** —— `client/SpearAnimation` 纯函数复刻 `Backported-Spears` 的 `holdUpAnimation` 与戳刺三段曲线；自检新增 `checkSpearAnimationCurves`（攻速 1.0 / 2.0 / 4.0 / 100 / 0.1 → 20 / 10 / 5 / 4 / 40，蓄力 0→1，戳刺 0→1）。④ **边界** —— Mixin 仅限两把长矛动画；左键门禁 / 冷却 / 投掷结算 / GUI 模型全部不变。自检 **605 行全绿**；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议仍 `"14"`。
 
@@ -105,7 +105,7 @@
 
 ---
 
-## 2. 内容总表（50 件已注册物品）
+## 2. 内容总表（51 件已注册物品）
 
 ### 2.1 饰品（进 Curios 栏位）
 
@@ -126,6 +126,7 @@
 | 圣光 | `holy_light` | 加护 | **天使标记** | 命中（近战 / 箭矢 / 投掷三叉戟）**15% 几率**召唤圣光：以「各类倍率算完、减伤之前」的本次伤害为基准再打 **120%**；**变种魔法口径**（无视护甲、保护附魔与抗性仍生效、先扣黄血）；**无视无敌帧**；特效 = 碰撞箱顶 +7 → 底的电火花光柱（3 tick、每点 2 颗）+ 底部爆发（8 颗环绕 + 1 颗 `FLASH`） |
 | 神圣斗篷 | `holy_mantle` | 加护 | **天使标记** | **受击后 1 秒无敌**：那一击照常结算，随后 20 tick 内一切伤害被取消（不区分来源，虚空/指令也拦），期间不刷新不叠层 |
 | 圣心 | `sacred_heart` | 加护 | **天使标记**（**1.7.1 修正：配方此前漏了门禁** —— 现在没标记时 JEI 查不到、强合会被收走并退回 心之碎片×6 + 烈焰粉×2 + 木十字架×1） | 生命 +10 / 护甲 +5 / 韧性 +5 / 攻速 +0.5（加法）/ 移速 +15% / 挖掘 +15%；**与神性共享同一个「全伤害最终倍率」乘区（+30%，相加）**；**箭矢追踪**：箭矢为中心 8 格内最近的**敌对生物**，每 tick 偏转 50%（**与神性同戴 → 半径 12 格**） |
+| 修女服 | `habit` | 背饰 | **天使标记**；配方＝金锭×3 + 白羊毛×3 + 黑羊毛×2 + 心之碎片×1，未达标时 JEI 隐藏并退料 | 魂心 +2 心（4 点吸收）、护甲 +2；每次真实受伤将正在冷却的 V 光束 / X 恶魔形态各推进总冷却的 10%（单次至少 1 秒），10 tick 内最多触发一次；与仪式法袍共用 1 格背饰栏 |
 | 神性 | `godhead` | 启示之座（1 格，**与星/天启互斥**） | **天使标记** | 继承天启属性与光柱（**蓄力 1.5 秒 / 冷却 5 秒 / 半径 3 / 射程 35**）+ 伯列恒的攻速与「全伤害最终倍率」+20%；**创造飞行不减速**（生存也是 0.05）；**救恩半径 5**；**8 格光环**每 20 tick 对敌对/仇恨生物与名单内玩家造成 **2 点圣光类型真实伤害**（不击退、无视无敌帧）；**免疫 12 类环境伤害**；**死亡拦截**（保留 1 点生命 + 传送回个人重生点 + 金色 `WAX_ON` 粒子，无冷却） |
 | 五芒星 | `pentagram` | 护符（**Curios 自带 `charm`**） | 进度「罪无可赦」 | 近战伤害 **+1**（`[pentagram] attack_damage`）；完成「罪无可赦」时**只发一次**、老存档靠每秒兜底补发一次，OP 可用 `pentagram <query\|grant\|reset>` 查询/补发/清标记；**累计持有 300 秒**（`message_seconds`，NBT `pentagram_ticks`、跨存档）后在聊天框说一句「你好，七罪之子。……我们做个交易如何？」（整体暗红斜体、「埋葬无尽灵魂」慢速呼吸、终身一次）。Shift 描述**两态**（那句之前 3 行 / 之后只留「近战伤害 +x」），「恶魔话语」追加行**三态**（未签约=原文两行 / 持恶魔标记=移除且不补 / 换回天使后=「我们的约定依然作数」两行）。**无天使门槛** |
 | 五芒星·恶魔交易 | — | — | 五芒星 + 300 秒那句 + **当前不是恶魔** | 在**灵魂沙峡谷**驻留 5 秒 → 三版邀请对话（A 默认 / B 部分赎罪插入 1 行 / C 全赎清或已有天使标记替换 2 行）+ 灰色提示行；离场 3 行、回归 2 行；**手持五芒星长按右键 5 秒**签约（无文字进度：视野收缩 + 手持贴图拉伸）→ 不死图腾动画（贴图换成五芒星）+ `SOUL_ESCAPE`+`PORTAL_TRIGGER` + 火焰/灵魂/灵魂火粒子 → **恶魔标记**（**不消耗**五芒星；每次持有期间只能签一次，用痛悔短祷换回天使后可再签，上限 2 次）。恶魔与天使标记**互斥**（后设置者生效）、名字**深红 `#8B0000`**；持恶魔标记时用**痛悔短祷**成功使用可换回天使标记（仍限一次，契约历史保留 → 五芒星提示改说「我们的约定依然作数 / 我还在那个地方等你」，深红 `#B22222` 斜体）；已签契约的玩家五芒星**不再显示**原来那两行，**也永远不会再触发任何对话**（二轮静默、直接长按再签，台词 2 行「欢迎回来」）。300 秒那句之前右键五芒星**完全无反应** |
@@ -214,7 +215,7 @@
 
 规则：
 - 同一件饰品**不可重复佩戴**（灵台 3 格靠这条避免堆同一件）。
-- 需要**天使标记**的物品共 **10 件**（灵台三件套、伯列恒之星、终末天启、神性、救恩 / 圣光 / 神圣斗篷 / 圣心），在没有标记时**不能佩戴、也查不到功能描述**（提示只显示名称 → 栏位行 → 风味行 → 一行「你尚未获得天国的赐福」）。**契约没有天使门槛**（它的门槛是「恶魔交易」签约流程）。
+- 需要**天使标记**的物品共 **11 件**（灵台三件套、伯列恒之星、终末天启、神性、救恩 / 圣光 / 神圣斗篷 / 圣心 / 修女服），在没有标记时**不能佩戴、也查不到功能描述**（提示只显示名称 → 栏位行 → 风味行 → 一行「你尚未获得天国的赐福」）。**契约没有天使门槛**（它的门槛是「恶魔交易」签约流程）。
 - **1.5.7 起**：若物品**已经戴在那一格**（Curios 登录重算场景）→ 直接放行；往**空槽新装**才检查天使标记；`index < 0` 时不做限制。
 - **1.6.0 起**：「恶魔契约」栏位是**按玩家动态**的（持恶魔标记 = 1 格、否则 0 格）：签约 / 忏悔 / 登录 / 每秒兜底各校正一次；老存档「**有恶魔标记但身上没契约**」会被静默补发并强制佩戴，「**没标记但栏位还在**」则静默收回栏位与契约。
 - **1.6.1 起**：「仪式法袍」的门槛是**恶魔线**（曾签约 `demon_sealed` 或当前是恶魔），与天使门槛一样在**读档阶段放行**（`CurioItemSupport` 的统一处理），避免重登被卸下。
@@ -226,7 +227,7 @@
 ### 4.1 天使标记与金色名字
 
 - 来源：完成「纯洁之人」时写入本模组 NBT（`angel`），随死亡克隆保留；**老存档自愈**（登录与每秒检查：纯洁之人已完成但缺标记 → 补发）。
-- 门槛：灵台三件套 / 伯列恒之星 / 终末天启 / 神性 / 救恩 / 圣光 / 神圣斗篷 / 圣心。
+- 门槛：灵台三件套 / 伯列恒之星 / 终末天启 / 神性 / 救恩 / 圣光 / 神圣斗篷 / 圣心 / 修女服。
 - 金色名字：`PlayerEvent.NameFormat` + `TabListNameFormat`；**1.5.3 起**服务端广播「有天使标记的在线玩家名单」（`AngelRosterMessage`，登录/登出/标记变化时立即重算、每秒兜底），客户端按 UUID 查询 → **谁有标记谁才金**（自己读自己的标记位，别人读名单）。
 - 命令：`/summyreliquary angel <query|refresh|grant|revoke>`（`query`/`refresh` 玩家可用；`grant`/`revoke` 仅 OP；`revoke` 不强制卸下已佩戴物品）。
 
@@ -362,7 +363,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 
 | 派系 | 物品名样式 | 属性名颜色 | 数值颜色 | 适用物品 |
 | --- | --- | --- | --- | --- |
-| **天使线** | 白 → 金对称渐变（同「美德」，名字短于 3 字退化成白底金扫光） | 淡金 `#FFE4B5` | 亮金 `#FFD700` | 灵台三件套、伯列恒之星、终末天启、神性、救恩、圣光、神圣斗篷、圣心、美德 |
+| **天使线** | 白 → 金对称渐变（同「美德」，名字短于 3 字退化成白底金扫光） | 淡金 `#FFE4B5` | 亮金 `#FFD700` | 灵台三件套、伯列恒之星、终末天启、神性、救恩、圣光、神圣斗篷、圣心、修女服、美德 |
 | **恶魔线** | 暗红底 `#8B0000` + 亮红 `#C03030` 扫光（同「七罪之源」） | 深红 `#C03030` | 亮红 `#FF6B6B` | 契约、仪式法袍、撒旦圣经、复仇之魂、咒印、夜之幽魂、硫磺火（1.6.4 补）、玄秘魔眼（1.6.5 补）、深渊领主（1.6.7 补）、亚巴顿（1.6.8 补） |
 | **中立 / 材料** | 原版白（不动） | 灰 `#AAAAAA` | 白 `#FFFFFF` | 碎片、赎罪、白饭、木十字架、「6」、心之碎片、光环、邦邦咔咔光环、五芒星、创世纪、痛悔短祷、占位物品 |
 
@@ -493,6 +494,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | `[maid]` | `radius`(10) |
 | `[start]` | `grant_items`(true)、`auto_equip_source_of_sins`(false) |
 | `[spirit_altar]` | `body_health`(10)、`body_set_damage_reduction_percent`(20)、`glow_radius`(24)、`mind_bonus_percent`(10)、`soul_hearts`(3)、`absorption_per_soul_heart`(2.0)、`soul_refresh_seconds`(30)、`death_immunity_percent`(20)、**`enable_soul_heart_hud`(true，1.6.1)**、**`soul_shatter_radius`(7) / `soul_shatter_knockback`(2.0) / `soul_shatter_invulnerable_seconds`(5.0)（1.6.2）**、**`soul_heart_hud_layout`(auto，1.8.5；补修新增 `classic_row` 档) / `soul_heart_hud_offset_y`(0，1.8.5)** |
+| `[habit]`（**2.0.0 新增，6 键**） | `enable_habit`(true)、`habit_soul_hearts`(2)、`habit_armor`(2.0)、`habit_charge_percent`(10)、`habit_charge_min_seconds`(1.0)、`habit_charge_interval_ticks`(10) |
 | `[revelation]` | `reveal_seconds`(600)、`coordinate_radius`(1000)、`attack_speed_percent`(20)、`damage_percent`(20)、`final_soul_hearts`(2)、`flight_speed_multiplier`(0.5)、`transform_radius`(8)、`transform_seconds`(5)、`transform_max_move_blocks`(1.0)、`beam_length`(**21**)、`beam_radius`(2)、`beam_damage_per_tick`(7)、`beam_duration_seconds`(1.5)、`beam_damage_interval_seconds`(0.1)、`beam_charge_seconds`(2.5)、`beam_cooldown_seconds`(10)、`beam_broadcast_radius`(128)、`charge_fov_scale`(0.15) |
 | `[sins]` | `enable_sin_effects`(true) + 35 项（该段共 36 个键）：`pride_kill_required`(10)、`pride_damage_per_percent`(1.0)、`pride_incoming_damage_percent`(50)、`envy_observe_radius`(16)、`envy_bonus_percent`(50)、`envy_hostile_radius`(8)、`envy_hostile_refresh_ticks`(20)、`wrath_kill_required`(**100**)、`wrath_random_min`(0.5)、`wrath_random_max`(1.5)、`wrath_random_max_redeemed`(2.0)、`wrath_self_hit_percent`(15)、`sloth_sleep_required`(3)、`sloth_sleep_before_hour`(20)、`sloth_resistance_amplifier`(0)、`sloth_resistance_amplifier_redeemed`(1)、`sloth_slowdown_percent`(20)、`greed_diamond_threshold`(36)、`greed_damage_per_diamond_percent`(1)、`greed_damage_cap_percent`(64)、`greed_low_diamond_damage_factor`(0.10)、`greed_death_diamond_min`(3)、`greed_death_diamond_max`(8)、`gluttony_meal_required`(**10**)、`gluttony_saturation_threshold`(**8.0**)、`gluttony_kill_heal`(2.0)、`gluttony_kill_food`(1)、`gluttony_food_cap`(18)、`gluttony_drain_seconds`(20)、`gluttony_weak_food_threshold`(10)、`lust_breed_required`(10)、`lust_strip_armor_percent`(15)、`lust_armor_reduction_percent`(30)、`lust_self_strip_percent`(15) |
 | `[virtues]` | `enable_virtue_effects`(true)、`humility_damage_bonus_percent`(15)、`charity_speed_percent_per_drop`(2)、`charity_speed_cap_percent`(10)、`charity_duration_seconds`(30)、`chastity_durability_per_second`(1)、`kindness_heal_per_second`(1.0)、`kindness_radius`(7)、`patience_bonus_percent_per_hit`(6)、`patience_cap_percent`(30)、`patience_reset_seconds`(4)、`diligence_speed_percent`(10) |
@@ -517,7 +519,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | `[shadow_dash]`（**1.7.5 新增，14 键**） | `enable_shadow_dash`(true)、`sacrificial_duration_ticks`(20)、`dark_arts_duration_ticks`(40)、`sacrificial_slash_multiplier`(1.0)、`dark_arts_slash_multiplier`(2.0)、`contact_radius`(2.0)、`heavy_slash_radius`(3.0)、`movement_percent`(100)、`cooldown_ticks`(120)、`resolve_interval_ticks`(2)、`recovery_missing_seconds`(300，1.7.6 起：连续多少秒没匕首才开放防丢失配方)；**1.7.10 新增**：`abaddon_duration_bonus_ticks`(20)、`abaddon_contact_radius_bonus`(1.0)、`abaddon_heavy_radius_bonus`(2.0)（亚巴顿联动：技能时长 +1 秒 / 接触半径 +1 / 强力斩击半径 +2） |
 | `[golden_razor]`（**1.7.10 新增，7 键**） | `enable_golden_razor`(true)、`razor_damage`(5.0)、`razor_cooldown_ticks`(10)、`razor_velocity`(1.8，1.7.10 收尾由 1.5 提高)、`razor_pierce_level`(127)、`razor_max_life_ticks`(200)、`razor_stuck_ticks`(100，1.7.10 收尾新增：命中方块后插在原地停留 5 秒再清除) |
 
-> **配置段总览（2.0.0 实测）**：共 **26 个配置段 / 269 个键**（**源码口径**：`ReliquaryConfig` 里的 `.define*` 调用数；实例 config 因历史残留键 `frame_damage_ids` 会多 1） —— `[maid]`(1)、`[spirit_altar]`(14)、`[combat]`(10)、`[the_halo]`(11)、`[devil_crown]`(9)、`[revelation]`(18)、`[start]`(2)、`[sins]`(38)、`[virtues]`(12)、`[blessing]`(5)、`[holy_light]`(9)、`[holy_mantle]`(3)、`[sacred_heart]`(11)、`[godhead]`(9)、`[revelation_light]`(7)、`[pentagram]`(2)、`[demon_deal]`(6)、`[demon_pact]`(39)、`[brimstone]`(8)、`[occult_eye]`(13)、`[abyss_lord]`(7)、`[abaddon]`(9)、`[shadow_dash]`(14)、`[golden_razor]`(7)、`[sacrifice]`(5)、`[divine_action]`(1)。
+> **配置段总览（2.0.0 实测）**：共 **27 个配置段 / 275 个键**（**源码口径**：`ReliquaryConfig` 里的 `.define*` 调用数；实例 config 因历史残留键 `frame_damage_ids` 会多 1） —— `[maid]`(1)、`[spirit_altar]`(14)、`[habit]`(6)、`[combat]`(10)、`[the_halo]`(11)、`[devil_crown]`(9)、`[revelation]`(18)、`[start]`(2)、`[sins]`(38)、`[virtues]`(12)、`[blessing]`(5)、`[holy_light]`(9)、`[holy_mantle]`(3)、`[sacred_heart]`(11)、`[godhead]`(9)、`[revelation_light]`(7)、`[pentagram]`(2)、`[demon_deal]`(6)、`[demon_pact]`(39)、`[brimstone]`(8)、`[occult_eye]`(13)、`[abyss_lord]`(7)、`[abaddon]`(9)、`[shadow_dash]`(14)、`[golden_razor]`(7)、`[sacrifice]`(5)、`[divine_action]`(1)。
 
 ---
 
@@ -629,7 +631,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 - **1.7.7 / 1.7.8 / 1.7.9 新增资源与数据**：`holy_spear` / `seraph_spear` 两张 32×32 贴图与模型 + `models/item/spear_in_hand.json`（矛式横握父模型）+ **1.7.9 的两个 `*_using.json`**（第三人称 Z +180° 的蓄力模型）+ `damage_type/holy_light_burst.json`（落点圣光爆发）+ 两张配方（`recipes/holy_spear.json`、`recipes/seraph_spear.json`）+ 伤害标签 `bypasses_effects/enchantments/resistance` 各补 `holy_light_burst`。
 - **1.7.10 新增资源与数据**：`textures/item/golden_razor.png`（32×32、主轴垂直）+ `models/item/golden_razor.json`（`parent: item/handheld`）+ `recipes/golden_razor.json`（金锭×6 + 金粒×2）+ `damage_type/golden_razor.json`（无 bypass 标签 = 普通物理）；`icon.png` 由 `duality_stat.png` **32× 最近邻放大（16×16 → 512×512）**而成（MOD 图标）；`thrown_razor` 实体与其渲染器在代码侧注册。
 - **配方总数（1.7.10 实测）**：**34 张**（`data/summy-reliquary/recipes/*.json`）。
-- **当前计数（1.8.5 实测）**：注册物品 **50**、进度 **24**、配方 **34**、配置段 **26**（**267 键**，源码口径；其中 `[sacrifice]` / `[divine_action]` 为 1.8.2 新增）、伤害类型 **11**、网络包 **11**、自检 **585 行**。
+- **当前计数（2.0.0 实测）**：注册物品 **51**、进度 **24**、配方 **35**、配置段 **27**（**275 键**，源码口径；2.10 新增 `[habit]`）、伤害类型 **11**、网络包 **11**、自检 **605 行基线**。
 - **二创与素材声明（1.7.10 收尾）**：物品贴图与部分设定**有相当数量直接取自或改编自《以撒的结合》**（本作素材不主张任何权利、不用于商业用途）；`LICENSE` 的 **MIT 只覆盖原创代码与原创素材**。完整中英致谢与免责声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`，联系邮箱 **525277385@qq.com**；`mods.toml` 的游戏内描述也加了一行二创说明。
 - **日志归档（1.7.10 收尾第三批）**：工程根只保留最新一份 `build-*.log` / `devcheck-*.log` / `server-*.log`；1.7.x 的历史日志归档在 `logs/archive/1.7.x/`，更早的已清理。整理入口：`scripts/clean-logs.ps1`（默认只打印计划，加 `-Apply` 执行）。
 - **文案约定**：**所有经文引用统一加 `——` 前缀**（如 `——《诗篇》32:11`）；提示文案里的数字按配置生成，"数值进配置、纯表现常量留在代码里"。

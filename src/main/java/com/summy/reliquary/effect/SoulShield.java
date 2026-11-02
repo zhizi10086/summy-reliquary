@@ -48,7 +48,8 @@ public final class SoulShield {
 		return entity != null && PlayerFlags.hasAngel(entity)
 				&& (CurioHelper.wears(entity, SummyReliquary.THE_SOUL.get())
 						|| CurioHelper.wears(entity, SummyReliquary.FINAL_REVELATION.get())
-						|| CurioHelper.wears(entity, SummyReliquary.GODHEAD.get()));
+						|| CurioHelper.wears(entity, SummyReliquary.GODHEAD.get())
+						|| Habit.wears(entity));
 	}
 
 	/** 魂心池容量（吸收点）；没戴来源、或戴着咒印时为 0 */
@@ -66,6 +67,9 @@ public final class SoulShield {
 		if (CurioHelper.wears(entity, SummyReliquary.FINAL_REVELATION.get())
 				|| CurioHelper.wears(entity, SummyReliquary.GODHEAD.get())) {
 			hearts += ReliquaryConfig.finalSoulHearts();
+		}
+		if (Habit.wears(entity)) {
+			hearts += ReliquaryConfig.habitSoulHearts();
 		}
 		return hearts * ReliquaryConfig.absorptionPerSoulHeart();
 	}
@@ -123,6 +127,24 @@ public final class SoulShield {
 		setPoints(player, 0.0D);
 		REFRESH_TIMERS.remove(player.getUUID());
 		WEARING.put(player.getUUID(), false);
+		DemonPact.sync(player);
+	}
+
+	/** 2.10：某个来源装卸后，仅把当前点数夹到新容量，不清空其它仍然有效的来源。 */
+	public static void clampToCapacity(LivingEntity entity) {
+		if (!(entity instanceof ServerPlayer player)) {
+			return;
+		}
+		double capacity = capacityFor(player);
+		if (capacity <= 0.0D) {
+			setPoints(player, 0.0D);
+			REFRESH_TIMERS.remove(player.getUUID());
+			WEARING.put(player.getUUID(), false);
+		} else {
+			setPoints(player, Math.min(points(player), capacity));
+			WEARING.put(player.getUUID(), true);
+			REFRESH_TIMERS.putIfAbsent(player.getUUID(), refreshIntervalSeconds());
+		}
 		DemonPact.sync(player);
 	}
 

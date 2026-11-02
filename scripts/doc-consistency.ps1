@@ -90,7 +90,7 @@ $events = Join-Path $LedgerDir 'SummyReliquary-事件文本与触发关系-2.0.0
 Write-Host '检查 README…'
 Check-Contains $readme 'README' '## 2.0.0 变更' '当前版本小节'
 Check-Contains $readme 'README' ('`2.0.0-forge`') '当前版本号'
-Check-Contains $readme 'README' ("注册物品 / 创造页 / 配方 / 进度不变（**" + $itemCount + " / " + $tabCount + " / " + $recipeCount + " / " + $advancementCount + "**）") '物品 / 创造页 / 配方 / 进度数'
+Check-Contains $readme 'README' ("注册物品 / 创造页 / 配方 / 进度为（**" + $itemCount + " / " + $tabCount + " / " + $recipeCount + " / " + $advancementCount + "**）") '物品 / 创造页 / 配方 / 进度数'
 # 1.8.0：创造页与配方数已并入上一条断言
 # 1.8.0：配方数已并入上一条断言
 Check-Contains $readme 'README' '完整 605 行客户端自检留到 2.0 联调轮复核' '自检计划'

@@ -441,6 +441,7 @@ public final class ForgeDevCheck {
 				case 2271 -> checkAttackSpeedCapMath(player);
 				case 2272 -> checkExactDamageMultiplierGuard(player);
 				case 2273 -> checkShieldProtectionRoutesAndGuards(player);
+				case 2274 -> checkHabit(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -4339,6 +4340,133 @@ public final class ForgeDevCheck {
 				+ "、天使线黑心封锁=" + angelBlackBlocked + "/" + angelBlackClamped
 				+ " → 整体=" + overall + "（应 true）");
 		com.summy.reliquary.effect.DamagePools.setModeForTest(null);
+		resetDemonPactState(player);
+	}
+
+	/** 2.10：修女服的天使门槛、魂心 / 护甲来源与受击充能。 */
+	private static void checkHabit(ServerPlayer player) {
+		resetDemonPactState(player);
+		resetSinState(player);
+		clearBlessingSlots(player);
+		player.getInventory().clearContent();
+		player.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+		player.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+			for (int index = 0; index < 3; index++) {
+				handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, index, ItemStack.EMPTY);
+			}
+			handler.setEquippedCurio(ReliquarySlots.REVELATION, 0, ItemStack.EMPTY);
+			handler.setEquippedCurio(ReliquarySlots.BACK, 0, ItemStack.EMPTY);
+		});
+		com.summy.reliquary.effect.Habit.clear();
+		com.summy.reliquary.effect.RevelationBeam.forget(player);
+		com.summy.reliquary.effect.PlayerFlags.setAbaddonReviveReadyAt(player, 0L);
+
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+		boolean locked = !canEquipIn(player, SummyReliquary.HABIT.get(), ReliquarySlots.BACK);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		boolean angelAllowed = canEquipIn(player, SummyReliquary.HABIT.get(), ReliquarySlots.BACK);
+		com.summy.reliquary.effect.SlotSizing.syncNow(player);
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		double soulBefore = com.summy.reliquary.effect.SoulShield.capacityFor(player);
+		double armorBefore = player.getAttributeValue(Attributes.ARMOR);
+
+		equip(player, ReliquarySlots.BACK, SummyReliquary.HABIT.get());
+		com.summy.reliquary.effect.AttributeManager.apply(player);
+		com.summy.reliquary.effect.SoulShield.onJoin(player);
+		double soulAfter = com.summy.reliquary.effect.SoulShield.capacityFor(player);
+		double armorAfter = player.getAttributeValue(Attributes.ARMOR);
+		var backTag = net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+				new net.minecraft.resources.ResourceLocation("curios", "back"));
+		boolean backTagged = new ItemStack(SummyReliquary.HABIT.get()).is(backTag);
+		var recipe = player.getServer() == null ? null
+				: player.getServer().getRecipeManager().byKey(SummyReliquary.id("habit")).orElse(null);
+		java.util.Map<Item, Integer> ingredients = recipe == null
+				? java.util.Map.of() : ingredientCounts(recipe);
+		boolean recipeOk = ingredients.getOrDefault(Items.GOLD_INGOT, 0) == 3
+				&& ingredients.getOrDefault(Items.WHITE_WOOL, 0) == 3
+				&& ingredients.getOrDefault(Items.BLACK_WOOL, 0) == 2
+				&& ingredients.getOrDefault(SummyReliquary.HEART_SHARD.get(), 0) == 1;
+		boolean configOk = com.summy.reliquary.config.ReliquaryConfig.enableHabit()
+				&& com.summy.reliquary.config.ReliquaryConfig.habitSoulHearts() == 2
+				&& Math.abs(com.summy.reliquary.config.ReliquaryConfig.habitArmor() - 2.0D) < 1.0E-6D
+				&& Math.abs(com.summy.reliquary.config.ReliquaryConfig.habitChargePercent() - 10.0D)
+						< 1.0E-6D
+				&& Math.abs(com.summy.reliquary.config.ReliquaryConfig.habitChargeMinSeconds() - 1.0D)
+						< 1.0E-6D
+				&& com.summy.reliquary.config.ReliquaryConfig.habitChargeIntervalTicks() == 10;
+		var resources = net.minecraft.client.Minecraft.getInstance().getResourceManager();
+		boolean modelOk = !resources.getResource(new net.minecraft.resources.ResourceLocation(
+				SummyReliquary.NAMESPACE, "models/item/habit.json")).isEmpty();
+		boolean textsOk = translated("item.summy-reliquary.habit")
+				&& translated("item.summy-reliquary.habit.desc.1")
+				&& translated("item.summy-reliquary.habit.desc.2")
+				&& translated("item.summy-reliquary.habit.shift.1")
+				&& translated("item.summy-reliquary.habit.shift.2")
+				&& translated("item.summy-reliquary.habit.shift.3");
+
+		// V 光束：100 tick 冷却受一次 1 点伤害 → 10% 总冷却为 10 tick，但下限 1 秒 → 20 tick。
+		com.summy.reliquary.effect.RevelationBeam.markCooldownForTest(player,
+				com.summy.reliquary.effect.RevelationBeam.BeamKind.HOLY, 100);
+		prepareBarePlayer(player);
+		player.setHealth(player.getMaxHealth());
+		player.setAbsorptionAmount(0.0F);
+		player.invulnerableTime = 0;
+		player.hurt(player.damageSources().generic(), 1.0F);
+		int beamRemaining = com.summy.reliquary.effect.RevelationBeam.cooldownRemainingForTest(
+				player, com.summy.reliquary.effect.RevelationBeam.BeamKind.HOLY);
+		// 同一 tick 再受一次：0.5 秒节流，冷却不再变化。
+		player.invulnerableTime = 0;
+		player.hurt(player.damageSources().generic(), 1.0F);
+		int beamThrottled = com.summy.reliquary.effect.RevelationBeam.cooldownRemainingForTest(
+				player, com.summy.reliquary.effect.RevelationBeam.BeamKind.HOLY);
+
+		// X 恶魔形态：1200 秒冷却，一次受击推进 10% = 120 秒。
+		com.summy.reliquary.effect.RevelationBeam.forget(player);
+		equip(player, ReliquarySlots.REVELATION, SummyReliquary.ABADDON.get());
+		long now = player.serverLevel().getGameTime();
+		com.summy.reliquary.effect.PlayerFlags.setAbaddonReviveReadyAt(player, now + 24000L);
+		com.summy.reliquary.effect.Habit.clearThrottleForTest(player);
+		player.invulnerableTime = 0;
+		player.hurt(player.damageSources().generic(), 1.0F);
+		long abaddonRemaining = com.summy.reliquary.effect.PlayerFlags.abaddonReviveReadyAt(player)
+				- player.serverLevel().getGameTime();
+
+		// 没有技能在冷却时，触发次数不增长；已取消的事件完全不处理。
+		com.summy.reliquary.effect.PlayerFlags.setAbaddonReviveReadyAt(player, 0L);
+		com.summy.reliquary.effect.Habit.clearThrottleForTest(player);
+		int triggersBeforeEmpty = com.summy.reliquary.effect.Habit.triggerCount();
+		player.invulnerableTime = 0;
+		player.hurt(player.damageSources().generic(), 1.0F);
+		int triggersAfterEmpty = com.summy.reliquary.effect.Habit.triggerCount();
+		LivingHurtEvent canceled = new LivingHurtEvent(player, player.damageSources().generic(), 1.0F);
+		canceled.setCanceled(true);
+		com.summy.reliquary.effect.Habit.onHurt(canceled);
+
+		boolean overall = locked && angelAllowed
+				&& Math.abs(soulBefore - 4.0D) < 1.0E-4D
+				&& Math.abs(soulAfter - 8.0D) < 1.0E-4D
+				&& Math.abs(armorAfter - armorBefore - 2.0D) < 1.0E-4D
+				&& backTagged && recipeOk && configOk && modelOk && textsOk
+				&& beamRemaining == 80 && beamThrottled == 80
+				&& abaddonRemaining >= 21595L && abaddonRemaining <= 21605L
+				&& triggersAfterEmpty == triggersBeforeEmpty;
+		log("修女服（2.10）：无天使锁定=" + locked + " / 有天使可装=" + angelAllowed
+				+ "、魂心容量 " + soulBefore + " → " + soulAfter + "（应 4 → 8）、护甲 +"
+				+ (armorAfter - armorBefore) + "、背饰标签=" + backTagged + "、配方=" + recipeOk
+				+ "、配置=" + configOk + "、模型/文本=" + modelOk + "/" + textsOk
+				+ "；V 冷却 100 → " + beamRemaining + " tick、同 tick 再受击 → " + beamThrottled
+				+ "（应 80/80）；X 冷却剩 " + abaddonRemaining + " tick（应约 21600 = 24000−2400）；"
+				+ "无冷却作废=" + (triggersAfterEmpty == triggersBeforeEmpty) + " → 整体=" + overall
+				+ "（应 true）");
+
+		com.summy.reliquary.effect.Habit.clear();
+		com.summy.reliquary.effect.RevelationBeam.forget(player);
+		com.summy.reliquary.effect.PlayerFlags.setAbaddonReviveReadyAt(player, 0L);
+		unequip(player, ReliquarySlots.BACK);
+		unequip(player, ReliquarySlots.REVELATION);
+		com.summy.reliquary.effect.AttributeManager.apply(player);
 		resetDemonPactState(player);
 	}
 
@@ -9001,14 +9129,14 @@ public final class ForgeDevCheck {
 		boolean tabExcludesIcons = display.stream().noneMatch(stack -> stack.is(SummyReliquary.ERROR_ICON.get())
 				|| stack.is(SummyReliquary.PURITY_ICON.get())
 				|| stack.is(SummyReliquary.DUALITY_STAT.get()) || stack.is(SummyReliquary.YOUR_SOUL.get()));
-		// 1.7.10：注册物品 45 → 50（1.7.5 两把匕首 + 1.7.7 圣光短矛 + 1.7.8 炽天使之枪 + 1.7.10 金刀片）
+		// 2.10：注册物品 50 → 51（新增修女服）
 		// 隐藏图标物品仍是 5、纯图标物品仍是 4
-		boolean counts = registeredItems == 50 && iconItems == 5 && pureIconCount == 4 && tabExcludesIcons;
+		boolean counts = registeredItems == 51 && iconItems == 5 && pureIconCount == 4 && tabExcludesIcons;
 		log("图标物品（1.6.9）：duality_stat/your_soul 已注册=" + registered + "（应 true）、贴图=" + textures
 				+ "、模型=" + models + "（都应 true）、语言键（含 error/purity 补键）=" + lang
 				+ "（应 true）、没有配方=" + noRecipe + "（应 true）；仪式匕首素材（1.7.5）=" + daggerResources
 				+ "（应 true）、手持模型走 item/handheld=" + daggerHandheld + "（应 true）；注册物品数=" + registeredItems
-				+ "（应 50 = 1.7.5 的 47 + 圣光短矛 + 炽天使之枪 + 1.7.10 金刀片）、隐藏图标物品=" + iconItems
+				+ "（应 51 = 1.7.10 的 50 + 修女服）、隐藏图标物品=" + iconItems
 				+ "（应 5，1.7.0 起其中三位一体已转正）、纯图标物品="
 				+ pureIconCount + "（应 4）、创造页不含纯图标物品=" + tabExcludesIcons
 				+ "（应 true，页面条目 " + display.size() + " 个 = 1.7.1 的 41 项，含恶魔王冠）→ 计数全对="
@@ -9899,7 +10027,7 @@ public final class ForgeDevCheck {
 			"sin_fragment_gluttony", "sin_fragment_wrath", "sin_fragment_sloth",
 			// 天使线
 			"the_body", "the_mind", "the_soul", "holy_light", "holy_mantle", "godhead", "trinity",
-			"sacred_heart", "salvation",
+			"sacred_heart", "habit", "salvation",
 			// 恶魔线
 			"ceremonial_robes", "the_mark", "vengeful_spirit", "night_wraith", "brimstone",
 			"occult_eye", "abyss_lord", "abaddon",
@@ -9932,7 +10060,7 @@ public final class ForgeDevCheck {
 				missing.append(id).append(' ');
 			}
 		}
-		int recipeFiles = 34;
+		int recipeFiles = 35;
 		log("配方覆盖（1.7.0）：按 id 取到 " + found + " / " + recipeFiles + " 张（应全中，缺失="
 				+ (missing.length() == 0 ? "无" : missing.toString().trim()) + "）");
 
@@ -10038,6 +10166,8 @@ public final class ForgeDevCheck {
 				&& Boolean.FALSE.equals(spearNoAngel.get(SummyReliquary.id("holy_spear")))
 				&& Boolean.FALSE.equals(angelView.get(SummyReliquary.id("salvation")))
 				&& Boolean.FALSE.equals(angelView.get(SummyReliquary.id("ceremonial_robes")))
+				&& Boolean.TRUE.equals(angelView.get(SummyReliquary.id("habit")))
+				&& Boolean.FALSE.equals(plainView.get(SummyReliquary.id("habit")))
 				&& Boolean.FALSE.equals(plainView.get(SummyReliquary.id("the_body")))
 				&& Boolean.TRUE.equals(signedView.get(SummyReliquary.id("ceremonial_robes")))
 				&& Boolean.FALSE.equals(signedView.get(SummyReliquary.id("the_body")))
@@ -13683,7 +13813,7 @@ public final class ForgeDevCheck {
 		String[] expected = {
 				"sacrificial_dagger", "dark_arts", "holy_spear", "seraph_spear", "golden_razor",
 				"the_body", "the_mind", "the_soul", "star_of_bethlehem", "final_revelation", "godhead",
-				"salvation", "holy_light", "holy_mantle", "sacred_heart", "the_halo", "pentagram",
+				"salvation", "holy_light", "holy_mantle", "sacred_heart", "habit", "the_halo", "pentagram",
 				"source_of_sins", "virtues", "satanic_bible", "the_mark", "the_pact", "ceremonial_robes",
 				"brimstone", "abaddon", "vengeful_spirit", "night_wraith", "occult_eye", "abyss_lord",
 				"devil_crown",
@@ -13691,7 +13821,7 @@ public final class ForgeDevCheck {
 				"sin_fragment_sloth", "sin_fragment_lust", "sin_fragment_greed", "redemption",
 				"act_of_contrition", "wooden_cross", "heart_shard", "six", "trinity", "genesis",
 				"freeloaders_rice", "bangbang_halo"};
-		boolean sizeOk = order.size() == expected.length && expected.length == 46;
+		boolean sizeOk = order.size() == expected.length && expected.length == 47;
 		StringBuilder mismatch = new StringBuilder();
 		for (int index = 0; index < Math.min(order.size(), expected.length); index++) {
 			var id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(order.get(index));
@@ -13723,7 +13853,7 @@ public final class ForgeDevCheck {
 		boolean tabIconOk = !tabBuilt || (tab.getIconItem() != null
 				&& tab.getIconItem().is(SummyReliquary.DUALITY_STAT.get()));
 
-		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 46）、逐项与预期一致="
+		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 47）、逐项与预期一致="
 				+ orderOk + "（应 true" + (mismatch.length() == 0 ? "" : "，异常：" + mismatch.toString().trim())
 				+ "）、分块=武器 → 天使线 → 恶魔线 → 中立材料工具；mods.toml（logoFile=" + modInfo.getLogoFile()
 				+ "=" + logoOk + "、描述含「金刀片 / 24 个成就 / 七罪主题饰品合集」=" + descOk + "）="

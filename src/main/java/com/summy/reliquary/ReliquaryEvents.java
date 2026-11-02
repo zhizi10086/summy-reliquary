@@ -118,6 +118,7 @@ public final class ReliquaryEvents {
 		com.summy.reliquary.effect.DemonPact.clear();
 		com.summy.reliquary.effect.HolyLightEffect.clear();
 		SoulShield.clear();
+		com.summy.reliquary.effect.Habit.clear();
 		com.summy.reliquary.effect.CombatTuning.clear();
 		com.summy.reliquary.effect.DamagePools.clear();
 		// 1.8.5 第二轮：换服务器 / 换加载器后必须重新探测 LivingDamageEvent 是否可用
@@ -495,6 +496,7 @@ public final class ReliquaryEvents {
 			MaidModeManager.forget(player);
 			SoulShield.forget(player);
 			com.summy.reliquary.effect.DemonPact.forget(player);
+			com.summy.reliquary.effect.Habit.forget(player);
 			com.summy.reliquary.effect.CombatTuning.forget(player);
 			// 1.6.4：还原可能残留的"临时并入吸收值"，并清掉挂起记录
 			com.summy.reliquary.effect.DamagePools.forget(player);
@@ -653,6 +655,7 @@ public final class ReliquaryEvents {
 		if (event.getOriginal() instanceof ServerPlayer oldPlayer) {
 			com.summy.reliquary.effect.DamagePools.forget(oldPlayer);
 			com.summy.reliquary.effect.DemonPact.forget(oldPlayer);
+			com.summy.reliquary.effect.Habit.forget(oldPlayer);
 		}
 		CompoundTag oldData = event.getOriginal().getPersistentData();
 		if (oldData.contains(SinManager.ROOT, CompoundTag.TAG_COMPOUND)) {
@@ -944,6 +947,8 @@ public final class ReliquaryEvents {
 			return;
 		}
 		com.summy.reliquary.effect.DamagePools.prepare(event);
+		// 2.10：所有伤害拦截与池子准备完成后，若这一击仍会落地，则修女服推进自记冷却。
+		com.summy.reliquary.effect.Habit.onHurt(event);
 	}
 
 	/**
