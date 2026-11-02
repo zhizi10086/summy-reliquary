@@ -2,7 +2,7 @@
 
 > 更新时间：2026-11-02（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > **2.0.0 文本变更**：2.17 不涉及文本；2.13 把献祭匕首 `shift.2` 改为“池子为空时会致死”；
-> 2.10 新增修女服的名称、经文两行与三行 Shift 提示。
+> 2.10 新增修女服的名称、经文两行与三行 Shift 提示；2.11 新增背叛提示与成就「三十枚银钱」。
 > 用途：把所有"会显示给玩家的话"按**触发条件**整理成一张表，方便改文案、查文案、加功能时对照。
 > 权威文本源：`src/main/resources/assets/summy-reliquary/lang/zh_cn.json` / `en_us.json`（改文案只改这两个文件，代码里没有硬编码中文）。
 
@@ -932,6 +932,8 @@
 | `item.summy-reliquary.sacred_heart.shift.presence` | 祂与你同在： | **1.8.5 新增**：圣心 Shift 的金色引言行（旧版是 `shift.2`，1.8.5 重排后改用本键，位置在七条属性行之后） |
 | `item.summy-reliquary.sacred_heart.shift.abyss` | 你不再恐惧深渊 | 圣心 Shift 行（1.6.5 新增，对应"免疫恐惧减益"）；**1.8.5 键名由 `shift.4` 改为 `shift.abyss`**，同轮 `shift.1~7` 改成七条属性行、箭矢追踪行移到 `shift.arrow` |
 | `item.summy-reliquary.habit` / `.desc.1~2` / `.shift.1~3` | 修女服 / “我们既多受基督的苦楚，就靠基督多得安慰。” / ——《哥林多后书》1:5 / 魂心 / 护甲 / 受击充能 | **2.10 新增**：天使线经文两行 + 三行 Shift 属性提示 |
+| `item.summy-reliquary.betrayal` / `.tagline.1~2` / `.shift.1~2` | 背叛 / “三十枚银钱，一个吻。” / “你的忠诚，早已腐烂。” / 嘲讽几率 / 嘲讽时长 | **2.11 新增**：恶魔线风味两行 + 两行 Shift 提示 |
+| `advancements.summy-reliquary.thirty_pieces.title` / `.description` | 三十枚银钱 / 你出卖了他，银钱入手，忠诚腐烂 | **2.11 新增**：挑战成就，完成前隐藏，描述为恶魔深红 |
 | `item.summy-reliquary.pentagram.phrase` | 埋葬无尽灵魂 | **不是显示文本**，是"慢速呼吸"要强调的短语（中英各一套，供代码定位） |
 
 ---
@@ -1110,5 +1112,6 @@
 | 同上（第 9 行） | 同上 | `·射出的箭矢在 %s 格内追踪目标`（同戴神性时 8 → 12 格） | 物品提示（`item.summy-reliquary.sacred_heart.shift.arrow`） | **1.8.5 键名变动**：内容与 1.8.3 起完全一致，仅从旧 `shift.3` 改名 |
 | 同上（第 10 行） | 同上 | `你不再恐惧深渊` | 物品提示（`item.summy-reliquary.sacred_heart.shift.abyss`） | **1.8.5 键名变动**：内容与 1.6.5 起完全一致，仅从旧 `shift.4` 改名 |
 | 按住 Shift 查看「修女服」 | 有天使标记才展开 | `魂心 +2` / `护甲 +2` / `受击充能：主动技能冷却 −10%（单次至少 1 秒）` | 物品提示（`item.summy-reliquary.habit.shift.1~3`） | **2.10 新增**；数值取 `[habit]` 配置 |
+| 按住 Shift 查看「背叛」 | 当前有恶魔标记才展开 | `嘲讽几率：每游戏刻 0.5%（8 格内各自独立）` / `嘲讽时长：18 秒（结束后冷却 5 秒）` | 物品提示（`item.summy-reliquary.betrayal.shift.1~2`） | **2.11 新增**；数值取 `[betrayal]` 配置 |
 
 > **同轮的两处改动不涉及文本**：① **魂心 / 黑心先于死亡拦截**（`DamagePools.guardOrNullify` 先扣池子能扛的份额，`uncovered ≥ 当前生命` 才轮到拦截）；② **创造飞行换维度后补推**（`AttributeManager.applyFlight` 的"维度 # 游戏模式 # tick/100"推送指纹）。两者都不改任何语言键，只改判定与网络推送。

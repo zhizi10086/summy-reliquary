@@ -442,6 +442,7 @@ public final class ForgeDevCheck {
 				case 2272 -> checkExactDamageMultiplierGuard(player);
 				case 2273 -> checkShieldProtectionRoutesAndGuards(player);
 				case 2274 -> checkHabit(player);
+				case 2275 -> checkBetrayal(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -4467,6 +4468,205 @@ public final class ForgeDevCheck {
 		unequip(player, ReliquarySlots.BACK);
 		unequip(player, ReliquarySlots.REVELATION);
 		com.summy.reliquary.effect.AttributeManager.apply(player);
+		resetDemonPactState(player);
+	}
+
+	/** 2.11：背叛门槛、配方、成就、点名嘲讽与冷却。 */
+	private static void checkBetrayal(ServerPlayer player) {
+		resetDemonPactState(player);
+		player.getInventory().clearContent();
+		clearBlessingSlots(player);
+		clearNearbyMonsters(player, 16.0D);
+		com.summy.reliquary.effect.Betrayal.clear();
+		com.summy.reliquary.effect.PlayerFlags.setBetrayalCooldownUntil(player, 0L);
+
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		boolean locked = !canEquipIn(player, SummyReliquary.BETRAYAL.get(), ReliquarySlots.BLESSING);
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		com.summy.reliquary.effect.SlotSizing.syncNow(player);
+		boolean demonAllowed = canEquipIn(player, SummyReliquary.BETRAYAL.get(), ReliquarySlots.BLESSING);
+		boolean hiddenWithoutDemon = Boolean.FALSE.equals(
+				com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(
+						false, false, false, false, false).get(SummyReliquary.id("betrayal")));
+		boolean hiddenWithDemon = Boolean.FALSE.equals(
+				com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(
+						false, false, true, false, false).get(SummyReliquary.id("betrayal")));
+		var recipe = player.getServer() == null ? null
+				: player.getServer().getRecipeManager().byKey(SummyReliquary.id("betrayal")).orElse(null);
+		java.util.Map<Item, Integer> ingredients = recipe == null
+				? java.util.Map.of() : ingredientCounts(recipe);
+		boolean recipeOk = ingredients.getOrDefault(Items.IRON_INGOT, 0) == 3
+				&& ingredients.getOrDefault(Items.ROTTEN_FLESH, 0) == 1;
+		boolean betrayalConfigOk = com.summy.reliquary.config.ReliquaryConfig.enableBetrayal()
+				&& com.summy.reliquary.config.ReliquaryConfig.betrayalRadius() == 8
+				&& Math.abs(com.summy.reliquary.config.ReliquaryConfig.betrayalChancePerTick() - 0.5D) < 1.0E-6D
+				&& com.summy.reliquary.config.ReliquaryConfig.betrayalMinEnemies() == 2
+				&& com.summy.reliquary.config.ReliquaryConfig.betrayalTauntSeconds() == 18
+				&& com.summy.reliquary.config.ReliquaryConfig.betrayalCooldownSeconds() == 5;
+
+		// 无恶魔标记强合：收走产物并完整退料。
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.BETRAYAL.get()));
+		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+				new ItemStack(SummyReliquary.BETRAYAL.get()), player.inventoryMenu.getCraftSlots()));
+		boolean refunded = player.inventoryMenu.getCarried().isEmpty()
+				&& com.summy.reliquary.sin.SinEffects.countItem(player, Items.IRON_INGOT) == 3
+				&& com.summy.reliquary.sin.SinEffects.countItem(player, Items.ROTTEN_FLESH) == 1;
+		player.inventoryMenu.setCarried(ItemStack.EMPTY);
+		player.getInventory().clearContent();
+
+		// 成就：成交完成后持有背叛，每秒兜底触发。
+		com.summy.reliquary.advancement.ReliquaryAdvancements.fire(player,
+				com.summy.reliquary.advancement.ReliquaryAdvancements.PACT_SIGNED);
+		player.getInventory().add(new ItemStack(SummyReliquary.BETRAYAL.get()));
+		com.summy.reliquary.advancement.ItemObtained.tick(player);
+		boolean achievement = com.summy.reliquary.advancement.SinChallenges.advancementDone(
+				player, "thirty_pieces");
+		player.getInventory().clearContent();
+		var betrayalAdv = player.getServer() == null ? null
+				: player.getServer().getAdvancements().getAdvancement(SummyReliquary.id("thirty_pieces"));
+		var dealAdv = player.getServer() == null ? null
+				: player.getServer().getAdvancements().getAdvancement(SummyReliquary.id("deal"));
+		var betrayalDisplay = betrayalAdv == null ? null : betrayalAdv.getDisplay();
+		boolean advancementJson = betrayalAdv != null && betrayalDisplay != null
+				&& betrayalAdv.getParent() == dealAdv
+				&& betrayalDisplay.getFrame() == net.minecraft.advancements.FrameType.CHALLENGE
+				&& betrayalDisplay.isHidden()
+				&& betrayalDisplay.getIcon().is(SummyReliquary.BETRAYAL.get())
+				&& betrayalAdv.getCriteria().containsKey("event");
+		var client = Minecraft.getInstance();
+		boolean modelOk = client.getResourceManager().getResource(new net.minecraft.resources.ResourceLocation(
+				SummyReliquary.NAMESPACE, "models/item/betrayal.json")).isPresent();
+		boolean textsOk = translated("item.summy-reliquary.betrayal")
+				&& translated("item.summy-reliquary.betrayal.tagline.1")
+				&& translated("item.summy-reliquary.betrayal.tagline.2")
+				&& translated("item.summy-reliquary.betrayal.shift.1")
+				&& translated("item.summy-reliquary.betrayal.shift.2")
+				&& translated("advancements.summy-reliquary.thirty_pieces.title")
+				&& translated("advancements.summy-reliquary.thirty_pieces.description");
+
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		com.summy.reliquary.effect.SlotSizing.syncNow(player);
+		equip(player, ReliquarySlots.BLESSING, SummyReliquary.BETRAYAL.get());
+
+		// 1 名敌人不触发。
+		Zombie one = spawnZombieAtSide(player, 3.0D);
+		if (one != null) {
+			one.setTarget(player);
+		}
+		com.summy.reliquary.effect.Betrayal.setChanceForTest(100.0D);
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		boolean oneBlocked = com.summy.reliquary.effect.Betrayal.targetForTest(player) == null;
+
+		// 2 名候选：同 tick 全部掷中时取最近者；范围外敌人不改目标。
+		Zombie near = spawnZombieAtSide(player, 2.0D);
+		Zombie far = spawnZombieAtSide(player, 5.0D);
+		Zombie outside = spawnZombieAtSide(player, 12.0D);
+		if (near != null) {
+			near.setTarget(player);
+		}
+		if (far != null) {
+			far.setTarget(player);
+		}
+		if (outside != null) {
+			outside.setTarget(player);
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		var target = com.summy.reliquary.effect.Betrayal.targetForTest(player);
+		long now = player.serverLevel().getGameTime();
+		long until = com.summy.reliquary.effect.Betrayal.tauntUntilForTest(player);
+		boolean pickedNearest = target == near;
+		boolean forcedAttackers = near != null && far != null
+				&& near.getTarget() == player && far.getTarget() == target;
+		boolean outsideUnaffected = outside != null && outside.getTarget() == player;
+		boolean targetTag = target != null
+				&& target.getPersistentData().getLong("summy_reliquary:betrayal_target") == until;
+		boolean durationOk = until - now >= 355L && until - now <= 365L;
+
+		// 靶子死亡 → 结束并进入 5 秒冷却；卸下再装不重置冷却。
+		if (target != null) {
+			target.discard();
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		long cooldownAtDeath = com.summy.reliquary.effect.PlayerFlags.betrayalCooldownUntil(player);
+		boolean cooldownOk = cooldownAtDeath >= player.serverLevel().getGameTime() + 95L;
+		unequip(player, ReliquarySlots.BLESSING);
+		equip(player, ReliquarySlots.BLESSING, SummyReliquary.BETRAYAL.get());
+		long cooldownAfterReequip = com.summy.reliquary.effect.PlayerFlags.betrayalCooldownUntil(player);
+
+		// 冷却期间不再触发。
+		if (near != null) {
+			near.discard();
+		}
+		if (far != null) {
+			far.discard();
+		}
+		if (outside != null) {
+			outside.discard();
+		}
+		if (one != null) {
+			one.discard();
+		}
+		Zombie cdA = spawnZombieAtSide(player, 2.0D);
+		Zombie cdB = spawnZombieAtSide(player, 4.0D);
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		boolean cooldownBlocks = com.summy.reliquary.effect.Betrayal.targetForTest(player) == null;
+		if (cdA != null) {
+			cdA.discard();
+		}
+		if (cdB != null) {
+			cdB.discard();
+		}
+
+		// 卓越护盾 > 0 的候选被跳过；只剩 1 名有效目标时不能启动。
+		com.summy.reliquary.effect.PlayerFlags.setBetrayalCooldownUntil(player, 0L);
+		Zombie shielded = spawnZombieAtSide(player, 2.0D);
+		Zombie normal = spawnZombieAtSide(player, 4.0D);
+		if (shielded != null) {
+			shielded.getPersistentData().putDouble("summy_threat:eximus_shield", 10.0D);
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		boolean eximusSkipped = com.summy.reliquary.effect.Betrayal.targetForTest(player) == null;
+		if (shielded != null) {
+			shielded.discard();
+		}
+		if (normal != null) {
+			normal.discard();
+		}
+
+		// 0% 永不触发。
+		com.summy.reliquary.effect.Betrayal.setChanceForTest(0.0D);
+		Zombie zeroA = spawnZombieAtSide(player, 2.0D);
+		Zombie zeroB = spawnZombieAtSide(player, 4.0D);
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		boolean zeroBlocked = com.summy.reliquary.effect.Betrayal.targetForTest(player) == null;
+		if (zeroA != null) {
+			zeroA.discard();
+		}
+		if (zeroB != null) {
+			zeroB.discard();
+		}
+
+		boolean overall = locked && demonAllowed && hiddenWithoutDemon && hiddenWithDemon
+				&& recipeOk && betrayalConfigOk && refunded && achievement && advancementJson && modelOk && textsOk
+				&& oneBlocked && pickedNearest
+				&& forcedAttackers && outsideUnaffected && targetTag && durationOk && cooldownOk
+				&& cooldownAfterReequip == cooldownAtDeath && cooldownBlocks && eximusSkipped && zeroBlocked;
+		log("背叛（2.11）：门槛/恶魔=" + locked + "/" + demonAllowed + "、JEI 永久隐藏="
+				+ hiddenWithoutDemon + "/" + hiddenWithDemon + "、配方/配置=" + recipeOk + "/" + betrayalConfigOk
+				+ "、无标记退料="
+				+ refunded + "、成就=" + achievement + "、成就 JSON/模型/文本=" + advancementJson
+				+ "/" + modelOk + "/" + textsOk + "；单敌停摆=" + oneBlocked + "、最近靶子="
+				+ pickedNearest + "、强制改目标=" + forcedAttackers + "、范围外不变=" + outsideUnaffected
+				+ "、标签/时长=" + targetTag + "/" + durationOk + "；死亡冷却=" + cooldownOk
+				+ "、重装不变=" + (cooldownAfterReequip == cooldownAtDeath) + "、冷却静默="
+				+ cooldownBlocks + "、Eximus 跳过=" + eximusSkipped + "、0% 不触发=" + zeroBlocked
+				+ " → 整体=" + overall + "（应 true）");
+
+		com.summy.reliquary.effect.Betrayal.setChanceForTest(null);
+		com.summy.reliquary.effect.Betrayal.clear();
+		com.summy.reliquary.effect.PlayerFlags.setBetrayalCooldownUntil(player, 0L);
+		unequip(player, ReliquarySlots.BLESSING);
 		resetDemonPactState(player);
 	}
 
@@ -9129,14 +9329,14 @@ public final class ForgeDevCheck {
 		boolean tabExcludesIcons = display.stream().noneMatch(stack -> stack.is(SummyReliquary.ERROR_ICON.get())
 				|| stack.is(SummyReliquary.PURITY_ICON.get())
 				|| stack.is(SummyReliquary.DUALITY_STAT.get()) || stack.is(SummyReliquary.YOUR_SOUL.get()));
-		// 2.10：注册物品 50 → 51（新增修女服）
+		// 2.10 / 2.11：注册物品 50 → 52（新增修女服、背叛）
 		// 隐藏图标物品仍是 5、纯图标物品仍是 4
-		boolean counts = registeredItems == 51 && iconItems == 5 && pureIconCount == 4 && tabExcludesIcons;
+		boolean counts = registeredItems == 52 && iconItems == 5 && pureIconCount == 4 && tabExcludesIcons;
 		log("图标物品（1.6.9）：duality_stat/your_soul 已注册=" + registered + "（应 true）、贴图=" + textures
 				+ "、模型=" + models + "（都应 true）、语言键（含 error/purity 补键）=" + lang
 				+ "（应 true）、没有配方=" + noRecipe + "（应 true）；仪式匕首素材（1.7.5）=" + daggerResources
 				+ "（应 true）、手持模型走 item/handheld=" + daggerHandheld + "（应 true）；注册物品数=" + registeredItems
-				+ "（应 51 = 1.7.10 的 50 + 修女服）、隐藏图标物品=" + iconItems
+				+ "（应 52 = 1.7.10 的 50 + 修女服 + 背叛）、隐藏图标物品=" + iconItems
 				+ "（应 5，1.7.0 起其中三位一体已转正）、纯图标物品="
 				+ pureIconCount + "（应 4）、创造页不含纯图标物品=" + tabExcludesIcons
 				+ "（应 true，页面条目 " + display.size() + " 个 = 1.7.1 的 41 项，含恶魔王冠）→ 计数全对="
@@ -10030,7 +10230,7 @@ public final class ForgeDevCheck {
 			"sacred_heart", "habit", "salvation",
 			// 恶魔线
 			"ceremonial_robes", "the_mark", "vengeful_spirit", "night_wraith", "brimstone",
-			"occult_eye", "abyss_lord", "abaddon",
+			"occult_eye", "abyss_lord", "abaddon", "betrayal",
 			// 1.7.6：两把仪式匕首（防丢失配方 / 700 升级表）
 			"sacrificial_dagger", "dark_arts",
 			// 1.7.9：两把天使线长矛（短矛的防丢失配方 / 炽天使之枪的升级表）
@@ -10060,7 +10260,7 @@ public final class ForgeDevCheck {
 				missing.append(id).append(' ');
 			}
 		}
-		int recipeFiles = 35;
+		int recipeFiles = 36;
 		log("配方覆盖（1.7.0）：按 id 取到 " + found + " / " + recipeFiles + " 张（应全中，缺失="
 				+ (missing.length() == 0 ? "无" : missing.toString().trim()) + "）");
 
@@ -13575,7 +13775,7 @@ public final class ForgeDevCheck {
 		String[] all = {"reliquary", "sinner", "unforgivable", "pure", "sinless", "flawless",
 				"trinity", "revelation", "bread_and_fish", "heart", "god", "light", "shade", "genesis",
 				"deal", "fresh_soul", "dark_tome", "beast_mark", "nightmare", "demon_flame",
-				"evil_eye", "demon_king", "finale", "nearly_perfect"};
+				"evil_eye", "demon_king", "finale", "thirty_pieces", "nearly_perfect"};
 		for (String id : all) {
 			setAdvancement(player, id, false);
 		}
@@ -13596,7 +13796,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.advancement.ItemObtained.tick(player);
 		boolean nothing = !com.summy.reliquary.advancement.SinChallenges.advancementDone(player, "nearly_perfect");
 
-		// ② 补齐 22 条（除无罪之人与自己）→ 发放
+		// ② 补齐 23 条（除无罪之人与自己）→ 发放
 		for (String id : com.summy.reliquary.advancement.ReliquaryAdvancements.NEARLY_PERFECT_REQUIRED) {
 			setAdvancement(player, id, true);
 		}
@@ -13621,8 +13821,8 @@ public final class ForgeDevCheck {
 
 		log("「近乎完美」（1.7.10 收尾）：JSON（parent=sinner / challenge / hidden / duality_stat）=" + jsonOk
 				+ "（应 true）、语言键齐全=" + langOk + "（应 true）、未完成时不发放=" + nothing
-				+ "（应 true）、补齐 22 条后发放=" + fired + "（应 true）、少一条不发放=" + missingRejected
-				+ "（应 true）、要求列表完整（22 条且 id 都存在）=" + listOk + "（应 true）");
+				+ "（应 true）、补齐 23 条后发放=" + fired + "（应 true）、少一条不发放=" + missingRejected
+				+ "（应 true）、要求列表完整（23 条且 id 都存在）=" + listOk + "（应 true）");
 
 		// 收尾
 		for (String id : all) {
@@ -13815,13 +14015,13 @@ public final class ForgeDevCheck {
 				"the_body", "the_mind", "the_soul", "star_of_bethlehem", "final_revelation", "godhead",
 				"salvation", "holy_light", "holy_mantle", "sacred_heart", "habit", "the_halo", "pentagram",
 				"source_of_sins", "virtues", "satanic_bible", "the_mark", "the_pact", "ceremonial_robes",
-				"brimstone", "abaddon", "vengeful_spirit", "night_wraith", "occult_eye", "abyss_lord",
+				"brimstone", "abaddon", "vengeful_spirit", "night_wraith", "occult_eye", "abyss_lord", "betrayal",
 				"devil_crown",
 				"sin_fragment_pride", "sin_fragment_gluttony", "sin_fragment_wrath", "sin_fragment_envy",
 				"sin_fragment_sloth", "sin_fragment_lust", "sin_fragment_greed", "redemption",
 				"act_of_contrition", "wooden_cross", "heart_shard", "six", "trinity", "genesis",
 				"freeloaders_rice", "bangbang_halo"};
-		boolean sizeOk = order.size() == expected.length && expected.length == 47;
+		boolean sizeOk = order.size() == expected.length && expected.length == 48;
 		StringBuilder mismatch = new StringBuilder();
 		for (int index = 0; index < Math.min(order.size(), expected.length); index++) {
 			var id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(order.get(index));
@@ -13837,7 +14037,7 @@ public final class ForgeDevCheck {
 		String description = modInfo.getDescription();
 		boolean logoOk = "assets/summy-reliquary/icon.png".equals(modInfo.getLogoFile().orElse(""));
 		boolean descOk = description != null && description.contains("金刀片")
-				&& description.contains("24 个成就") && description.contains("七罪主题饰品合集");
+				&& description.contains("25 个成就") && description.contains("七罪主题饰品合集");
 		boolean tomlOk = logoOk && descOk;
 
 		// ③ 图标：icon.png 必须是根成就图标（duality_stat，16×16）的 **32× 最近邻放大**
@@ -13853,7 +14053,7 @@ public final class ForgeDevCheck {
 		boolean tabIconOk = !tabBuilt || (tab.getIconItem() != null
 				&& tab.getIconItem().is(SummyReliquary.DUALITY_STAT.get()));
 
-		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 47）、逐项与预期一致="
+		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 48）、逐项与预期一致="
 				+ orderOk + "（应 true" + (mismatch.length() == 0 ? "" : "，异常：" + mismatch.toString().trim())
 				+ "）、分块=武器 → 天使线 → 恶魔线 → 中立材料工具；mods.toml（logoFile=" + modInfo.getLogoFile()
 				+ "=" + logoOk + "、描述含「金刀片 / 24 个成就 / 七罪主题饰品合集」=" + descOk + "）="

@@ -114,6 +114,8 @@ public final class PlayerFlags {
 	private static final String EVIL_DAY = "evil_day";
 	/** 亚巴顿：复活冷却到期时间（game tick；0 = 可用） */
 	private static final String ABADDON_REVIVE_READY_AT = "abaddon_revive_ready_at";
+	/** 背叛：嘲讽结束后的冷却截止时间（game tick；0 = 可用） */
+	private static final String BETRAYAL_COOLDOWN_UNTIL = "betrayal_cooldown_until";
 	/** 当日已获得的邪恶度总量（受 daily_cap 限制） */
 	private static final String EVIL_TODAY = "evil_today";
 	/** 当日友善档已获得的邪恶度（受 friendly_daily_cap 限制） */
@@ -565,6 +567,14 @@ public final class PlayerFlags {
 
 	public static void setAbaddonReviveReadyAt(ServerPlayer player, long value) {
 		mutableRoot(player).putLong(ABADDON_REVIVE_READY_AT, value);
+	}
+
+	public static long betrayalCooldownUntil(LivingEntity entity) {
+		return entity == null ? 0L : root(entity).getLong(BETRAYAL_COOLDOWN_UNTIL);
+	}
+
+	public static void setBetrayalCooldownUntil(ServerPlayer player, long value) {
+		mutableRoot(player).putLong(BETRAYAL_COOLDOWN_UNTIL, Math.max(0L, value));
 	}
 
 	public static double evilToday(LivingEntity entity) {

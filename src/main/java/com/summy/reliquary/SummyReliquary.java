@@ -266,6 +266,10 @@ public class SummyReliquary {
 	public static final RegistryObject<Item> ABYSS_LORD =
 			ITEMS.register("abyss_lord", () -> new com.summy.reliquary.item.AbyssLordItem(
 					new Item.Properties().stacksTo(1)));
+	/** 背叛（2.0）：恶魔线加护，需恶魔标记；强制敌人转移攻击目标 */
+	public static final RegistryObject<Item> BETRAYAL =
+			ITEMS.register("betrayal", () -> new com.summy.reliquary.item.BetrayalItem(
+					new Item.Properties().stacksTo(1)));
 	/** 仪式法袍（1.6.1 转正）：装进 Curios 自带的「背饰」栏位，签约后才能佩戴 */
 	public static final RegistryObject<Item> CEREMONIAL_ROBES =
 			ITEMS.register("ceremonial_robes", () -> new com.summy.reliquary.item.CeremonialRobesItem(
@@ -354,7 +358,7 @@ public class SummyReliquary {
 					new Item.Properties().stacksTo(1)));
 
 	/**
-	 * 创造页物品的**唯一顺序源**（1.7.10 起按「派系 + 用途」分四块排列，共 47 项）。
+	 * 创造页物品的**唯一顺序源**（1.7.10 起按「派系 + 用途」分四块排列，共 48 项）。
 	 *
 	 * <p>抽成方法是为了让自检能直接拿到这份顺序逐项断言（见 {@code ForgeDevCheck#checkCreativeOrder}）；
 	 * 标签页本身只调它一次，所以"页面里看到的顺序"和"自检断言的顺序"永远同源。
@@ -393,6 +397,7 @@ public class SummyReliquary {
 						out.accept(NIGHT_WRAITH.get());
 						out.accept(OCCULT_EYE.get());
 						out.accept(ABYSS_LORD.get());
+						out.accept(BETRAYAL.get());
 						out.accept(DEVIL_CROWN.get());
 						// ===== ④ 中立 · 材料与工具（碎片 → 材料 → 工具 → 中立饰品）=====
 						out.accept(SIN_FRAGMENT_PRIDE.get());
@@ -414,7 +419,7 @@ public class SummyReliquary {
 	}
 
 	/**
-	 * 专属创造标签页（1.7.10 起按「派系 + 用途」分四块排列；共 47 项）。
+	 * 专属创造标签页（1.7.10 起按「派系 + 用途」分四块排列；共 48 项）。
 	 *
 	 * <p>标签页图标＝根成就图标（{@code duality_stat}，「遗物：七罪」）。
 	 */

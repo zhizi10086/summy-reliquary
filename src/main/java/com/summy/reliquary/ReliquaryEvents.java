@@ -116,6 +116,7 @@ public final class ReliquaryEvents {
 		com.summy.reliquary.effect.DelayedChat.clear();
 		com.summy.reliquary.effect.PlayerFlags.clearDataReady();
 		com.summy.reliquary.effect.DemonPact.clear();
+		com.summy.reliquary.effect.Betrayal.clear();
 		com.summy.reliquary.effect.HolyLightEffect.clear();
 		SoulShield.clear();
 		com.summy.reliquary.effect.Habit.clear();
@@ -163,6 +164,8 @@ public final class ReliquaryEvents {
 		keepNotOnFire(player);
 		// 亚巴顿（1.6.8）：恶魔光环每 tick 结算 + 球内黑烟；顺带清理过期的无敌记录
 		com.summy.reliquary.effect.Abaddon.tickPlayer(player);
+		// 背叛（2.0）：每 tick 扫描 / 强制敌人攻击靶子 / 结束与冷却
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
 		// 神性（1.8.2）：清理过期的"死亡拦截后 2 秒无敌"记录
 		com.summy.reliquary.effect.Godhead.tickPlayer(player);
 		// 献祭（1.8.2）：清理过期的近战增伤记录
@@ -497,6 +500,7 @@ public final class ReliquaryEvents {
 			SoulShield.forget(player);
 			com.summy.reliquary.effect.DemonPact.forget(player);
 			com.summy.reliquary.effect.Habit.forget(player);
+			com.summy.reliquary.effect.Betrayal.forget(player);
 			com.summy.reliquary.effect.CombatTuning.forget(player);
 			// 1.6.4：还原可能残留的"临时并入吸收值"，并清掉挂起记录
 			com.summy.reliquary.effect.DamagePools.forget(player);
@@ -617,6 +621,7 @@ public final class ReliquaryEvents {
 			RevelationTracker.sync(player);
 			SoulShield.onJoin(player);
 			com.summy.reliquary.effect.DemonPact.onJoin(player);
+			com.summy.reliquary.effect.Betrayal.endFor(player);
 		}
 	}
 
@@ -656,6 +661,7 @@ public final class ReliquaryEvents {
 			com.summy.reliquary.effect.DamagePools.forget(oldPlayer);
 			com.summy.reliquary.effect.DemonPact.forget(oldPlayer);
 			com.summy.reliquary.effect.Habit.forget(oldPlayer);
+			com.summy.reliquary.effect.Betrayal.forget(oldPlayer);
 		}
 		CompoundTag oldData = event.getOriginal().getPersistentData();
 		if (oldData.contains(SinManager.ROOT, CompoundTag.TAG_COMPOUND)) {

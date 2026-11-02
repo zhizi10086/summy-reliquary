@@ -73,6 +73,14 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.DoubleValue HABIT_CHARGE_MIN_SECONDS;
 	private static final ForgeConfigSpec.IntValue HABIT_CHARGE_INTERVAL_TICKS;
 
+	// ===== 背叛（Betrayal，2.0） =====
+	private static final ForgeConfigSpec.BooleanValue ENABLE_BETRAYAL;
+	private static final ForgeConfigSpec.IntValue BETRAYAL_RADIUS;
+	private static final ForgeConfigSpec.DoubleValue BETRAYAL_CHANCE_PER_TICK;
+	private static final ForgeConfigSpec.IntValue BETRAYAL_MIN_ENEMIES;
+	private static final ForgeConfigSpec.IntValue BETRAYAL_TAUNT_SECONDS;
+	private static final ForgeConfigSpec.IntValue BETRAYAL_COOLDOWN_SECONDS;
+
 	// ===== 七罪效果（1.4.0） =====
 	private static final ForgeConfigSpec.BooleanValue ENABLE_SIN_EFFECTS;
 	private static final ForgeConfigSpec.IntValue PRIDE_KILL_REQUIRED;
@@ -541,6 +549,22 @@ public final class ReliquaryConfig {
 		HABIT_CHARGE_INTERVAL_TICKS = builder
 				.comment("受击充能的节流间隔（tick；10 = 0.5 秒内最多触发一次）")
 				.defineInRange("habit_charge_interval_ticks", 10, 1, 200);
+		builder.pop();
+
+		builder.comment("背叛（Betrayal，2.0）：恶魔线加护，强制敌人转移攻击目标").push("betrayal");
+		ENABLE_BETRAYAL = builder.comment("总开关：关闭后门槛与全部效果都不生效")
+				.define("enable_betrayal", true);
+		BETRAYAL_RADIUS = builder.comment("扫描与强制改目标的半径（格）")
+				.defineInRange("betrayal_radius", 8, 1, 64);
+		BETRAYAL_CHANCE_PER_TICK = builder
+				.comment("每游戏刻对每名敌人独立掷骰的几率（百分比）")
+				.defineInRange("betrayal_chance_per_tick", 0.5D, 0.0D, 100.0D);
+		BETRAYAL_MIN_ENEMIES = builder.comment("启动所需的最少敌人数")
+				.defineInRange("betrayal_min_enemies", 2, 2, 64);
+		BETRAYAL_TAUNT_SECONDS = builder.comment("靶子持续秒数")
+				.defineInRange("betrayal_taunt_seconds", 18, 1, 600);
+		BETRAYAL_COOLDOWN_SECONDS = builder.comment("嘲讽结束后到下一次可触发的冷却秒数")
+				.defineInRange("betrayal_cooldown_seconds", 5, 0, 3600);
 		builder.pop();
 
 		builder.comment("七罪之源：每一项罪的具体效果数值（只有佩戴七罪之源时才会生效）").push("sins");
@@ -1247,6 +1271,30 @@ public final class ReliquaryConfig {
 
 	public static int habitChargeIntervalTicks() {
 		return Math.max(1, intOr(HABIT_CHARGE_INTERVAL_TICKS, 10));
+	}
+
+	public static boolean enableBetrayal() {
+		return boolOr(ENABLE_BETRAYAL, true);
+	}
+
+	public static int betrayalRadius() {
+		return intOr(BETRAYAL_RADIUS, 8);
+	}
+
+	public static double betrayalChancePerTick() {
+		return doubleOr(BETRAYAL_CHANCE_PER_TICK, 0.5D);
+	}
+
+	public static int betrayalMinEnemies() {
+		return Math.max(2, intOr(BETRAYAL_MIN_ENEMIES, 2));
+	}
+
+	public static int betrayalTauntSeconds() {
+		return Math.max(1, intOr(BETRAYAL_TAUNT_SECONDS, 18));
+	}
+
+	public static int betrayalCooldownSeconds() {
+		return Math.max(0, intOr(BETRAYAL_COOLDOWN_SECONDS, 5));
 	}
 
 	public static int bodySetDamageReductionPercent() {

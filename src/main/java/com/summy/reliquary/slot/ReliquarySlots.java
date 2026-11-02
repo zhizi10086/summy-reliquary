@@ -87,7 +87,9 @@ public final class ReliquarySlots {
 				// 1.6.5：恶魔侧「玄秘魔眼」（由夜之幽魂升级而来）
 				|| result.stack().is(SummyReliquary.OCCULT_EYE.get())
 				// 1.6.7：恶魔侧「深渊领主」（邪恶 900 解锁）
-				|| result.stack().is(SummyReliquary.ABYSS_LORD.get()));
+				|| result.stack().is(SummyReliquary.ABYSS_LORD.get())
+				// 2.0：恶魔侧「背叛」（只要求当前恶魔标记）
+				|| result.stack().is(SummyReliquary.BETRAYAL.get()));
 		// 恶魔契约栏位（1.6.0，动态 0~1 格）：只有契约能进
 		register("demon_pact_only", result -> result.stack().is(SummyReliquary.THE_PACT.get()));
 	}

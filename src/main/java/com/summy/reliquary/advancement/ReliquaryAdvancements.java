@@ -55,6 +55,8 @@ public final class ReliquaryAdvancements {
 	public static final String ABYSS_LORD_OBTAINED = "abyss_lord_obtained";
 	/** 获得亚巴顿 */
 	public static final String ABADDON_OBTAINED = "abaddon_obtained";
+	/** 获得背叛（2.11） */
+	public static final String BETRAYAL_OBTAINED = "betrayal_obtained";
 	/**
 	 * 把夜之幽魂升级成玄秘魔眼（合成且**通过 700 门禁**）。
 	 *
@@ -90,7 +92,7 @@ public final class ReliquaryAdvancements {
 			"trinity", "revelation", "bread_and_fish", "heart", "god",
 			"light", "shade", "genesis",
 			"deal", "fresh_soul", "dark_tome", "beast_mark", "nightmare",
-			"demon_flame", "evil_eye", "demon_king", "finale");
+			"demon_flame", "evil_eye", "demon_king", "finale", "thirty_pieces");
 
 	private ReliquaryAdvancements() {
 	}

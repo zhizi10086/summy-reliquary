@@ -46,7 +46,9 @@ public final class SpiritAltarRecipeGate {
 		/** 1.7.9：圣光短矛的「防丢失配方」—— 只有"曾获得过 + 长时间没有长矛"且仍有天使标记时才开放 */
 		SPEAR_LOST,
 		/** 1.8.1：需要**当前**持恶魔标记（痛悔短祷：没有约就没有可忏悔的对象） */
-		DEMON
+		DEMON,
+		/** 2.0：服务端需要当前恶魔标记，但 JEI 里永久隐藏（背叛） */
+		DEMON_ALWAYS_HIDDEN
 	}
 
 	/** 一条门禁：判据类型 + 不满足时要退回的全部材料 */
@@ -95,6 +97,8 @@ public final class SpiritAltarRecipeGate {
 				new ItemStack(Items.WHITE_WOOL, 3),
 				new ItemStack(Items.BLACK_WOOL, 2),
 				new ItemStack(SummyReliquary.HEART_SHARD.get())));
+		register(SummyReliquary.BETRAYAL.get(), Lock.DEMON_ALWAYS_HIDDEN, List.of(
+				new ItemStack(Items.IRON_INGOT, 3), new ItemStack(Items.ROTTEN_FLESH)));
 		// 救恩：判据同上，但 JEI 永久隐藏（1.5.6 起的既有行为）
 		register(SummyReliquary.SALVATION.get(), Lock.ALWAYS_HIDDEN, List.of(
 				new ItemStack(Items.BREAD, 5), new ItemStack(Items.COOKED_COD, 2)));
@@ -184,7 +188,7 @@ public final class SpiritAltarRecipeGate {
 	private static boolean allowed(ServerPlayer player, Lock lock) {
 		return switch (lock) {
 			case ANGEL, ALWAYS_HIDDEN -> PlayerFlags.hasAngel(player);
-			case DEMON -> PlayerFlags.isDemon(player);
+			case DEMON, DEMON_ALWAYS_HIDDEN -> PlayerFlags.isDemon(player);
 			case SIGNED -> PlayerFlags.isDemonSealed(player) || PlayerFlags.isDemon(player);
 			case DAGGER_LOST -> DaggerRecovery.isOpen(player);
 			// 1.7.9：丢失态 + 天使标记（两个条件都要满足）
@@ -197,6 +201,7 @@ public final class SpiritAltarRecipeGate {
 		return switch (lock) {
 			case SIGNED -> "item.summy-reliquary.demon.required";
 			case DEMON -> com.summy.reliquary.item.ActOfContritionItem.FAIL_NEED_DEMON;
+			case DEMON_ALWAYS_HIDDEN -> "item.summy-reliquary.demon.required";
 			case DAGGER_LOST -> "message.summy-reliquary.recipe.dagger_present";
 			case SPEAR_LOST -> "message.summy-reliquary.recipe.spear_present";
 			case ANGEL, ALWAYS_HIDDEN -> "message.summy-reliquary.recipe.angel_locked";
@@ -218,6 +223,7 @@ public final class SpiritAltarRecipeGate {
 					case ANGEL -> angel;
 					case SIGNED -> signed;
 					case DEMON -> demon;
+					case DEMON_ALWAYS_HIDDEN -> false;
 					case ALWAYS_HIDDEN -> false;
 					case DAGGER_LOST -> daggerLost;
 					case SPEAR_LOST -> spearLost && angel;

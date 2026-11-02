@@ -52,6 +52,9 @@ public final class ItemObtained {
 			// 1.6.10：恶魔线的另一条线 —— 获得亚巴顿时也发 1 个创世纪
 			com.summy.reliquary.item.GenesisItem.grantFrom(player, false);
 		}
+		if (has(player, SummyReliquary.BETRAYAL.get())) {
+			ReliquaryAdvancements.fire(player, ReliquaryAdvancements.BETRAYAL_OBTAINED);
+		}
 		// 1.7.10 收尾：「近乎完美」—— 除「无罪之人」外的全部本模组成就都已完成
 		boolean nearlyPerfect = true;
 		for (String id : ReliquaryAdvancements.NEARLY_PERFECT_REQUIRED) {

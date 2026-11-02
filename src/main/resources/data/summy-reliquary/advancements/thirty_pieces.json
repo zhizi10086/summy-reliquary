@@ -1,0 +1,29 @@
+{
+  "parent": "summy-reliquary:deal",
+  "display": {
+    "icon": {
+      "item": "summy-reliquary:betrayal"
+    },
+    "title": {
+      "translate": "advancements.summy-reliquary.thirty_pieces.title"
+    },
+    "description": [
+      {
+        "translate": "advancements.summy-reliquary.thirty_pieces.description",
+        "color": "#C03030"
+      }
+    ],
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "event": {
+      "trigger": "summy-reliquary:event",
+      "conditions": {
+        "event": "betrayal_obtained"
+      }
+    }
+  }
+}
