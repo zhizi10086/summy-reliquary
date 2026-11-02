@@ -440,6 +440,7 @@ public final class ForgeDevCheck {
 				// 1.8.7：攻速上限在加法空间反算（2.14）、定值真伤不吃乘区（2.4）
 				case 2271 -> checkAttackSpeedCapMath(player);
 				case 2272 -> checkExactDamageMultiplierGuard(player);
+				case 2273 -> checkShieldProtectionRoutesAndGuards(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -1537,22 +1538,15 @@ public final class ForgeDevCheck {
 
 	// ==================== 1.3.0：护盾 → 魂心 → 黑心 的结算顺序（1.6.2 重写） ====================
 
-	/** 搭场景：原版吸收（护盾）6 + 魂心池 6 + 黑心池 4 */
+	/** 搭场景：原版吸收（护盾）6 + 天使线魂心池；恶魔黑心应被路线校验压成 0。 */
 	private static void prepareAdditiveShieldTest(ServerPlayer player) {
-		// 黑心池要求"佩戴契约"，而契约属于恶魔线（灵台只剩 1 格 → 灵魂戴不上）。
-		// 所以这里走恶魔线 + 测试用强行戴上天启（绕过天使门槛），魂心池由天启的 2 心提供。
-		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
-		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
-		// 置"曾签约"：否则每秒的自愈会把天使标记补回来、顺手清掉恶魔标记（测试会变成天使线）
-		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
-		// 注意顺序：先把阶段设成恶魔线再校正格数，否则会在"七罪阶段"把启示之座压成 0 格
+		// 2.13 起两池路线互斥。旧用例的“同时拥有魂心 4 + 黑心 4”已不可能，改为天使线真实场景，
+		// 同时把遗留黑心点数保留在 NBT 中，断言路线校验会把它压成无效容量。
+		resetDemonPactState(player);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
 		com.summy.reliquary.effect.SlotSizing.syncNow(player);
-		player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
-		com.summy.reliquary.effect.DemonPact.grant(player, false);
-		// 1.7.2：签约/补发契约会把"过线档"的天使线饰品（终末天启 / 神性 / 圣心）**摘到背包**，
-		// 所以"强行戴上天启"必须放在 grant 之后 —— 否则刚戴上就被摘走，魂心池会变成 0。
 		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
-			// 只留天启，避免其它饰品干扰数字
 			handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, 0, ItemStack.EMPTY);
 			handler.setEquippedCurio(ReliquarySlots.REVELATION, 0,
 					new ItemStack(SummyReliquary.FINAL_REVELATION.get()));
@@ -1563,15 +1557,15 @@ public final class ForgeDevCheck {
 		player.setHealth(player.getMaxHealth());
 		player.setAbsorptionAmount(6.0F);
 		com.summy.reliquary.effect.CombatTuning.clear();
-		log(String.format("三池场景：原版吸收=%.1f（模拟护盾 6）、魂心池=%.1f（应为 4 = 天启 2 心）、黑心池=%.1f（应为 4）",
+		log(String.format("天使单路线场景：原版吸收=%.1f（模拟护盾 6）、魂心池=%.1f、黑心有效上限=%.1f（应为 0）",
 				player.getAbsorptionAmount(), com.summy.reliquary.effect.SoulShield.points(player),
-				com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player)));
+				com.summy.reliquary.effect.DemonPact.blackHeartMaxPoints(player)));
 	}
 
 	private static void checkAdditiveShield(ServerPlayer player) {
-		log(String.format("三池（1 秒后）：原版吸收=%.1f（应仍为 6）、魂心池=%.1f（应为 4）、黑心池=%.1f（应为 4）",
+		log(String.format("天使单路线（1 秒后）：原版吸收=%.1f（应仍为 6）、魂心池=%.1f（应仍为 4）、黑心有效上限=%.1f（应为 0）",
 				player.getAbsorptionAmount(), com.summy.reliquary.effect.SoulShield.points(player),
-				com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player)));
+				com.summy.reliquary.effect.DemonPact.blackHeartMaxPoints(player)));
 	}
 
 	/**
@@ -1596,6 +1590,7 @@ public final class ForgeDevCheck {
 		player.removeAllEffects();
 		com.summy.reliquary.effect.CombatTuning.clear();
 		com.summy.reliquary.effect.SoulShield.clearGuardForTest(player);
+		com.summy.reliquary.effect.DemonPact.clearGuardForTest(player);
 		com.summy.reliquary.effect.DeathImmunity.reset();
 		// 1.8.2：神性死亡拦截后的 2 秒无敌会取消一切伤害，搭场景前必须先清掉
 		com.summy.reliquary.effect.Godhead.clearGuards();
@@ -1619,7 +1614,7 @@ public final class ForgeDevCheck {
 		double soulAfterShield = com.summy.reliquary.effect.SoulShield.points(player);
 		double blackAfterShield = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
 
-		// ② 护盾清空后再受 8 点：魂心 4 + 黑心 4 全吃，红血不掉（走真实的 hurt 管线）
+		// ② 护盾清空后再受 8 点：魂心只剩 4 点，但 2.13 的“非空整击保护”仍让红血不掉。
 		float healthBeforeSecond = player.getHealth();
 		player.setAbsorptionAmount(0.0F);
 		com.summy.reliquary.effect.SoulShield.setPoints(player, 4.0D);
@@ -1628,9 +1623,9 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.CombatTuning.clear();
 		player.invulnerableTime = 0;
 		player.hurt(player.damageSources().generic(), 8.0F);
-		log(String.format("结算顺序（1.6.5 = 命中前扣池并临时并入原版吸收 + 事后对账）：受 5 点时原版吸收 6 → %.1f（应 1 = 只扣护盾）、"
-						+ "魂心池仍 %.1f（应 4）、黑心池仍 %.1f（应 4）；护盾清空后受 8 点 → 魂心池 %.1f（应 0）、"
-						+ "黑心池 %.1f（应 0）、生命 %.1f（应 %.1f = 红血不掉）",
+		log(String.format("整击护盾保护：受 5 点时原版吸收 6 → %.1f（应 1 = 只扣护盾）、"
+						+ "魂心池仍 %.1f（应 4）、黑心池仍 %.1f（应 4，但恶魔路线容量为 0）；"
+						+ "护盾清空后池剩 4 受 8 → 魂心池 %.1f（应 0）、黑心池 %.1f（应 4）、生命 %.1f（应 %.1f = 红血不掉）",
 				absorptionAfter, soulAfterShield, blackAfterShield,
 				com.summy.reliquary.effect.SoulShield.points(player),
 				com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player), player.getHealth(),
@@ -4242,6 +4237,112 @@ public final class ForgeDevCheck {
 	}
 
 	/**
+	 * 2.13：非空池整击保护、`/kill` 例外、自伤同口径、黑心短无敌与路线容量校验。
+	 */
+	private static void checkShieldProtectionRoutesAndGuards(ServerPlayer player) {
+		com.summy.reliquary.effect.DamagePools.setModeForTest(
+				com.summy.reliquary.effect.DamagePools.Mode.HEALTH_DAMAGE);
+		resetDemonPactState(player);
+		player.getInventory().clearContent();
+		player.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+		player.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+			for (int index = 0; index < 3; index++) {
+				handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, index, ItemStack.EMPTY);
+			}
+			handler.setEquippedCurio(ReliquarySlots.REVELATION, 0, ItemStack.EMPTY);
+			handler.setEquippedCurio(ReliquarySlots.BLESSING, 0, ItemStack.EMPTY);
+			handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 0, ItemStack.EMPTY);
+		});
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
+		com.summy.reliquary.effect.DemonPact.grant(player, false);
+		prepareBarePlayer(player);
+		com.summy.reliquary.effect.DamagePools.clear();
+
+		// ① 黑心剩 1 点吃 100 点：池子归零、生命不动、黑心守卫开启。
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 1.0D);
+		player.setHealth(player.getMaxHealth());
+		player.setAbsorptionAmount(0.0F);
+		player.invulnerableTime = 0;
+		player.hurt(player.damageSources().generic(), 100.0F);
+		double poolHugeHit = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
+		float healthHugeHit = player.getHealth();
+		boolean blackGuard = com.summy.reliquary.effect.DemonPact.isGuarded(player);
+
+		// ② 守卫期内再受 5 点：完全取消；清掉守卫后再受 5 点才打到生命。
+		player.invulnerableTime = 0;
+		player.hurt(player.damageSources().generic(), 5.0F);
+		float healthGuarded = player.getHealth();
+		com.summy.reliquary.effect.DemonPact.clearGuardForTest(player);
+		player.invulnerableTime = 0;
+		player.hurt(player.damageSources().generic(), 5.0F);
+		float healthAfterGuard = player.getHealth();
+
+		// ③ /kill：不走整击吞伤，池 1 只扣 1，剩余 4 点进入生命。
+		com.summy.reliquary.effect.DemonPact.clearGuardForTest(player);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 1.0D);
+		player.setHealth(player.getMaxHealth());
+		player.setAbsorptionAmount(0.0F);
+		player.invulnerableTime = 0;
+		player.hurt(player.damageSources().genericKill(), 5.0F);
+		double poolAfterKill = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
+		float killHealthLoss = player.getMaxHealth() - player.getHealth();
+
+		// ④ 自伤也吃整击保护：池 1 吃 4 点不掉血；池空后同样 4 点正常进入生命。
+		com.summy.reliquary.effect.DemonPact.clearGuardForTest(player);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 1.0D);
+		player.setHealth(player.getMaxHealth());
+		player.setAbsorptionAmount(0.0F);
+		player.invulnerableTime = 0;
+		player.hurt(srSource(player, "sacrifice_self"), 4.0F);
+		double poolAfterSelfProtected = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
+		float selfProtectedLoss = player.getMaxHealth() - player.getHealth();
+		com.summy.reliquary.effect.DemonPact.clearGuardForTest(player);
+		player.invulnerableTime = 0;
+		player.hurt(srSource(player, "sacrifice_self"), 4.0F);
+		float selfOpenLoss = player.getMaxHealth() - player.getHealth();
+
+		// ⑤ 路线校验：恶魔线强塞天启没有魂心；天使线遗留黑心点数为 0。
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		CuriosApi.getCuriosInventory(player).ifPresent(handler ->
+				handler.setEquippedCurio(ReliquarySlots.REVELATION, 0,
+						new ItemStack(SummyReliquary.FINAL_REVELATION.get())));
+		boolean demonSoulBlocked = com.summy.reliquary.effect.SoulShield.capacityFor(player) == 0.0D
+				&& !com.summy.reliquary.effect.SoulShield.wearsSource(player);
+		com.summy.reliquary.effect.SoulShield.setPoints(player, 4.0D);
+		com.summy.reliquary.effect.SoulShield.onJoin(player);
+		boolean demonSoulClamped = com.summy.reliquary.effect.SoulShield.points(player) == 0.0D;
+
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 4.0D);
+		boolean angelBlackBlocked = com.summy.reliquary.effect.DemonPact.blackHeartMaxPoints(player) == 0.0D;
+		com.summy.reliquary.effect.DemonPact.tickPlayer(player);
+		boolean angelBlackClamped = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player) == 0.0D;
+
+		boolean overall = Math.abs(poolHugeHit) < 1.0E-4D
+				&& Math.abs(healthHugeHit - player.getMaxHealth()) < 1.0E-4F
+				&& blackGuard && Math.abs(healthGuarded - healthHugeHit) < 1.0E-4F
+				&& Math.abs(healthAfterGuard - (healthHugeHit - 5.0F)) < 1.0E-4F
+				&& Math.abs(poolAfterKill) < 1.0E-4D
+				&& Math.abs(killHealthLoss - 4.0F) < 1.0E-4F
+				&& Math.abs(poolAfterSelfProtected) < 1.0E-4D
+				&& Math.abs(selfProtectedLoss) < 1.0E-4F
+				&& Math.abs(selfOpenLoss - 4.0F) < 1.0E-4F
+				&& demonSoulBlocked && demonSoulClamped && angelBlackBlocked && angelBlackClamped;
+		log("护盾保护 / 路线校验（2.13）：池 1 受 100 → 池 " + poolHugeHit + "、生命 " + healthHugeHit
+				+ "（应 0 / 20）、黑心无敌=" + blackGuard + "；守卫内受 5 → 生命 " + healthGuarded
+				+ "（应不变）、守卫后受 5 → " + healthAfterGuard + "（应 15）；/kill 后池 " + poolAfterKill
+				+ "、生命损失 " + killHealthLoss + "（应 0 / 4）；自伤 池 " + poolAfterSelfProtected
+				+ "、损失 " + selfProtectedLoss + " / 空池损失 " + selfOpenLoss + "（应 0/0/4）；"
+				+ "恶魔线魂心封锁=" + demonSoulBlocked + "/" + demonSoulClamped
+				+ "、天使线黑心封锁=" + angelBlackBlocked + "/" + angelBlackClamped
+				+ " → 整体=" + overall + "（应 true）");
+		com.summy.reliquary.effect.DamagePools.setModeForTest(null);
+		resetDemonPactState(player);
+	}
+
+	/**
 	 * 2.14：攻速上限必须在 MULTIPLY_TOTAL 之后精确夹到 cap。
 	 *
 	 * <p>复现 A11 的恶魔毕业场面（武器 −2.0、迅捷 +0.5、恶魔王冠 +0.4、契约 ×1.66）：
@@ -5739,6 +5840,7 @@ public final class ForgeDevCheck {
 		float healthLossSecond = player.getMaxHealth() - player.getHealth();
 
 		// 顺序（1.6.4：临时并入原版吸收 → 结算后拆分回收）：黄血 6 + 黑心 4，受 10 点 → 黄血 −6 / 黑心 −4 / 红血不减
+		com.summy.reliquary.effect.DemonPact.clearGuardForTest(player);
 		player.setHealth(player.getMaxHealth());
 		player.setAbsorptionAmount(6.0F);
 		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 4.0D);
@@ -5764,7 +5866,7 @@ public final class ForgeDevCheck {
 
 		log("黑心池（真实命中）：4 点受 3 点 → 池 " + poolAfterFirst + "（应 1）、红血 " + healthAfterFirst
 				+ "（应 20 = 不掉血）；池 1 再受 5 点 → 池 " + poolAfterSecond + "（应 0）、红血 −"
-				+ healthLossSecond + "（应 4 = 黑心只扛 1 点）");
+				+ healthLossSecond + "（应 0 = 非空池整击吞下）");
 		log("黑心顺序（黄血 6 + 黑心 4，受 10 点）= 池 " + poolAfterThird
 				+ "（应 0）、护盾剩 " + absorptionAfterThird + "（应 0）、红血 −" + healthLossThird
 				+ "（应 0 = 黄血 −6 / 黑心 −4 / 红血不减）；"
@@ -6520,6 +6622,7 @@ public final class ForgeDevCheck {
 				&& com.summy.reliquary.config.ReliquaryConfig.satanicRefillSeconds() == 30
 				&& com.summy.reliquary.config.ReliquaryConfig.satanicShatterRadius() == 18.0D
 				&& com.summy.reliquary.config.ReliquaryConfig.satanicShatterDamage() == 24.0D
+				&& com.summy.reliquary.config.ReliquaryConfig.blackShatterInvulnerableSeconds() == 0.5D
 				&& com.summy.reliquary.config.ReliquaryConfig.enableSoulHeartHud()
 				// 1.6.4：硫磺火/恶魔之焰的默认参数
 				&& com.summy.reliquary.config.ReliquaryConfig.enableBrimstone()
@@ -8214,7 +8317,7 @@ public final class ForgeDevCheck {
 		float healthAfterFirst = player.getHealth();
 		float absorptionAfterFirst = player.getAbsorptionAmount();
 
-		// ② 池 1 受 5：池 → 0，红血 −4
+		// ② 池 1 受 5：池 → 0，非空池整击吞下，红血不掉
 		player.invulnerableTime = 0;
 		boolean landedSecond = player.hurt(player.damageSources().generic(), 5.0F);
 		float absorptionRawSecond = player.getAbsorptionAmount();
@@ -8234,10 +8337,10 @@ public final class ForgeDevCheck {
 				&& Math.abs(healthAfterFirst - healthBefore) < 1.0E-4F
 				&& Math.abs(absorptionAfterFirst) < 1.0E-4F;
 		boolean secondOk = Math.abs(poolAfterSecond) < 1.0E-4D
-				&& Math.abs((healthBefore - 4.0F) - healthAfterSecond) < 1.0E-4F;
+				&& Math.abs(healthBefore - healthAfterSecond) < 1.0E-4F;
 		log("Fabric 侧真实命中：池 4 受 3 → " + poolAfterFirst + "（应 1）、红血 " + healthAfterFirst + "（应 "
 				+ healthBefore + " 不动）、吸收 " + absorptionAfterFirst + "（应 0）；再受 5 → 池 " + poolAfterSecond
-				+ "（应 0）、红血 " + healthAfterSecond + "（应 " + (healthBefore - 4.0F) + " = 只掉护盾挡不住的 4 点）；"
+				+ "（应 0）、红血 " + healthAfterSecond + "（应 " + healthBefore + " = 非空池整击吞下）；"
 				+ "整体=" + (firstOk && secondOk) + "（应 true）");
 		resetDemonPactState(player);
 	}
@@ -12834,14 +12937,14 @@ public final class ForgeDevCheck {
 		float lost = before - player.getHealth();
 		boolean cooldown = player.getCooldowns().isOnCooldown(dagger);
 		double full = com.summy.reliquary.effect.Sacrifice.bonusPercent(player);
-		// 1.8.4 订正：提示文案必须与"可致死"的实现一致 —— 旧文案写着「（不会致死）」
+		// 2.13：提示必须与“池子为空才致死”的实现一致。
 		String sacrificeHint = Component.translatable("item.summy-reliquary.sacrificial_dagger.shift.2")
 				.getString();
-		boolean hintWordingOk = !sacrificeHint.contains("不会致死") && sacrificeHint.contains("致死");
+		boolean hintWordingOk = !sacrificeHint.contains("不会致死") && sacrificeHint.contains("池子为空时会致死");
 		log("献祭（1.8.2）：释放=" + used + "（应 true）、自损=" + String.format("%.1f", lost)
 				+ "（应 4.0 = 固定真伤）、物品冷却已进入=" + cooldown + "（应 true）、满值增伤=+"
 				+ String.format("%.1f", full) + "%（应 +40%）、释放次数="
-				+ com.summy.reliquary.effect.Sacrifice.useCount() + "（应 1）、提示文案已订正为可致死="
+				+ com.summy.reliquary.effect.Sacrifice.useCount() + "（应 1）、提示文案已订正为空池致死="
 				+ hintWordingOk + "（应 true）");
 
 		// ② 真伤口径：钻石甲 + 抗性 IV（无护盾）→ 红血仍掉 4
@@ -14062,7 +14165,7 @@ public final class ForgeDevCheck {
 		float absorptionAfterFirst = player.getAbsorptionAmount();
 		float healthAfterFirst = player.getHealth();
 
-		// ② 池 1 受 5：池 → 0，红血只掉护盾挡不住的 4 点
+		// ② 池 1 受 5：池 → 0，红血不动（非空池整击吞下）
 		player.invulnerableTime = 0;
 		boolean landedSecond = player.hurt(player.damageSources().generic(), 5.0F);
 		double poolAfterSecond = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
@@ -14075,11 +14178,11 @@ public final class ForgeDevCheck {
 				&& Math.abs(absorptionAfterFirst) < 1.0E-4F;
 		boolean secondOk = landedSecond && Math.abs(poolAfterSecond) < 1.0E-4D
 				&& Math.abs(absorptionAfterSecond) < 1.0E-4F
-				&& Math.abs((healthBefore - 4.0F) - healthAfterSecond) < 1.0E-4F;
+				&& Math.abs(healthBefore - healthAfterSecond) < 1.0E-4F;
 		log("LivingDamage 扣池（1.8.5 第二轮）：池 4 受 3 → 池 " + poolAfterFirst + "（应 1）、红血 "
 				+ healthAfterFirst + "（应 " + healthBefore + " 不动）、吸收 " + absorptionAfterFirst
 				+ "（应 0 = 全程不动）；再受 5 → 池 " + poolAfterSecond + "（应 0）、红血 "
-				+ healthAfterSecond + "（应 " + (healthBefore - 4.0F) + "）、吸收 " + absorptionAfterSecond
+				+ healthAfterSecond + "（应 " + healthBefore + "）、吸收 " + absorptionAfterSecond
 				+ "（应 0）→ 整体=" + (firstOk && secondOk) + "（应 true）");
 		resetDemonPactState(player);
 	}
@@ -14272,13 +14375,13 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.DamagePools.clear();
 		double capacity = com.summy.reliquary.effect.SoulShield.capacityFor(player);
 
-		// ① 生命 4、魂心池 10，受 6 点：池子扛得住 → **不触发**拦截，池子扣 6、红血不动
+		// ① 生命 4、魂心池 1，受致死量 100：池子非空即整击吞下 → **不触发**拦截，红血不动
 		int guardsBefore = com.summy.reliquary.effect.Godhead.deathGuardCount();
-		com.summy.reliquary.effect.SoulShield.setPoints(player, capacity);
+		com.summy.reliquary.effect.SoulShield.setPoints(player, 1.0D);
 		player.setHealth(4.0F);
 		player.setAbsorptionAmount(0.0F);
 		player.invulnerableTime = 0;
-		player.hurt(player.damageSources().generic(), 6.0F);
+		player.hurt(player.damageSources().generic(), 100.0F);
 		double poolCovered = com.summy.reliquary.effect.SoulShield.points(player);
 		float healthCovered = player.getHealth();
 		boolean noGuardWhenCovered = com.summy.reliquary.effect.Godhead.deathGuardCount() == guardsBefore;
@@ -14295,10 +14398,10 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.DamagePools.setModeForTest(null);
 
 		boolean overall = Math.abs(capacity - 10.0D) < 1.0E-4D && noGuardWhenCovered
-				&& Math.abs(poolCovered - 4.0D) < 1.0E-4D && Math.abs(healthCovered - 4.0F) < 1.0E-4F
+				&& Math.abs(poolCovered) < 1.0E-4D && Math.abs(healthCovered - 4.0F) < 1.0E-4F
 				&& guardWithoutPool && Math.abs(healthLethal - 1.0F) < 1.0E-4F;
-		log("池子先于死亡拦截（1.8.5 第二轮补修）：魂心容量=" + capacity + "（应 10）；池 10 / 生命 4 受 6 → "
-				+ "拦截次数不增=" + noGuardWhenCovered + "（应 true）、池 " + poolCovered + "（应 4 = 扣 6）、红血 "
+		log("池子先于死亡拦截（2.13 整击保护）：魂心容量=" + capacity + "（应 10）；池 1 / 生命 4 受 100 → "
+				+ "拦截次数不增=" + noGuardWhenCovered + "（应 true）、池 " + poolCovered + "（应 0）、红血 "
 				+ healthCovered + "（应 4 不动）；池 0 再受 6 → 拦截次数 +1=" + guardWithoutPool + "、生命 "
 				+ healthLethal + "（应 1）→ 整体=" + overall + "（应 true）");
 		unequip(player, ReliquarySlots.REVELATION);

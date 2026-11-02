@@ -4,6 +4,7 @@ import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -150,13 +151,17 @@ public final class DamagePools {
 		if (guardOrNullify(player, event, healthPart, absorptionBefore)) {
 			return true;
 		}
-		// ② 池子：魂心 → 黑心（当场扣，破碎推迟到对账）
+		// ② 池子：魂心 → 黑心（当场扣，破碎推迟到对账）。
+		// 2.13：只要池子非空就整击吞下；/kill 是唯一例外，仍按“能吃多少吃多少”结算。
 		double soul = effectiveSoul(player);
 		double black = effectiveBlack(player);
-		double usedSoul = Math.min(soul, healthPart);
-		double usedBlack = Math.min(black, Math.max(0.0F, healthPart - usedSoul));
-		double charged = usedSoul + usedBlack;
-		if (charged <= 0.0D) {
+		double poolTotal = soul + black;
+		double protectedAmount = shieldProtectionActive(event.getSource(), poolTotal)
+				? healthPart : Math.min(poolTotal, healthPart);
+		double usedSoul = Math.min(soul, protectedAmount);
+		double usedBlack = Math.min(black, Math.max(0.0D, protectedAmount - usedSoul));
+		double deducted = usedSoul + usedBlack;
+		if (deducted <= 0.0D) {
 			return false;
 		}
 		if (usedSoul > 0.0D) {
@@ -165,12 +170,12 @@ public final class DamagePools {
 		if (usedBlack > 0.0D) {
 			DemonPact.deductBlackHearts(player, usedBlack);
 		}
-		float topUp = (float) charged;
+		float topUp = (float) protectedAmount;
 		PENDING.put(player.getUUID(),
 				new Pending(now(player), absorptionBefore, topUp, usedSoul, usedBlack, event.getSource(),
 						event.getAmount()));
 		player.setAbsorptionAmount(absorptionBefore + topUp);
-		logPrepare("命中前扣池", player, absorptionBefore, topUp, healthPart, charged);
+		logPrepare("命中前扣池", player, absorptionBefore, topUp, healthPart, deducted);
 		return true;
 	}
 
@@ -201,7 +206,8 @@ public final class DamagePools {
 	 * <p>① 已经在守卫窗口里（Kilt / Connector 的"同一击双事件"会走到这里）：只取消、不重复拦截
 	 * （重复拦截会再传送一次、重置守卫计时）。
 	 *
-	 * <p>② 致命一击 → 免死 → 神性死亡拦截 → 亚巴顿（有冷却）（1.8.6 统一消耗顺序）：拦下后**直接取消这一击** ——
+	 * <p>② 2.13 起，魂心 / 黑心池非空时血伤覆盖量视为 0，不消耗死亡拦截；`/kill` 例外，按旧口径算。
+	 * 池子为空后的致命一击才进入免死 → 神性死亡拦截 → 亚巴顿（有冷却）链，拦下后**直接取消这一击** ——
 	 * {@code ForgeHooks#onLivingHurt} 在事件被取消时返回 0，原版 {@code actuallyHurt} 随即 return，
 	 * 伤害根本不落地、吸收值与血量都不被碰（1.8.5 之前的"并入整击金额再写回绝对值"会污染
 	 * Summy Enchantment 那类增量记账的护盾模组，实测每次拦截吸收值 +一个生命上限）。
@@ -231,7 +237,8 @@ public final class DamagePools {
 		//    实机（Ponder Time）证据：吸收被打空后一次 1.63 点伤害直接吃掉神性拦截，而魂心池还有 9.4 点
 		//    一动不动 —— 玩家看到的就是"魂心没生效"。
 		double poolTotal = effectiveSoul(player) + effectiveBlack(player);
-		float uncovered = (float) Math.max(0.0D, healthPart - poolTotal);
+		float uncovered = shieldProtectionActive(event.getSource(), poolTotal)
+				? 0.0F : (float) Math.max(0.0D, healthPart - poolTotal);
 		if (uncovered < player.getHealth()) {
 			return false;
 		}
@@ -255,14 +262,14 @@ public final class DamagePools {
 	 * <p>为什么可行（1.20.1 原版 {@code LivingEntity#actuallyHurt} 的顺序，已核字节码）：
 	 * {@code onLivingHurt}（护甲 / 抗性**之前**）→ 护甲 → 抗性 + 保护 → **扣吸收值** → {@code onLivingDamage}
 	 * （金额 = 扣完吸收后剩下的、将打到血的那份；**返回值直接用于扣血**）。所以在这里：
-	 * {@code share = min(池子总量, 事件金额)} → 扣魂心 / 黑心 → {@code event.setAmount(amount - share)}，
-	 * 玩家少掉的血正好等于池子承担的量，而**吸收值一个点都不动** —— 读吸收值做记账的模组
+	 * 2.13 起只要池子非空就用整次事件金额作为保护量；`/kill` 仍只保护 {@code min(池子总量, 事件金额)}。
+	 * 随后扣魂心 / 黑心并改写血伤，而**吸收值一个点都不动** —— 读吸收值做记账的模组
 	 * （Summy Enchantment 的生命护盾）不会再被"先并入、再退还"牵连。
 	 *
 	 * <p>顺带收益：不依赖 {@link DamageEstimate} 的估算，也就没有"估算偏大 → 退还"这一说。
 	 *
 	 * <p>注意：这里把金额改小之后，原版在扣血之后还会执行一次 {@code setAbsorptionAmount(getAbsorptionAmount() - amount)}
-	 * —— 但 {@code share > 0} 意味着"血伤 > 0"，也就意味着吸收值早已被扣到 0（否则血伤为 0），
+	 * —— 但本次实际扣池 {@code deducted > 0} 意味着"血伤 > 0"，也就意味着吸收值早已被扣到 0（否则血伤为 0），
 	 * 那次减法会被原版钳到 0，**不会额外扣任何东西**（已核字节码）。
 	 */
 	public static void applyToHealthDamage(LivingDamageEvent event) {
@@ -288,23 +295,28 @@ public final class DamagePools {
 		double black = effectiveBlack(player);
 		double poolBefore = soul + black;
 		float amountBefore = event.getAmount();
-		double share = Math.min(poolBefore, amountBefore);
-		if (share <= 0.0D) {
+		double protectedAmount = shieldProtectionActive(event.getSource(), poolBefore)
+				? amountBefore : Math.min(poolBefore, amountBefore);
+		if (protectedAmount <= 0.0D) {
 			return;
 		}
-		double usedSoul = Math.min(soul, share);
-		double usedBlack = Math.min(black, share - usedSoul);
+		double usedSoul = Math.min(soul, protectedAmount);
+		double usedBlack = Math.min(black, protectedAmount - usedSoul);
+		double deducted = usedSoul + usedBlack;
 		if (usedSoul > 0.0D) {
 			SoulShield.deduct(player, usedSoul);
 		}
 		if (usedBlack > 0.0D) {
 			DemonPact.deductBlackHearts(player, usedBlack);
 		}
-		event.setAmount((float) (amountBefore - share));
+		event.setAmount((float) (amountBefore - protectedAmount));
 		// 池子被打空 → 破碎（与旧路径同口径：只有真的吃到池子才判定）
-		SoulShield.shatterIfEmpty(player);
-		DemonPact.shatterBlackHeartsIfEmpty(player);
-		logHealthDamage(player, player.getAbsorptionAmount(), poolBefore, share, amountBefore, event.getAmount());
+		if (deducted > 0.0D) {
+			SoulShield.shatterIfEmpty(player);
+			DemonPact.shatterBlackHeartsIfEmpty(player);
+		}
+		logHealthDamage(player, player.getAbsorptionAmount(), poolBefore, deducted, amountBefore,
+				event.getAmount());
 	}
 
 	/**
@@ -429,6 +441,15 @@ public final class DamagePools {
 		}
 		return Math.max(0.0D,
 				Math.min(PlayerFlags.blackHeartPoints(player), DemonPact.blackHeartMaxPoints(player)));
+	}
+
+	/**
+	 * 2.13：非空池子会整击保护玩家。
+	 *
+	 * <p>{@code /kill} 使用 {@link DamageTypes#GENERIC_KILL}，必须回退旧语义；献祭自伤不豁免。
+	 */
+	private static boolean shieldProtectionActive(DamageSource source, double poolTotal) {
+		return source != null && poolTotal > 0.0D && !source.is(DamageTypes.GENERIC_KILL);
 	}
 
 	/**

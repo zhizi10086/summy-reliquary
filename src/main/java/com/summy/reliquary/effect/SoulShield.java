@@ -45,7 +45,7 @@ public final class SoulShield {
 
 	/** 是否佩戴了任意一个提供魂心的饰品（灵魂 / 终末天启 / 神性） */
 	public static boolean wearsSource(LivingEntity entity) {
-		return entity != null
+		return entity != null && PlayerFlags.hasAngel(entity)
 				&& (CurioHelper.wears(entity, SummyReliquary.THE_SOUL.get())
 						|| CurioHelper.wears(entity, SummyReliquary.FINAL_REVELATION.get())
 						|| CurioHelper.wears(entity, SummyReliquary.GODHEAD.get()));
@@ -53,7 +53,8 @@ public final class SoulShield {
 
 	/** 魂心池容量（吸收点）；没戴来源、或戴着咒印时为 0 */
 	public static double capacityFor(LivingEntity entity) {
-		if (entity == null) {
+		// 2.13：魂心只属于天使线；强行塞入灵魂 / 天启 / 神性也不能在恶魔线或七罪阶段生效。
+		if (entity == null || !PlayerFlags.hasAngel(entity)) {
 			return 0.0D;
 		}
 		double hearts = 0.0D;

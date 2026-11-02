@@ -261,6 +261,8 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.IntValue SATANIC_SHATTER_RADIUS;
 	/** 撒旦圣经：黑心碎裂的伤害 */
 	private static final ForgeConfigSpec.DoubleValue SATANIC_SHATTER_DAMAGE;
+	/** 黑心池从非空被打空后的无敌时长（秒） */
+	private static final ForgeConfigSpec.DoubleValue BLACK_SHATTER_INVULNERABLE_SECONDS;
 	/** 咒印（1.6.2）：佩戴时覆盖的黑心碎裂伤害 */
 	private static final ForgeConfigSpec.DoubleValue MARK_SHATTER_DAMAGE;
 	/** 咒印：与亚巴顿同戴时覆盖的黑心碎裂伤害（1.6.10 联动） */
@@ -884,6 +886,9 @@ public final class ReliquaryConfig {
 				.defineInRange("satanic_pact_shatter_radius", 18, 1, 64);
 		SATANIC_SHATTER_DAMAGE = builder.comment("撒旦圣经：黑心被击碎时对范围内敌人的伤害")
 				.defineInRange("satanic_pact_shatter_damage", 24.0D, 0.0D, 100000.0D);
+		BLACK_SHATTER_INVULNERABLE_SECONDS = builder
+				.comment("黑心池从非空被打空后，玩家获得的无敌秒数（默认 0.5；与魂心破碎同时发生时取较长窗口）")
+				.defineInRange("black_shatter_invulnerable_seconds", 0.5D, 0.0D, 60.0D);
 		// 咒印（1.6.2）：灵台栏的恶魔侧饰品
 		MARK_SHATTER_DAMAGE = builder.comment("咒印：佩戴时覆盖的黑心碎裂伤害（默认把 24 提到 40）")
 				.defineInRange("mark_shatter_damage", 40.0D, 0.0D, 100000.0D);
@@ -1884,6 +1889,11 @@ public final class ReliquaryConfig {
 	/** 撒旦圣经：黑心碎裂伤害 */
 	public static double satanicShatterDamage() {
 		return doubleOr(SATANIC_SHATTER_DAMAGE, 24.0D);
+	}
+
+	/** 黑心破碎后的无敌秒数 */
+	public static double blackShatterInvulnerableSeconds() {
+		return doubleOr(BLACK_SHATTER_INVULNERABLE_SECONDS, 0.5D);
 	}
 
 	/** 咒印：佩戴时覆盖的黑心碎裂伤害 */

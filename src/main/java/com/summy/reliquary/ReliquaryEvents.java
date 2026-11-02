@@ -313,6 +313,7 @@ public final class ReliquaryEvents {
 				|| com.summy.reliquary.effect.DeathImmunity.isGuarded(player)
 				|| com.summy.reliquary.effect.HolyMantle.isGuarded(player)
 				|| com.summy.reliquary.effect.SoulShield.isGuarded(player)
+				|| com.summy.reliquary.effect.DemonPact.isGuarded(player)
 				|| com.summy.reliquary.effect.ShadowDash.isInvulnerable(player)
 				// 恶魔线完全防火（1.6.7）：按住 #is_fire 标签全集拦截，同属"完全拦截"
 				|| (isDemonFireImmune(player)
@@ -493,6 +494,7 @@ public final class ReliquaryEvents {
 			logSlotSnapshot(player, "离场");
 			MaidModeManager.forget(player);
 			SoulShield.forget(player);
+			com.summy.reliquary.effect.DemonPact.forget(player);
 			com.summy.reliquary.effect.CombatTuning.forget(player);
 			// 1.6.4：还原可能残留的"临时并入吸收值"，并清掉挂起记录
 			com.summy.reliquary.effect.DamagePools.forget(player);
@@ -650,6 +652,7 @@ public final class ReliquaryEvents {
 		// 必须放在复制持久化数据**之前**：对账会把多扣的池子点数退回旧实体的 NBT，那正是要带给新实体的。
 		if (event.getOriginal() instanceof ServerPlayer oldPlayer) {
 			com.summy.reliquary.effect.DamagePools.forget(oldPlayer);
+			com.summy.reliquary.effect.DemonPact.forget(oldPlayer);
 		}
 		CompoundTag oldData = event.getOriginal().getPersistentData();
 		if (oldData.contains(SinManager.ROOT, CompoundTag.TAG_COMPOUND)) {
@@ -741,6 +744,11 @@ public final class ReliquaryEvents {
 		}
 		// 魂心完全破碎后的无敌：同样取消一切来源的伤害（1.6.2）
 		SoulShield.onHurt(event);
+		if (event.isCanceled()) {
+			return;
+		}
+		// 黑心完全破碎后的 0.5 秒短无敌：只挡之后到来的伤害，不挽回打空这一击。
+		com.summy.reliquary.effect.DemonPact.onHurt(event);
 		if (event.isCanceled()) {
 			return;
 		}

@@ -1,8 +1,8 @@
 # Summy Reliquary 事件文本与触发关系总台账（2.0.0-forge）
 
 > 更新时间：2026-11-02（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
-> **2.0.0 不涉文本**：2.17 只改定值真伤的出伤乘区与配置开关，不新增 / 修改任何事件文本、语言键或触发关系，
-> 语言键表与触发关系表均不变。
+> **2.0.0 文本变更**：2.17 不涉及文本；2.13 只修改献祭匕首 `shift.2` 的中英提示，
+> 把“会致死”改成“池子为空时会致死”。其它语言键与触发关系不变。
 > 用途：把所有"会显示给玩家的话"按**触发条件**整理成一张表，方便改文案、查文案、加功能时对照。
 > 权威文本源：`src/main/resources/assets/summy-reliquary/lang/zh_cn.json` / `en_us.json`（改文案只改这两个文件，代码里没有硬编码中文）。
 
@@ -861,7 +861,7 @@
 | `item.summy-reliquary.sacrificial_dagger` | 献祭匕首（**1.7.5 新增**：剑类武器，4 伤 / 2.4 速；右键「遁入暗影」；**1.7.6 起签约自动发放**） | 物品名（恶魔线配色） |
 | `item.summy-reliquary.dark_arts` | 暗仪刺刀（**1.7.5 新增**：剑类武器，6 伤 / 2.0 速；右键「遁入暗影」；**1.7.6 起邪恶 700 用配方合成**） | 物品名（恶魔线配色） |
 | `item.summy-reliquary.sacrificial_dagger.tagline.1` | 一把平平无奇的匕首。 | 常驻风味（**恶魔深红 `#C03030`**） |
-| `item.summy-reliquary.sacrificial_dagger.shift.1~4` | `遁入暗影` / `·右键后获得短暂加速与无敌` / `·标记你接触的敌人` / `·暗影消散时，斩碎所有被标记的敌人` | Shift 说明（灰色叙述四行） |
+| `item.summy-reliquary.sacrificial_dagger.shift.1~4` | `献祭` / `·右键牺牲自己：受到 4 点真实伤害（护盾可抵挡；池子为空时会致死，且不触发死亡拦截）` / `·获得 +40% 近战伤害，持续 8 秒` / `·加成随时间线性衰减，到期降为 0%` | Shift 说明（灰色叙述四行；2.13 更新第 2 行） |
 | `item.summy-reliquary.dark_arts.tagline.1` | “生于黑暗的艺术” | 常驻风味（恶魔深红） |
 | `item.summy-reliquary.dark_arts.shift.1~5` | 同献祭匕首四行 + `（无敌更久，斩击更痛）` | Shift 说明（**只有暗仪刺刀有第 5 行**） |
 | `message.summy-reliquary.dagger.recovery.1` / `.2` | 你摸了摸腰间，没有找到你的匕首 / 或许该考虑自己做一把了 | **防丢失配方开放那一刻**的聊天两行（每次开放说一次） |
@@ -959,7 +959,7 @@
    ⚠️ **1.8.4 口径**：受益方（圣光 / 神圣斗篷 / 圣心 / 炽天使之枪 / 救恩 / 咒印 / 复仇之魂 / 暗仪刺刀）的**联动数值必须用占位符 + 运行时取值**（`Synergies`，或 `VengefulSpirit.effectiveRadius` / `SalvationDomain.radiusFor` / `DemonPact.shatterDamage`）—— 1.8.2 曾把联动值写死在语言文件里，导致**没戴联动件时也显示强化后的数字**，1.8.4 已回退。
    ⚠️ 玄秘魔眼与深渊领主的**亚巴顿专属**描述（「并使目标无法移动」/「满级时目标的抗性提升等级减半」）已拆成独立键 `occult_eye.shift.3.abaddon` / `abyss_lord.shift.4.abaddon`，按 `Synergies.withAbaddon` 条件二选一；**基础键里不要再包含这两句**。同理，契约与深渊领主的联动行只声明「暗仪刺刀已被强化」（献祭匕首 1.8.2 起已改走「献祭」，不再吃遁入暗影的联动）。
 7. **口径变更提醒**：① **受伤无敌帧在 1.6.3 已返工** —— 不再是 1.6.2 的自定义节流，而是**沿用原版判定、只改写窗口长度**（字段值 = 有效窗口 + 10；一般 5 tick、帧伤 10 tick），差值结算与 `#bypasses_cooldown` 都交回原版；
-② 魂心是**独立池**（`soul_heart_points`，由状态包同步给 HUD），与黑心按"吸收 → 魂心 → 黑心 → 真血"依次结算。
+② 魂心是**天使线独立池**、黑心是**恶魔线独立池**；当前路线池非空时整击吞伤，`/kill` 例外，切换路线后池子夹回 0。
 8. **1.6.4：本模组"定值真伤"不允许被加伤改写**（`HolyLightEffect.isExactDamage`）——`revelation_light`（光柱 / 救恩）、
    `godhead_aura`（神性光环）、`sacrifice`（献祭 10000）、`demon_flame`（恶魔之焰 6 点）这四个类型的数值是配置直接给的，
    `SpiritAltarSet.onLivingHurt`（伯列恒之星 +20% / 思想对发光 +10%）会**直接跳过它们**。

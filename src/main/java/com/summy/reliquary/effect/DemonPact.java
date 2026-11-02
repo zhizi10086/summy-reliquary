@@ -119,6 +119,8 @@ public final class DemonPact {
 	private static boolean applyingShatter = false;
 	/** 撒旦圣经：距离下一次「黑心补满」还剩多少秒（服务端内存计时，与魂心的刷新计时同款做法） */
 	private static final Map<UUID, Integer> BLACK_HEART_REFILL = new HashMap<>();
+	/** 2.13：黑心池破裂后的无敌截止 gameTime */
+	private static final Map<UUID, Long> GUARD_UNTIL = new HashMap<>();
 
 	private DemonPact() {
 	}
@@ -153,6 +155,10 @@ public final class DemonPact {
 	 * <p>1.6.1 起不再是固定值 —— 卸下加成来源后上限会下降，{@code tickPlayer} 会把当前值夹回上限。
 	 */
 	public static double blackHeartMaxPoints(LivingEntity entity) {
+		// 2.13：黑心只属于恶魔线；只限制池子容量，契约的其它属性与效果不受影响。
+		if (entity == null || !PlayerFlags.isDemon(entity)) {
+			return 0.0D;
+		}
 		double hearts = ReliquaryConfig.pactBlackHearts();
 		if (wearsRobe(entity)) {
 			hearts += ReliquaryConfig.robeBlackHearts();
@@ -797,6 +803,12 @@ public final class DemonPact {
 	private static void shatterBlackHearts(ServerPlayer player) {
 		// 1.6.9：碎一次就从零开始重新计时（否则"无敌/缓冲期内"会被提前补满，与魂心口径不一致）
 		BLACK_HEART_REFILL.put(player.getUUID(), ReliquaryConfig.satanicRefillSeconds());
+		// 2.13：黑心破裂后给一个短窗口；与魂心的 5 秒同击触发时只延长、不缩短。
+		double guardSeconds = ReliquaryConfig.blackShatterInvulnerableSeconds();
+		if (guardSeconds > 0.0D) {
+			long until = player.serverLevel().getGameTime() + (long) (guardSeconds * 20.0D);
+			GUARD_UNTIL.merge(player.getUUID(), until, Math::max);
+		}
 		double damage = shatterDamage(player);
 		if (!wearsSatanicBible(player) || damage <= 0.0D) {
 			return;
@@ -1203,6 +1215,30 @@ public final class DemonPact {
 		RevelationTracker.sync(player);
 	}
 
+	/** 2.13：黑心破裂后的短无敌期内取消一切来源伤害 */
+	public static void onHurt(LivingHurtEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player && isGuarded(player)) {
+			event.setAmount(0.0F);
+			event.setCanceled(true);
+		}
+	}
+
+	/** 2.13：当前是否处于黑心破裂无敌 */
+	public static boolean isGuarded(ServerPlayer player) {
+		if (player == null) {
+			return false;
+		}
+		Long until = GUARD_UNTIL.get(player.getUUID());
+		if (until == null) {
+			return false;
+		}
+		if (player.serverLevel().getGameTime() >= until) {
+			GUARD_UNTIL.remove(player.getUUID());
+			return false;
+		}
+		return true;
+	}
+
 	/**
 	 * 1.7.3：清掉该玩家在契约体系里的**内存态**（目前只有"黑心补满计时"）。
 	 *
@@ -1211,6 +1247,7 @@ public final class DemonPact {
 	public static void forget(ServerPlayer player) {
 		if (player != null) {
 			BLACK_HEART_REFILL.remove(player.getUUID());
+			GUARD_UNTIL.remove(player.getUUID());
 		}
 	}
 
@@ -1224,6 +1261,19 @@ public final class DemonPact {
 		applyingSacrifice = false;
 		applyingShatter = false;
 		BLACK_HEART_REFILL.clear();
+		GUARD_UNTIL.clear();
+	}
+
+	/** 自检用：清掉黑心破裂无敌（不影响池子与计时） */
+	public static void clearGuardForTest(ServerPlayer player) {
+		if (player != null) {
+			GUARD_UNTIL.remove(player.getUUID());
+		}
+	}
+
+	/** 自检用：黑心破裂无敌截止时间 */
+	public static long guardUntil(ServerPlayer player) {
+		return player == null ? 0L : GUARD_UNTIL.getOrDefault(player.getUUID(), 0L);
 	}
 
 	/** 自检用：把「黑心补满」的计时器压到下一秒（便于在几秒内验证周期补满） */

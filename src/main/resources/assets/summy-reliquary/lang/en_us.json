@@ -359,7 +359,7 @@
   "item.summy-reliquary.sacrificial_dagger": "Sacrificial Dagger",
   "item.summy-reliquary.sacrificial_dagger.tagline.1": "An unremarkable dagger.",
   "item.summy-reliquary.sacrificial_dagger.shift.1": "Sacrifice",
-  "item.summy-reliquary.sacrificial_dagger.shift.2": "- Right-click to sacrifice yourself: take 4 true damage (shields can absorb it; it can kill you and does not trigger death interception)",
+  "item.summy-reliquary.sacrificial_dagger.shift.2": "- Right-click to sacrifice yourself: take 4 true damage (shields can absorb it; it can kill you only when your pools are empty, and does not trigger death interception)",
   "item.summy-reliquary.sacrificial_dagger.shift.3": "- Gain +40% melee damage for 8 s",
   "item.summy-reliquary.sacrificial_dagger.shift.4": "- The bonus decays linearly to 0% over the duration",
   "item.summy-reliquary.dark_arts": "Dark Arts",

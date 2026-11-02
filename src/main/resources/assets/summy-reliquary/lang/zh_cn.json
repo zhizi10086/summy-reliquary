@@ -359,7 +359,7 @@
   "item.summy-reliquary.sacrificial_dagger": "献祭匕首",
   "item.summy-reliquary.sacrificial_dagger.tagline.1": "一把平平无奇的匕首。",
   "item.summy-reliquary.sacrificial_dagger.shift.1": "献祭",
-  "item.summy-reliquary.sacrificial_dagger.shift.2": "·右键牺牲自己：受到 4 点真实伤害（护盾可抵挡；会致死，且不触发死亡拦截）",
+  "item.summy-reliquary.sacrificial_dagger.shift.2": "·右键牺牲自己：受到 4 点真实伤害（护盾可抵挡；池子为空时会致死，且不触发死亡拦截）",
   "item.summy-reliquary.sacrificial_dagger.shift.3": "·获得 +40% 近战伤害，持续 8 秒",
   "item.summy-reliquary.sacrificial_dagger.shift.4": "·加成随时间线性衰减，到期降为 0%",
   "item.summy-reliquary.dark_arts": "暗仪刺刀",
