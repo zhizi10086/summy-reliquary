@@ -91,6 +91,16 @@ public final class VirtuesEffects {
 	/** 攻击者是本模组玩家时的七德伤害修正 */
 	public static float modifyOutgoingDamage(ServerPlayer attacker, LivingEntity victim, DamageSource source,
 			float amount) {
+		return modifyOutgoingDamage(attacker, victim, source, amount, false);
+	}
+
+	/** 2.17：只计算七德的正面“全伤害”增伤，不累积近战专属的耐心层数 */
+	public static float modifyOutgoingAllDamage(ServerPlayer attacker, LivingEntity victim, float amount) {
+		return modifyOutgoingDamage(attacker, victim, null, amount, true);
+	}
+
+	private static float modifyOutgoingDamage(ServerPlayer attacker, LivingEntity victim, DamageSource source,
+			float amount, boolean allDamageOnly) {
 		if (!active(attacker)) {
 			return amount;
 		}
@@ -104,7 +114,7 @@ public final class VirtuesEffects {
 		}
 
 		// 耐心：仅近战，对同一目标连续命中叠加 +6%/层、上限 30%
-		boolean melee = source != null && source.getDirectEntity() == attacker;
+		boolean melee = !allDamageOnly && source != null && source.getDirectEntity() == attacker;
 		if (melee) {
 			long now = attacker.level().getGameTime();
 			long resetTicks = ReliquaryConfig.patienceResetSeconds() * 20L;

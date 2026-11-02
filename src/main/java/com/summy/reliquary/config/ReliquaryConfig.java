@@ -339,6 +339,8 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.BooleanValue ENABLE_INVULNERABILITY_CHANGE;
 	/** 1.8.6：真伤命中后是否清掉受害者的保护帧 */
 	private static final ForgeConfigSpec.BooleanValue CLEAR_IFRAMES_AFTER_TRUE_DAMAGE;
+	/** 2.0.0 / 2.17：定值真伤是否吃七罪、七德、最终倍率与条件乘区 */
+	private static final ForgeConfigSpec.BooleanValue EXACT_DAMAGE_GETS_MULTIPLIER;
 	private static final ForgeConfigSpec.IntValue INVULNERABILITY_TICKS;
 	private static final ForgeConfigSpec.DoubleValue MAX_ATTACK_SPEED;
 
@@ -733,6 +735,11 @@ public final class ReliquaryConfig {
 				.comment("本模组的真伤（圣光 / 启示之光 / 神性光环 / 狱火 / 恶魔之焰 / 深渊光环 / 黑心碎裂 / 献祭等）"
 						+ "命中后是否再清一次受害者的保护帧（默认开启）；关闭则恢复「只在命中前清帧」的旧行为")
 				.define("clear_iframes_after_true_damage", true);
+		EXACT_DAMAGE_GETS_MULTIPLIER = builder
+				.comment("定值真伤是否吃本模组的七罪、七德、最终倍率与思想 / 玄秘魔眼 / 恶魔王冠条件乘区（默认关闭）；"
+						+ "开启后 isExactDamage 名单优先，但纯 isDivine 伤害仍排除。"
+						+ "若同时安装 Summy Threat，必须关闭其 [reliquary_compat] enable_fixed_damage_boosts，避免双重放大")
+				.define("exact_damage_gets_multiplier", false);
 		INVULNERABILITY_TICKS = builder
 				.comment("一般受伤的有效无敌窗口（tick，默认 5 = 0.25 秒）；"
 						+ "实现上会写成 窗口+10（原版判定是 invulnerableTime > 10），0 = 这一档交回原版")
@@ -1206,6 +1213,20 @@ public final class ReliquaryConfig {
 		} catch (IllegalStateException exception) {
 			return true;
 		}
+	}
+
+	/** 2.0.0 / 2.17：定值真伤是否吃本模组的出伤乘区（默认关） */
+	public static boolean exactDamageGetsMultiplier() {
+		try {
+			return EXACT_DAMAGE_GETS_MULTIPLIER.get();
+		} catch (IllegalStateException exception) {
+			return false;
+		}
+	}
+
+	/** 自检专用：临时切换 2.17 开关，调用方必须在 finally 中恢复 */
+	public static void setExactDamageGetsMultiplierForDevCheck(boolean enabled) {
+		EXACT_DAMAGE_GETS_MULTIPLIER.set(enabled);
 	}
 
 	public static int invulnerabilityTicks() {

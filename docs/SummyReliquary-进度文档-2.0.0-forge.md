@@ -1,13 +1,13 @@
-# Summy Reliquary 进度文档（截至 1.8.8-forge）
+# Summy Reliquary 进度文档（截至 2.0.0-forge）
 
-> 更新时间：2026-10-25（1.8.8）　｜　对应版本：**1.8.8-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-11-02（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > 本文档由当前代码与资源逐一核对后整理，内容与 `README.md` 一致（README 是随版本更新的主文档，本文档是更全的"总台账"）。
 
 ---
 
 ## 0. 一句话概览
 
-以 **Curios** 为前置的 Forge 1.20.1 饰品模组：**7 个本模组栏位（含 1.6.0 的动态「恶魔契约」）+ Curios 自带的「护符」「背饰」两栏 + 50 件已注册物品（1.7.5 起含武器，1.7.8 起含两把天使线长矛，1.7.10 起含金刀片）+ 24 个进度（1 个新根 + 恶魔线 9 + 天使线 3 + 原有 10 + 近乎完美 1）+ 10 个网络包 + 26 个配置段 / 267 个键（源码口径；实例 config 因历史残留键 `frame_damage_ids` 会多 1）（1.7.1 新增 `[devil_crown]`，1.7.5 新增 `[shadow_dash]`，1.7.10 新增 `[golden_razor]`）**。
+以 **Curios** 为前置的 Forge 1.20.1 饰品模组：**7 个本模组栏位（含 1.6.0 的动态「恶魔契约」）+ Curios 自带的「护符」「背饰」两栏 + 50 件已注册物品（1.7.5 起含武器，1.7.8 起含两把天使线长矛，1.7.10 起含金刀片）+ 24 个进度（1 个新根 + 恶魔线 9 + 天使线 3 + 原有 10 + 近乎完美 1）+ 10 个网络包 + 26 个配置段 / 268 个键（源码口径；实例 config 因历史残留键 `frame_damage_ids` 会多 1）（1.7.1 新增 `[devil_crown]`，1.7.5 新增 `[shadow_dash]`，1.7.10 新增 `[golden_razor]`，2.0.0 为 `[combat]` 新增 1 键）**。
 核心玩法链：**七罪之源 → 赎罪（碎片/配方）→ 美德 → 纯洁之人（天使标记）→ 灵台三件套 → 伯列恒之星 → 终末天启 / 神性**；
 另有一条**加护**支线（救恩 / 圣光 / 神圣斗篷 / 圣心）与**启示之光**体系（光柱 + 领域 + buff + 心之碎片）。
 
@@ -22,16 +22,18 @@
 | 前置 | **Curios** `5.14.1+1.20.1`（`mods.toml` 只有 forge + minecraft + curios） |
 | Fabric 侧 | 通过 **Kilt** 跑同一个 jar（实测组合：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；另需 Sodium + Indium；Kilt 不兼容 Async / Embeddium） |
 | 构建 | `gradlew clean build`（产物自动复制到 `../JAR/summy-reliquary/`） |
-| 当前版本 | `1.8.8-forge`（协议 `"14"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
+| 当前版本 | `2.0.0-forge`（协议 `"14"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
 | 二创与致谢 | 本模组是基于《以撒的结合》（The Binding of Isaac）的**粉丝二创作品**：物品贴图与部分设定有相当数量直接取自或改编自该作，**不主张任何权利**、不用于商业用途；`LICENSE` 的 MIT **只覆盖原创代码与原创素材**。完整中英声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`；联系邮箱 **525277385@qq.com** |
 | 实例部署 | 把新 jar 放进整合包 `mods/`，旧版本就地改名为 `*.jar.disabled`（同名双版本会因 mod id 重复报错） |
 | 诊断开关 | `-Pnodata`（去掉自定义伤害类型 + 原版伤害类型标签覆盖）、`-Pnotags`（只去掉标签覆盖）、`-Pnomodel`（去掉终末天启模型/贴图）；产物改名进 `_test/` |
 
-### 1.1 版本历史（1.5.x ~ 1.8.8）
+### 1.1 版本历史（1.5.x ~ 2.0.0）
 
 > **1.8.8 实机修复（四处）**：第一人称注入改用官方名 `applyItemArmTransform` / `applyItemArmAttackTransform`（`m_109382_` / `m_109335_`）；右键蓄力移除自定义变换、完全复用原版三叉戟（第一/第三人称都不再叠加举矛曲线）；第三人称删除 `poseArm` 接管，常态回到原版 `ITEM`、蓄力回到原版 `THROW_TRIDENT`，只保留戳刺挥臂；空挥门禁按“上次放行 tick + 20/攻速”计时，并在 `ClientTickEvent.END` 每 tick 通过 `ObfuscationReflectionHelper` 把 `Minecraft.missTime`（`f_91078_`）拉到“剩余冷却 + 1”做硬限（`BlockHitResult` 只在真正挖掘时放行）；第三人称握点 `translation` 调为 `[0, -2, 5.5]`（常态与蓄力模型统一）。
 >
 > **1.8.8 其余三项**：2.6 死亡拦截首触注释订正（只剩视觉抖动、不占用无敌帧）；2.12 发射瞬间蹲下的投射物永久不追踪（`EntityJoinLevelEvent` 写 `summy_reliquary_no_homing`，之后站起也不恢复）；2.15 27 件 Curios 饰品全部 `ALWAYS_KEEP`（22 个类补 `getDropRule` + `CurioItemSupport.keepOnDeath`）。
+
+**2.0.0**：2.17 定值真伤增伤转正。新增 `[combat] exact_damage_gets_multiplier`（默认 `false`）；开启后 `isExactDamage` 的 7 项——圣光爆发、金刀片、启示之光、神性光环、契约献祭、恶魔之焰、深渊光环——享受七罪 / 七德 / 最终倍率与思想、玄秘魔眼、恶魔王冠条件乘区。按精确名单优先，只属于 `isDivine` 的圣光主击、黑心碎裂、狱火仍排除。定值真伤只走正面全伤害模式，不触发暴怒自伤、色欲脱甲、贪婪惩罚、耐心叠层、献祭近战增伤与恶魔契约吸血；`ReliquaryEvents` 与 `SpiritAltarSet` 共用同一放行判定。ST 的 `enable_fixed_damage_boosts` 必须与本开关二选一。配置段 / 键为 **26 / 268**；本轮实施轮完成编译与构建，完整 605 行 `[DEVCHECK]` 留到 2.0 联调轮统一运行。
 
 **1.8.8**：长矛第一/第三人称完整动画（2.1）。① **Mixin 基础设施** —— 首次接入 MixinGradle 0.7.38 + Mixin 0.8.5 + MixinExtras 0.5.5（`jarJar` 打入产物），新增 `summy_reliquary.mixins.json`（`required: false` / `defaultRequire: 0`）；发布产物改取 `reobfJarJar`，正式包继续排除 devcheck。② **四个动画 Mixin** —— `LivingEntityMixin`（`getCurrentSwingDuration` = `clamp(round(20 / 攻速), 4, 40)`，与攻击冷却严格同步）、`ItemInHandRendererMixin`（抑制普通挥击位移 / 换手、替换 `applySwingOffset`、在 `getUseAnimation()` 前插入蓄力动画、蓄力时抑制装备偏移）、`HumanoidModelMixin`（`poseRightArm` / `poseLeftArm` / `setupAttackAnimation`）、`HeldItemFeatureRendererMixin`（第三人称手持物品前移 / 前突）。③ **曲线** —— `client/SpearAnimation` 纯函数复刻 `Backported-Spears` 的 `holdUpAnimation` 与戳刺三段曲线；自检新增 `checkSpearAnimationCurves`（攻速 1.0 / 2.0 / 4.0 / 100 / 0.1 → 20 / 10 / 5 / 4 / 40，蓄力 0→1，戳刺 0→1）。④ **边界** —— Mixin 仅限两把长矛动画；左键门禁 / 冷却 / 投掷结算 / GUI 模型全部不变。自检 **605 行全绿**；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议仍 `"14"`。
 
@@ -504,7 +506,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | `[demon_pact]` | `enable_demon_pact`(true)、`villager_sacrifice_damage`(10000)、`black_hearts`(2)、`absorption_per_black_heart`(2.0)、`damage_percent`(16)、`attack_speed_percent`(16)、`health_per_curse_percent`(2)、`speed_per_curse_percent`(2)、`lifesteal_curse_threshold`(5)、`lifesteal_percent`(6)、`evil_max`(1000)、`evil_per_point_percent`(0.1)、`evil_friendly`(1)、`evil_neutral`(0.5)、`evil_hostile`(0.1)、`evil_warden_wither`(10)、`evil_dragon`(20)、`evil_daily_cap`(100)、`evil_daily_decay`(5)、`evil_friendly_daily_cap`(20)；**1.6.1 新增**：`enable_robe`(true)、`robe_black_hearts`(2)、`robe_attack_damage`(2)、`robe_daily_decay`(3)、`enable_satanic_bible`(true)、`satanic_bible_black_hearts`(1)、`satanic_pact_refill_seconds`(30)、`satanic_pact_shatter_radius`(18)、`satanic_pact_shatter_damage`(24)；**1.6.2 新增**：`mark_shatter_damage`(40)、`mark_stops_evil_decay`(true)、`mark_black_hearts`(3)、`vengeful_hellfire_damage`(**6**)、`vengeful_hellfire_radius`(3)；**1.6.3 新增**：`night_wraith_movement_percent`(20)；**1.6.10 新增**：`mark_shatter_damage_abaddon`(60，亚巴顿 + 咒印的碎裂伤害) —— **该段当前共 38 键**（含 1.6.7 的 `vengeful_hellfire_radius_brimstone` 与 1.6.8 的 `vengeful_hellfire_radius_abaddon`，下面单列） |
 | `[the_halo]` | `max_health`(4)、`attack_damage`(2)、`attack_speed`(0.2)、`armor`(2)、`armor_toughness`(2)、`movement_percent`(10)、`break_speed_percent`(10)、`sin_multiplier`(0.5)、`virtue_multiplier`(2.0)；**1.7.1 追加**：`regen_health_threshold_percent`(50，获取过启示后低于该百分比 → 原版「生命回复」)、`regen_amplifier`(0) |
 | `[devil_crown]`（**1.7.1 新增**） | `enable_devil_crown`(true)、`movement_percent`(20)、`attack_speed`(0.4)、`melee_damage`(6.0)、`max_health`(−4.0)、`armor`(−4.0)、`armor_toughness`(−4.0)、`damage_per_lost_decile_percent`(3.0)、`damage_bonus_cap_percent`(15.0) |
-| `[combat]` | `enable_invulnerability_change`(true)、`invulnerability_ticks`(5，**一般受伤的"有效窗口"**；代码写入的字段值是 `窗口 + 10`)、**1.6.3 新增**：`invulnerability_ticks_frame_damage`(10，帧伤 / 持续环境伤害，等于原版口径)、`frame_damage_ids`(`[]`，把其它模组的持续伤害也归到 10 tick 档，可写 `mod:xxx` / `mod.xxx`）、`log_iframe_throttle`(true，每 5 秒一条"尝试 / 落地 / 被挡下 + 来源")、**1.6.4 新增 / 1.6.5 默认改 true**：`log_damage_pools`(**true**，1.6.5 起每次池子"命中前算清"与"对账"各打一条明细：`A0` / `healthPart` / `charged` / `topUp` / `after` / `consumed` / `shieldConsumed` / `refund` / `nullify` / `Fabric|Forge`)、`max_attack_speed`(4.0)、`affect_target_dummies`(**true**) |
+| `[combat]` | `enable_invulnerability_change`(true)、`invulnerability_ticks`(5，**一般受伤的"有效窗口"**；代码写入的字段值是 `窗口 + 10`)、**1.6.3 新增**：`invulnerability_ticks_frame_damage`(10，帧伤 / 持续环境伤害，等于原版口径)、`frame_damage_ids`(`[]`，把其它模组的持续伤害也归到 10 tick 档，可写 `mod:xxx` / `mod.xxx`）、`log_iframe_throttle`(true，每 5 秒一条"尝试 / 落地 / 被挡下 + 来源")、**1.6.4 新增 / 1.6.5 默认改 true**：`log_damage_pools`(**true**，1.6.5 起每次池子"命中前算清"与"对账"各打一条明细：`A0` / `healthPart` / `charged` / `topUp` / `after` / `consumed` / `shieldConsumed` / `refund` / `nullify` / `Fabric|Forge`)、`max_attack_speed`(4.0)、`affect_target_dummies`(**true**)、`clear_iframes_after_true_damage`(true)、**2.0.0 新增**：`exact_damage_gets_multiplier`(**false**，开启后 isExactDamage 的 7 项吃正面全伤害乘区；与 ST 兼容层二选一) |
 | `[brimstone]`（1.6.4 新增） | `enable_brimstone`(true)、`charge_seconds`(1.5)、`beam_length`(18)、`beam_radius`(2)、`beam_duration_seconds`(1.3)、`damage_per_tick`(6)、`damage_interval_seconds`(0.1)、`cooldown_seconds`(6) |
 | `[occult_eye]`（1.6.5 新增） | `enable_occult_eye`(true)、`fear_radius`(24)、`fear_seconds`(6)、`fear_affects_players`(true)、`fear_glow`(true)、`fear_glow_affects_players`(true)、`fear_damage_multiplier`(1.3)、**`fear_darkness`(true，1.6.6 起；旧键 `fear_blindness` 仍参与判定，显式 false 时依旧关闭)**、`fear_mining_fatigue_amplifier`(2)、`fear_slowness_amplifier`(5)、`fear_weakness_amplifier`(9)；**1.6.10**：`fear_freeze_with_abaddon`(true，亚巴顿联动：恐惧期间额外移速归零) |
 | `[abyss_lord]`（1.6.7 新增） | `enable_abyss_lord`(true)、`hellfire_seconds`(6)、`hellfire_max_level`(10)、`hellfire_armor_percent_per_level`(10 = 每级 −10% 护甲)、`hellfire_damage_per_level_per_second`(1 = 每级 +1 点/秒)、`enable_demon_fire_immunity`(true = 当前恶魔线免疫火焰/岩浆/岩浆块且不着火)；**1.6.10**：`hellfire_max_level_halves_resistance_with_abaddon`(true，亚巴顿联动：狱火满级时目标抗性减半并持续覆盖) |
@@ -514,7 +516,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | `[shadow_dash]`（**1.7.5 新增，14 键**） | `enable_shadow_dash`(true)、`sacrificial_duration_ticks`(20)、`dark_arts_duration_ticks`(40)、`sacrificial_slash_multiplier`(1.0)、`dark_arts_slash_multiplier`(2.0)、`contact_radius`(2.0)、`heavy_slash_radius`(3.0)、`movement_percent`(100)、`cooldown_ticks`(120)、`resolve_interval_ticks`(2)、`recovery_missing_seconds`(300，1.7.6 起：连续多少秒没匕首才开放防丢失配方)；**1.7.10 新增**：`abaddon_duration_bonus_ticks`(20)、`abaddon_contact_radius_bonus`(1.0)、`abaddon_heavy_radius_bonus`(2.0)（亚巴顿联动：技能时长 +1 秒 / 接触半径 +1 / 强力斩击半径 +2） |
 | `[golden_razor]`（**1.7.10 新增，7 键**） | `enable_golden_razor`(true)、`razor_damage`(5.0)、`razor_cooldown_ticks`(10)、`razor_velocity`(1.8，1.7.10 收尾由 1.5 提高)、`razor_pierce_level`(127)、`razor_max_life_ticks`(200)、`razor_stuck_ticks`(100，1.7.10 收尾新增：命中方块后插在原地停留 5 秒再清除) |
 
-> **配置段总览（1.8.6 实测）**：共 **26 个配置段 / 267 个键**（**源码口径**：`ReliquaryConfig` 里的 `.define*` 调用数；实例 config 因历史残留键 `frame_damage_ids` 会多 1） —— `[maid]`(1)、`[spirit_altar]`(14)、`[combat]`(9)、`[the_halo]`(11)、`[devil_crown]`(9)、`[revelation]`(18)、`[start]`(2)、`[sins]`(38)、`[virtues]`(12)、`[blessing]`(5)、`[holy_light]`(9)、`[holy_mantle]`(3)、`[sacred_heart]`(11)、`[godhead]`(9)、`[revelation_light]`(7)、`[pentagram]`(2)、`[demon_deal]`(6)、`[demon_pact]`(38)、`[brimstone]`(8)、`[occult_eye]`(13)、`[abyss_lord]`(7)、`[abaddon]`(9)、`[shadow_dash]`(14)、`[golden_razor]`(7)、`[sacrifice]`(5)、`[divine_action]`(1)。
+> **配置段总览（2.0.0 实测）**：共 **26 个配置段 / 268 个键**（**源码口径**：`ReliquaryConfig` 里的 `.define*` 调用数；实例 config 因历史残留键 `frame_damage_ids` 会多 1） —— `[maid]`(1)、`[spirit_altar]`(14)、`[combat]`(10)、`[the_halo]`(11)、`[devil_crown]`(9)、`[revelation]`(18)、`[start]`(2)、`[sins]`(38)、`[virtues]`(12)、`[blessing]`(5)、`[holy_light]`(9)、`[holy_mantle]`(3)、`[sacred_heart]`(11)、`[godhead]`(9)、`[revelation_light]`(7)、`[pentagram]`(2)、`[demon_deal]`(6)、`[demon_pact]`(38)、`[brimstone]`(8)、`[occult_eye]`(13)、`[abyss_lord]`(7)、`[abaddon]`(9)、`[shadow_dash]`(14)、`[golden_razor]`(7)、`[sacrifice]`(5)、`[divine_action]`(1)。
 
 ---
 
@@ -1358,7 +1360,7 @@ seraph_spear : [下界之星][      ][心之碎片] / [  ][圣光短矛][      ]
 
 | 工程 | 说明 |
 | --- | --- |
-| **Summy Reliquary**（本工程） | 上述内容；版本 1.8.8-forge |
+| **Summy Reliquary**（本工程） | 上述内容；版本 2.0.0-forge |
 | **Summy Enchantment**（`../summy-enchantment`） | 26 个附魔、9 组配置页；与 SR 的交互点：**魂心是独立池**（1.6.2 起，不再写原版吸收值，所以与 SE 的生命护盾**互不挤占**、结算顺序为 护盾 → 魂心 → 黑心 → 红血）、SE 的「出其不意」= 同源第二次命中（SR 视为两次攻击）、SE 的「魔剑」= 同一击的追加段（SR 求和后只掷一次；1.6.3 起两档窗口改写只发生在「新的一击」，SE 追加段自己清冷却所以照常落地）、「大胃袋」会抬饥饿上限（SR 暴食未赎罪时取 `min(18, 上限)`） |
 
 ---

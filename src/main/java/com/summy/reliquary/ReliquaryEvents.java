@@ -760,22 +760,30 @@ public final class ReliquaryEvents {
 		}
 
 		// 七罪：攻击者是本模组玩家时的增伤与暴怒自伤
+		boolean exactDamageBonuses = com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource())
+				&& ReliquaryConfig.exactDamageGetsMultiplier();
+		boolean regularDamageBonuses = !com.summy.reliquary.effect.HolyLightEffect.isDivine(event.getSource())
+				&& !com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource());
 		if (event.getSource().getEntity() instanceof ServerPlayer attacker
 				&& attacker != event.getEntity() && !event.isCanceled()
-				// 本模组的神性伤害（圣光 / 启示之光）与定值真伤（神性光环 / 契约献祭等）
-				// 不再吃一遍七罪七德倍率（2.4：并集口径，与 SpiritAltarSet 那一层一致；
-				// 金刀片本来就在 isDivine 名单里，不会被漏掉）
-				&& !(com.summy.reliquary.effect.HolyLightEffect.isDivine(event.getSource())
-						|| com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource()))) {
+				&& (regularDamageBonuses || exactDamageBonuses)) {
 			if (!suppressBonus) {
-				float sinDamage = SinEffects.modifyOutgoingDamage(attacker, event.getEntity(), event.getSource(), event.getAmount());
-				float virtueDamage = com.summy.reliquary.effect.VirtuesEffects.modifyOutgoingDamage(
-						attacker, event.getEntity(), event.getSource(), sinDamage);
+				// 2.17：定值真伤只走无副作用的正面全伤害模式；普通伤害保持原有全部结算。
+				float sinDamage = exactDamageBonuses
+						? SinEffects.modifyOutgoingAllDamage(attacker, event.getEntity(), event.getAmount())
+						: SinEffects.modifyOutgoingDamage(
+								attacker, event.getEntity(), event.getSource(), event.getAmount());
+				float virtueDamage = exactDamageBonuses
+						? com.summy.reliquary.effect.VirtuesEffects.modifyOutgoingAllDamage(
+								attacker, event.getEntity(), sinDamage)
+						: com.summy.reliquary.effect.VirtuesEffects.modifyOutgoingDamage(
+								attacker, event.getEntity(), event.getSource(), sinDamage);
 				// 圣心 + 神性：同一个「全伤害最终倍率」乘区（相加），并且不吃到本模组的神性伤害上
-				event.setAmount(virtueDamage * finalDamageMultiplier(attacker, event.getSource()));
+				event.setAmount(virtueDamage
+						* finalDamageMultiplier(attacker, event.getSource(), regularDamageBonuses));
 			}
-			// 恶魔契约（1.6.0）：诅咒 > 阈值时按本次出伤值吸血（口径同 SE 嗜血）
-			if (com.summy.reliquary.effect.DemonPact.lifestealActive(attacker)) {
+			// 恶魔契约（1.6.0）：吸血仍只认普通伤害，2.17 不把定值真伤转成吸血来源。
+			if (regularDamageBonuses && com.summy.reliquary.effect.DemonPact.lifestealActive(attacker)) {
 				attacker.heal(event.getAmount()
 						* (float) (ReliquaryConfig.pactLifestealPercent() / 100.0D));
 			}
@@ -969,10 +977,10 @@ public final class ReliquaryEvents {
 	}
 
 	// 「全伤害最终倍率」：圣心 + 神性 + 伯列恒之星 / 终末天启 同属一个乘区，相加后一次性相乘
-	// （星 + 圣心 = 1.5 倍，而不是 1.56）。调用点已经排除了本模组的神性伤害
-	// （圣光 / 光柱 / 领域），所以不会出现"圣光伤害再乘一遍"的重复计算。
+	// （星 + 圣心 = 1.5 倍，而不是 1.56）。普通伤害与 2.17 开启后的定值真伤会进入本乘区；
+	// 纯 isDivine 伤害仍由调用点排除，定值真伤还会跳过献祭的近战专属剩余增伤。
 	private static float finalDamageMultiplier(ServerPlayer attacker,
-			net.minecraft.world.damagesource.DamageSource source) {
+			net.minecraft.world.damagesource.DamageSource source, boolean includeMeleeBonuses) {
 		double percent = 0.0D;
 		if (CurioHelper.wears(attacker, SummyReliquary.SACRED_HEART.get())) {
 			percent += ReliquaryConfig.sacredHeartDamagePercent();
@@ -981,7 +989,7 @@ public final class ReliquaryEvents {
 			percent += ReliquaryConfig.godheadDamagePercent();
 		}
 		// 1.8.3：伯列恒之星 / 终末天启的「造成伤害 +20%」由 SpiritAltarSet 挪进本乘区，
-		// 与圣心相加而非相乘；作用范围随本乘区一起排除本模组的全部特效伤害
+		// 与圣心相加而非相乘；2.17 开启后定值真伤也进入本乘区
 		if (CurioHelper.wears(attacker, SummyReliquary.STAR_OF_BETHLEHEM.get())
 				|| CurioHelper.wears(attacker, SummyReliquary.FINAL_REVELATION.get())) {
 			percent += ReliquaryConfig.starDamagePercent();
@@ -989,7 +997,8 @@ public final class ReliquaryEvents {
 		// 恶魔契约（1.6.0）：契约 16% + 邪恶度（奇偶交替）也进同一个乘区
 		percent += com.summy.reliquary.effect.DemonPact.attackBonusPercent(attacker);
 		// 献祭（1.8.2）：只对严格左键近战生效，并随剩余时间线性衰减
-		if (com.summy.reliquary.effect.Sacrifice.isMeleeHit(attacker, source)) {
+		// 献祭剩余时间属于严格左键近战，2.17 的定值真伤分支必须显式跳过。
+		if (includeMeleeBonuses && com.summy.reliquary.effect.Sacrifice.isMeleeHit(attacker, source)) {
 			percent += com.summy.reliquary.effect.Sacrifice.bonusPercent(attacker);
 		}
 		return (float) (1.0D + percent / 100.0D);

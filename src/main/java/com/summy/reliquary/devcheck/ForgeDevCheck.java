@@ -4139,9 +4139,11 @@ public final class ForgeDevCheck {
 	}
 
 	/**
-	 * 2.4：定值真伤（{@code isExactDamage}）不再被七罪 / 七德 / 最终倍率层放大。
+	 * 2.4 / 2.17：定值真伤增伤开关。
 	 *
-	 * <p>场面：圣心 + 神性（最终倍率 ×1.5）。普通近战 10 → 15；神性光环 10 与契约献祭 10000 必须原样通过。
+	 * <p>默认关闭：普通近战 10 → 15；神性光环 10 与契约献祭 10000 原样通过。
+	 * 开启后：精确名单（含与 isDivine 重叠的项目）吃乘区，纯 isDivine 仍排除；
+	 * 暴怒自伤与色欲脱甲等附带效果始终不进入定值真伤路径。
 	 */
 	private static void checkExactDamageMultiplierGuard(ServerPlayer player) {
 		ensureAngelLine(player);
@@ -4163,20 +4165,80 @@ public final class ForgeDevCheck {
 			return;
 		}
 		target.setHealth(target.getMaxHealth());
-		float melee = outgoingDamage(player, target, 10.0F);
-		float aura = hurtAmount(player, target, "godhead_aura", 10.0F);
-		float sacrifice = hurtAmount(player, target, "sacrifice", 10000.0F);
-		boolean ok = Math.abs(melee - 15.0F) < 1.0E-4F
-				&& Math.abs(aura - 10.0F) < 1.0E-4F
-				&& Math.abs(sacrifice - 10000.0F) < 1.0E-2F;
-		log(String.format("定值真伤不吃乘区（2.4）：普通近战 10 → %.2f（应 15 = 圣心+神性 ×1.5）、"
-						+ "神性光环 10 → %.2f（应仍是 10）、契约献祭 10000 → %.1f（应仍是 10000）→ 合计=%s（应 true）",
-				melee, aura, sacrifice, ok));
-		target.discard();
-		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
-			handler.setEquippedCurio(ReliquarySlots.REVELATION, 0, ItemStack.EMPTY);
-			handler.setEquippedCurio(ReliquarySlots.BLESSING, 0, ItemStack.EMPTY);
-		});
+		boolean original = com.summy.reliquary.config.ReliquaryConfig.exactDamageGetsMultiplier();
+		try {
+			com.summy.reliquary.config.ReliquaryConfig.setExactDamageGetsMultiplierForDevCheck(false);
+			float melee = outgoingDamage(player, target, 10.0F);
+			float aura = hurtAmount(player, target, "godhead_aura", 10.0F);
+			float sacrifice = hurtAmount(player, target, "sacrifice", 10000.0F);
+
+			com.summy.reliquary.config.ReliquaryConfig.setExactDamageGetsMultiplierForDevCheck(true);
+			float enabledMelee = outgoingDamage(player, target, 10.0F);
+			float burst = hurtAmount(player, target, "holy_light_burst", 10.0F);
+			float enabledAura = hurtAmount(player, target, "godhead_aura", 10.0F);
+			float enabledSacrifice = hurtAmount(player, target, "sacrifice", 10000.0F);
+			float holyLight = hurtAmount(player, target, "holy_light", 10.0F);
+
+			// 思想三件套 + 发光目标：验证 SpiritAltarSet 与 ReliquaryEvents 共用同一放行口径。
+			CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+				handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, 0,
+						new ItemStack(SummyReliquary.THE_BODY.get()));
+				handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, 1,
+						new ItemStack(SummyReliquary.THE_MIND.get()));
+				handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, 2,
+						new ItemStack(SummyReliquary.THE_SOUL.get()));
+			});
+			target.setGlowingTag(true);
+			float conditional = hurtAmount(player, target, "revelation_light", 10.0F);
+			target.setGlowingTag(false);
+			CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+				for (int index = 0; index < 3; index++) {
+					handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, index, ItemStack.EMPTY);
+				}
+			});
+
+			// 附带效果必须不触发：暴怒自伤与色欲脱甲都只看普通伤害路径。
+			CuriosApi.getCuriosInventory(player).ifPresent(handler ->
+					handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 0,
+							new ItemStack(SummyReliquary.SOURCE_OF_SINS.get())));
+			target.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.DIAMOND_HELMET));
+			SinManager.setState(player, Sin.WRATH, SinManager.SinState.ACTIVATED);
+			SinManager.setState(player, Sin.LUST, SinManager.SinState.ACTIVATED);
+			com.summy.reliquary.sin.SinEffects.resetCounters();
+			for (int index = 0; index < 100; index++) {
+				hurtAmount(player, target, "godhead_aura", 10.0F);
+			}
+			int wrathHits = com.summy.reliquary.sin.SinEffects.wrathSelfHitCount();
+			int armorStrips = com.summy.reliquary.sin.SinEffects.lustStripArmorCount();
+
+			boolean ok = Math.abs(melee - 15.0F) < 1.0E-4F
+					&& Math.abs(aura - 10.0F) < 1.0E-4F
+					&& Math.abs(sacrifice - 10000.0F) < 1.0E-2F
+					&& Math.abs(enabledMelee - 15.0F) < 1.0E-4F
+					&& Math.abs(burst - 15.0F) < 1.0E-4F
+					&& Math.abs(enabledAura - 15.0F) < 1.0E-4F
+					&& Math.abs(enabledSacrifice - 15000.0F) < 1.0E-2F
+					&& Math.abs(holyLight - 10.0F) < 1.0E-4F
+					&& Math.abs(conditional - 16.5F) < 1.0E-3F
+					&& wrathHits == 0 && armorStrips == 0;
+			log(String.format("定值真伤增伤（2.17）：关闭时 普通 %.2f / 光环 %.2f / 契约 %.1f；"
+							+ "开启时 普通 %.2f / 圣光爆发 %.2f / 光环 %.2f / 契约 %.1f / 纯圣光 %.2f / 条件 %.2f；"
+							+ "附带效果 自伤=%d / 脱甲=%d → 合计=%s（应 true）",
+					melee, aura, sacrifice, enabledMelee, burst, enabledAura, enabledSacrifice,
+					holyLight, conditional, wrathHits, armorStrips, ok));
+		} finally {
+			com.summy.reliquary.config.ReliquaryConfig.setExactDamageGetsMultiplierForDevCheck(original);
+			target.discard();
+			resetSinState(player);
+			CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+				handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 0, ItemStack.EMPTY);
+				for (int index = 0; index < 3; index++) {
+					handler.setEquippedCurio(ReliquarySlots.SPIRIT_ALTAR, index, ItemStack.EMPTY);
+				}
+				handler.setEquippedCurio(ReliquarySlots.REVELATION, 0, ItemStack.EMPTY);
+				handler.setEquippedCurio(ReliquarySlots.BLESSING, 0, ItemStack.EMPTY);
+			});
+		}
 	}
 
 	/**

@@ -285,6 +285,15 @@ Summy Reliquary 是一个以 **Curios** 为前置的七罪主题饰品与武器�
 - 贪婪的钻石只统计玩家自身背包（36 格 + 副手 + 盔甲槽），不含 Curios 与箱子。
 - 暴食未赎罪时饥饿上限取 `min(18, 当前环境下限)`（装了 summy-enchantment 的「大胃袋」也一样）。
 
+## 2.0.0 变更
+
+> 1.8.8 及更早的历史见 [CHANGELOG.md](CHANGELOG.md)。
+
+- **定值真伤增伤转正（2.17）**：新增 `[combat] exact_damage_gets_multiplier`（默认 `false`）。开启后，`isExactDamage` 的 7 项伤害享受七罪 / 七德 / 最终倍率与思想、玄秘魔眼、恶魔王冠条件乘区；纯 `isDivine` 的圣光、黑心碎裂、狱火仍排除。
+- **无副作用口径**：定值真伤只吃正面全伤害乘区，不触发暴怒自伤、色欲脱甲、贪婪惩罚、耐心近战叠层、献祭近战增伤或恶魔契约吸血。
+- **兼容**：同时安装 Summy Threat 时，本开关与 `[reliquary_compat] enable_fixed_damage_boosts` 必须二选一，避免双重放大。
+- **交付**：版本 `2.0.0-forge`；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议保持 **`"14"`**；配置段 / 键为 **26 / 268**。本轮按快速验证口径完成编译与构建，完整 605 行客户端自检留到 2.0 联调轮复核。
+
 ## 1.8.8 变更
 
 > 1.8.7 及更早的历史见 [CHANGELOG.md](CHANGELOG.md)。
@@ -493,9 +502,12 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
                    # invulnerability_ticks_frame_damage(默认 10 = 帧伤与持续环境伤害，回到原版口径 0.5 秒)
                    # frame_damage_ids(默认空，把其它模组的持续伤害也归到 10 tick 档)
                    # log_iframe_throttle(默认 true，每 5 秒汇总一条"尝试/落地/被挡下 + 来源")
-                    # log_damage_pools(新配置文件默认 true；旧配置里可能是 false，排查池子时记得改成 true)
+                   # log_damage_pools(新配置文件默认 true；旧配置里可能是 false，排查池子时记得改成 true)
                    # max_attack_speed(默认 4.0，攻速属性整体上限)
                    # affect_target_dummies(默认 true：救恩领域 / 神性光环也打训练人偶)
+                   # clear_iframes_after_true_damage(默认 true：真伤落地后再清一次保护帧)
+                   # exact_damage_gets_multiplier(默认 false：开启后定值真伤吃正面全伤害乘区；
+                   #   与 Summy Threat 的 enable_fixed_damage_boosts 二选一)
 [revelation_light] # 启示之光 buff 与心之碎片：enable_buff(true) / buff_seconds(7.0)
                    # / enable_heart_shard_drop(true) / drop_chance_percent(0.5)
                    # / boss_chance_percent(5) / dragon_chance_percent(20)

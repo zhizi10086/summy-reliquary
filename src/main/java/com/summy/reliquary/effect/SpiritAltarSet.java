@@ -159,12 +159,9 @@ public final class SpiritAltarSet {
 		if (!(attacker instanceof ServerPlayer player)) {
 			return;
 		}
-		// 1.8.3：本模组自己的全部伤害类型都不吃这一层加成。这里必须用**并集**：
-		// isDivine 与 isExactDamage 互不包含 —— isDivine 独有 holy_light（圣光）/ pact_shatter（黑心碎裂）/ hellfire（狱火），
-		// isExactDamage 独有 godhead_aura（神性光环）/ sacrifice（契约献祭），只用其中一个都会漏掉另一边。
-		// 于是圣光只在"主击基准"里继承过一次加伤，不会在本层被重复放大。
-		if (com.summy.reliquary.effect.HolyLightEffect.isDivine(event.getSource())
-				|| com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource())) {
+		// 2.17：统一按精确名单判定。默认仍是纯 isDivine ∪ isExactDamage 全排除；
+		// 开关开启后 isExactDamage 放行，且同步覆盖与 isDivine 重叠的 5 项。
+		if (!com.summy.reliquary.effect.HolyLightEffect.shouldApplyPlayerDamageBonuses(event.getSource())) {
 			return;
 		}
 
@@ -186,7 +183,7 @@ public final class SpiritAltarSet {
 		}
 
 		// 恶魔王冠（1.7.1）：邪恶 666 后，按"已损失生命"每 10% 一档 +3%（上限 +15%）
-		// —— 与上面几条同层（事件金额、减伤之前）；定值真伤已在上面 return 掉，不会吃这个加成
+		// —— 与上面几条同层（事件金额、减伤之前）；是否作用到定值真伤由 2.17 开关统一决定
 		double crownBonus = DevilCrown.damageBonusPercent(player);
 		if (crownBonus > 0.0D) {
 			amount *= 1.0F + (float) (crownBonus / 100.0D);

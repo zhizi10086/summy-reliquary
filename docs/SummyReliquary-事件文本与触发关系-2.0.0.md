@@ -1,7 +1,7 @@
-# Summy Reliquary 事件文本与触发关系总台账（1.8.8-forge）
+# Summy Reliquary 事件文本与触发关系总台账（2.0.0-forge）
 
-> 更新时间：2026-10-25（1.8.8）　｜　对应版本：**1.8.8-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
-> **1.8.8 不涉文本**：长矛动画只改客户端渲染与挥击时长（2.1），不新增 / 修改任何事件文本、语言键或触发关系，
+> 更新时间：2026-11-02（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> **2.0.0 不涉文本**：2.17 只改定值真伤的出伤乘区与配置开关，不新增 / 修改任何事件文本、语言键或触发关系，
 > 语言键表与触发关系表均不变。
 > 用途：把所有"会显示给玩家的话"按**触发条件**整理成一张表，方便改文案、查文案、加功能时对照。
 > 权威文本源：`src/main/resources/assets/summy-reliquary/lang/zh_cn.json` / `en_us.json`（改文案只改这两个文件，代码里没有硬编码中文）。

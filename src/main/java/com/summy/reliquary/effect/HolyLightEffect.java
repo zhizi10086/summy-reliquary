@@ -343,17 +343,33 @@ public final class HolyLightEffect {
 	}
 
 	/**
-	 * 1.6.4：**金额必须分毫不差**的本模组真伤（启示之光 / 神性光环 / 献祭 / 恶魔之焰）。
+	 * 1.6.4：默认**金额必须分毫不差**的本模组真伤（启示之光 / 神性光环 / 献祭 / 恶魔之焰）。
 	 *
-	 * <p>这些伤害的数值由配置直接给定（7 点 / 2 点 / 10000 点 / 6 点），所以不允许被
-	 * 「伯列恒之星：造成伤害 +20%」这类**加伤**改写。1.6.3 之前是靠启示之光的"事后校正"顺带盖住的，
-	 * 1.6.4 改成伤害标签后必须显式排除，否则光柱会变成 8.4 点/次。
+	 * <p>这些伤害的数值由配置直接给定（7 点 / 2 点 / 10000 点 / 6 点），默认不允许被
+	 * 「伯列恒之星：造成伤害 +20%」这类**加伤**改写。2.17 起可由
+	 * {@code [combat] exact_damage_gets_multiplier} 显式开启正面全伤害乘区。
 	 */
 	public static boolean isExactDamage(DamageSource source) {
 		String id = source.getMsgId();
 		return HOLY_LIGHT_BURST_ID.equals(id) || GOLDEN_RAZOR_ID.equals(id) || REVELATION_ID.equals(id)
 				|| GODHEAD_AURA_ID.equals(id) || SACRIFICE_ID.equals(id) || DEMON_FLAME_ID.equals(id)
 				|| ABYSS_AURA_ID.equals(id);
+	}
+
+	/**
+	 * 2.0.0 / 2.17：该伤害是否允许吃玩家的出伤乘区。
+	 *
+	 * <p>普通伤害照常放行；纯 isDivine 永远排除；同时落在 isDivine 与 isExactDamage 的伤害
+	 * 按“精确名单优先”处理，开关开启时放行。ReliquaryEvents 与 SpiritAltarSet 必须共用此判定。
+	 */
+	public static boolean shouldApplyPlayerDamageBonuses(DamageSource source) {
+		if (source == null) {
+			return false;
+		}
+		if (isExactDamage(source) && ReliquaryConfig.exactDamageGetsMultiplier()) {
+			return true;
+		}
+		return !isDivine(source);
 	}
 
 	/**

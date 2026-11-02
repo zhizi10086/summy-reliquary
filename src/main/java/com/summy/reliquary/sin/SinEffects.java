@@ -211,11 +211,25 @@ public final class SinEffects {
 	 */
 	public static float modifyOutgoingDamage(ServerPlayer attacker, LivingEntity victim,
 			net.minecraft.world.damagesource.DamageSource source, float amount) {
+		return modifyOutgoingDamage(attacker, victim, source, amount, false);
+	}
+
+	/**
+	 * 2.17：只计算七罪的正面“全伤害”增伤，不触发任何附带效果。
+	 *
+	 * <p>只保留嫉妒与暴怒随机增伤；近战专属、暴怒自伤、色欲脱甲和贪婪惩罚全部跳过。
+	 */
+	public static float modifyOutgoingAllDamage(ServerPlayer attacker, LivingEntity victim, float amount) {
+		return modifyOutgoingDamage(attacker, victim, null, amount, true);
+	}
+
+	private static float modifyOutgoingDamage(ServerPlayer attacker, LivingEntity victim,
+			net.minecraft.world.damagesource.DamageSource source, float amount, boolean allDamageOnly) {
 		if (applyingSelfHit || !anyWearer(attacker)) {
 			return amount;
 		}
 		float result = amount;
-		boolean melee = source != null && source.getDirectEntity() == attacker;
+		boolean melee = !allDamageOnly && source != null && source.getDirectEntity() == attacker;
 
 		// ① 近战乘区：傲慢 + 贪婪增伤，两者相加后同乘
 		double meleeBonus = 0.0D;
@@ -249,20 +263,20 @@ public final class SinEffects {
 					: ReliquaryConfig.wrathRandomMax();
 			double roll = min + attacker.getRandom().nextDouble() * Math.max(0.0D, max - min);
 			result *= (float) roll;
-			if (active(attacker, Sin.WRATH)
+			if (!allDamageOnly && active(attacker, Sin.WRATH)
 					&& attacker.getRandom().nextDouble() * 100.0D < ReliquaryConfig.wrathSelfHitPercent()) {
 				selfHit(attacker, (float) (result * ReliquaryConfig.wrathSelfHitMultiplier()));
 			}
 		}
 
 		// ④ 贪婪惩罚：钻石**少于**阈值（≤35）时伤害降到一成（对全部伤害生效；赎罪后移除）
-		if (awakened(attacker, Sin.GREED) && diamonds < ReliquaryConfig.greedDiamondThreshold()
+		if (!allDamageOnly && awakened(attacker, Sin.GREED) && diamonds < ReliquaryConfig.greedDiamondThreshold()
 				&& active(attacker, Sin.GREED)) {
 			result *= (float) ReliquaryConfig.greedLowDiamondDamageFactor();
 		}
 
 		// ⑤ 色欲：攻击有几率脱下目标随机一件护甲（与伤害乘区无关）
-		if (awakened(attacker, Sin.LUST)
+		if (!allDamageOnly && awakened(attacker, Sin.LUST)
 				&& attacker.getRandom().nextDouble() * 100.0D < ReliquaryConfig.lustStripArmorPercent()
 				&& stripArmor(victim)) {
 			lustStripArmorCount++;
