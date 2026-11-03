@@ -1,0 +1,14 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "summy-reliquary:item/flip_death"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "summy-reliquary:death_form": 1
+      },
+      "model": "summy-reliquary:item/life_death_life"
+    }
+  ]
+}
