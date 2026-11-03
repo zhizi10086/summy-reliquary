@@ -683,7 +683,7 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
   `Holy Mantle.png → holy_mantle`、`Godhead.png → godhead`、`Sacred Heart.png → sacred_heart`
 （`trinity` / `error` / `purity` / `duality_stat` / `your_soul` 只作成就图标：分别是三位一体、无罪之人、纯洁无瑕、
 成就页新根「遗物：七罪」、新鲜灵魂；五者都无配方、不进创造页）。
-- 栏位图标：`textures/slot/` 下现有 `halo` / `stomach` / `soul_seal` / `spirit_altar` / `revelation` / `blessing` / `demon_pact` 七个；另有 Curios 自带的 `charm`（护符）/ `back`（背饰）两栏，不在本模组资源目录中。
+- 栏位图标：`textures/slot/` 下已接入 `halo` / `stomach` / `soul_seal` / `spirit_altar` / `revelation` / `blessing` / `demon_pact` 七个；另有已预置、待 2.3 接入的 `covenant`（誓约）。Curios 自带的 `charm`（护符）/ `back`（背饰）两栏不在本模组资源目录中。
 - 伤害类型与标签：自定义伤害类型放 `data/summy-reliquary/damage_type/`；对原版 `damage_type` 标签只做**追加**、不写 `replace: true`。
 - 其余各类素材（物品、模型、配方、进度、栏位定义、粒子与图集）的当前清单见 [CHANGELOG.md](CHANGELOG.md) 各版本小节。
 

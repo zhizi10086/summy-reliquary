@@ -205,6 +205,8 @@
 | 恶魔契约 | `demon_pact` | **动态 0~1** | **`textures/slot/demon_pact.png`**（1.6.1 换成自家图标） | 本模组自定义栏位（1.6.0）：谓词 `summy-reliquary:demon_pact_only`（只放契约）。**按玩家动态增减**：持恶魔标记 = 1 格、否则 0 格（`growSlotType` / `shrinkSlotType`，尺寸写进玩家存档；签约/忏悔/登录/每秒各校正一次）；未签约时 Curios 界面里看不到这一格 |
 | 背饰 | `back` | 1 | Curios 自带（`curios:slot/empty_back_slot`） | **Curios 自带栏位**（1.6.1 起「仪式法袍」用它）：校验器 `curios:tag` → 物品标签 `#curios:back`。同样因为本模组整表定义玩家栏位，`back` 也必须写进 `player.json` 的 `slots` |
 
+> **誓约栏位预置**：`textures/slot/covenant.png` 已落库（16×16，沿用现有 `#8B8B8B` 实心底色）；栏位 id 定为 `covenant`。本轮不创建栏位 json、不加入 `player.json`、不注册校验谓词，实际开放要等 2.3。
+
 **1.6.2 起栏位格数是"按阶段动态"的**（每秒兜底校正，缩格前先把格内物品退回背包、满了掉脚下；登录读档阶段不动，避免误判）：
 
 | 栏位 | 七罪阶段（无标记） | 天使线（天使标记） | 恶魔线（恶魔标记） |
@@ -634,9 +636,9 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 - **1.7.7 / 1.7.8 / 1.7.9 新增资源与数据**：`holy_spear` / `seraph_spear` 两张 32×32 贴图与模型 + `models/item/spear_in_hand.json`（矛式横握父模型）+ **1.7.9 的两个 `*_using.json`**（第三人称 Z +180° 的蓄力模型）+ `damage_type/holy_light_burst.json`（落点圣光爆发）+ 两张配方（`recipes/holy_spear.json`、`recipes/seraph_spear.json`）+ 伤害标签 `bypasses_effects/enchantments/resistance` 各补 `holy_light_burst`。
 - **1.7.10 新增资源与数据**：`textures/item/golden_razor.png`（32×32、主轴垂直）+ `models/item/golden_razor.json`（`parent: item/handheld`）+ `recipes/golden_razor.json`（金锭×6 + 金粒×2）+ `damage_type/golden_razor.json`（无 bypass 标签 = 普通物理）；`icon.png` 由 `duality_stat.png` **32× 最近邻放大（16×16 → 512×512）**而成（MOD 图标）；`thrown_razor` 实体与其渲染器在代码侧注册。
 - **2.0.0 新增资源**：`textures/item/habit.png` 与 `textures/item/betrayal.png`（均 32×32、带透明通道）；两个既有 `item/generated` 模型改为引用同名贴图，物品贴图数 **50 → 52**。
-- **2.0.0 誓约主动饰品预置资源**：`divine_intervention` / `sacred_verdict` / `blood_debt_altar` / `hex_seal` 各 1 张 32×32 贴图与基础模型；`life_death` 使用 `flip_death` 基础图和 `flip_life` 死形态覆写图（`summy-reliquary:death_form = 1`），共新增 **6 张贴图 / 6 个模型**。5 件物品尚未注册。
+- **2.0.0 誓约主动饰品预置资源**：`divine_intervention` / `sacred_verdict` / `blood_debt_altar` / `hex_seal` 各 1 张 32×32 贴图与基础模型；`life_death` 使用 `flip_death` 基础图和 `flip_life` 死形态覆写图（`summy-reliquary:death_form = 1`），共新增 **6 张物品贴图 / 6 个模型**。另有 1 张 `textures/slot/covenant.png` 栏位图标；5 件物品与誓约栏位均尚未注册。
 - **配方总数（1.7.10 实测）**：**34 张**（`data/summy-reliquary/recipes/*.json`）。
-- **当前计数（2.0.0 实测）**：注册物品 **52**、进度 **25**、配方 **36**、配置段 **28**（**281 键**，源码口径；2.10 / 2.11 分别新增 `[habit]` / `[betrayal]`）、伤害类型 **11**、网络包 **11**、自检 **605 行基线**；物品贴图 **58**（其中 6 张为尚未注册的誓约主动饰品预置）。
+- **当前计数（2.0.0 实测）**：注册物品 **52**、进度 **25**、配方 **36**、配置段 **28**（**281 键**，源码口径；2.10 / 2.11 分别新增 `[habit]` / `[betrayal]`）、伤害类型 **11**、网络包 **11**、自检 **605 行基线**；物品贴图 **58**（其中 6 张为尚未注册的誓约主动饰品预置）、栏位图标 **8**（7 张已接入 + 1 张誓约预置）。
 - **二创与素材声明（1.7.10 收尾）**：物品贴图与部分设定**有相当数量直接取自或改编自《以撒的结合》**（本作素材不主张任何权利、不用于商业用途）；`LICENSE` 的 **MIT 只覆盖原创代码与原创素材**。完整中英致谢与免责声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`，联系邮箱 **525277385@qq.com**；`mods.toml` 的游戏内描述也加了一行二创说明。
 - **日志归档（1.7.10 收尾第三批）**：工程根只保留最新一份 `build-*.log` / `devcheck-*.log` / `server-*.log`；1.7.x 的历史日志归档在 `logs/archive/1.7.x/`，更早的已清理。整理入口：`scripts/clean-logs.ps1`（默认只打印计划，加 `-Apply` 执行）。
 - **文案约定**：**所有经文引用统一加 `——` 前缀**（如 `——《诗篇》32:11`）；提示文案里的数字按配置生成，"数值进配置、纯表现常量留在代码里"。
