@@ -23,7 +23,8 @@ public final class ReliquaryNetworking {
 	// 12：1.7.2 起新增「创世纪使用 → 图腾动画」的 S2C 空包（注册序号 8），两端必须同版本
 	// 13：1.8.2 起新增「神性回溯 / 恶魔形态」的 C2S 空包（注册序号 9），两端必须同版本
 	// 14：1.8.5 起新增「切换神性神圣光环」的 C2S 空包（注册序号 10），两端必须同版本
-	private static final String VERSION = "14";
+	// 15：2.3 起新增「誓约饰品 R 技能」的 C2S 空包（注册序号 11）与血债盾 HUD 同步，两端必须同版本
+	private static final String VERSION = "15";
 
 	public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
 			SummyReliquary.id("main"),
@@ -116,6 +117,13 @@ public final class ReliquaryNetworking {
 				.decoder(ToggleAuraMessage::new)
 				.consumerMainThread(ToggleAuraMessage::handle)
 				.add();
+
+		// 客户端 → 服务端：请求释放当前誓约饰品 R 技能（2.3）
+		CHANNEL.messageBuilder(OathActionMessage.class, 11, NetworkDirection.PLAY_TO_SERVER)
+				.encoder(OathActionMessage::encode)
+				.decoder(OathActionMessage::new)
+				.consumerMainThread(OathActionMessage::handle)
+				.add();
 	}
 
 	/** 客户端调用：请求切换邦邦女仆状态 */
@@ -133,16 +141,22 @@ public final class ReliquaryNetworking {
 		CHANNEL.sendToServer(new ToggleAuraMessage());
 	}
 
+	public static void sendOathAction() {
+		CHANNEL.sendToServer(new OathActionMessage());
+	}
+
 	/** 服务端调用：把该玩家的状态同步给他自己 */
 	public static void sendPlayerState(net.minecraft.server.level.ServerPlayer player, int sins,
 			int redeemed, boolean revealed, int revealX, int revealZ, int flags, int revealRemainingSeconds,
-			double evil, int blackHeartPoints, int evilUnlocks, int soulHeartPoints) {
+			double evil, int blackHeartPoints, int evilUnlocks, int soulHeartPoints,
+			double bloodDebtShield) {
 		// 玩家实体还在加载时 connection 可能为空（例如 Curios 在读档时就触发装备事件），此时跳过
 		if (player.connection == null) {
 			return;
 		}
 		CHANNEL.sendTo(new PlayerStateMessage(player.getUUID(), sins, redeemed, revealed, revealX, revealZ,
-				flags, revealRemainingSeconds, evil, blackHeartPoints, evilUnlocks, soulHeartPoints),
+				flags, revealRemainingSeconds, evil, blackHeartPoints, evilUnlocks, soulHeartPoints,
+				bloodDebtShield),
 				player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
 	}
 

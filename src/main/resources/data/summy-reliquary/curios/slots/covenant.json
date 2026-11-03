@@ -1,0 +1,8 @@
+{
+  "order": 80,
+  "size": 1,
+  "icon": "summy-reliquary:slot/covenant",
+  "validators": [
+    "summy-reliquary:covenant_only"
+  ]
+}

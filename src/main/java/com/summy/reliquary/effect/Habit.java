@@ -47,7 +47,8 @@ public final class Habit {
 
 		boolean beamCooling = RevelationBeam.hasActiveCooldown(player);
 		boolean abaddonCooling = Abaddon.hasActiveCooldown(player);
-		if (!beamCooling && !abaddonCooling) {
+		boolean oathCooling = CovenantActions.hasActiveCooldown(player);
+		if (!beamCooling && !abaddonCooling && !oathCooling) {
 			return;
 		}
 		double fraction = Math.max(0.0D, ReliquaryConfig.habitChargePercent() / 100.0D);
@@ -57,6 +58,9 @@ public final class Habit {
 		}
 		if (abaddonCooling) {
 			Abaddon.advanceCooldown(player, fraction, minTicks);
+		}
+		if (oathCooling) {
+			CovenantActions.advanceCooldown(player, fraction, minTicks);
 		}
 		triggerCount++;
 	}

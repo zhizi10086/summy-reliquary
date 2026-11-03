@@ -32,7 +32,7 @@ Summy Reliquary 是一个以 **Curios** 为前置的七罪主题饰品与武器�
 
 | 饰品 | 栏位 | 效果 |
 | --- | --- | --- |
-| 邦邦咔邦光环 | 光环 | 按 `R` 切换「邦邦女仆」状态，自动吸附周围（默认 10 格）掉落物；渲染在脑后，随头部左右转向与抬头低头跟随 |
+| 邦邦咔邦光环 | 光环 | 背包右键 / 手持潜行右键切换「邦邦女仆」状态，自动吸附周围（默认 10 格）掉落物；渲染在脑后，随头部左右转向与抬头低头跟随 |
 | 光环（the halo） | 光环 | Shift 共 7 条 `属性名\|数值`，数值＝配置值 × 当前实际倍率（生命+4、攻击+2、攻速+0.2、护甲+2、韧性+2、移速+10%、挖掘+10%；无魂印 ×1 / 七罪之源且激活 ×0.5 / 美德 ×2 / 戴撒旦圣经 ×0）；**获取过启示后**追加"生命低于 50% 获得原版「生命回复」I"（淡金整句 + 「生命回复」亮金，条件不满足时整行不显示） |
 | 恶魔王冠 | 光环 | 转化撒旦圣经时同步发放（只发一次、死亡不掉、创世纪才清）；与光环 / 邦邦咔邦互斥。**需同时佩戴撒旦圣经才生效**：移速 +20%、攻速 +0.4、近战 +6、最大生命 −4、护甲 −4、韧性 −4；**邪恶 666 后**再得"每损失 10% 生命 +3% 造成伤害（上限 +15%）"，排除定值真伤 |
 | 白饭 | 胃袋 | 饥饿值锁定为上限、饱和度锁定 0，且无法进食饮水 |
@@ -52,6 +52,11 @@ Summy Reliquary 是一个以 **Curios** 为前置的七罪主题饰品与武器�
 | 神圣斗篷 | 加护 | **需要天使标记**（配方：白色羊毛×4 + 海晶砂砾×2 + 海晶碎片×2 + 木十字架，3×3）；**受击后获得 1 秒无敌**（不区分伤害来源，期间不再刷新），可与圣光/救恩任意搭配（加护共 2 格）。**与神性同戴 → 无敌延长到 1.5 秒** |
 | 圣心 | 加护 | **需要天使标记**（配方：心之碎片 ×6 + 烈焰粉 ×2 + 木十字架 ×1；没标记时 JEI 查不到、强合会被收走并退回材料）；大量属性提升（生命 +10 / 护甲 +5 / 韧性 +5 / 攻速 +0.5 / 移速与挖掘 +15%）+ 与神性共用同一个**全伤害最终倍率**乘区（默认 +30%，相加）+ **箭矢追踪**（箭矢为中心 8 格内的敌对生物，**与神性同戴 → 半径 12 格**） |
 | 修女服 | 背饰（Curios 自带） | **需要天使标记**（配方：金锭×3 + 白羊毛×3 + 黑羊毛×2 + 心之碎片×1；没标记时 JEI 查不到、强合会被收走并退料）。**魂心 +2 心（4 点吸收）**、**护甲 +2**；**每次真实受伤**使所有正在冷却的自模组技能推进总冷却的 **10%**（单次至少 1 秒），0.5 秒内最多触发一次。与仪式法袍共用 1 格背饰栏 |
+| 生死逆转 | 誓约 | 生形态以致死伤害转死形态；死形态 20 秒、伤害 1.5→2.0、移速 / 攻速 +25%，累计击杀权重 10 后满血复活，复活冷却 30 秒；图标表示下一次翻转方向 |
+| 神圣干预 | 誓约 | **天使标记**。减伤后、吸收前反伤 50%；R 展开 5×3、15 秒的固定空间屏障，拦敌方投射物与爆炸射线，玩家投射物穿过 +30% |
+| 神圣裁决 | 誓约 | **天使标记**。普通伤害 20% 施加 7 秒裁决；R 释放半径 8、21 点爆炸并施加 21 秒。附伤为最大生命 5% 独立真伤，仅满攻击冷却 / 满蓄力弓 / 已装填弩触发；可破限伤，但不吃任何增伤 |
+| 血债祭坛 | 誓约 | **恶魔标记**。承伤立即减半，其余 5 秒内静默偿还；单段 ≤1.0 不生成。R 以“生命 −1”按 2×换独立血债盾；击杀减债、BOSS 清债，右下角独立黄心 HUD |
+| 厄咒之印 | 誓约 | **恶魔标记**。普通伤害 20% 或 R 扇形施加无图标诅咒；目标受伤 +50%，每 tick 最高一笔的 50% 经破限伤出口转移给同施法者的其它受诅咒单位；不递归、不重复施加、不吃增伤 |
 | 神性 | 启示之座 | **需要天使标记**（配方：回响碎片×4 + 龙首 + 下界之星×2 + 终末天启 + 三位一体，3×3）；与伯列恒之星/终末天启互斥。继承天启属性与光柱（蓄力 1.5 秒 / 冷却 5 秒 / 半径 3 / 射程 35）、伯列恒的攻速与（与圣心同乘区的）伤害加成、**创造飞行不减速**；**救恩半径 5**；**8 格光环**每秒对敌对/仇恨生物与名单内玩家造成 **2 点真实伤害**；**免疫 12 类环境伤害**；**死亡拦截**（1 点生命 + 传送回重生点 + 金色粒子，无冷却） |
 | 五芒星 | 护符（Curios 自带） | 发放是**条件驱动** —— 判据＝与「罪无可赦」**完全相同**的"七罪全触发"＝**七项都已激活或已赎罪**（`allSinsTriggered` 只看激活位，而"已赎罪"也会写激活位），所以重置后**不会提前补发**、七罪重新全触发时才补发，**不会永久丢失**；近战伤害 **+1**。累计持有 300 秒后会在聊天框说一句话；此后在**灵魂沙峡谷**驻留 5 秒会被邀请签「**恶魔交易**」契约（手持五芒星长按右键 5 秒，**只有视野收缩的反馈**）→ 获得**恶魔标记**（与天使标记互斥、名字变深红）。可用**痛悔短祷**换回天使标记，换回后还能**再签一次**（上限由痛悔短祷限用一次决定）。**无天使门槛**；**一旦获取过启示，恶魔交易彻底关闭** |
 | 契约 | 恶魔契约（**动态**：签约才出现） | 由「恶魔交易」签约发放并**强制佩戴**（**不能右键快捷佩戴**）、非创造无法摘除、死亡不掉、同种只可一个。佩戴时：伤害 **+16%**（与圣心/神性同乘区相加）、攻速 **+16%**、**每条生效诅咒 +2% 生命 / +2% 速度**（识别原版消失/绑定诅咒与 SE 诅咒）、诅咒 **>5 条**时 **+6% 生命吸取**；对村民额外 **10000 真实伤害**（完成献祭后失效）；击杀积攒**邪恶度**（上限 1000；**奇数点给攻击、偶数点给攻速**，各 +0.1%，1000 点 = 各 +50%）。**1.7.10 联动**：遁入暗影的**斩击**同样会按出伤值吸血（需诅咒 > 5 条）、击杀同样计邪恶度。忏悔时连栏位一起被收回 |
@@ -300,9 +305,10 @@ Summy Reliquary 是一个以 **Curios** 为前置的七罪主题饰品与武器�
 - **魂心 / 黑心护盾保护（2.13）**：对应路线的池子只要还有 1 点，任意大的单次伤害都被整击吞下，溢出不会进入生命；`/kill` 例外，仍按池子实有点数抵扣后结算溢出。献祭自伤同样吃整击保护。
 - **黑心破碎无敌（2.13）**：黑心池从非空被打空后获得 **0.5 秒**无敌，新增 `[demon_pact] black_shatter_invulnerable_seconds`；魂心破碎仍是 5 秒，同一击同时触发时取较长窗口。
 - **路线校验（2.13）**：魂心只在天使线提供，黑心只在恶魔线提供；强塞对方路线饰品不会生效，切换路线后池子会在 1 秒内夹回 0。
+- **誓约五件（2.3）**：新增 1 格「誓约」栏位与生死逆转、神圣干预、神圣裁决、血债祭坛、厄咒之印五件互斥主动饰品，统一使用 R 键；协议升为 `"15"`。神圣裁决改为附加真实伤害，只按目标最大生命 5% 追加，且近战 / 弓 / 弩必须满足完整攻击前置；该附伤与厄咒转移均可接入破限伤，但都不吃增伤。血债祭坛另有逐段延迟阈值与独立血债盾 HUD。
 - **修女服 / Habit（2.10）**：新天使线背饰，配方为金锭×3 + 白羊毛×3 + 黑羊毛×2 + 心之碎片；提供魂心 +2 心、护甲 +2，并在真实受伤后推进所有正在冷却的自模组技能（总冷却 10%，单次至少 1 秒，0.5 秒触发节流）。
 - **背叛 / Betrayal（2.11）**：恶魔线加护，需当前恶魔标记；8 格内至少 2 名敌人时，每 tick 逐敌 0.5% 掷骰，取最近命中者为 18 秒靶子，范围内敌人强制攻击它，结束后冷却 5 秒；新增挑战成就「三十枚银钱」。
-- **交付**：版本 `2.0.0-forge`；注册物品 / 创造页 / 配方 / 进度为（**52 / 48 / 36 / 25**）；协议保持 **`"14"`**；配置段 / 键为 **28 / 283**；完整客户端自检 **609 行全绿**。
+- **交付**：版本 `2.0.0-forge`；注册物品 / 创造页 / 配方 / 进度为（**57 / 53 / 36 / 25**）；协议为 **`"15"`**；配置段 / 键为 **33 / 329**；伤害类型 15；完整客户端自检 **613 行全绿**。
 
 ## 1.8.8 变更
 
@@ -483,6 +489,23 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
                    #        habit_charge_percent(10) / habit_charge_min_seconds(1.0) / habit_charge_interval_ticks(10)
 [betrayal]         # 背叛：enable_betrayal(true) / betrayal_radius(8) / betrayal_chance_per_tick(0.5)
                    #        betrayal_min_enemies(2) / betrayal_taunt_seconds(18) / betrayal_cooldown_seconds(5)
+[life_death]       # 生死逆转：enable_life_death(true) / death_form_seconds(20) / death_form_damage_base(1.5)
+                   #        death_form_damage_step_percent(5) / death_form_damage_cap(2.0)
+                   #        death_form_move_speed_percent(25) / death_form_attack_speed_percent(25)
+                   #        revive_kill_required(10) / boss_weight_default(10) / cooldown_seconds(30) / kill_weights
+[divine_intervention] # 神圣干预：enable_divine_intervention(true) / reflect_percent(50)
+                   #        barrier_distance(1) / barrier_width(5) / barrier_height(3) / barrier_seconds(15)
+                   #        barrier_edge_particles_per_tick(8) / player_projectile_damage_percent(30) / cooldown_seconds(60)
+[sacred_verdict]   # 神圣裁决：enable_sacred_verdict(true) / proc_chance_percent(20) / proc_seconds(7)
+                   #        cast_range(200) / cast_radius(8) / cast_damage(21) / cast_mark_seconds(21)
+                   #        bonus_damage_percent(5) / cooldown_seconds(60)
+[blood_debt_altar] # 血债祭坛：enable_blood_debt_altar(true) / damage_reduction_percent(50)
+                   #        defer_seconds(5) / min_deferred_damage(1.0) / active_absorb_percent(200)
+                   #        absorb_cap_max_health_percent(200) / kill_reduce_seconds(1.0)
+                   #        extra_boss_entities / extra_hostile_entities / cooldown_seconds(30)
+[hex_seal]         # 厄咒之印：enable_hex_seal(true) / proc_chance_percent(20) / proc_seconds(12)
+                   #        cast_angle_degrees(90) / cast_range(12) / cast_seconds(30)
+                   #        damage_taken_percent(50) / transfer_percent(50) / spread_radius(6) / cooldown_seconds(60)
 [the_halo]         # 光环：max_health / attack_damage / attack_speed / armor / armor_toughness
                    #        movement_percent / break_speed_percent
                    #        sin_multiplier(默认 0.5) / virtue_multiplier(默认 2.0)
@@ -687,7 +710,7 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
   `Holy Mantle.png → holy_mantle`、`Godhead.png → godhead`、`Sacred Heart.png → sacred_heart`
 （`trinity` / `error` / `purity` / `duality_stat` / `your_soul` 只作成就图标：分别是三位一体、无罪之人、纯洁无瑕、
 成就页新根「遗物：七罪」、新鲜灵魂；五者都无配方、不进创造页）。
-- 栏位图标：`textures/slot/` 下已接入 `halo` / `stomach` / `soul_seal` / `spirit_altar` / `revelation` / `blessing` / `demon_pact` 七个；另有已预置、待 2.3 接入的 `covenant`（誓约）。Curios 自带的 `charm`（护符）/ `back`（背饰）两栏不在本模组资源目录中。
+- 栏位图标：`textures/slot/` 下已接入 `halo` / `stomach` / `soul_seal` / `spirit_altar` / `revelation` / `blessing` / `demon_pact` / `covenant`（誓约）八个。Curios 自带的 `charm`（护符）/ `back`（背饰）两栏不在本模组资源目录中。
 - 伤害类型与标签：自定义伤害类型放 `data/summy-reliquary/damage_type/`；对原版 `damage_type` 标签只做**追加**、不写 `replace: true`。
 - 其余各类素材（物品、模型、配方、进度、栏位定义、粒子与图集）的当前清单见 [CHANGELOG.md](CHANGELOG.md) 各版本小节。
 
@@ -701,7 +724,7 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
   本机访问 `maven.minecraftforge.net` 很慢，开着这一项每次构建要空等几分钟；关掉后不影响任何产物。
 - 运行：`gradlew runClient` / `gradlew runServer`
 - 自检脚本：`src/main/java/com/summy/reliquary/devcheck/ForgeDevCheck.java` 默认不生效；
-  用 `gradlew runClient -Pdevcheck` 会跑完全部检查（当前共输出 **526~529 行 `[DEVCHECK]`**、0 条失败断言；
+  用 `gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"` 会跑完全部检查（当前共输出 **613 行 `[DEVCHECK]`**、0 条失败断言；
   行数浮动来自「光环 / 美德提示行」会读存档里的赎罪状态）。当前覆盖：
   - **栏位与套装**：10×5 栏位校验矩阵、套装切换与提示去重/着色、不可重复佩戴、栏位阶段表与缩格退回
   - **魂心 / 黑心 / 吸收**：独立池结算顺序、外部清零模拟、与护盾相加 46/36/2、卸下只收我方份额、碎裂击退与无敌

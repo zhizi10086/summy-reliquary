@@ -37,6 +37,8 @@ public final class ReliquaryClientState {
 	private static int evilUnlocks = 0;
 	/** 魂心池剩余点数（1.6.2；HUD 画蓝心用） */
 	private static int soulHeartPoints = 0;
+	/** 血债祭坛独立护盾点数（2.3；HUD 画独立黄心用） */
+	private static double bloodDebtShield = 0.0D;
 
 	/** 天使标记位 */
 	public static final int FLAG_ANGEL = 1;
@@ -64,6 +66,8 @@ public final class ReliquaryClientState {
 	public static final int FLAG_SPEAR_RECOVERY = 2048;
 	/** 1.8.5：神性「神圣光环」是否被玩家关掉（bit12；提示里的状态后缀要用） */
 	public static final int FLAG_GODHEAD_AURA_OFF = 4096;
+	/** 2.3：生死逆转当前是否处于死形态（bit13；模型谓词与提示行要用） */
+	public static final int FLAG_DEATH_FORM = 8192;
 
 	private ReliquaryClientState() {
 	}
@@ -139,6 +143,11 @@ public final class ReliquaryClientState {
 	/** 神性「神圣光环」是否被玩家关掉（1.8.5；提示第 2 行据此切换成「（已关闭）」的文案） */
 	public static boolean isGodheadAuraOff() {
 		return (flags & FLAG_GODHEAD_AURA_OFF) != 0;
+	}
+
+	/** 生死逆转当前是否处于死形态。 */
+	public static boolean isDeathForm() {
+		return (flags & FLAG_DEATH_FORM) != 0;
 	}
 
 	/** 是否已经「放弃一切」（无法再佩戴七罪之源） */
@@ -218,6 +227,14 @@ public final class ReliquaryClientState {
 
 	public static void setSoulHeartPoints(int value) {
 		soulHeartPoints = Math.max(0, value);
+	}
+
+	public static double bloodDebtShield() {
+		return bloodDebtShield;
+	}
+
+	public static void setBloodDebtShield(double value) {
+		bloodDebtShield = Math.max(0.0D, value);
 	}
 
 	/** 一次性写入契约相关的三项（由 PlayerStateMessage 调用；1.6.4 起邪恶度是 double，保留一位小数） */

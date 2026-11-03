@@ -307,6 +307,28 @@ public class SummyReliquary {
 			ITEMS.register("habit", () -> new com.summy.reliquary.item.HabitItem(
 					new Item.Properties().stacksTo(1)));
 
+	/* ===== 2.3：誓约栏位五件主动饰品 ===== */
+	public static final RegistryObject<Item> LIFE_DEATH =
+			ITEMS.register("life_death", () -> new com.summy.reliquary.item.CovenantItem(
+					new Item.Properties().stacksTo(1),
+					com.summy.reliquary.item.CovenantItem.Kind.LIFE_DEATH));
+	public static final RegistryObject<Item> DIVINE_INTERVENTION =
+			ITEMS.register("divine_intervention", () -> new com.summy.reliquary.item.CovenantItem(
+					new Item.Properties().stacksTo(1),
+					com.summy.reliquary.item.CovenantItem.Kind.DIVINE_INTERVENTION));
+	public static final RegistryObject<Item> SACRED_VERDICT =
+			ITEMS.register("sacred_verdict", () -> new com.summy.reliquary.item.CovenantItem(
+					new Item.Properties().stacksTo(1),
+					com.summy.reliquary.item.CovenantItem.Kind.SACRED_VERDICT));
+	public static final RegistryObject<Item> BLOOD_DEBT_ALTAR =
+			ITEMS.register("blood_debt_altar", () -> new com.summy.reliquary.item.CovenantItem(
+					new Item.Properties().stacksTo(1),
+					com.summy.reliquary.item.CovenantItem.Kind.BLOOD_DEBT_ALTAR));
+	public static final RegistryObject<Item> HEX_SEAL =
+			ITEMS.register("hex_seal", () -> new com.summy.reliquary.item.CovenantItem(
+					new Item.Properties().stacksTo(1),
+					com.summy.reliquary.item.CovenantItem.Kind.HEX_SEAL));
+
 	/** 心之碎片（1.5.6）：带启示之光的生物死亡时的掉落材料（1.6.1 起用自家贴图） */
 	public static final RegistryObject<Item> HEART_SHARD =
 			ITEMS.register("heart_shard", () -> new com.summy.reliquary.item.HeartShardItem(
@@ -382,6 +404,8 @@ public class SummyReliquary {
 						out.accept(HOLY_MANTLE.get());
 						out.accept(SACRED_HEART.get());
 						out.accept(HABIT.get());
+						out.accept(DIVINE_INTERVENTION.get());
+						out.accept(SACRED_VERDICT.get());
 						out.accept(THE_HALO.get());
 						out.accept(PENTAGRAM.get());
 						// ===== ③ 恶魔线饰品（魂印 → 灵台 → 契约 → 背饰 → 启示之座 → 加护 → 光环）=====
@@ -398,8 +422,11 @@ public class SummyReliquary {
 						out.accept(OCCULT_EYE.get());
 						out.accept(ABYSS_LORD.get());
 						out.accept(BETRAYAL.get());
+						out.accept(BLOOD_DEBT_ALTAR.get());
+						out.accept(HEX_SEAL.get());
 						out.accept(DEVIL_CROWN.get());
 						// ===== ④ 中立 · 材料与工具（碎片 → 材料 → 工具 → 中立饰品）=====
+						out.accept(LIFE_DEATH.get());
 						out.accept(SIN_FRAGMENT_PRIDE.get());
 						out.accept(SIN_FRAGMENT_GLUTTONY.get());
 						out.accept(SIN_FRAGMENT_WRATH.get());

@@ -93,6 +93,9 @@ public final class SoulShield {
 		if (!(entity instanceof ServerPlayer player)) {
 			return;
 		}
+		if (com.summy.reliquary.effect.LifeDeath.shieldSuppressed(player)) {
+			return;
+		}
 		double capacity = capacityFor(player);
 		REFRESH_TIMERS.put(player.getUUID(), refreshIntervalSeconds());
 		WEARING.put(player.getUUID(), capacity > 0.0D);
@@ -107,6 +110,9 @@ public final class SoulShield {
 	/** 刚装上魂心来源：直接补满 */
 	public static void onEquipped(LivingEntity entity) {
 		if (!(entity instanceof ServerPlayer player)) {
+			return;
+		}
+		if (com.summy.reliquary.effect.LifeDeath.shieldSuppressed(player)) {
 			return;
 		}
 		double capacity = capacityFor(player);
@@ -150,6 +156,10 @@ public final class SoulShield {
 
 	/** 服务端每秒：装备状态变化即补满 / 清空；每 N 秒只补缺额 */
 	public static void tickPlayer(ServerPlayer player) {
+		if (com.summy.reliquary.effect.LifeDeath.shieldSuppressed(player)) {
+			// 死形态期间屏蔽但不消耗，补满计时也冻结。
+			return;
+		}
 		double capacity = capacityFor(player);
 		boolean wearing = capacity > 0.0D;
 		boolean wasWearing = WEARING.getOrDefault(player.getUUID(), false);

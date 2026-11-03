@@ -1,8 +1,9 @@
 # Summy Reliquary 事件文本与触发关系总台账（2.0.0-forge）
 
-> 更新时间：2026-11-02（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-11-03（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > **2.0.0 文本变更**：2.17 不涉及文本；2.13 把献祭匕首 `shift.2` 改为“池子为空时会致死”；
-> 2.10 新增修女服的名称、经文两行与三行 Shift 提示；2.11 新增背叛提示与成就「三十枚银钱」。
+> 2.10 新增修女服的名称、经文两行与三行 Shift 提示；2.11 新增背叛提示与成就「三十枚银钱」；
+> 2.3 新增誓约五件物品、R 键说明、失败提示与四种伤害类型死亡文本。
 > 用途：把所有"会显示给玩家的话"按**触发条件**整理成一张表，方便改文案、查文案、加功能时对照。
 > 权威文本源：`src/main/resources/assets/summy-reliquary/lang/zh_cn.json` / `en_us.json`（改文案只改这两个文件，代码里没有硬编码中文）。
 
@@ -935,6 +936,12 @@
 | `item.summy-reliquary.habit` / `.desc.1~2` / `.shift.1~3` | 修女服 / “我们既多受基督的苦楚，就靠基督多得安慰。” / ——《哥林多后书》1:5 / 魂心 / 护甲 / 受击充能 | **2.10 新增**：天使线经文两行 + 三行 Shift 属性提示 |
 | `item.summy-reliquary.betrayal` / `.tagline.1~2` / `.shift.1~2` | 背叛 / “三十枚银钱，一个吻。” / “你的忠诚，早已腐烂。” / 嘲讽几率 / 嘲讽时长 | **2.11 新增**：恶魔线风味两行 + 两行 Shift 提示 |
 | `advancements.summy-reliquary.thirty_pieces.title` / `.description` | 三十枚银钱 / 你出卖了他，银钱入手，忠诚腐烂 | **2.11 新增**：挑战成就，完成前隐藏，描述为恶魔深红 |
+| `item.summy-reliquary.life_death.*` | 生死逆转 / 当前形态｜生或死 / 下一次翻转｜对应方向 / 6 行功能 / 「当前形态无法主动翻转」 | **2.3 新增**：生色 `#BFE3FF`、死色 `#C03030` |
+| `item.summy-reliquary.divine_intervention.*` | 神圣干预 / 五行风味与功能 / 屏障 | **2.3 新增**：天使线配色 |
+| `item.summy-reliquary.sacred_verdict.*` | 神圣裁决 / 五行功能 / 「准心方向没有可裁决的目标」 | **2.3 新增**：明确固定 5% 附伤与完整攻击前置 |
+| `item.summy-reliquary.blood_debt_altar.*` | 血债祭坛 / 五行功能 / 生命不足与血债盾上限提示 | **2.3 新增**：恶魔线配色，独立血债盾 HUD |
+| `item.summy-reliquary.hex_seal.*` | 厄咒之印 / 五行功能 | **2.3 新增**：无状态效果图标，仅提示与粒子 |
+| `death.attack.summy-reliquary.sacred_verdict(.player)` 等四组 | 神圣裁决 / 神圣干预反噬 / 未偿血债 / 厄咒转移 | **2.3 新增**：四类伤害各自独立死亡文本 |
 | `item.summy-reliquary.pentagram.phrase` | 埋葬无尽灵魂 | **不是显示文本**，是"慢速呼吸"要强调的短语（中英各一套，供代码定位） |
 
 ---
@@ -1114,5 +1121,7 @@
 | 同上（第 10 行） | 同上 | `你不再恐惧深渊` | 物品提示（`item.summy-reliquary.sacred_heart.shift.abyss`） | **1.8.5 键名变动**：内容与 1.6.5 起完全一致，仅从旧 `shift.4` 改名 |
 | 按住 Shift 查看「修女服」 | 有天使标记才展开 | `魂心 +2` / `护甲 +2` / `受击充能：主动技能冷却 −10%（单次至少 1 秒）` | 物品提示（`item.summy-reliquary.habit.shift.1~3`） | **2.10 新增**；数值取 `[habit]` 配置 |
 | 按住 Shift 查看「背叛」 | 当前有恶魔标记才展开 | `嘲讽几率：每游戏刻 0.5%（8 格内各自独立）` / `嘲讽时长：18 秒（结束后冷却 5 秒）` | 物品提示（`item.summy-reliquary.betrayal.shift.1~2`） | **2.11 新增**；数值取 `[betrayal]` 配置 |
+| 誓约饰品按 R | 当前佩戴对应饰品 | 成功无文字；冷却中显示「誓约技能冷却中：N 秒」 | 行动栏（失败） | **2.3 新增**；未佩戴时静默 |
+| 生死逆转死形态按 R | 当前形态为死 | 「当前形态无法主动翻转」 | 行动栏 | **2.3 新增**；不进冷却、不产生伤害 |
 
 > **同轮的两处改动不涉及文本**：① **魂心 / 黑心先于死亡拦截**（`DamagePools.guardOrNullify` 先扣池子能扛的份额，`uncovered ≥ 当前生命` 才轮到拦截）；② **创造飞行换维度后补推**（`AttributeManager.applyFlight` 的"维度 # 游戏模式 # tick/100"推送指纹）。两者都不改任何语言键，只改判定与网络推送。

@@ -39,6 +39,13 @@ public final class SummyReliquaryClient {
 			GLFW.GLFW_KEY_X,
 			"key.categories.summy-reliquary");
 
+	/** 誓约主动：默认 R，点击即释放。 */
+	public static final KeyMapping OATH_ACTION_KEY = new KeyMapping(
+			"key.summy-reliquary.oath_action",
+			InputConstants.Type.KEYSYM,
+			GLFW.GLFW_KEY_R,
+			"key.categories.summy-reliquary");
+
 	/** 当前蓄力 tick 数 */
 	private static int beamCharge;
 	/** 本地冷却剩余 tick（服务端仍会再校验一次） */
@@ -90,6 +97,7 @@ public final class SummyReliquaryClient {
 		public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
 			event.register(REVELATION_BEAM_KEY);
 			event.register(DIVINE_ACTION_KEY);
+			event.register(OATH_ACTION_KEY);
 		}
 
 		@SubscribeEvent
@@ -97,6 +105,7 @@ public final class SummyReliquaryClient {
 			// 1.7.9：举矛蓄力的判定谓词 —— 必须在**第一次模型烘焙之前**注册，否则模型 JSON 里的
 			// overrides 会因为"找不到谓词"被丢弃（模型烘焙发生在客户端资源重载时）。
 			registerUsingProperty();
+			registerDeathFormProperty();
 			// 装备后按 Curios 的渲染回调绘制头顶光环
 			CuriosRendererRegistry.register(SummyReliquary.BANG_BANG_HALO.get(), BangBangHaloRenderer::new);
 			// 启示之光的光柱渲染器（通用代码只通过 ClientRenderHooks 回调）
@@ -125,6 +134,8 @@ public final class SummyReliquaryClient {
 			// 魂心：把属于我们的那几颗黄心重新画成蓝心（不隐藏原版黄心）
 			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
 					"soul_hearts_hud", new SoulHeartOverlay());
+			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
+					"blood_debt_shield_hud", new BloodDebtShieldOverlay());
 		}
 
 		/** 1.7.8：幻影矛的渲染器（投掷出去的矛用物品模型画） */
@@ -158,9 +169,11 @@ public final class SummyReliquaryClient {
 			ReliquaryParticles.register();
 			// 1.7.9：蓄力谓词的兜底注册（Kilt 上模组总线事件可能不触发，这里每 tick 幂等补一次）
 			registerUsingProperty();
+			registerDeathFormProperty();
 			Minecraft client = Minecraft.getInstance();
 			// 1.8.2：X 键 —— 神性回溯 / 亚巴顿主动恶魔形态（长按蓄力后发包，服务端再校验装备）
 			tickDivineAction(client);
+			tickOathAction(client);
 
 			// JEI：按玩家状态隐藏 / 放开「赎罪」与天使线（三件套 / 圣光 / 斗篷 / 神性 / 救恩 / 圣心）与仪式法袍的配方。
 			// 桥内部只在目标状态变化或刚换世界时才真正通知 JEI，没装 JEI 时这里是空操作。
@@ -318,6 +331,15 @@ public final class SummyReliquaryClient {
 			}
 		}
 
+		/** R 键：誓约饰品点击即释放，只在没有界面时消费一次。 */
+		private static void tickOathAction(Minecraft client) {
+			while (OATH_ACTION_KEY.consumeClick()) {
+				if (client.player != null && client.level != null && client.screen == null) {
+					ReliquaryNetworking.sendOathAction();
+				}
+			}
+		}
+
 		/** 蓄力状态变化时通知服务端（用于附近可见的蓄力粒子） */
 		private static void reportCharge(boolean charging) {
 			if (chargeReported == charging) {
@@ -378,6 +400,7 @@ public final class SummyReliquaryClient {
 
 	/** 谓词是否已经注册（幂等） */
 	private static boolean usingPropertyRegistered;
+	private static boolean deathFormPropertyRegistered;
 
 	/**
 	 * 注册全局物品谓词 {@code summy-reliquary:using}：**只看实体状态**。
@@ -402,5 +425,22 @@ public final class SummyReliquaryClient {
 	public static boolean isUsingPropertyRegistered() {
 		return net.minecraft.client.renderer.item.ItemProperties.getProperty(
 				SummyReliquary.HOLY_SPEAR.get(), SummyReliquary.id("using")) != null;
+	}
+
+	/** 生死逆转图标状态谓词：生形态 0、死形态 1。 */
+	public static void registerDeathFormProperty() {
+		if (deathFormPropertyRegistered) {
+			return;
+		}
+		deathFormPropertyRegistered = true;
+		net.minecraft.client.renderer.item.ItemProperties.registerGeneric(
+				SummyReliquary.id("death_form"),
+				(stack, level, entity, seed) -> entity != null
+						&& com.summy.reliquary.effect.PlayerFlags.isDeathForm(entity) ? 1.0F : 0.0F);
+	}
+
+	public static boolean isDeathFormPropertyRegistered() {
+		return net.minecraft.client.renderer.item.ItemProperties.getProperty(
+				SummyReliquary.LIFE_DEATH.get(), SummyReliquary.id("death_form")) != null;
 	}
 }

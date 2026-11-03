@@ -32,6 +32,15 @@ public final class DamageEstimate {
 	 */
 	public static float healthPart(LivingEntity entity, DamageSource source, float rawAmount,
 			float absorptionBefore) {
+		float amount = beforeAbsorption(entity, source, rawAmount);
+		// ③ 吸收值（黄血 / 其它模组护盾）先扛
+		return Math.max(amount - Math.max(0.0F, absorptionBefore), 0.0F);
+	}
+
+	/**
+	 * 只计算到“原版吸收之前”的金额，供神圣干预反伤使用。
+	 */
+	public static float beforeAbsorption(LivingEntity entity, DamageSource source, float rawAmount) {
 		if (entity == null || source == null || rawAmount <= 0.0F) {
 			return 0.0F;
 		}
@@ -59,7 +68,6 @@ public final class DamageEstimate {
 				}
 			}
 		}
-		// ③ 吸收值（黄血 / 其它模组护盾）先扛
-		return Math.max(amount - Math.max(0.0F, absorptionBefore), 0.0F);
+		return Math.max(0.0F, amount);
 	}
 }

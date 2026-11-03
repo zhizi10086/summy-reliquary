@@ -7,7 +7,7 @@
 
 ## 0. 一句话概览
 
-以 **Curios** 为前置的 Forge 1.20.1 饰品模组：**7 个本模组栏位（含 1.6.0 的动态「恶魔契约」）+ Curios 自带的「护符」「背饰」两栏 + 52 件已注册物品（1.7.5 起含武器，1.7.8 起含两把天使线长矛，1.7.10 起含金刀片，2.10 起含修女服、2.11 起含背叛）+ 25 个进度（1 个新根 + 恶魔线 10 + 天使线 3 + 原有 10 + 近乎完美 1）+ 10 个网络包 + 28 个配置段 / 283 个键（源码口径；实例 config 因历史残留键 `frame_damage_ids` 会多 1）（1.7.1 新增 `[devil_crown]`，1.7.5 新增 `[shadow_dash]`，1.7.10 新增 `[golden_razor]`，2.0.0 新增 `[habit]` / `[betrayal]`，并为 `[combat]` 新增 3 键、`[demon_pact]` 新增 1 键）**。
+以 **Curios** 为前置的 Forge 1.20.1 饰品模组：**8 个本模组栏位（含动态「恶魔契约」与 2.3 的「誓约」）+ Curios 自带的「护符」「背饰」两栏 + 57 件已注册物品（1.7.5 起含武器，1.7.8 起含两把天使线长矛，1.7.10 起含金刀片，2.10 起含修女服、2.11 起含背叛、2.3 起含誓约五件）+ 25 个进度 + 12 个网络包 + 33 个配置段 / 329 个键（源码口径；实例 config 因历史残留键 `frame_damage_ids` 会多 1）**。
 核心玩法链：**七罪之源 → 赎罪（碎片/配方）→ 美德 → 纯洁之人（天使标记）→ 灵台三件套 → 伯列恒之星 → 终末天启 / 神性**；
 另有一条**加护**支线（救恩 / 圣光 / 神圣斗篷 / 圣心）与**启示之光**体系（光柱 + 领域 + buff + 心之碎片）。
 
@@ -22,7 +22,7 @@
 | 前置 | **Curios** `5.14.1+1.20.1`（`mods.toml` 只有 forge + minecraft + curios） |
 | Fabric 侧 | 通过 **Kilt** 跑同一个 jar（实测组合：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；另需 Sodium + Indium；Kilt 不兼容 Async / Embeddium） |
 | 构建 | `gradlew clean build`（产物自动复制到 `../JAR/summy-reliquary/`） |
-| 当前版本 | `2.0.0-forge`（协议 `"14"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
+| 当前版本 | `2.0.0-forge`（协议 `"15"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
 | 二创与致谢 | 本模组是基于《以撒的结合》（The Binding of Isaac）的**粉丝二创作品**：物品贴图与部分设定有相当数量直接取自或改编自该作，**不主张任何权利**、不用于商业用途；`LICENSE` 的 MIT **只覆盖原创代码与原创素材**。完整中英声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`；联系邮箱 **525277385@qq.com** |
 | 实例部署 | 把新 jar 放进整合包 `mods/`，旧版本就地改名为 `*.jar.disabled`（同名双版本会因 mod id 重复报错） |
 | 诊断开关 | `-Pnodata`（去掉自定义伤害类型 + 原版伤害类型标签覆盖）、`-Pnotags`（只去掉标签覆盖）、`-Pnomodel`（去掉终末天启模型/贴图）；产物改名进 `_test/` |
@@ -33,7 +33,7 @@
 >
 > **1.8.8 其余三项**：2.6 死亡拦截首触注释订正（只剩视觉抖动、不占用无敌帧）；2.12 发射瞬间蹲下的投射物永久不追踪（`EntityJoinLevelEvent` 写 `summy_reliquary_no_homing`，之后站起也不恢复）；2.15 27 件 Curios 饰品全部 `ALWAYS_KEEP`（22 个类补 `getDropRule` + `CurioItemSupport.keepOnDeath`）。
 
-**2.0.0**：2.17 定值真伤增伤转正；2.9 新增真伤限伤破除统一出口；2.13 新增魂心 / 黑心护盾保护、路线容量校验和黑心破碎无敌；2.10 新增天使线背饰「修女服」；2.11 新增恶魔线加护「背叛」与成就「三十枚银钱」。配置段 / 键为 **28 / 283**；完整 `[DEVCHECK]` **609 行全绿**。
+**2.0.0**：2.17 定值真伤增伤转正；2.9 新增真伤限伤破除统一出口；2.13 新增魂心 / 黑心护盾保护、路线容量校验和黑心破碎无敌；2.10 新增天使线背饰「修女服」；2.11 新增恶魔线加护「背叛」与成就「三十枚银钱」；2.3 新增誓约栏与五件主动饰品。神圣裁决改为可破限伤但不吃增伤的固定附伤，厄咒转移同样接入 `TrueDamageLimits`。注册物品 / 创造页为 **57 / 53**，协议 **`"15"`**，配置段 / 键 **33 / 329**，伤害类型 15；完整 `[DEVCHECK]` **613 行全绿**。
 
 **1.8.8**：长矛第一/第三人称完整动画（2.1）。① **Mixin 基础设施** —— 首次接入 MixinGradle 0.7.38 + Mixin 0.8.5 + MixinExtras 0.5.5（`jarJar` 打入产物），新增 `summy_reliquary.mixins.json`（`required: false` / `defaultRequire: 0`）；发布产物改取 `reobfJarJar`，正式包继续排除 devcheck。② **四个动画 Mixin** —— `LivingEntityMixin`（`getCurrentSwingDuration` = `clamp(round(20 / 攻速), 4, 40)`，与攻击冷却严格同步）、`ItemInHandRendererMixin`（抑制普通挥击位移 / 换手、替换 `applySwingOffset`、在 `getUseAnimation()` 前插入蓄力动画、蓄力时抑制装备偏移）、`HumanoidModelMixin`（`poseRightArm` / `poseLeftArm` / `setupAttackAnimation`）、`HeldItemFeatureRendererMixin`（第三人称手持物品前移 / 前突）。③ **曲线** —— `client/SpearAnimation` 纯函数复刻 `Backported-Spears` 的 `holdUpAnimation` 与戳刺三段曲线；自检新增 `checkSpearAnimationCurves`（攻速 1.0 / 2.0 / 4.0 / 100 / 0.1 → 20 / 10 / 5 / 4 / 40，蓄力 0→1，戳刺 0→1）。④ **边界** —— Mixin 仅限两把长矛动画；左键门禁 / 冷却 / 投掷结算 / GUI 模型全部不变。自检 **605 行全绿**；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议仍 `"14"`。
 
@@ -105,13 +105,13 @@
 
 ---
 
-## 2. 内容总表（52 件已注册物品）
+## 2. 内容总表（57 件已注册物品）
 
 ### 2.1 饰品（进 Curios 栏位）
 
 | 物品 | id | 栏位 | 门槛 | 效果摘要 |
 | --- | --- | --- | --- | --- |
-| 邦邦咔邦光环 | `bangbang_halo` | 光环 | — | 按 `R` 切换「邦邦女仆」；自动吸附周围（默认 10 格）掉落物 |
+| 邦邦咔邦光环 | `bangbang_halo` | 光环 | — | 背包右键 / 手持潜行右键切换「邦邦女仆」；自动吸附周围（默认 10 格）掉落物 |
 | 光环（the halo） | `the_halo` | 光环 | — | 生命 +4 / 攻击 +2 / 攻速 +0.2 / 护甲 +2 / 韧性 +2 / 移速 +10% / 挖掘 +10%；**佩戴七罪之源且激活至少一罪 → 整套 ×0.5**，**佩戴美德 → 整套 ×2**，**佩戴撒旦圣经 → 整套 ×0**（数值全在 `[the_halo]`）。**1.7.1**：Shift 改成 **7 条 `属性名\|数值`**（显示的就是"配置值 × 当前实际倍率"）；**获取过启示**后追加条件行"生命值低于 50% 时获得原版「生命回复」I"（整句淡金 `#FFE4B5`、「生命回复」亮金 `#FFD700`，**未满足时不显示**） |
 | 恶魔王冠 | `devil_crown` | 光环（**1.7.1 新增**；与光环 / 邦邦咔邦**三者互斥**） | — （**需佩戴撒旦圣经才生效**） | **转化撒旦圣经时一次性发放**（`devil_crown_granted` 去重、死亡不掉、签约/忏悔不补发也不没收、**只有创世纪会清**）。生效时：移速 **+20%**、攻速 **+0.4**、近战 **+6**、最大生命 **−4**、护甲 **−4**、韧性 **−4**（固定值，不受光环倍率影响）；**邪恶 666（`hell_locked`）后**再有"**每损失 10% 生命值 → 造成伤害 +3%，上限 +15%**"（分档封顶、与星/思想/魔眼同层、**排除定值真伤**） |
 | 白饭 | `freeloaders_rice` | 胃袋 | — | 饥饿锁到上限、饱和锁 0、无法进食饮水 |
@@ -127,6 +127,11 @@
 | 神圣斗篷 | `holy_mantle` | 加护 | **天使标记** | **受击后 1 秒无敌**：那一击照常结算，随后 20 tick 内一切伤害被取消（不区分来源，虚空/指令也拦），期间不刷新不叠层 |
 | 圣心 | `sacred_heart` | 加护 | **天使标记**（**1.7.1 修正：配方此前漏了门禁** —— 现在没标记时 JEI 查不到、强合会被收走并退回 心之碎片×6 + 烈焰粉×2 + 木十字架×1） | 生命 +10 / 护甲 +5 / 韧性 +5 / 攻速 +0.5（加法）/ 移速 +15% / 挖掘 +15%；**与神性共享同一个「全伤害最终倍率」乘区（+30%，相加）**；**箭矢追踪**：箭矢为中心 8 格内最近的**敌对生物**，每 tick 偏转 50%（**与神性同戴 → 半径 12 格**） |
 | 修女服 | `habit` | 背饰 | **天使标记**；配方＝金锭×3 + 白羊毛×3 + 黑羊毛×2 + 心之碎片×1，未达标时 JEI 隐藏并退料 | 魂心 +2 心（4 点吸收）、护甲 +2；每次真实受伤将正在冷却的 V 光束 / X 恶魔形态各推进总冷却的 10%（单次至少 1 秒），10 tick 内最多触发一次；与仪式法袍共用 1 格背饰栏 |
+| 生死逆转 | `life_death` | 誓约 | — | 生形态拦截致死并进入 20 秒死形态；死形态伤害 1.5→2.0、移速 / 攻速 +25%，累计击杀权重 10 后满血复活；复活冷却 30 秒并跨卸下保留。图标按“下一次翻转方向”显示 |
+| 神圣干预 | `divine_intervention` | 誓约 | **天使标记** | 受击按“减伤后、吸收前”反伤 50%；R 展开 5×3 固定空间屏障 15 秒，拦敌方投射物与爆炸，玩家投射物穿过 +30% |
+| 神圣裁决 | `sacred_verdict` | 誓约 | **天使标记** | 普通伤害 20% 施加 7 秒裁决；R 半径 8 / 21 点并施加 21 秒。裁决附伤为目标最大生命 5% 的独立真伤，仅满攻击冷却 / 满蓄力弓 / 已装填弩可触发，可破限伤但不吃增伤 |
+| 血债祭坛 | `blood_debt_altar` | 誓约 | **恶魔标记** | 承伤立即减半，另一半点 5 秒内静默偿还；单段 ≤1.0 不生成。R 用“生命 −1”按 2×换独立血债盾；击杀减债、BOSS 清债 |
+| 厄咒之印 | `hex_seal` | 誓约 | **恶魔标记** | 普通伤害 20% 或 R 扇形施加无图标诅咒；目标受伤 +50%，每 tick 最高一笔的 50% 经破限伤出口转移给同施法者的其它受诅咒单位；不递归、不重复施加、不吃增伤 |
 | 神性 | `godhead` | 启示之座（1 格，**与星/天启互斥**） | **天使标记** | 继承天启属性与光柱（**蓄力 1.5 秒 / 冷却 5 秒 / 半径 3 / 射程 35**）+ 伯列恒的攻速与「全伤害最终倍率」+20%；**创造飞行不减速**（生存也是 0.05）；**救恩半径 5**；**8 格光环**每 20 tick 对敌对/仇恨生物与名单内玩家造成 **2 点圣光类型真实伤害**（不击退、无视无敌帧）；**免疫 12 类环境伤害**；**死亡拦截**（保留 1 点生命 + 传送回个人重生点 + 金色 `WAX_ON` 粒子，无冷却） |
 | 五芒星 | `pentagram` | 护符（**Curios 自带 `charm`**） | 进度「罪无可赦」 | 近战伤害 **+1**（`[pentagram] attack_damage`）；完成「罪无可赦」时**只发一次**、老存档靠每秒兜底补发一次，OP 可用 `pentagram <query\|grant\|reset>` 查询/补发/清标记；**累计持有 300 秒**（`message_seconds`，NBT `pentagram_ticks`、跨存档）后在聊天框说一句「你好，七罪之子。……我们做个交易如何？」（整体暗红斜体、「埋葬无尽灵魂」慢速呼吸、终身一次）。Shift 描述**两态**（那句之前 3 行 / 之后只留「近战伤害 +x」），「恶魔话语」追加行**三态**（未签约=原文两行 / 持恶魔标记=移除且不补 / 换回天使后=「我们的约定依然作数」两行）。**无天使门槛** |
 | 五芒星·恶魔交易 | — | — | 五芒星 + 300 秒那句 + **当前不是恶魔** | 在**灵魂沙峡谷**驻留 5 秒 → 三版邀请对话（A 默认 / B 部分赎罪插入 1 行 / C 全赎清或已有天使标记替换 2 行）+ 灰色提示行；离场 3 行、回归 2 行；**手持五芒星长按右键 5 秒**签约（无文字进度：视野收缩 + 手持贴图拉伸）→ 不死图腾动画（贴图换成五芒星）+ `SOUL_ESCAPE`+`PORTAL_TRIGGER` + 火焰/灵魂/灵魂火粒子 → **恶魔标记**（**不消耗**五芒星；每次持有期间只能签一次，用痛悔短祷换回天使后可再签，上限 2 次）。恶魔与天使标记**互斥**（后设置者生效）、名字**深红 `#8B0000`**；持恶魔标记时用**痛悔短祷**成功使用可换回天使标记（仍限一次，契约历史保留 → 五芒星提示改说「我们的约定依然作数 / 我还在那个地方等你」，深红 `#B22222` 斜体）；已签契约的玩家五芒星**不再显示**原来那两行，**也永远不会再触发任何对话**（二轮静默、直接长按再签，台词 2 行「欢迎回来」）。300 秒那句之前右键五芒星**完全无反应** |
@@ -196,6 +201,7 @@
 | 栏位 | id | 格数 | 图标 | 校验谓词白名单 |
 | --- | --- | --- | --- | --- |
 | 光环 | `halo` | 1 | `textures/slot/halo.png` | 邦邦咔邦光环、光环、**恶魔王冠**（1.7.1；三者互斥） |
+| 誓约 | `covenant` | 1 | `textures/slot/covenant.png` | 生死逆转、神圣干预、神圣裁决、血债祭坛、厄咒之印（五件互斥） |
 | 胃袋 | `stomach` | 1 | `textures/slot/stomach.png` | 白饭 |
 | 魂印 | `soul_seal` | 1 | `textures/slot/soul_seal.png` | 七罪之源、美德、**撒旦圣经**（1.6.1） |
 | 灵台 | `spirit_altar` | **3**（恶魔线 1） | `textures/slot/spirit_altar.png` | 肉体、思想、灵魂、**咒印**（1.6.2） |
@@ -306,7 +312,7 @@
   容量 =（灵魂 +3 / 终末天启·神性 +2 心）× `absorption_per_soul_heart`；装备时补满、每 30 秒补缺额、卸下清空；
   **完全破碎**（从 >0 归零）时击退 7 格内同口径敌人 + 给玩家 5 秒无敌（只触发一次）。
   池子只要非空，本次实际血伤就被整击吞下；`/kill` 例外，按池子实有点数抵扣后结算溢出。
-NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（当前协议 `"14"`）。
+NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（当前协议 `"15"`）。
 - ⚠️ 下面这段"把份额加进吸收池"的口径是 **1.6.1 及以前**的行为，已作废，保留供对照：
 
 - 总黄血 = 原版吸收 + 其它模组的吸收（如 summy-enchantment 的生命护盾）+ 本模组魂心；**纯加法**（例：护盾 40 + 魂心 6 = 46）。
@@ -524,7 +530,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | `[shadow_dash]`（**1.7.5 新增，14 键**） | `enable_shadow_dash`(true)、`sacrificial_duration_ticks`(20)、`dark_arts_duration_ticks`(40)、`sacrificial_slash_multiplier`(1.0)、`dark_arts_slash_multiplier`(2.0)、`contact_radius`(2.0)、`heavy_slash_radius`(3.0)、`movement_percent`(100)、`cooldown_ticks`(120)、`resolve_interval_ticks`(2)、`recovery_missing_seconds`(300，1.7.6 起：连续多少秒没匕首才开放防丢失配方)；**1.7.10 新增**：`abaddon_duration_bonus_ticks`(20)、`abaddon_contact_radius_bonus`(1.0)、`abaddon_heavy_radius_bonus`(2.0)（亚巴顿联动：技能时长 +1 秒 / 接触半径 +1 / 强力斩击半径 +2） |
 | `[golden_razor]`（**1.7.10 新增，7 键**） | `enable_golden_razor`(true)、`razor_damage`(5.0)、`razor_cooldown_ticks`(10)、`razor_velocity`(1.8，1.7.10 收尾由 1.5 提高)、`razor_pierce_level`(127)、`razor_max_life_ticks`(200)、`razor_stuck_ticks`(100，1.7.10 收尾新增：命中方块后插在原地停留 5 秒再清除) |
 
-> **配置段总览（2.0.0 实测）**：共 **28 个配置段 / 283 个键**（**源码口径**：`ReliquaryConfig` 里的 `.define*` 调用数；实例 config 因历史残留键 `frame_damage_ids` 会多 1） —— `[maid]`(1)、`[spirit_altar]`(14)、`[habit]`(6)、`[betrayal]`(6)、`[combat]`(12)、`[the_halo]`(11)、`[devil_crown]`(9)、`[revelation]`(18)、`[start]`(2)、`[sins]`(38)、`[virtues]`(12)、`[blessing]`(5)、`[holy_light]`(9)、`[holy_mantle]`(3)、`[sacred_heart]`(11)、`[godhead]`(9)、`[revelation_light]`(7)、`[pentagram]`(2)、`[demon_deal]`(6)、`[demon_pact]`(39)、`[brimstone]`(8)、`[occult_eye]`(13)、`[abyss_lord]`(7)、`[abaddon]`(9)、`[shadow_dash]`(14)、`[golden_razor]`(7)、`[sacrifice]`(5)、`[divine_action]`(1)。
+> **配置段总览（2.0.0 实测）**：共 **33 个配置段 / 329 个键**（**源码口径**：`ReliquaryConfig` 里的 `.define*` 调用数；实例 config 因历史残留键 `frame_damage_ids` 会多 1） —— `[maid]`(1)、`[spirit_altar]`(14)、`[habit]`(6)、`[betrayal]`(6)、`[life_death]`(11)、`[divine_intervention]`(9)、`[sacred_verdict]`(9)、`[blood_debt_altar]`(10)、`[hex_seal]`(10)、`[combat]`(12)、`[the_halo]`(11)、`[devil_crown]`(9)、`[revelation]`(18)、`[start]`(2)、`[sins]`(38)、`[virtues]`(12)、`[blessing]`(5)、`[holy_light]`(9)、`[holy_mantle]`(3)、`[sacred_heart]`(11)、`[godhead]`(9)、`[revelation_light]`(7)、`[pentagram]`(2)、`[demon_deal]`(6)、`[demon_pact]`(39)、`[brimstone]`(8)、`[occult_eye]`(13)、`[abyss_lord]`(7)、`[abaddon]`(9)、`[shadow_dash]`(14)、`[golden_razor]`(7)、`[sacrifice]`(5)、`[divine_action]`(1)。
 
 ---
 
@@ -576,11 +582,11 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 
 ---
 
-## 9. 网络（协议版本 "14"）
+## 9. 网络（协议版本 "15"）
 
 | 包 | 方向 | 用途 |
 | --- | --- | --- |
-| `ToggleMaidMessage` | C2S | 按 R 切换邦邦女仆 |
+| `ToggleMaidMessage` | C2S | 背包右键 / 手持潜行右键切换邦邦女仆 |
 | `PlayerStateMessage` | S2C | 七罪/赎罪掩码、启示坐标与剩余秒数、标记位（bit0 天使 / bit1 放弃一切 / bit2 启示已降临 / bit3 主世界有个人重生点 / bit4 五芒星那句话已说过 / **bit5 持恶魔标记 / bit6 曾签契约 / bit7 已受邀** / **bit8 创世纪已知（1.6.10）** / **bit9 已锁天使线 `hell_locked`（1.7.1）** / **bit10 匕首防丢失配方已开放（1.7.6）** / **bit11 长矛防丢失配方已开放（1.7.9）** / **bit12 神性光环已被玩家关闭（1.8.5）**）+ **自己的 UUID** + **1.6.0 新增：邪恶度 / 黑心池点数（int）/ 邪恶解锁位图（int）** + **1.6.2 新增：魂心池点数（int）**；**1.6.4：邪恶度改成 double**（一位小数） |
 | `FireRevelationMessage` | C2S | 请求发射启示之光 |
 | `RevelationBeamMessage` | S2C | 广播光柱（供客户端渲染）；**1.6.4 新增 `kind` 字段**（启示之光 / 恶魔之焰，客户端据此配色） |
@@ -597,7 +603,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 **1.6.4 起协议是 9**：状态包里的**邪恶度由 int 改成 double**（契约提示显示一位小数），
 光柱广播包 `RevelationBeamMessage` 新增 **kind** 字段（启示之光 / 恶魔之焰，客户端据此配色）。
 （1.6.3 没有新增报文，当时仍是 8。）
-**后续**：1.6.5 起 10（`RegisterParticleProviders` 时代的粒子与后续状态位扩展）、1.6.9/1.6.10 起 **11**（状态包扩展）、**1.7.2 起 12**（新增 `GenesisUsedMessage` 创世纪动画包）。**1.8.2 起 13**（新增 `DivineActionMessage`）、**1.8.5 起 14**（新增 `ToggleAuraMessage`）。当前协议常量 = **`"14"`**（`ReliquaryNetworking`）；1.7.9/1.7.10 只往既有 flags 里加位（bit11），1.8.5 又加了 bit12。
+**后续**：1.6.5 起 10（`RegisterParticleProviders` 时代的粒子与后续状态位扩展）、1.6.9/1.6.10 起 **11**（状态包扩展）、**1.7.2 起 12**（新增 `GenesisUsedMessage` 创世纪动画包）。**1.8.2 起 13**（新增 `DivineActionMessage`）、**1.8.5 起 14**（新增 `ToggleAuraMessage`）、**2.3 起 15**（新增 `OathActionMessage` 并扩展状态包血债盾字段）。当前协议常量 = **`"15"`**（`ReliquaryNetworking`）；2.3 另把玩家状态位 bit13 用作死形态图标。
 
 ---
 
@@ -636,9 +642,9 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 - **1.7.7 / 1.7.8 / 1.7.9 新增资源与数据**：`holy_spear` / `seraph_spear` 两张 32×32 贴图与模型 + `models/item/spear_in_hand.json`（矛式横握父模型）+ **1.7.9 的两个 `*_using.json`**（第三人称 Z +180° 的蓄力模型）+ `damage_type/holy_light_burst.json`（落点圣光爆发）+ 两张配方（`recipes/holy_spear.json`、`recipes/seraph_spear.json`）+ 伤害标签 `bypasses_effects/enchantments/resistance` 各补 `holy_light_burst`。
 - **1.7.10 新增资源与数据**：`textures/item/golden_razor.png`（32×32、主轴垂直）+ `models/item/golden_razor.json`（`parent: item/handheld`）+ `recipes/golden_razor.json`（金锭×6 + 金粒×2）+ `damage_type/golden_razor.json`（无 bypass 标签 = 普通物理）；`icon.png` 由 `duality_stat.png` **32× 最近邻放大（16×16 → 512×512）**而成（MOD 图标）；`thrown_razor` 实体与其渲染器在代码侧注册。
 - **2.0.0 新增资源**：`textures/item/habit.png` 与 `textures/item/betrayal.png`（均 32×32、带透明通道）；两个既有 `item/generated` 模型改为引用同名贴图，物品贴图数 **50 → 52**。
-- **2.0.0 誓约主动饰品预置资源**：`divine_intervention` / `sacred_verdict` / `blood_debt_altar` / `hex_seal` 各 1 张 32×32 贴图与基础模型；`life_death` 使用 `flip_death` 基础图和 `flip_life` 死形态覆写图（`summy-reliquary:death_form = 1`），共新增 **6 张物品贴图 / 6 个模型**。另有 1 张 `textures/slot/covenant.png` 栏位图标；5 件物品与誓约栏位均尚未注册。
+- **2.0.0 誓约主动饰品资源**：`divine_intervention` / `sacred_verdict` / `blood_debt_altar` / `hex_seal` 各 1 张 32×32 贴图与基础模型；`life_death` 使用 `flip_death` 基础图和 `flip_life` 死形态覆写图（`summy-reliquary:death_form = 1`），共新增 **6 张物品贴图 / 6 个模型**。另有 1 张 `textures/slot/covenant.png` 栏位图标；五件物品与誓约栏位现已注册。
 - **配方总数（1.7.10 实测）**：**34 张**（`data/summy-reliquary/recipes/*.json`）。
-- **当前计数（2.0.0 实测）**：注册物品 **52**、进度 **25**、配方 **36**、配置段 **28**（**283 键**，源码口径；2.10 / 2.11 分别新增 `[habit]` / `[betrayal]`，2.9 为 `[combat]` 增加 2 键）、伤害类型 **11**、网络包 **11**、自检 **609 行**；物品贴图 **58**（其中 6 张为尚未注册的誓约主动饰品预置）、栏位图标 **8**（7 张已接入 + 1 张誓约预置）。
+- **当前计数（2.0.0 实测）**：注册物品 **57**、进度 **25**、配方 **36**、配置段 **33**（**329 键**，源码口径；创造页 **53**、伤害类型 **15**、网络包 **12**；2.3 新增五个配置段 49 键）。物品贴图 **58**、栏位图标 **8**（全部已接入）；完整 `[DEVCHECK]` **613 行全绿**。
 - **二创与素材声明（1.7.10 收尾）**：物品贴图与部分设定**有相当数量直接取自或改编自《以撒的结合》**（本作素材不主张任何权利、不用于商业用途）；`LICENSE` 的 **MIT 只覆盖原创代码与原创素材**。完整中英致谢与免责声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`，联系邮箱 **525277385@qq.com**；`mods.toml` 的游戏内描述也加了一行二创说明。
 - **日志归档（1.7.10 收尾第三批）**：工程根只保留最新一份 `build-*.log` / `devcheck-*.log` / `server-*.log`；1.7.x 的历史日志归档在 `logs/archive/1.7.x/`，更早的已清理。整理入口：`scripts/clean-logs.ps1`（默认只打印计划，加 `-Apply` 执行）。
 - **文案约定**：**所有经文引用统一加 `——` 前缀**（如 `——《诗篇》32:11`）；提示文案里的数字按配置生成，"数值进配置、纯表现常量留在代码里"。
@@ -650,7 +656,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 1. **构建**：`gradlew clean build`（JDK 17，路径写在 `gradle.properties`），产物自动复制到 `../JAR/summy-reliquary/`；旧 jar 一律保留，部署时把实例里旧版改名 `.disabled`。
 > **609 行 `[DEVCHECK]`** 是 2.0.0 的完整自检（比 1.8.8 的 605 行多 4 行 = 2.13 / 2.10 / 2.11 / 2.9 各新增一组断言）。下面这段“当前 595 行”是 1.8.7 的历史记录，保留用于对照。
 
-2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。当前自检共输出 **595 行 `[DEVCHECK]`**（1.8.7 实测；比 1.8.6 的 594 行多 1 行 = 新增 `case 2271` / `case 2272` / 2.8 聚合断言共 +3，再扣掉 dump 的 ±2 浮动。**浮动原因**：① `clientTick==700` 那两条「光环 / 美德提示行」dump 会读 DevCheckWorld 存档里的赎罪状态；② 只在"属性摘要变化"时才打印的 `属性更新` 行数会随每次运行的状态序列微调 —— 两者都与代码无关（1.8.7 实测 595）；历史值：1.8.6 为 594、1.8.4 为 574、1.8.3 为 574、1.8.2 为 569、1.8.1 为 537、1.7.10 为 526~529、1.7.9 为 515~517、1.7.8 为 510、1.7.7 为 509、1.7.6 为 508。逐项断言行，**全部通过**），1.8.4 的 `case 2260`（长矛戳刺曲线）已随动画整体回退移除；1.8.5 新增 `case 2259`（完全拦截提前取消的真值表）、`case 2261`（复活的伤害池挂起清理）、`case 2263`（护盾夹取命令）、`case 2264`（暴食击杀回复上限）、`case 2266`（LivingDamage 扣池）、`case 2267`（神性光环开关）、`case 2268`（池子先于死亡拦截）与 `case 2269`（创造飞行补推），并扩展 `checkHudRows`（单排血条适配 + 像素偏移）与 `checkWrathSelfHitNeverKills`（愤怒提示文案）。覆盖：
+2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。2.0.0 当前自检共输出 **613 行 `[DEVCHECK]`**，逐项断言行全部通过；新增 `case 2277` 覆盖誓约五件的栏位 / 资源、生死逆转、反伤与屏障、裁决附伤、血债阈值 / 独立盾与厄咒最高单转移。历史值：1.8.8 为 605、1.8.7 为 595、1.8.6 为 594、1.8.5 为 585、1.8.4 为 574、1.8.3 为 574、1.8.2 为 569。覆盖：
    - 栏位校验矩阵 10×5、套装切换与提示去重/着色、魂心与吸收（含外部清零模拟、与生命护盾相加 46/36/2、卸下只收我方份额）
    - 发光（含视线）、伤害加成、启示计时与**静止 5 秒**转化、不可重复佩戴、七罪三态与碎片赎罪、赎罪配方门槛（JEI 可见性）
    - 战斗手感（无敌帧/攻速上限）、启示之光（105 点 / 几何 / 中途离开 / CD / 射程 21 / 粒子）
@@ -698,7 +704,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 4. **YSM（yes_steve_model）模型设置重置与本模组无关**——日志证据：`yes_steve_model-client.toml is not correct. Correcting`（YSM 自己重写客户端配置）。
 5. **旧配置文件需要手改**：Forge 不改写已存在的键，涉及 `beam_length`、`salvation_radius`、`salvation_extended_radius`、`wrath_kill_required`、`gluttony_meal_required`、`gluttony_saturation_threshold`、`[demon_deal] line_delay_ticks`（旧值 `20` → 想用 2 秒/行请手改 `40`）。
    **1.6.6 追加两条**：① `[combat] log_damage_pools` 在旧配置里是 `false`，要排查"池子到底扣没扣"必须手动改成 `true`（新配置文件默认就是 true）；② `[occult_eye] fear_blindness` 已改名为 `fear_darkness`，新键默认 true，旧键仍参与判定（写 false 依旧关闭）。
-6. **网络协议 14**（1.7.2 起 12 新增创世纪动画包，1.8.2 起 13 新增神性回溯 / 恶魔形态包，1.8.5 起 14 新增神圣光环开关包）；
+6. **网络协议 15**（1.7.2 起 12 新增创世纪动画包，1.8.2 起 13 新增神性回溯 / 恶魔形态包，1.8.5 起 14 新增神圣光环开关包，2.3 起 15 新增誓约 R 技能包）；
    客户端与服务端必须同 jar，否则拒绝连接。
 7. **Kilt 组合要求**：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；需 Sodium + Indium；Kilt 与 Async / Embeddium 不兼容。
 8. **交互口径提醒**：神性死亡拦截无冷却（可能连续触发，属预期）；神性光环不击退，但**救恩领域仍会击退**（未改动）；训练人偶被我们打中会回满血（刻意设计）。

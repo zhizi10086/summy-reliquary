@@ -457,6 +457,7 @@ public final class ForgeDevCheck {
 				case 2274 -> checkHabit(player);
 				case 2275 -> checkBetrayal(player);
 				case 2276 -> checkTrueDamageLimits(player);
+				case 2277 -> checkCovenantItems(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -4419,6 +4420,212 @@ public final class ForgeDevCheck {
 	}
 
 	/**
+	 * 2.3：誓约五件。覆盖栏位与资源、生死逆转转形态、神圣干预反伤/屏障、
+	 * 神圣裁决固定附伤与完整攻击前置、血债祭坛延迟阈值/独立盾、厄咒转移一次性与最高单。
+	 */
+	private static void checkCovenantItems(ServerPlayer player) {
+		List<LivingEntity> cleanup = new java.util.ArrayList<>();
+		ItemStack oldMain = player.getMainHandItem().copy();
+		try {
+			stripAllCurios(player);
+			com.summy.reliquary.effect.SacredVerdict.clear();
+			com.summy.reliquary.effect.HexSeal.clear();
+			com.summy.reliquary.effect.BloodDebtAltar.clear();
+			com.summy.reliquary.effect.DivineIntervention.clear();
+			com.summy.reliquary.effect.LifeDeath.clear();
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, 0L, 0);
+			com.summy.reliquary.effect.PlayerFlags.setBloodDebtShield(player, 0.0D);
+			player.setHealth(player.getMaxHealth());
+			player.removeAllEffects();
+			prepareBarePlayer(player);
+
+			boolean registered = SummyReliquary.LIFE_DEATH.isPresent()
+					&& SummyReliquary.DIVINE_INTERVENTION.isPresent()
+					&& SummyReliquary.SACRED_VERDICT.isPresent()
+					&& SummyReliquary.BLOOD_DEBT_ALTAR.isPresent()
+					&& SummyReliquary.HEX_SEAL.isPresent();
+			int covenantSlots = CuriosApi.getCuriosInventory(player)
+					.map(handler -> handler.getCurios().containsKey(ReliquarySlots.COVENANT)
+							? handler.getCurios().get(ReliquarySlots.COVENANT).getSlots() : -1)
+					.orElse(-1);
+			Minecraft client = Minecraft.getInstance();
+			boolean resources = hasResource(client, "textures/item/flip_death.png")
+					&& hasResource(client, "textures/item/flip_life.png")
+					&& hasResource(client, "textures/item/divine_intervention.png")
+					&& hasResource(client, "textures/item/sacred_verdict.png")
+					&& hasResource(client, "textures/item/blood_debt_altar.png")
+					&& hasResource(client, "textures/item/hex_seal.png")
+					&& hasResource(client, "models/item/life_death.json")
+					&& hasResource(client, "models/item/life_death_life.json")
+					&& hasResource(client, "textures/slot/covenant.png");
+			DamageSource sacredSource = srSource(player, "sacred_verdict");
+			boolean sourceClassification = com.summy.reliquary.effect.HolyLightEffect.isDivine(sacredSource)
+					&& !com.summy.reliquary.effect.HolyLightEffect.isExactDamage(sacredSource)
+					&& com.summy.reliquary.effect.HolyLightEffect.isTrueDamage(sacredSource);
+
+			// 生死逆转：R 进入死形态、满血、图标同步位与固定移速/攻速。
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+			equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.LIFE_DEATH.get());
+			player.setHealth(3.0F);
+			player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+					net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 200, 2));
+			boolean lifeActivated = com.summy.reliquary.effect.LifeDeath.activate(player);
+			boolean deathForm = com.summy.reliquary.effect.PlayerFlags.isDeathForm(player);
+			boolean fullHealth = Math.abs(player.getHealth() - player.getMaxHealth()) < 1.0E-4F;
+			boolean debuffsCleared = player.getActiveEffects().isEmpty();
+			float deathSpeed = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
+			double deathMoveModifier = modifierAmount(player,
+					net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED,
+					"life_death_death_form_speed");
+			boolean lifeOk = lifeActivated && deathForm && fullHealth && debuffsCleared
+					&& deathSpeed >= 1.5F && deathMoveModifier > 0.0D;
+			com.summy.reliquary.effect.LifeDeath.onUnequip(player);
+			unequip(player, ReliquarySlots.COVENANT);
+			boolean lifeEnds = !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player);
+
+			// 神圣干预：20 点来源伤害 → 10 点真实反伤；R 展开一面固定屏障。
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+			prepareBarePlayer(player);
+			equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.DIVINE_INTERVENTION.get());
+			Zombie attacker = spawnTestZombie(player, 3.0D);
+			cleanup.add(attacker);
+			makeToughTestTarget(attacker);
+			attacker.setHealth(20.0F);
+			LivingHurtEvent received = new LivingHurtEvent(player,
+					player.damageSources().mobAttack(attacker), 20.0F);
+			float attackerBefore = attacker.getHealth();
+			com.summy.reliquary.effect.DivineIntervention.onIncomingHurt(received);
+			float reflected = attackerBefore - attacker.getHealth();
+			boolean barrier = com.summy.reliquary.effect.DivineIntervention.activate(player)
+					&& com.summy.reliquary.effect.DivineIntervention.barrierCount() == 1;
+			boolean interventionOk = Math.abs(reflected - 10.0F) < 0.25F && barrier;
+			unequip(player, ReliquarySlots.COVENANT);
+
+			// 神圣裁决：目标最大生命 100 → 固定 5 点；攻击强度未满时不追加。
+			equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.SACRED_VERDICT.get());
+			Zombie verdictTarget = spawnTestZombie(player, 3.0D);
+			cleanup.add(verdictTarget);
+			makeToughTestTarget(verdictTarget);
+			verdictTarget.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)
+					.setBaseValue(100.0D);
+			verdictTarget.setHealth(100.0F);
+			com.summy.reliquary.effect.SacredVerdict.applyMarkForTest(verdictTarget, 200);
+			com.summy.reliquary.effect.SacredVerdict.setForcedProcForTest(false);
+			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(true);
+			float verdictBefore = verdictTarget.getHealth();
+			DamageSource verdictSource = player.damageSources().playerAttack(player);
+			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
+					verdictTarget, verdictSource, 10.0F));
+			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
+					player, verdictTarget, verdictSource, true);
+			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
+			float verdictBonus = verdictBefore - verdictTarget.getHealth();
+			verdictTarget.setHealth(100.0F);
+			verdictTarget.invulnerableTime = 0;
+			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(false);
+			float beforeUncharged = verdictTarget.getHealth();
+			DamageSource unchargedSource = player.damageSources().playerAttack(player);
+			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
+					verdictTarget, unchargedSource, 10.0F));
+			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
+					player, verdictTarget, unchargedSource, false);
+			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
+			float unchargedBonus = beforeUncharged - verdictTarget.getHealth();
+			boolean sacredOk = Math.abs(verdictBonus - 5.0F) < 0.05F
+					&& Math.abs(unchargedBonus) < 1.0E-4F;
+			unequip(player, ReliquarySlots.COVENANT);
+
+			// 血债祭坛：10 点伤害只落地 5 点、延迟 ≤1 的段不生成；R 独立血债盾。
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+			prepareBarePlayer(player);
+			player.setAbsorptionAmount(0.0F);
+			equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.BLOOD_DEBT_ALTAR.get());
+			LivingHurtEvent debtEvent = new LivingHurtEvent(player,
+					player.damageSources().magic(), 10.0F);
+			com.summy.reliquary.effect.BloodDebtAltar.onIncomingHurt(debtEvent);
+			int segments = com.summy.reliquary.effect.BloodDebtAltar.segmentCount(player);
+			double pendingBefore = com.summy.reliquary.effect.BloodDebtAltar.pending(player);
+			com.summy.reliquary.effect.BloodDebtAltar.tickPlayer(player);
+			double pendingAfter = com.summy.reliquary.effect.BloodDebtAltar.pending(player);
+			LivingHurtEvent tinyDebt = new LivingHurtEvent(player,
+					player.damageSources().magic(), 1.5F);
+			com.summy.reliquary.effect.BloodDebtAltar.onIncomingHurt(tinyDebt);
+			int segmentsAfterTiny = com.summy.reliquary.effect.BloodDebtAltar.segmentCount(player);
+			player.setHealth(player.getMaxHealth());
+			com.summy.reliquary.effect.PlayerFlags.setBloodDebtShield(player, 0.0D);
+			boolean shieldActivated = com.summy.reliquary.effect.BloodDebtAltar.activate(player);
+			double shield = com.summy.reliquary.effect.BloodDebtAltar.shield(player);
+			boolean debtOk = Math.abs(debtEvent.getAmount() - 5.0F) < 1.0E-4F
+					&& segments == 1 && pendingAfter < pendingBefore && segmentsAfterTiny == 1
+					&& shieldActivated && shield > 0.0D;
+			unequip(player, ReliquarySlots.COVENANT);
+
+			// 厄咒之印：受诅咒目标 +50%；本 tick 最高一笔 50% 转移给另一名受诅咒目标。
+			equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.HEX_SEAL.get());
+			Zombie hexA = spawnTestZombie(player, 3.0D);
+			Zombie hexB = spawnTestZombie(player, 4.0D);
+			cleanup.add(hexA);
+			cleanup.add(hexB);
+			makeToughTestTarget(hexA);
+			makeToughTestTarget(hexB);
+			hexA.setHealth(40.0F);
+			hexB.setHealth(40.0F);
+			com.summy.reliquary.effect.HexSeal.applyMarkForTest(hexA, player.getUUID(), 200);
+			com.summy.reliquary.effect.HexSeal.applyMarkForTest(hexB, player.getUUID(), 200);
+			LivingHurtEvent hexEvent = new LivingHurtEvent(hexA,
+					player.damageSources().playerAttack(player), 10.0F);
+			com.summy.reliquary.effect.HexSeal.onIncomingHurt(hexEvent);
+			int pendingTransfers = com.summy.reliquary.effect.HexSeal.pendingTransferCountForTest();
+			float hexBBefore = hexB.getHealth();
+			com.summy.reliquary.effect.HexSeal.tickServer(player.getServer());
+			float transferred = hexBBefore - hexB.getHealth();
+			boolean hexOk = Math.abs(hexEvent.getAmount() - 15.0F) < 1.0E-4F
+					&& pendingTransfers == 1 && Math.abs(transferred - 7.5F) < 0.1F;
+			unequip(player, ReliquarySlots.COVENANT);
+
+			boolean config = Math.abs(com.summy.reliquary.config.ReliquaryConfig
+					.sacredVerdictBonusDamagePercent() - 5.0D) < 1.0E-6D
+					&& Math.abs(com.summy.reliquary.config.ReliquaryConfig
+							.bloodDebtMinDeferredDamage() - 1.0D) < 1.0E-6D
+					&& "15".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
+			boolean ok = registered && covenantSlots == 1 && resources && sourceClassification
+					&& lifeOk && lifeEnds && interventionOk && sacredOk && debtOk && hexOk && config;
+			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s、伤害归类=%s；"
+							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/移速修饰 %.2f → %s；"
+							+ "神圣干预反伤 %.1f（应 10）/屏障=%s → %s；"
+							+ "神圣裁决附伤 %.2f（应 5）/未满攻击强度附伤 %.2f（应 0）→ %s；"
+							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
+							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）→ %s；"
+							+ "配置与协议=%s；整体=%s（应 true）",
+					registered, covenantSlots, resources, sourceClassification,
+					lifeActivated, deathForm, fullHealth, debuffsCleared, deathSpeed, deathMoveModifier, lifeOk,
+					reflected, barrier, interventionOk, verdictBonus, unchargedBonus, sacredOk,
+					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
+					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred, hexOk, config, ok));
+		} finally {
+			com.summy.reliquary.effect.SacredVerdict.setForcedProcForTest(null);
+			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(null);
+			com.summy.reliquary.effect.HexSeal.setForcedProcForTest(null);
+			com.summy.reliquary.effect.SacredVerdict.clear();
+			com.summy.reliquary.effect.HexSeal.clear();
+			com.summy.reliquary.effect.BloodDebtAltar.clear();
+			com.summy.reliquary.effect.DivineIntervention.clear();
+			com.summy.reliquary.effect.LifeDeath.clear();
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, 0L, 0);
+			com.summy.reliquary.effect.PlayerFlags.setBloodDebtShield(player, 0.0D);
+			stripAllCurios(player);
+			player.setItemSlot(EquipmentSlot.MAINHAND, oldMain);
+			for (LivingEntity target : cleanup) {
+				if (target != null) {
+					target.discard();
+				}
+			}
+		}
+	}
+
+	/**
 	 * 2.13：非空池整击保护、`/kill` 例外、自伤同口径、黑心短无敌与路线容量校验。
 	 */
 	private static void checkShieldProtectionRoutesAndGuards(ServerPlayer player) {
@@ -7585,7 +7792,7 @@ public final class ForgeDevCheck {
 				&& com.summy.reliquary.config.ReliquaryConfig.soulShatterInvulnerableSeconds() == 5.0D;
 		log("魂心 / 咒印口径：戴灵魂的池容量=" + withSoul + "（应 6）、换成咒印后=" + withMark
 				+ "（应 0 = 魂心转黑心）；协议=" + com.summy.reliquary.net.ReliquaryNetworking.protocolVersion()
-				+ "（应 14 = 1.8.5 新增「切换神圣光环」包后升号）、1.6.2 配置默认值=" + config + "（应 true）");
+				+ "（应 15 = 2.3 新增「誓约 R 技能」包后升号）、1.6.2 配置默认值=" + config + "（应 true）");
 		resetDemonPactState(player);
 	}
 
@@ -9509,14 +9716,14 @@ public final class ForgeDevCheck {
 		boolean tabExcludesIcons = display.stream().noneMatch(stack -> stack.is(SummyReliquary.ERROR_ICON.get())
 				|| stack.is(SummyReliquary.PURITY_ICON.get())
 				|| stack.is(SummyReliquary.DUALITY_STAT.get()) || stack.is(SummyReliquary.YOUR_SOUL.get()));
-		// 2.10 / 2.11：注册物品 50 → 52（新增修女服、背叛）
+		// 2.10 / 2.11 / 2.3：注册物品 50 → 52 → 57（修女服、背叛、誓约五件）
 		// 隐藏图标物品仍是 5、纯图标物品仍是 4
-		boolean counts = registeredItems == 52 && iconItems == 5 && pureIconCount == 4 && tabExcludesIcons;
+		boolean counts = registeredItems == 57 && iconItems == 5 && pureIconCount == 4 && tabExcludesIcons;
 		log("图标物品（1.6.9）：duality_stat/your_soul 已注册=" + registered + "（应 true）、贴图=" + textures
 				+ "、模型=" + models + "（都应 true）、语言键（含 error/purity 补键）=" + lang
 				+ "（应 true）、没有配方=" + noRecipe + "（应 true）；仪式匕首素材（1.7.5）=" + daggerResources
 				+ "（应 true）、手持模型走 item/handheld=" + daggerHandheld + "（应 true）；注册物品数=" + registeredItems
-				+ "（应 52 = 1.7.10 的 50 + 修女服 + 背叛）、隐藏图标物品=" + iconItems
+				+ "（应 57 = 1.7.10 的 50 + 修女服 + 背叛 + 誓约五件）、隐藏图标物品=" + iconItems
 				+ "（应 5，1.7.0 起其中三位一体已转正）、纯图标物品="
 				+ pureIconCount + "（应 4）、创造页不含纯图标物品=" + tabExcludesIcons
 				+ "（应 true，页面条目 " + display.size() + " 个 = 1.7.1 的 41 项，含恶魔王冠）→ 计数全对="
@@ -9876,7 +10083,7 @@ public final class ForgeDevCheck {
 				&& healthDamage.contains("血伤 3.0 → 0.0");
 		log("伤害池日志字段（1.6.9）：prepare=「" + prepare + "」、对账=「" + reconcile + "」→ " + ok
 				+ "（应 true）；协议=" + com.summy.reliquary.net.ReliquaryNetworking.protocolVersion()
-				+ "（应 14 = 1.8.5 新增「切换神圣光环」包）；新增路径日志=「" + healthDamage + "」");
+				+ "（应 15 = 2.3 新增「誓约 R 技能」包）；新增路径日志=「" + healthDamage + "」");
 	}
 
 	// ==================== 1.6.10：创世纪 / 启示属性 / 条件驱动发放 / 饰品联动 ====================
@@ -10616,7 +10823,13 @@ public final class ForgeDevCheck {
 				|| item == SummyReliquary.HEART_SHARD.get()
 				|| item == SummyReliquary.SIX.get()
 				// 1.7.1：恶魔王冠 —— 转化撒旦圣经时一次性发放（无配方）
-				|| item == SummyReliquary.DEVIL_CROWN.get();
+				|| item == SummyReliquary.DEVIL_CROWN.get()
+				// 2.3：誓约五件本轮只进创造页 / 可由指令获取，配方与获取方式另行排期。
+				|| item == SummyReliquary.LIFE_DEATH.get()
+				|| item == SummyReliquary.DIVINE_INTERVENTION.get()
+				|| item == SummyReliquary.SACRED_VERDICT.get()
+				|| item == SummyReliquary.BLOOD_DEBT_ALTAR.get()
+				|| item == SummyReliquary.HEX_SEAL.get();
 	}
 
 	/** 把配方材料展平成"物品 → 总数"（标签取第一个匹配项；本模组受管配方都用普通物品） */
@@ -11535,12 +11748,12 @@ public final class ForgeDevCheck {
 		boolean teleported = distanceToAnchor <= 2.0D;
 		int animations = com.summy.reliquary.item.GenesisItem.activationCount();
 		int sounds = com.summy.reliquary.item.GenesisItem.soundCount();
-		// 1.8.5：协议升到 14（新增「切换神性神圣光环」的 C2S 空包）
-		boolean protocol14 = "14".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
+		// 2.3：协议升到 15（新增「誓约饰品 R 技能」的 C2S 空包）
+		boolean protocol15 = "15".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 
 		log(String.format("创世纪表现（1.7.2）：用掉=%s（应 true）、使用前离重生点 %.1f 格 → 使用后 %.1f 格"
-				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=14=%s（应 true）",
-				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol14));
+				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=15=%s（应 true）",
+				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol15));
 		player.getInventory().clearContent();
 		resetDemonPactState(player);
 		clearRobeAndSeal(player);
@@ -14193,15 +14406,17 @@ public final class ForgeDevCheck {
 		String[] expected = {
 				"sacrificial_dagger", "dark_arts", "holy_spear", "seraph_spear", "golden_razor",
 				"the_body", "the_mind", "the_soul", "star_of_bethlehem", "final_revelation", "godhead",
-				"salvation", "holy_light", "holy_mantle", "sacred_heart", "habit", "the_halo", "pentagram",
+				"salvation", "holy_light", "holy_mantle", "sacred_heart", "habit",
+				"divine_intervention", "sacred_verdict", "the_halo", "pentagram",
 				"source_of_sins", "virtues", "satanic_bible", "the_mark", "the_pact", "ceremonial_robes",
 				"brimstone", "abaddon", "vengeful_spirit", "night_wraith", "occult_eye", "abyss_lord", "betrayal",
-				"devil_crown",
+				"blood_debt_altar", "hex_seal", "devil_crown",
+				"life_death",
 				"sin_fragment_pride", "sin_fragment_gluttony", "sin_fragment_wrath", "sin_fragment_envy",
 				"sin_fragment_sloth", "sin_fragment_lust", "sin_fragment_greed", "redemption",
 				"act_of_contrition", "wooden_cross", "heart_shard", "six", "trinity", "genesis",
 				"freeloaders_rice", "bangbang_halo"};
-		boolean sizeOk = order.size() == expected.length && expected.length == 48;
+		boolean sizeOk = order.size() == expected.length && expected.length == 53;
 		StringBuilder mismatch = new StringBuilder();
 		for (int index = 0; index < Math.min(order.size(), expected.length); index++) {
 			var id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(order.get(index));
@@ -14233,7 +14448,7 @@ public final class ForgeDevCheck {
 		boolean tabIconOk = !tabBuilt || (tab.getIconItem() != null
 				&& tab.getIconItem().is(SummyReliquary.DUALITY_STAT.get()));
 
-		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 48）、逐项与预期一致="
+		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 53）、逐项与预期一致="
 				+ orderOk + "（应 true" + (mismatch.length() == 0 ? "" : "，异常：" + mismatch.toString().trim())
 				+ "）、分块=武器 → 天使线 → 恶魔线 → 中立材料工具；mods.toml（logoFile=" + modInfo.getLogoFile()
 				+ "=" + logoOk + "、描述含「金刀片 / 24 个成就 / 七罪主题饰品合集」=" + descOk + "）="

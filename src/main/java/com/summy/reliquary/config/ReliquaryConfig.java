@@ -81,6 +81,57 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.IntValue BETRAYAL_TAUNT_SECONDS;
 	private static final ForgeConfigSpec.IntValue BETRAYAL_COOLDOWN_SECONDS;
 
+	// ===== 誓约主动饰品（2.3） =====
+	private static final ForgeConfigSpec.BooleanValue ENABLE_LIFE_DEATH;
+	private static final ForgeConfigSpec.IntValue DEATH_FORM_SECONDS;
+	private static final ForgeConfigSpec.DoubleValue DEATH_FORM_DAMAGE_BASE;
+	private static final ForgeConfigSpec.DoubleValue DEATH_FORM_DAMAGE_STEP_PERCENT;
+	private static final ForgeConfigSpec.DoubleValue DEATH_FORM_DAMAGE_CAP;
+	private static final ForgeConfigSpec.IntValue DEATH_FORM_MOVE_SPEED_PERCENT;
+	private static final ForgeConfigSpec.IntValue DEATH_FORM_ATTACK_SPEED_PERCENT;
+	private static final ForgeConfigSpec.IntValue REVIVE_KILL_REQUIRED;
+	private static final ForgeConfigSpec.IntValue BOSS_WEIGHT_DEFAULT;
+	private static final ForgeConfigSpec.IntValue LIFE_DEATH_COOLDOWN_SECONDS;
+	private static final ForgeConfigSpec.ConfigValue<List<? extends String>> LIFE_DEATH_KILL_WEIGHTS;
+	private static final ForgeConfigSpec.BooleanValue ENABLE_DIVINE_INTERVENTION;
+	private static final ForgeConfigSpec.DoubleValue DIVINE_INTERVENTION_REFLECT_PERCENT;
+	private static final ForgeConfigSpec.DoubleValue DIVINE_INTERVENTION_BARRIER_DISTANCE;
+	private static final ForgeConfigSpec.DoubleValue DIVINE_INTERVENTION_BARRIER_WIDTH;
+	private static final ForgeConfigSpec.DoubleValue DIVINE_INTERVENTION_BARRIER_HEIGHT;
+	private static final ForgeConfigSpec.IntValue DIVINE_INTERVENTION_BARRIER_SECONDS;
+	private static final ForgeConfigSpec.IntValue DIVINE_INTERVENTION_EDGE_PARTICLES;
+	private static final ForgeConfigSpec.DoubleValue DIVINE_INTERVENTION_PROJECTILE_PERCENT;
+	private static final ForgeConfigSpec.IntValue DIVINE_INTERVENTION_COOLDOWN_SECONDS;
+	private static final ForgeConfigSpec.BooleanValue ENABLE_SACRED_VERDICT;
+	private static final ForgeConfigSpec.DoubleValue SACRED_VERDICT_PROC_CHANCE;
+	private static final ForgeConfigSpec.IntValue SACRED_VERDICT_PROC_SECONDS;
+	private static final ForgeConfigSpec.DoubleValue SACRED_VERDICT_CAST_RANGE;
+	private static final ForgeConfigSpec.DoubleValue SACRED_VERDICT_CAST_RADIUS;
+	private static final ForgeConfigSpec.DoubleValue SACRED_VERDICT_CAST_DAMAGE;
+	private static final ForgeConfigSpec.IntValue SACRED_VERDICT_CAST_MARK_SECONDS;
+	private static final ForgeConfigSpec.DoubleValue SACRED_VERDICT_BONUS_PERCENT;
+	private static final ForgeConfigSpec.IntValue SACRED_VERDICT_COOLDOWN_SECONDS;
+	private static final ForgeConfigSpec.BooleanValue ENABLE_BLOOD_DEBT_ALTAR;
+	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_REDUCTION_PERCENT;
+	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_DEFER_SECONDS;
+	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_MIN_DEFERRED;
+	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_ACTIVE_ABSORB_PERCENT;
+	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_CAP_PERCENT;
+	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_KILL_REDUCE_SECONDS;
+	private static final ForgeConfigSpec.ConfigValue<List<? extends String>> BLOOD_DEBT_EXTRA_BOSS_ENTITIES;
+	private static final ForgeConfigSpec.ConfigValue<List<? extends String>> BLOOD_DEBT_EXTRA_HOSTILE_ENTITIES;
+	private static final ForgeConfigSpec.IntValue BLOOD_DEBT_COOLDOWN_SECONDS;
+	private static final ForgeConfigSpec.BooleanValue ENABLE_HEX_SEAL;
+	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_PROC_CHANCE;
+	private static final ForgeConfigSpec.IntValue HEX_SEAL_PROC_SECONDS;
+	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_CAST_ANGLE;
+	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_CAST_RANGE;
+	private static final ForgeConfigSpec.IntValue HEX_SEAL_CAST_SECONDS;
+	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_DAMAGE_TAKEN_PERCENT;
+	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_TRANSFER_PERCENT;
+	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_SPREAD_RADIUS;
+	private static final ForgeConfigSpec.IntValue HEX_SEAL_COOLDOWN_SECONDS;
+
 	// ===== 七罪效果（1.4.0） =====
 	private static final ForgeConfigSpec.BooleanValue ENABLE_SIN_EFFECTS;
 	private static final ForgeConfigSpec.IntValue PRIDE_KILL_REQUIRED;
@@ -569,6 +620,117 @@ public final class ReliquaryConfig {
 				.defineInRange("betrayal_taunt_seconds", 18, 1, 600);
 		BETRAYAL_COOLDOWN_SECONDS = builder.comment("嘲讽结束后到下一次可触发的冷却秒数")
 				.defineInRange("betrayal_cooldown_seconds", 5, 0, 3600);
+		builder.pop();
+
+		builder.comment("生死逆转（2.3）：生 / 死双形态").push("life_death");
+		ENABLE_LIFE_DEATH = builder.comment("总开关：关闭后无视门槛与全部效果").define("enable_life_death", true);
+		DEATH_FORM_SECONDS = builder.comment("死形态持续秒数")
+				.defineInRange("death_form_seconds", 20, 1, 600);
+		DEATH_FORM_DAMAGE_BASE = builder.comment("死形态伤害倍率起点")
+				.defineInRange("death_form_damage_base", 1.5D, 0.0D, 100.0D);
+		DEATH_FORM_DAMAGE_STEP_PERCENT = builder.comment("死形态每过一秒增加的伤害倍率百分点")
+				.defineInRange("death_form_damage_step_percent", 5.0D, 0.0D, 100.0D);
+		DEATH_FORM_DAMAGE_CAP = builder.comment("死形态伤害倍率上限")
+				.defineInRange("death_form_damage_cap", 2.0D, 0.0D, 100.0D);
+		DEATH_FORM_MOVE_SPEED_PERCENT = builder.comment("死形态移动速度加成（百分比）")
+				.defineInRange("death_form_move_speed_percent", 25, 0, 1000);
+		DEATH_FORM_ATTACK_SPEED_PERCENT = builder.comment("死形态攻击速度加成（百分比）")
+				.defineInRange("death_form_attack_speed_percent", 25, 0, 1000);
+		REVIVE_KILL_REQUIRED = builder.comment("死形态累计多少击杀权重后复活")
+				.defineInRange("revive_kill_required", 10, 1, 100000);
+		BOSS_WEIGHT_DEFAULT = builder.comment("命中 boss 标签时默认提供的击杀权重")
+				.defineInRange("boss_weight_default", 10, 1, 100000);
+		LIFE_DEATH_COOLDOWN_SECONDS = builder.comment("复活后的冷却秒数")
+				.defineInRange("cooldown_seconds", 30, 0, 3600);
+		LIFE_DEATH_KILL_WEIGHTS = builder
+				.comment("实体击杀权重覆盖，每行格式 modid:entity_id=权重")
+				.defineListAllowEmpty("kill_weights",
+						List.of("minecraft:piglin_brute=3", "minecraft:warden=5", "minecraft:wither=10"),
+						value -> value instanceof String);
+		builder.pop();
+
+		builder.comment("神圣干预（2.3）：天使线主动反伤与空间屏障").push("divine_intervention");
+		ENABLE_DIVINE_INTERVENTION = builder.comment("总开关").define("enable_divine_intervention", true);
+		DIVINE_INTERVENTION_REFLECT_PERCENT = builder.comment("减伤后、吸收前的反伤比例（百分比）")
+				.defineInRange("reflect_percent", 50.0D, 0.0D, 1000.0D);
+		DIVINE_INTERVENTION_BARRIER_DISTANCE = builder.comment("屏障相对玩家的距离（格）")
+				.defineInRange("barrier_distance", 1.0D, 0.0D, 16.0D);
+		DIVINE_INTERVENTION_BARRIER_WIDTH = builder.comment("屏障宽度（格）")
+				.defineInRange("barrier_width", 5.0D, 0.5D, 32.0D);
+		DIVINE_INTERVENTION_BARRIER_HEIGHT = builder.comment("屏障高度（格）")
+				.defineInRange("barrier_height", 3.0D, 0.5D, 32.0D);
+		DIVINE_INTERVENTION_BARRIER_SECONDS = builder.comment("屏障持续时间（秒）")
+				.defineInRange("barrier_seconds", 15, 1, 600);
+		DIVINE_INTERVENTION_EDGE_PARTICLES = builder.comment("屏障每 tick 的描边粒子数")
+				.defineInRange("barrier_edge_particles_per_tick", 8, 0, 128);
+		DIVINE_INTERVENTION_PROJECTILE_PERCENT = builder.comment("玩家投射物穿过屏障后的伤害加成（百分比）")
+				.defineInRange("player_projectile_damage_percent", 30.0D, 0.0D, 1000.0D);
+		DIVINE_INTERVENTION_COOLDOWN_SECONDS = builder.comment("冷却秒数")
+				.defineInRange("cooldown_seconds", 60, 0, 3600);
+		builder.pop();
+
+		builder.comment("神圣裁决（2.3）：天使线标记与圣光爆炸").push("sacred_verdict");
+		ENABLE_SACRED_VERDICT = builder.comment("总开关").define("enable_sacred_verdict", true);
+		SACRED_VERDICT_PROC_CHANCE = builder.comment("普通伤害施加裁决的几率（百分比）")
+				.defineInRange("proc_chance_percent", 20.0D, 0.0D, 100.0D);
+		SACRED_VERDICT_PROC_SECONDS = builder.comment("被动施加的裁决持续秒数")
+				.defineInRange("proc_seconds", 7, 1, 600);
+		SACRED_VERDICT_CAST_RANGE = builder.comment("主动准心射程（格）")
+				.defineInRange("cast_range", 200.0D, 1.0D, 512.0D);
+		SACRED_VERDICT_CAST_RADIUS = builder.comment("主动圣光爆炸半径（格）")
+				.defineInRange("cast_radius", 8.0D, 0.5D, 64.0D);
+		SACRED_VERDICT_CAST_DAMAGE = builder.comment("主动圣光爆炸伤害")
+				.defineInRange("cast_damage", 21.0D, 0.0D, 100000.0D);
+		SACRED_VERDICT_CAST_MARK_SECONDS = builder.comment("主动施加的裁决持续秒数")
+				.defineInRange("cast_mark_seconds", 21, 1, 600);
+		SACRED_VERDICT_BONUS_PERCENT = builder.comment("裁决附伤：目标最大生命的百分比")
+				.defineInRange("bonus_damage_percent", 5.0D, 0.0D, 1000.0D);
+		SACRED_VERDICT_COOLDOWN_SECONDS = builder.comment("冷却秒数")
+				.defineInRange("cooldown_seconds", 60, 0, 3600);
+		builder.pop();
+
+		builder.comment("血债祭坛（2.3）：恶魔线延迟伤害、减债与换盾").push("blood_debt_altar");
+		ENABLE_BLOOD_DEBT_ALTAR = builder.comment("总开关").define("enable_blood_debt_altar", true);
+		BLOOD_DEBT_REDUCTION_PERCENT = builder.comment("受伤时立即减免的百分比")
+				.defineInRange("damage_reduction_percent", 50.0D, 0.0D, 100.0D);
+		BLOOD_DEBT_DEFER_SECONDS = builder.comment("延迟债务的还款时长（秒）")
+				.defineInRange("defer_seconds", 5.0D, 0.1D, 60.0D);
+		BLOOD_DEBT_MIN_DEFERRED = builder.comment("单个延迟债务段小于等于该值时直接不生成；0 = 关闭")
+				.defineInRange("min_deferred_damage", 1.0D, 0.0D, 1024.0D);
+		BLOOD_DEBT_ACTIVE_ABSORB_PERCENT = builder.comment("主动换盾比例（百分比；200 = 消耗生命 ×2）")
+				.defineInRange("active_absorb_percent", 200.0D, 0.0D, 10000.0D);
+		BLOOD_DEBT_CAP_PERCENT = builder.comment("血债盾 + 原版吸收的上限（最大生命百分比）")
+				.defineInRange("absorb_cap_max_health_percent", 200.0D, 0.0D, 10000.0D);
+		BLOOD_DEBT_KILL_REDUCE_SECONDS = builder.comment("击杀敌对生物后每个延迟段减少的剩余秒数")
+				.defineInRange("kill_reduce_seconds", 1.0D, 0.0D, 60.0D);
+		BLOOD_DEBT_EXTRA_BOSS_ENTITIES = builder.comment("额外视为 BOSS 的实体 id")
+				.defineListAllowEmpty("extra_boss_entities", List.of(), value -> value instanceof String);
+		BLOOD_DEBT_EXTRA_HOSTILE_ENTITIES = builder.comment("额外视为可减债敌对生物的实体 id")
+				.defineListAllowEmpty("extra_hostile_entities", List.of(), value -> value instanceof String);
+		BLOOD_DEBT_COOLDOWN_SECONDS = builder.comment("主动换盾冷却秒数")
+				.defineInRange("cooldown_seconds", 30, 0, 3600);
+		builder.pop();
+
+		builder.comment("厄咒之印（2.3）：恶魔线诅咒与伤害转移").push("hex_seal");
+		ENABLE_HEX_SEAL = builder.comment("总开关").define("enable_hex_seal", true);
+		HEX_SEAL_PROC_CHANCE = builder.comment("普通伤害施加诅咒的几率（百分比）")
+				.defineInRange("proc_chance_percent", 20.0D, 0.0D, 100.0D);
+		HEX_SEAL_PROC_SECONDS = builder.comment("被动施加的诅咒秒数")
+				.defineInRange("proc_seconds", 12, 1, 600);
+		HEX_SEAL_CAST_ANGLE = builder.comment("主动扇形角度（度）")
+				.defineInRange("cast_angle_degrees", 90.0D, 1.0D, 360.0D);
+		HEX_SEAL_CAST_RANGE = builder.comment("主动扇形距离（格）")
+				.defineInRange("cast_range", 12.0D, 1.0D, 128.0D);
+		HEX_SEAL_CAST_SECONDS = builder.comment("主动施加的诅咒秒数")
+				.defineInRange("cast_seconds", 30, 1, 600);
+		HEX_SEAL_DAMAGE_TAKEN_PERCENT = builder.comment("诅咒目标的受伤加成（百分比）")
+				.defineInRange("damage_taken_percent", 50.0D, 0.0D, 10000.0D);
+		HEX_SEAL_TRANSFER_PERCENT = builder.comment("伤害转移比例（每个其他受诅咒单位各吃，百分比）")
+				.defineInRange("transfer_percent", 50.0D, 0.0D, 1000.0D);
+		HEX_SEAL_SPREAD_RADIUS = builder.comment("诅咒目标死亡时的传播半径（格）")
+				.defineInRange("spread_radius", 6.0D, 0.5D, 64.0D);
+		HEX_SEAL_COOLDOWN_SECONDS = builder.comment("主动冷却秒数")
+				.defineInRange("cooldown_seconds", 60, 0, 3600);
 		builder.pop();
 
 		builder.comment("七罪之源：每一项罪的具体效果数值（只有佩戴七罪之源时才会生效）").push("sins");
@@ -1306,6 +1468,240 @@ public final class ReliquaryConfig {
 
 	public static int betrayalCooldownSeconds() {
 		return Math.max(0, intOr(BETRAYAL_COOLDOWN_SECONDS, 5));
+	}
+
+	// ==================== 誓约主动饰品（2.3） ====================
+
+	public static boolean enableLifeDeath() {
+		return boolOr(ENABLE_LIFE_DEATH, true);
+	}
+
+	public static int lifeDeathDeathFormSeconds() {
+		return Math.max(1, intOr(DEATH_FORM_SECONDS, 20));
+	}
+
+	public static int lifeDeathDeathFormTicks() {
+		return lifeDeathDeathFormSeconds() * 20;
+	}
+
+	public static double lifeDeathDamageBase() {
+		return doubleOr(DEATH_FORM_DAMAGE_BASE, 1.5D);
+	}
+
+	public static double lifeDeathDamageStepPercent() {
+		return doubleOr(DEATH_FORM_DAMAGE_STEP_PERCENT, 5.0D);
+	}
+
+	public static double lifeDeathDamageCap() {
+		return doubleOr(DEATH_FORM_DAMAGE_CAP, 2.0D);
+	}
+
+	public static int lifeDeathMoveSpeedPercent() {
+		return intOr(DEATH_FORM_MOVE_SPEED_PERCENT, 25);
+	}
+
+	public static int lifeDeathAttackSpeedPercent() {
+		return intOr(DEATH_FORM_ATTACK_SPEED_PERCENT, 25);
+	}
+
+	public static int lifeDeathReviveKillRequired() {
+		return Math.max(1, intOr(REVIVE_KILL_REQUIRED, 10));
+	}
+
+	public static int lifeDeathBossWeight() {
+		return Math.max(1, intOr(BOSS_WEIGHT_DEFAULT, 10));
+	}
+
+	public static int lifeDeathCooldownSeconds() {
+		return Math.max(0, intOr(LIFE_DEATH_COOLDOWN_SECONDS, 30));
+	}
+
+	public static int lifeDeathCooldownTicks() {
+		return lifeDeathCooldownSeconds() * 20;
+	}
+
+	public static List<? extends String> lifeDeathKillWeights() {
+		try {
+			return LIFE_DEATH_KILL_WEIGHTS.get();
+		} catch (IllegalStateException exception) {
+			return List.of("minecraft:piglin_brute=3", "minecraft:warden=5", "minecraft:wither=10");
+		}
+	}
+
+	public static boolean enableDivineIntervention() {
+		return boolOr(ENABLE_DIVINE_INTERVENTION, true);
+	}
+
+	public static double divineInterventionReflectPercent() {
+		return doubleOr(DIVINE_INTERVENTION_REFLECT_PERCENT, 50.0D);
+	}
+
+	public static double divineInterventionBarrierDistance() {
+		return doubleOr(DIVINE_INTERVENTION_BARRIER_DISTANCE, 1.0D);
+	}
+
+	public static double divineInterventionBarrierWidth() {
+		return doubleOr(DIVINE_INTERVENTION_BARRIER_WIDTH, 5.0D);
+	}
+
+	public static double divineInterventionBarrierHeight() {
+		return doubleOr(DIVINE_INTERVENTION_BARRIER_HEIGHT, 3.0D);
+	}
+
+	public static int divineInterventionBarrierTicks() {
+		return Math.max(1, intOr(DIVINE_INTERVENTION_BARRIER_SECONDS, 15)) * 20;
+	}
+
+	public static int divineInterventionEdgeParticles() {
+		return Math.max(0, intOr(DIVINE_INTERVENTION_EDGE_PARTICLES, 8));
+	}
+
+	public static double divineInterventionProjectileDamagePercent() {
+		return doubleOr(DIVINE_INTERVENTION_PROJECTILE_PERCENT, 30.0D);
+	}
+
+	public static int divineInterventionCooldownSeconds() {
+		return Math.max(0, intOr(DIVINE_INTERVENTION_COOLDOWN_SECONDS, 60));
+	}
+
+	public static int divineInterventionCooldownTicks() {
+		return divineInterventionCooldownSeconds() * 20;
+	}
+
+	public static boolean enableSacredVerdict() {
+		return boolOr(ENABLE_SACRED_VERDICT, true);
+	}
+
+	public static double sacredVerdictProcChancePercent() {
+		return doubleOr(SACRED_VERDICT_PROC_CHANCE, 20.0D);
+	}
+
+	public static int sacredVerdictProcTicks() {
+		return Math.max(1, intOr(SACRED_VERDICT_PROC_SECONDS, 7)) * 20;
+	}
+
+	public static double sacredVerdictCastRange() {
+		return doubleOr(SACRED_VERDICT_CAST_RANGE, 200.0D);
+	}
+
+	public static double sacredVerdictCastRadius() {
+		return doubleOr(SACRED_VERDICT_CAST_RADIUS, 8.0D);
+	}
+
+	public static float sacredVerdictCastDamage() {
+		return (float) doubleOr(SACRED_VERDICT_CAST_DAMAGE, 21.0D);
+	}
+
+	public static int sacredVerdictCastMarkTicks() {
+		return Math.max(1, intOr(SACRED_VERDICT_CAST_MARK_SECONDS, 21)) * 20;
+	}
+
+	public static double sacredVerdictBonusDamagePercent() {
+		return doubleOr(SACRED_VERDICT_BONUS_PERCENT, 5.0D);
+	}
+
+	public static int sacredVerdictCooldownSeconds() {
+		return Math.max(0, intOr(SACRED_VERDICT_COOLDOWN_SECONDS, 60));
+	}
+
+	public static int sacredVerdictCooldownTicks() {
+		return sacredVerdictCooldownSeconds() * 20;
+	}
+
+	public static boolean enableBloodDebtAltar() {
+		return boolOr(ENABLE_BLOOD_DEBT_ALTAR, true);
+	}
+
+	public static double bloodDebtReductionPercent() {
+		return doubleOr(BLOOD_DEBT_REDUCTION_PERCENT, 50.0D);
+	}
+
+	public static int bloodDebtDeferTicks() {
+		return Math.max(1, (int) Math.round(doubleOr(BLOOD_DEBT_DEFER_SECONDS, 5.0D) * 20.0D));
+	}
+
+	public static double bloodDebtMinDeferredDamage() {
+		return doubleOr(BLOOD_DEBT_MIN_DEFERRED, 1.0D);
+	}
+
+	public static double bloodDebtActiveAbsorbPercent() {
+		return doubleOr(BLOOD_DEBT_ACTIVE_ABSORB_PERCENT, 200.0D);
+	}
+
+	public static double bloodDebtCapMaxHealthPercent() {
+		return doubleOr(BLOOD_DEBT_CAP_PERCENT, 200.0D);
+	}
+
+	public static double bloodDebtKillReduceSeconds() {
+		return doubleOr(BLOOD_DEBT_KILL_REDUCE_SECONDS, 1.0D);
+	}
+
+	public static List<? extends String> bloodDebtExtraBossEntities() {
+		try {
+			return BLOOD_DEBT_EXTRA_BOSS_ENTITIES.get();
+		} catch (IllegalStateException exception) {
+			return List.of();
+		}
+	}
+
+	public static List<? extends String> bloodDebtExtraHostileEntities() {
+		try {
+			return BLOOD_DEBT_EXTRA_HOSTILE_ENTITIES.get();
+		} catch (IllegalStateException exception) {
+			return List.of();
+		}
+	}
+
+	public static int bloodDebtCooldownSeconds() {
+		return Math.max(0, intOr(BLOOD_DEBT_COOLDOWN_SECONDS, 30));
+	}
+
+	public static int bloodDebtCooldownTicks() {
+		return bloodDebtCooldownSeconds() * 20;
+	}
+
+	public static boolean enableHexSeal() {
+		return boolOr(ENABLE_HEX_SEAL, true);
+	}
+
+	public static double hexSealProcChancePercent() {
+		return doubleOr(HEX_SEAL_PROC_CHANCE, 20.0D);
+	}
+
+	public static int hexSealProcTicks() {
+		return Math.max(1, intOr(HEX_SEAL_PROC_SECONDS, 12)) * 20;
+	}
+
+	public static double hexSealCastAngleDegrees() {
+		return doubleOr(HEX_SEAL_CAST_ANGLE, 90.0D);
+	}
+
+	public static double hexSealCastRange() {
+		return doubleOr(HEX_SEAL_CAST_RANGE, 12.0D);
+	}
+
+	public static int hexSealCastTicks() {
+		return Math.max(1, intOr(HEX_SEAL_CAST_SECONDS, 30)) * 20;
+	}
+
+	public static double hexSealDamageTakenPercent() {
+		return doubleOr(HEX_SEAL_DAMAGE_TAKEN_PERCENT, 50.0D);
+	}
+
+	public static double hexSealTransferPercent() {
+		return doubleOr(HEX_SEAL_TRANSFER_PERCENT, 50.0D);
+	}
+
+	public static double hexSealSpreadRadius() {
+		return doubleOr(HEX_SEAL_SPREAD_RADIUS, 6.0D);
+	}
+
+	public static int hexSealCooldownSeconds() {
+		return Math.max(0, intOr(HEX_SEAL_COOLDOWN_SECONDS, 60));
+	}
+
+	public static int hexSealCooldownTicks() {
+		return hexSealCooldownSeconds() * 20;
 	}
 
 	public static int bodySetDamageReductionPercent() {

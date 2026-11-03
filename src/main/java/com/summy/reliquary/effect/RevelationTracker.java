@@ -180,7 +180,8 @@ public final class RevelationTracker {
 				com.summy.reliquary.effect.PlayerFlags.evilExact(player),
 				(int) Math.round(com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player)),
 				com.summy.reliquary.effect.PlayerFlags.evilUnlocks(player),
-				(int) Math.round(com.summy.reliquary.effect.PlayerFlags.soulHeartPoints(player)));
+				(int) Math.round(com.summy.reliquary.effect.PlayerFlags.soulHeartPoints(player)),
+				com.summy.reliquary.effect.PlayerFlags.bloodDebtShield(player));
 	}
 
 	/** 距离揭示还剩多少秒（已揭示或未佩戴时返回 0） */

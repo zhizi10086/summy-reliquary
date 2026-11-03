@@ -9,6 +9,10 @@
     "summy-reliquary:sacrifice_self",
     "summy-reliquary:godhead_aura",
     "summy-reliquary:abyss_aura",
-    "summy-reliquary:demon_flame"
+    "summy-reliquary:demon_flame",
+    "summy-reliquary:sacred_verdict",
+    "summy-reliquary:divine_intervention_reflect",
+    "summy-reliquary:blood_debt",
+    "summy-reliquary:hex_transfer"
   ]
 }

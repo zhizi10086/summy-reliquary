@@ -31,6 +31,7 @@ public final class AbyssLord {
 	public static boolean shouldApply(DamageSource source) {
 		return source != null
 				&& !HolyLightEffect.isExactDamage(source)
+				&& !HolyLightEffect.isCovenantEffect(source)
 				&& !HolyLightEffect.isHellfire(source);
 	}
 

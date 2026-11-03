@@ -96,6 +96,10 @@ public final class ReliquaryEvents {
 		com.summy.reliquary.effect.HolyLightEffect.tickServer(server);
 		// 圣心：箭矢追踪（以箭矢为中心找最近的敌对生物）
 		com.summy.reliquary.effect.SacredHeart.tick(server);
+		// 誓约：神圣干预屏障 / 厄咒转移在本 tick 末统一结算
+		com.summy.reliquary.effect.DivineIntervention.tickServer(server);
+		com.summy.reliquary.effect.HexSeal.tickServer(server);
+		com.summy.reliquary.effect.SacredVerdict.tickServer(server);
 		// 玄秘魔眼（1.6.10 联动）：清理过期的"恐惧移速归零"
 		com.summy.reliquary.effect.OccultEye.tickServer(server);
 		// 遁入暗影（1.7.5）：推进两把仪式匕首的右键技能
@@ -122,6 +126,11 @@ public final class ReliquaryEvents {
 		com.summy.reliquary.effect.Habit.clear();
 		com.summy.reliquary.effect.CombatTuning.clear();
 		com.summy.reliquary.effect.DamagePools.clear();
+		com.summy.reliquary.effect.LifeDeath.clear();
+		com.summy.reliquary.effect.DivineIntervention.clear();
+		com.summy.reliquary.effect.SacredVerdict.clear();
+		com.summy.reliquary.effect.BloodDebtAltar.clear();
+		com.summy.reliquary.effect.HexSeal.clear();
 		// 1.8.5 第二轮：换服务器 / 换加载器后必须重新探测 LivingDamageEvent 是否可用
 		com.summy.reliquary.effect.DamagePools.resetCapabilityProbe();
 		com.summy.reliquary.effect.Abaddon.clear();
@@ -166,6 +175,8 @@ public final class ReliquaryEvents {
 		com.summy.reliquary.effect.Abaddon.tickPlayer(player);
 		// 背叛（2.0）：每 tick 扫描 / 强制敌人攻击靶子 / 结束与冷却
 		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		// 誓约：生死逆转倒计时与血债祭坛静默还款
+		com.summy.reliquary.effect.CovenantActions.tickPlayer(player);
 		// 神性（1.8.2）：清理过期的"死亡拦截后 2 秒无敌"记录
 		com.summy.reliquary.effect.Godhead.tickPlayer(player);
 		// 献祭（1.8.2）：清理过期的近战增伤记录
@@ -296,6 +307,15 @@ public final class ReliquaryEvents {
 		if (player.isShiftKeyDown()) {
 			arrow.getPersistentData().putBoolean(NO_HOMING_TAG, true);
 		}
+		com.summy.reliquary.effect.SacredVerdict.onProjectileJoin(event);
+	}
+
+	/** 神圣干预屏障拦截爆炸射线：盾后的方块与实体从受影响列表中移除。 */
+	@SubscribeEvent
+	public static void onExplosionDetonate(net.minecraftforge.event.level.ExplosionEvent.Detonate event) {
+		if (!event.getLevel().isClientSide()) {
+			com.summy.reliquary.effect.DivineIntervention.onExplosionDetonate(event);
+		}
 	}
 
 	/**
@@ -311,13 +331,15 @@ public final class ReliquaryEvents {
 		if (player == null || source == null) {
 			return false;
 		}
+		boolean shieldSuppressed = com.summy.reliquary.effect.LifeDeath.shieldSuppressed(player);
 		return com.summy.reliquary.effect.Godhead.isEnvironmentImmune(player, source)
 				|| com.summy.reliquary.effect.Godhead.isGuarded(player)
 				|| com.summy.reliquary.effect.Abaddon.isGuarded(player)
 				|| com.summy.reliquary.effect.DeathImmunity.isGuarded(player)
-				|| com.summy.reliquary.effect.HolyMantle.isGuarded(player)
-				|| com.summy.reliquary.effect.SoulShield.isGuarded(player)
-				|| com.summy.reliquary.effect.DemonPact.isGuarded(player)
+				|| com.summy.reliquary.effect.LifeDeath.isGuarded(player)
+				|| (!shieldSuppressed && (com.summy.reliquary.effect.HolyMantle.isGuarded(player)
+						|| com.summy.reliquary.effect.SoulShield.isGuarded(player)
+						|| com.summy.reliquary.effect.DemonPact.isGuarded(player)))
 				|| com.summy.reliquary.effect.ShadowDash.isInvulnerable(player)
 				// 恶魔线完全防火（1.6.7）：按住 #is_fire 标签全集拦截，同属"完全拦截"
 				|| (isDemonFireImmune(player)
@@ -336,12 +358,16 @@ public final class ReliquaryEvents {
 		Entity source = event.getSource().getEntity();
 		if (source instanceof ServerPlayer killer && killer != event.getEntity()) {
 			com.summy.reliquary.sin.SinEffects.onKill(killer, event.getEntity());
+			com.summy.reliquary.effect.LifeDeath.onKill(killer, event.getEntity());
+			com.summy.reliquary.effect.BloodDebtAltar.onKill(killer, event.getEntity());
 			// 末影龙：两条挑战成就（与「解放末地」同口径 —— 击杀者是该玩家）
 			if (event.getEntity() instanceof EnderDragon) {
 				SinChallenges.onDragonSlainBy(killer);
 			}
 		}
 		if (event.getEntity() instanceof ServerPlayer victim) {
+			com.summy.reliquary.effect.LifeDeath.onPlayerDeath(victim);
+			com.summy.reliquary.effect.BloodDebtAltar.onDeathOrUnequip(victim);
 			com.summy.reliquary.sin.SinEffects.onPlayerDeath(victim);
 			// 1.8.2：记录死亡地点，供神性「回溯」（X）使用
 			com.summy.reliquary.effect.PlayerFlags.setLastDeath(victim,
@@ -352,6 +378,8 @@ public final class ReliquaryEvents {
 		}
 		// 心之碎片：带启示之光的生物死亡时按几率掉落（1.5.6）
 		com.summy.reliquary.effect.HeartShardDrop.onDeath(event.getEntity(), event.getSource().getEntity());
+		com.summy.reliquary.effect.SacredVerdict.onDeath(event.getEntity());
+		com.summy.reliquary.effect.HexSeal.onDeath(event.getEntity());
 		// 恶魔契约（1.6.0）：献祭完成判定 + 邪恶度积攒
 		com.summy.reliquary.effect.DemonPact.onDeath(event.getEntity(), event.getSource().getEntity());
 	}
@@ -501,6 +529,10 @@ public final class ReliquaryEvents {
 			com.summy.reliquary.effect.DemonPact.forget(player);
 			com.summy.reliquary.effect.Habit.forget(player);
 			com.summy.reliquary.effect.Betrayal.forget(player);
+			com.summy.reliquary.effect.LifeDeath.forget(player);
+			com.summy.reliquary.effect.DivineIntervention.forget(player);
+			com.summy.reliquary.effect.BloodDebtAltar.forget(player);
+			com.summy.reliquary.effect.HexSeal.removeOwner(player.getUUID());
 			com.summy.reliquary.effect.CombatTuning.forget(player);
 			// 1.6.4：还原可能残留的"临时并入吸收值"，并清掉挂起记录
 			com.summy.reliquary.effect.DamagePools.forget(player);
@@ -569,7 +601,10 @@ public final class ReliquaryEvents {
 					com.summy.reliquary.slot.ReliquarySlots.SOUL_SEAL,
 					com.summy.reliquary.slot.ReliquarySlots.SPIRIT_ALTAR,
 					com.summy.reliquary.slot.ReliquarySlots.REVELATION,
-					com.summy.reliquary.slot.ReliquarySlots.BLESSING}) {
+					com.summy.reliquary.slot.ReliquarySlots.BLESSING,
+					com.summy.reliquary.slot.ReliquarySlots.DEMON_PACT,
+					com.summy.reliquary.slot.ReliquarySlots.BACK,
+					com.summy.reliquary.slot.ReliquarySlots.COVENANT}) {
 				var stacksHandler = handler.getCurios().get(identifier);
 				if (stacksHandler == null) {
 					continue;
@@ -662,6 +697,8 @@ public final class ReliquaryEvents {
 			com.summy.reliquary.effect.DemonPact.forget(oldPlayer);
 			com.summy.reliquary.effect.Habit.forget(oldPlayer);
 			com.summy.reliquary.effect.Betrayal.forget(oldPlayer);
+			com.summy.reliquary.effect.LifeDeath.forget(oldPlayer);
+			com.summy.reliquary.effect.BloodDebtAltar.forget(oldPlayer);
 		}
 		CompoundTag oldData = event.getOriginal().getPersistentData();
 		if (oldData.contains(SinManager.ROOT, CompoundTag.TAG_COMPOUND)) {
@@ -746,20 +783,34 @@ public final class ReliquaryEvents {
 		if (event.isCanceled()) {
 			return;
 		}
-		// 神圣斗篷：无敌期内取消伤害；否则佩戴者受击后开启无敌窗口（1.5.4）
-		com.summy.reliquary.effect.HolyMantle.onHurt(event);
+		// 生死逆转转形态后的 2 秒无敌
+		com.summy.reliquary.effect.LifeDeath.onHurt(event);
 		if (event.isCanceled()) {
 			return;
+		}
+		// 神圣斗篷：无敌期内取消伤害；否则佩戴者受击后开启无敌窗口（1.5.4）
+		if (!(event.getEntity() instanceof ServerPlayer shieldPlayer
+				&& com.summy.reliquary.effect.LifeDeath.shieldSuppressed(shieldPlayer))) {
+			com.summy.reliquary.effect.HolyMantle.onHurt(event);
+			if (event.isCanceled()) {
+				return;
+			}
 		}
 		// 魂心完全破碎后的无敌：同样取消一切来源的伤害（1.6.2）
-		SoulShield.onHurt(event);
-		if (event.isCanceled()) {
-			return;
+		if (!(event.getEntity() instanceof ServerPlayer shieldPlayer
+				&& com.summy.reliquary.effect.LifeDeath.shieldSuppressed(shieldPlayer))) {
+			SoulShield.onHurt(event);
+			if (event.isCanceled()) {
+				return;
+			}
 		}
 		// 黑心完全破碎后的 0.5 秒短无敌：只挡之后到来的伤害，不挽回打空这一击。
-		com.summy.reliquary.effect.DemonPact.onHurt(event);
-		if (event.isCanceled()) {
-			return;
+		if (!(event.getEntity() instanceof ServerPlayer shieldPlayer
+				&& com.summy.reliquary.effect.LifeDeath.shieldSuppressed(shieldPlayer))) {
+			com.summy.reliquary.effect.DemonPact.onHurt(event);
+			if (event.isCanceled()) {
+				return;
+			}
 		}
 		// 神性：清单里的原版环境伤害全部免疫（虚空不在清单内，不免疫）
 		if (event.getEntity() instanceof ServerPlayer protectedPlayer
@@ -805,6 +856,13 @@ public final class ReliquaryEvents {
 						* (float) (ReliquaryConfig.pactLifestealPercent() / 100.0D));
 			}
 		}
+		// 生死逆转：死形态倍率自成一乘区，放在所有既有出伤乘区之后单独相乘。
+		if (!event.isCanceled() && regularDamageBonuses
+				&& event.getSource().getEntity() instanceof ServerPlayer deathFormAttacker
+				&& deathFormAttacker != event.getEntity()) {
+			event.setAmount(event.getAmount()
+					* com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(deathFormAttacker));
+		}
 		// 七罪：受害者是本模组玩家时的受伤增加与色欲受击脱甲
 		// 1.8.2：献祭的自伤不触发傲慢放大与色欲脱甲
 		if (event.getEntity() instanceof ServerPlayer victim && !event.isCanceled()
@@ -821,6 +879,16 @@ public final class ReliquaryEvents {
 			// 1.6.10：把攻击者一并传进去 —— 同时佩戴亚巴顿时要打"抗性联动"时间戳
 			com.summy.reliquary.effect.AbyssLord.applyStack(event.getEntity(), hellfireOwner);
 		}
+
+		// 2.3 誓约：
+		// ① 穿过神圣干预屏障的玩家投射物；② 厄咒增伤与转移候选；
+		// ③ 血债祭坛减伤与延迟；④ 神圣干预反伤；⑤ 神圣裁决附伤与新触发。
+		com.summy.reliquary.effect.DivineIntervention.onProjectileHurt(event);
+		com.summy.reliquary.effect.HexSeal.onIncomingHurt(event);
+		com.summy.reliquary.effect.BloodDebtAltar.onIncomingHurt(event);
+		com.summy.reliquary.effect.DivineIntervention.onIncomingHurt(event);
+		com.summy.reliquary.effect.SacredVerdict.recordOutgoing(event);
+		com.summy.reliquary.effect.HexSeal.onOutgoingHurt(event);
 	}
 
 	/**
@@ -971,6 +1039,9 @@ public final class ReliquaryEvents {
 	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
 	public static void onLivingDamagePools(net.minecraftforge.event.entity.living.LivingDamageEvent event) {
 		com.summy.reliquary.effect.DamagePools.applyToHealthDamage(event);
+		if (!event.isCanceled() && event.getAmount() >= 0.0F) {
+			com.summy.reliquary.effect.SacredVerdict.confirmLanding(event);
+		}
 	}
 
 	/** 挖掘速度：Forge 1.20.1 没有"挖掘速度"属性，用 BreakSpeed 事件实现 */

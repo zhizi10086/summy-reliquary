@@ -116,6 +116,18 @@ public final class PlayerFlags {
 	private static final String ABADDON_REVIVE_READY_AT = "abaddon_revive_ready_at";
 	/** 背叛：嘲讽结束后的冷却截止时间（game tick；0 = 可用） */
 	private static final String BETRAYAL_COOLDOWN_UNTIL = "betrayal_cooldown_until";
+	/** 誓约主动：当前饰品技能冷却截止时间（game tick；0 = 可用） */
+	private static final String OATH_COOLDOWN_UNTIL = "oath_cooldown_until";
+	/** 生死逆转：死形态开始时间（game tick；0 = 生形态） */
+	private static final String DEATH_FORM_STARTED_AT = "death_form_started_at";
+	/** 生死逆转：死形态持续时间（tick；用于重启后继续倒计时） */
+	private static final String DEATH_FORM_DURATION = "death_form_duration";
+	/** 生死逆转：死形态累计击杀权重 */
+	private static final String DEATH_FORM_KILL_WEIGHT = "death_form_kill_weight";
+	/** 生死逆转：复活后的冷却截止时间（game tick；0 = 可用） */
+	private static final String LIFE_DEATH_COOLDOWN_UNTIL = "life_death_cooldown_until";
+	/** 血债祭坛：独立血债盾点数 */
+	private static final String BLOOD_DEBT_SHIELD = "blood_debt_shield";
 	/** 当日已获得的邪恶度总量（受 daily_cap 限制） */
 	private static final String EVIL_TODAY = "evil_today";
 	/** 当日友善档已获得的邪恶度（受 friendly_daily_cap 限制） */
@@ -577,6 +589,75 @@ public final class PlayerFlags {
 		mutableRoot(player).putLong(BETRAYAL_COOLDOWN_UNTIL, Math.max(0L, value));
 	}
 
+	// ==================== 誓约主动饰品（2.3） ====================
+
+	public static long oathCooldownUntil(LivingEntity entity) {
+		return entity == null ? 0L : root(entity).getLong(OATH_COOLDOWN_UNTIL);
+	}
+
+	public static void setOathCooldownUntil(ServerPlayer player, long value) {
+		mutableRoot(player).putLong(OATH_COOLDOWN_UNTIL, Math.max(0L, value));
+	}
+
+	public static long deathFormStartedAt(LivingEntity entity) {
+		return entity == null ? 0L : root(entity).getLong(DEATH_FORM_STARTED_AT);
+	}
+
+	public static int deathFormDuration(LivingEntity entity) {
+		return entity == null ? 0 : root(entity).getInt(DEATH_FORM_DURATION);
+	}
+
+	public static void setDeathForm(ServerPlayer player, long startedAt, int durationTicks) {
+		CompoundTag root = mutableRoot(player);
+		if (startedAt <= 0L || durationTicks <= 0) {
+			root.remove(DEATH_FORM_STARTED_AT);
+			root.remove(DEATH_FORM_DURATION);
+			root.remove(DEATH_FORM_KILL_WEIGHT);
+			return;
+		}
+		root.putLong(DEATH_FORM_STARTED_AT, startedAt);
+		root.putInt(DEATH_FORM_DURATION, durationTicks);
+		root.putInt(DEATH_FORM_KILL_WEIGHT, 0);
+	}
+
+	public static int deathFormKillWeight(LivingEntity entity) {
+		return entity == null ? 0 : root(entity).getInt(DEATH_FORM_KILL_WEIGHT);
+	}
+
+	public static void setDeathFormKillWeight(ServerPlayer player, int value) {
+		mutableRoot(player).putInt(DEATH_FORM_KILL_WEIGHT, Math.max(0, value));
+	}
+
+	public static long lifeDeathCooldownUntil(LivingEntity entity) {
+		return entity == null ? 0L : root(entity).getLong(LIFE_DEATH_COOLDOWN_UNTIL);
+	}
+
+	public static void setLifeDeathCooldownUntil(ServerPlayer player, long value) {
+		mutableRoot(player).putLong(LIFE_DEATH_COOLDOWN_UNTIL, Math.max(0L, value));
+	}
+
+	public static double bloodDebtShield(LivingEntity entity) {
+		return entity == null ? 0.0D : root(entity).getDouble(BLOOD_DEBT_SHIELD);
+	}
+
+	public static void setBloodDebtShield(ServerPlayer player, double value) {
+		mutableRoot(player).putDouble(BLOOD_DEBT_SHIELD, Math.max(0.0D, value));
+	}
+
+	/** 生死逆转：当前是否处于死形态。 */
+	public static boolean isDeathForm(LivingEntity entity) {
+		if (entity == null) {
+			return false;
+		}
+		if (entity.level().isClientSide()) {
+			return ReliquaryClientState.isDeathForm();
+		}
+		long startedAt = deathFormStartedAt(entity);
+		int duration = deathFormDuration(entity);
+		return startedAt > 0L && duration > 0
+				&& entity.level().getGameTime() < startedAt + duration;
+	}
+
 	public static double evilToday(LivingEntity entity) {
 		return entity == null ? 0.0D : root(entity).getDouble(EVIL_TODAY);
 	}
@@ -891,6 +972,9 @@ public final class PlayerFlags {
 		// 1.7.1：是否已被永久锁定天使线（恶魔王冠的条件行要用）
 		if (root(entity).getBoolean(HELL_LOCKED)) {
 			flags |= ReliquaryClientState.FLAG_HELL_LOCKED;
+		}
+		if (isDeathForm(entity)) {
+			flags |= ReliquaryClientState.FLAG_DEATH_FORM;
 		}
 		return flags;
 	}

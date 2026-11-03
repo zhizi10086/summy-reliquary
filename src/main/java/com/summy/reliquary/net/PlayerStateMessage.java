@@ -30,10 +30,12 @@ public class PlayerStateMessage {
 	private final int evilUnlocks;
 	/** 魂心池剩余点数（1.6.2；HUD 画蓝心） */
 	private final int soulHeartPoints;
+	/** 血债祭坛独立护盾点数（2.3；HUD 画黄心，不写原版吸收） */
+	private final double bloodDebtShield;
 
 	public PlayerStateMessage(UUID owner, int sins, int redeemed, boolean revealed, int revealX, int revealZ,
 			int flags, int revealRemainingSeconds, double evil, int blackHeartPoints, int evilUnlocks,
-			int soulHeartPoints) {
+			int soulHeartPoints, double bloodDebtShield) {
 		this.owner = owner;
 		this.sins = sins;
 		this.redeemed = redeemed;
@@ -46,6 +48,7 @@ public class PlayerStateMessage {
 		this.blackHeartPoints = blackHeartPoints;
 		this.evilUnlocks = evilUnlocks;
 		this.soulHeartPoints = soulHeartPoints;
+		this.bloodDebtShield = bloodDebtShield;
 	}
 
 	public PlayerStateMessage(FriendlyByteBuf buffer) {
@@ -61,6 +64,7 @@ public class PlayerStateMessage {
 		this.blackHeartPoints = buffer.readVarInt();
 		this.evilUnlocks = buffer.readVarInt();
 		this.soulHeartPoints = buffer.readVarInt();
+		this.bloodDebtShield = buffer.readDouble();
 	}
 
 	public void encode(FriendlyByteBuf buffer) {
@@ -76,6 +80,7 @@ public class PlayerStateMessage {
 		buffer.writeVarInt(blackHeartPoints);
 		buffer.writeVarInt(evilUnlocks);
 		buffer.writeVarInt(soulHeartPoints);
+		buffer.writeDouble(bloodDebtShield);
 	}
 
 	public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
@@ -84,6 +89,7 @@ public class PlayerStateMessage {
 				revealRemainingSeconds);
 		ReliquaryClientState.setDemonStats(evil, blackHeartPoints, evilUnlocks);
 		ReliquaryClientState.setSoulHeartPoints(soulHeartPoints);
+		ReliquaryClientState.setBloodDebtShield(bloodDebtShield);
 		context.setPacketHandled(true);
 	}
 }

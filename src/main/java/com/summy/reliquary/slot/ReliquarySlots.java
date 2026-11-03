@@ -38,6 +38,8 @@ public final class ReliquarySlots {
 	 * 「恶魔契约」栏位（1.6.0）：**动态**的——签约时 +1 格、忏悔时压回 0 格。
 	 */
 	public static final String DEMON_PACT = "demon_pact";
+	/** 誓约栏位（2.3）：5 件主动饰品共用 1 格。 */
+	public static final String COVENANT = "covenant";
 	/**
 	 * Curios **自带**的「背饰」栏位（1.6.1 起「仪式法袍」用它）。
 	 *
@@ -48,7 +50,7 @@ public final class ReliquarySlots {
 	public static final String BACK = "back";
 
 	private static final Set<String> CUSTOM =
-			Set.of(HALO, STOMACH, SOUL_SEAL, SPIRIT_ALTAR, REVELATION, BLESSING, DEMON_PACT);
+			Set.of(HALO, STOMACH, SOUL_SEAL, SPIRIT_ALTAR, REVELATION, BLESSING, DEMON_PACT, COVENANT);
 
 	private ReliquarySlots() {
 	}
@@ -92,6 +94,12 @@ public final class ReliquarySlots {
 				|| result.stack().is(SummyReliquary.BETRAYAL.get()));
 		// 恶魔契约栏位（1.6.0，动态 0~1 格）：只有契约能进
 		register("demon_pact_only", result -> result.stack().is(SummyReliquary.THE_PACT.get()));
+		register("covenant_only", result ->
+				result.stack().is(SummyReliquary.LIFE_DEATH.get())
+						|| result.stack().is(SummyReliquary.DIVINE_INTERVENTION.get())
+						|| result.stack().is(SummyReliquary.SACRED_VERDICT.get())
+						|| result.stack().is(SummyReliquary.BLOOD_DEBT_ALTAR.get())
+						|| result.stack().is(SummyReliquary.HEX_SEAL.get()));
 	}
 
 	private static void register(String path, Predicate<SlotResult> predicate) {

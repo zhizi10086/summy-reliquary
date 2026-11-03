@@ -74,6 +74,9 @@ public final class AttributeManager {
 	private static final UUID SPEAR_REACH = id(62);
 	/** 修女服（2.0）：护甲 +2（加法） */
 	private static final UUID HABIT_ARMOR = id(63);
+	/** 生死逆转死形态（2.3）：移速 / 攻速固定加成 */
+	private static final UUID LIFE_DEATH_SPEED = id(71);
+	private static final UUID LIFE_DEATH_ATTACK_SPEED = id(72);
 	/** 上一次打印过的属性摘要：签名不变就不重复刷日志 */
 	private static final Map<UUID, String> LAST_SUMMARY = new HashMap<>();
 	/** 由我们授予过飞行的玩家（卸下终末天启时要收回） */
@@ -194,6 +197,16 @@ public final class AttributeManager {
 		apply(entity, Attributes.ARMOR, HABIT_ARMOR, "habit_armor",
 				Habit.wears(entity) ? ReliquaryConfig.habitArmor() : 0.0D,
 				AttributeModifier.Operation.ADDITION);
+
+		// 生死逆转死形态：移速 / 攻速固定 +25%，离开死形态立刻回收。
+		boolean deathForm = com.summy.reliquary.effect.LifeDeath.wears(entity)
+				&& com.summy.reliquary.effect.PlayerFlags.isDeathForm(entity);
+		apply(entity, Attributes.MOVEMENT_SPEED, LIFE_DEATH_SPEED, "life_death_death_form_speed",
+				deathForm ? ReliquaryConfig.lifeDeathMoveSpeedPercent() / 100.0D : 0.0D,
+				AttributeModifier.Operation.MULTIPLY_TOTAL);
+		apply(entity, Attributes.ATTACK_SPEED, LIFE_DEATH_ATTACK_SPEED, "life_death_death_form_attack_speed",
+				deathForm ? ReliquaryConfig.lifeDeathAttackSpeedPercent() / 100.0D : 0.0D,
+				AttributeModifier.Operation.MULTIPLY_TOTAL);
 
 		// 五芒星（护符栏，1.5.8）：近战伤害 +1（卸下即回收）
 		boolean pentagramWorn = CurioHelper.wears(entity, SummyReliquary.PENTAGRAM.get());

@@ -1166,6 +1166,9 @@ public final class DemonPact {
 	/** 撒旦圣经：每 {@code satanic_pact_refill_seconds} 秒把黑心补满 */
 	private static void tickBlackHeartRefill(ServerPlayer player, double maxPool) {
 		UUID id = player.getUUID();
+		if (com.summy.reliquary.effect.LifeDeath.shieldSuppressed(player)) {
+			return;
+		}
 		if (!wearsSatanicBible(player)) {
 			BLACK_HEART_REFILL.remove(id);
 			return;
@@ -1199,7 +1202,8 @@ public final class DemonPact {
 	 * 摘下圣经**不清空**池子（黑心的来源是契约 / 法袍 / 圣经 / 咒印多份）。
 	 */
 	public static void onJoin(ServerPlayer player) {
-		if (player == null || !wearsSatanicBible(player)) {
+		if (player == null || com.summy.reliquary.effect.LifeDeath.shieldSuppressed(player)
+				|| !wearsSatanicBible(player)) {
 			return;
 		}
 		double maxPool = blackHeartMaxPoints(player);
