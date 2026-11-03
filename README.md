@@ -295,12 +295,14 @@ Summy Reliquary 是一个以 **Curios** 为前置的七罪主题饰品与武器�
 - **定值真伤增伤转正（2.17）**：新增 `[combat] exact_damage_gets_multiplier`（默认 `false`）。开启后，`isExactDamage` 的 7 项伤害享受七罪 / 七德 / 最终倍率与思想、玄秘魔眼、恶魔王冠条件乘区；纯 `isDivine` 的圣光、黑心碎裂、狱火仍排除。
 - **无副作用口径**：定值真伤只吃正面全伤害乘区，不触发暴怒自伤、色欲脱甲、贪婪惩罚、耐心近战叠层、献祭近战增伤或恶魔契约吸血。
 - **兼容**：同时安装 Summy Threat 时，本开关与 `[reliquary_compat] enable_fixed_damage_boosts` 必须二选一，避免双重放大。
+- **真伤限伤破除（2.9）**：新增统一出口 `TrueDamageLimits.hurt(...)`。SR 的圣光 / 启示之光 / 神性光环 / 圣光爆发 / 狱火 / 恶魔之焰 / 黑心碎裂 / 亚巴顿光环在成功落地后，会按实际生命与吸收损失补足被第三方数值上限或百分比减伤削掉的差额；`hurt()` 返回 false 的阶段无敌一律不补。开关 `[combat] true_damage_ignores_damage_limits`（默认 true），玩家目标另由 `true_damage_limit_affects_players` 控制（默认 false）。
+- **伤害类型识别修正**：SR 自定义伤害改为按注册类型 id 分类，不再误用死亡文本 `message_id`；神性光环因此能正确识别为定值真伤。
 - **魂心 / 黑心护盾保护（2.13）**：对应路线的池子只要还有 1 点，任意大的单次伤害都被整击吞下，溢出不会进入生命；`/kill` 例外，仍按池子实有点数抵扣后结算溢出。献祭自伤同样吃整击保护。
 - **黑心破碎无敌（2.13）**：黑心池从非空被打空后获得 **0.5 秒**无敌，新增 `[demon_pact] black_shatter_invulnerable_seconds`；魂心破碎仍是 5 秒，同一击同时触发时取较长窗口。
 - **路线校验（2.13）**：魂心只在天使线提供，黑心只在恶魔线提供；强塞对方路线饰品不会生效，切换路线后池子会在 1 秒内夹回 0。
 - **修女服 / Habit（2.10）**：新天使线背饰，配方为金锭×3 + 白羊毛×3 + 黑羊毛×2 + 心之碎片；提供魂心 +2 心、护甲 +2，并在真实受伤后推进所有正在冷却的自模组技能（总冷却 10%，单次至少 1 秒，0.5 秒触发节流）。
 - **背叛 / Betrayal（2.11）**：恶魔线加护，需当前恶魔标记；8 格内至少 2 名敌人时，每 tick 逐敌 0.5% 掷骰，取最近命中者为 18 秒靶子，范围内敌人强制攻击它，结束后冷却 5 秒；新增挑战成就「三十枚银钱」。
-- **交付**：版本 `2.0.0-forge`；注册物品 / 创造页 / 配方 / 进度为（**52 / 48 / 36 / 25**）；协议保持 **`"14"`**；配置段 / 键为 **28 / 281**。本轮按快速验证口径完成编译与构建，完整 605 行客户端自检留到 2.0 联调轮复核。
+- **交付**：版本 `2.0.0-forge`；注册物品 / 创造页 / 配方 / 进度为（**52 / 48 / 36 / 25**）；协议保持 **`"14"`**；配置段 / 键为 **28 / 283**；完整客户端自检 **609 行全绿**。
 
 ## 1.8.8 变更
 
@@ -520,6 +522,8 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
                    # clear_iframes_after_true_damage(默认 true：真伤落地后再清一次保护帧)
                    # exact_damage_gets_multiplier(默认 false：开启后定值真伤吃正面全伤害乘区；
                    #   与 Summy Threat 的 enable_fixed_damage_boosts 二选一)
+                   # true_damage_ignores_damage_limits(默认 true：真伤落地后补齐被第三方限伤削掉的差额)
+                   # true_damage_limit_affects_players(默认 false：补差是否也对玩家目标生效)
 [revelation_light] # 启示之光 buff 与心之碎片：enable_buff(true) / buff_seconds(7.0)
                    # / enable_heart_shard_drop(true) / drop_chance_percent(0.5)
                    # / boss_chance_percent(5) / dragon_chance_percent(20)

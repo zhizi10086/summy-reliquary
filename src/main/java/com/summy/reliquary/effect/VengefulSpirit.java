@@ -138,7 +138,7 @@ public final class VengefulSpirit {
 			return;
 		}
 		target.invulnerableTime = 0;
-		target.hurt(hellfireSource(level, attacker), damage);
+		TrueDamageLimits.hurt(target, hellfireSource(level, attacker), damage);
 	}
 
 	/** 狱火伤害源（数据包缺失时退回原版魔法伤害，避免抛异常） */

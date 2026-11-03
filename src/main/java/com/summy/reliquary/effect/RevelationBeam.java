@@ -484,7 +484,7 @@ public final class RevelationBeam {
 		for (LivingEntity target : collectTargets(beam)) {
 			// 无视无敌帧，保证 0.1 秒的节奏每一下都生效
 			target.invulnerableTime = 0;
-			if (target.hurt(beam.source, beam.damagePerTick)) {
+			if (TrueDamageLimits.hurt(target, beam.source, beam.damagePerTick)) {
 				beam.hitTargets.add(target.getUUID());
 			}
 		}
@@ -578,7 +578,11 @@ public final class RevelationBeam {
 	public static boolean applyTrueDamage(ServerLevel level, ServerPlayer caster, LivingEntity target,
 			float damage, String path, boolean applyLightBuff) {
 		target.invulnerableTime = 0;
-		boolean hurt = target.hurt(testedDamageSource(level, caster, path), damage);
+		DamageSource source = testedDamageSource(level, caster, path);
+		// 契约献祭不在 2.9 适用范围；其余启示 / 神性 / 圣光爆发 / 深渊光环都走统一补差出口。
+		boolean hurt = "sacrifice".equals(path)
+				? target.hurt(source, damage)
+				: TrueDamageLimits.hurt(target, source, damage);
 		if (!hurt) {
 			return false;
 		}

@@ -359,6 +359,10 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.BooleanValue CLEAR_IFRAMES_AFTER_TRUE_DAMAGE;
 	/** 2.0.0 / 2.17：定值真伤是否吃七罪、七德、最终倍率与条件乘区 */
 	private static final ForgeConfigSpec.BooleanValue EXACT_DAMAGE_GETS_MULTIPLIER;
+	/** 2.0.0 / 2.9：真伤是否补齐被第三方数值上限削掉的差额 */
+	private static final ForgeConfigSpec.BooleanValue TRUE_DAMAGE_IGNORES_DAMAGE_LIMITS;
+	/** 2.0.0 / 2.9：补差是否也对玩家目标生效 */
+	private static final ForgeConfigSpec.BooleanValue TRUE_DAMAGE_LIMIT_AFFECTS_PLAYERS;
 	private static final ForgeConfigSpec.IntValue INVULNERABILITY_TICKS;
 	private static final ForgeConfigSpec.DoubleValue MAX_ATTACK_SPEED;
 
@@ -792,6 +796,13 @@ public final class ReliquaryConfig {
 						+ "开启后 isExactDamage 名单优先，但纯 isDivine 伤害仍排除。"
 						+ "若同时安装 Summy Threat，必须关闭其 [reliquary_compat] enable_fixed_damage_boosts，避免双重放大")
 				.define("exact_damage_gets_multiplier", false);
+		TRUE_DAMAGE_IGNORES_DAMAGE_LIMITS = builder
+				.comment("本模组的真伤被第三方数值上限 / 百分比减伤削减时，是否按实际落地结果补齐差额（默认开启）；"
+						+ "只在 hurt() 返回 true 时补差，因此不会突破阶段无敌")
+				.define("true_damage_ignores_damage_limits", true);
+		TRUE_DAMAGE_LIMIT_AFFECTS_PLAYERS = builder
+				.comment("真伤限伤破除是否也对玩家目标生效（默认关闭，PvP 仍受第三方保护）")
+				.define("true_damage_limit_affects_players", false);
 		INVULNERABILITY_TICKS = builder
 				.comment("一般受伤的有效无敌窗口（tick，默认 5 = 0.25 秒）；"
 						+ "实现上会写成 窗口+10（原版判定是 invulnerableTime > 10），0 = 这一档交回原版")
@@ -1327,9 +1338,37 @@ public final class ReliquaryConfig {
 		}
 	}
 
+	/** 2.0.0 / 2.9：真伤是否补齐第三方限伤差额（默认开） */
+	public static boolean trueDamageIgnoresDamageLimits() {
+		try {
+			return TRUE_DAMAGE_IGNORES_DAMAGE_LIMITS.get();
+		} catch (IllegalStateException exception) {
+			return true;
+		}
+	}
+
+	/** 2.0.0 / 2.9：补差是否对玩家目标生效（默认关） */
+	public static boolean trueDamageLimitAffectsPlayers() {
+		try {
+			return TRUE_DAMAGE_LIMIT_AFFECTS_PLAYERS.get();
+		} catch (IllegalStateException exception) {
+			return false;
+		}
+	}
+
 	/** 自检专用：临时切换 2.17 开关，调用方必须在 finally 中恢复 */
 	public static void setExactDamageGetsMultiplierForDevCheck(boolean enabled) {
 		EXACT_DAMAGE_GETS_MULTIPLIER.set(enabled);
+	}
+
+	/** 自检专用：临时切换 2.9 总开关，调用方必须在 finally 中恢复 */
+	public static void setTrueDamageIgnoresDamageLimitsForDevCheck(boolean enabled) {
+		TRUE_DAMAGE_IGNORES_DAMAGE_LIMITS.set(enabled);
+	}
+
+	/** 自检专用：临时切换 2.9 玩家目标开关，调用方必须在 finally 中恢复 */
+	public static void setTrueDamageLimitAffectsPlayersForDevCheck(boolean enabled) {
+		TRUE_DAMAGE_LIMIT_AFFECTS_PLAYERS.set(enabled);
 	}
 
 	public static int invulnerabilityTicks() {

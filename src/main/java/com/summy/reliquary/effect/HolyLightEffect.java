@@ -235,7 +235,7 @@ public final class HolyLightEffect {
 		lastDamage = damage;
 		// 无视无敌帧：和启示之光 / 救恩同一套做法
 		target.invulnerableTime = 0;
-		target.hurt(holyLightSource(level, attacker), damage);
+		TrueDamageLimits.hurt(target, holyLightSource(level, attacker), damage);
 		spawnColumn(level, target, nowTick + COLUMN_LINGER_TICKS);
 	}
 
@@ -336,7 +336,7 @@ public final class HolyLightEffect {
 	 * 也不触发契约的生命吸取，避免"自家特效被当成玩家近战命中"重复结算。
 	 */
 	public static boolean isDivine(DamageSource source) {
-		String id = source.getMsgId();
+		String id = typeId(source);
 		return HOLY_LIGHT_ID.equals(id) || HOLY_LIGHT_BURST_ID.equals(id) || GOLDEN_RAZOR_ID.equals(id)
 				|| REVELATION_ID.equals(id) || PACT_SHATTER_ID.equals(id) || HELLFIRE_ID.equals(id)
 				|| DEMON_FLAME_ID.equals(id) || ABYSS_AURA_ID.equals(id);
@@ -350,7 +350,7 @@ public final class HolyLightEffect {
 	 * {@code [combat] exact_damage_gets_multiplier} 显式开启正面全伤害乘区。
 	 */
 	public static boolean isExactDamage(DamageSource source) {
-		String id = source.getMsgId();
+		String id = typeId(source);
 		return HOLY_LIGHT_BURST_ID.equals(id) || GOLDEN_RAZOR_ID.equals(id) || REVELATION_ID.equals(id)
 				|| GODHEAD_AURA_ID.equals(id) || SACRIFICE_ID.equals(id) || DEMON_FLAME_ID.equals(id)
 				|| ABYSS_AURA_ID.equals(id);
@@ -384,7 +384,7 @@ public final class HolyLightEffect {
 		if (source == null) {
 			return false;
 		}
-		String id = source.getMsgId();
+		String id = typeId(source);
 		if (GOLDEN_RAZOR_ID.equals(id)) {
 			return false;
 		}
@@ -398,7 +398,22 @@ public final class HolyLightEffect {
 	 * 目标会在几秒内被动升到满级。
 	 */
 	public static boolean isHellfire(DamageSource source) {
-		return source != null && HELLFIRE_ID.equals(source.getMsgId());
+		return source != null && HELLFIRE_ID.equals(typeId(source));
+	}
+
+	/**
+	 * 用伤害类型的注册 id 分类，而不是 {@code message_id}。
+	 *
+	 * <p>二者在部分类型上刻意不同：例如 {@code godhead_aura} 的死亡文本沿用
+	 * {@code summy-reliquary.holy_light}，若读 message id 会丢失神性光环身份。
+	 */
+	static String typeId(DamageSource source) {
+		if (source == null) {
+			return "";
+		}
+		return source.typeHolder().unwrapKey()
+				.map(key -> key.location().getNamespace() + "." + key.location().getPath())
+				.orElseGet(source::getMsgId);
 	}
 
 	private static long now(MinecraftServer server) {

@@ -20,6 +20,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -99,6 +100,9 @@ public final class ForgeDevCheck {
 	private static float beamCasterHealthBefore = 0.0F;
 	/** 1.8.2：光柱打末地水晶用例里记录的水晶 UUID */
 	private static java.util.UUID beamCrystalId = null;
+	/** 2.9 自检：临时把指定目标的 LivingHurtEvent 金额钳到固定值 */
+	private static UUID trueDamageCapTargetId = null;
+	private static float trueDamageCapAmount = 5.0F;
 
 	/** 光环观感截图用的头部姿态：{偏航角, 俯仰角} */
 	private static final float[][] HALO_POSES = {
@@ -116,6 +120,15 @@ public final class ForgeDevCheck {
 	private static int pendingRespawnCheckDelay = 0;
 
 	private ForgeDevCheck() {
+	}
+
+	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
+	public static void capTrueDamageForDevCheck(LivingHurtEvent event) {
+		if (!ENABLED || trueDamageCapTargetId == null
+				|| !trueDamageCapTargetId.equals(event.getEntity().getUUID())) {
+			return;
+		}
+		event.setAmount(Math.min(event.getAmount(), trueDamageCapAmount));
 	}
 
 	@SubscribeEvent
@@ -443,6 +456,7 @@ public final class ForgeDevCheck {
 				case 2273 -> checkShieldProtectionRoutesAndGuards(player);
 				case 2274 -> checkHabit(player);
 				case 2275 -> checkBetrayal(player);
+				case 2276 -> checkTrueDamageLimits(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -2484,6 +2498,29 @@ public final class ForgeDevCheck {
 		return zombie;
 	}
 
+	/** 2.9：把测试目标放到玩家前方并加入世界。 */
+	private static <T extends LivingEntity> T spawnTrueDamageTestTarget(ServerPlayer player, T target) {
+		Vec3 look = player.getLookAngle();
+		Vec3 point = player.position().add(look.x * 6.0D, 0.0D, look.z * 6.0D);
+		target.moveTo(point.x, player.getY(), point.z, 0.0F, 0.0F);
+		if (target instanceof Mob mob) {
+			mob.setNoAi(true);
+		}
+		player.serverLevel().addFreshEntity(target);
+		return target;
+	}
+
+	/** 2.9：把测试目标生命上限提高到 40，避免补差测试被原版 20 点上限提前杀死。 */
+	private static void makeToughTestTarget(LivingEntity target) {
+		var maxHealth = target.getAttribute(Attributes.MAX_HEALTH);
+		if (maxHealth != null) {
+			maxHealth.setBaseValue(40.0D);
+		}
+		target.setHealth(40.0F);
+		target.setAbsorptionAmount(0.0F);
+		target.invulnerableTime = 0;
+	}
+
 	// ==================== 1.4.1：暴食修复 / 新阈值 / 天使体系 / 末影龙挑战 ====================
 
 	/** 暴食的饥饿上限必须是每 tick 压制（否则吃 / 喝后会闪回 19/20） */
@@ -4235,6 +4272,149 @@ public final class ForgeDevCheck {
 				handler.setEquippedCurio(ReliquarySlots.REVELATION, 0, ItemStack.EMPTY);
 				handler.setEquippedCurio(ReliquarySlots.BLESSING, 0, ItemStack.EMPTY);
 			});
+		}
+	}
+
+	/**
+	 * 2.9：真伤限伤破除。
+	 *
+	 * <p>覆盖纯函数真值表、事件层 / 实体层削额、阶段免疫、致死、吸收、零伤害折算
+	 * 以及同一 tick 连续多笔伤害，确认每次补差只按本笔的实际损失计算。
+	 */
+	private static void checkTrueDamageLimits(ServerPlayer player) {
+		boolean originalEnabled = com.summy.reliquary.config.ReliquaryConfig.trueDamageIgnoresDamageLimits();
+		boolean originalAffectsPlayers =
+				com.summy.reliquary.config.ReliquaryConfig.trueDamageLimitAffectsPlayers();
+		UUID previousCapTarget = trueDamageCapTargetId;
+		List<LivingEntity> cleanup = new java.util.ArrayList<>();
+		try {
+			boolean truthTable = com.summy.reliquary.effect.TrueDamageLimits.shouldTopUp(
+							true, 20.0F, 5.0F, false, true, false)
+					&& !com.summy.reliquary.effect.TrueDamageLimits.shouldTopUp(
+							false, 20.0F, 5.0F, false, true, false)
+					&& !com.summy.reliquary.effect.TrueDamageLimits.shouldTopUp(
+							true, 20.0F, 20.0F, false, true, false)
+					&& !com.summy.reliquary.effect.TrueDamageLimits.shouldTopUp(
+							true, 20.0F, 5.0F, true, true, false)
+					&& com.summy.reliquary.effect.TrueDamageLimits.shouldTopUp(
+							true, 20.0F, 5.0F, true, true, true)
+					&& !com.summy.reliquary.effect.TrueDamageLimits.shouldTopUp(
+							true, 20.0F, 5.0F, false, false, false);
+
+			com.summy.reliquary.config.ReliquaryConfig.setTrueDamageIgnoresDamageLimitsForDevCheck(true);
+			com.summy.reliquary.config.ReliquaryConfig.setTrueDamageLimitAffectsPlayersForDevCheck(false);
+			DamageSource source = srSource(player, "holy_light_burst");
+
+			// 事件层削额：应得 12，事件钳到 5，补差后总损失仍为 12。
+			Zombie eventCapped = spawnTestZombie(player, 6.0D);
+			cleanup.add(eventCapped);
+			makeToughTestTarget(eventCapped);
+			trueDamageCapTargetId = eventCapped.getUUID();
+			trueDamageCapAmount = 5.0F;
+			float eventHealthBefore = eventCapped.getHealth();
+			boolean eventLanded = com.summy.reliquary.effect.TrueDamageLimits.hurt(eventCapped, source, 12.0F);
+			float eventLoss = eventHealthBefore - eventCapped.getHealth();
+			trueDamageCapTargetId = null;
+
+			// 总开关关闭：事件层仍只结算 5，不补差。
+			com.summy.reliquary.config.ReliquaryConfig.setTrueDamageIgnoresDamageLimitsForDevCheck(false);
+			Zombie disabled = spawnTestZombie(player, 6.0D);
+			cleanup.add(disabled);
+			makeToughTestTarget(disabled);
+			trueDamageCapTargetId = disabled.getUUID();
+			float disabledHealthBefore = disabled.getHealth();
+			com.summy.reliquary.effect.TrueDamageLimits.hurt(disabled, source, 12.0F);
+			float disabledLoss = disabledHealthBefore - disabled.getHealth();
+			trueDamageCapTargetId = null;
+
+			com.summy.reliquary.config.ReliquaryConfig.setTrueDamageIgnoresDamageLimitsForDevCheck(true);
+
+			// 实体 hurt 覆写削额：应得 20、实体只受理 5，补差后总损失为 20。
+			TrueDamageTestZombie entityCapped = new TrueDamageTestZombie(
+					player.serverLevel(), 5.0F, false, false);
+			spawnTrueDamageTestTarget(player, entityCapped);
+			cleanup.add(entityCapped);
+			makeToughTestTarget(entityCapped);
+			float entityHealthBefore = entityCapped.getHealth();
+			com.summy.reliquary.effect.TrueDamageLimits.hurt(entityCapped, source, 20.0F);
+			float entityLoss = entityHealthBefore - entityCapped.getHealth();
+
+			// 阶段无敌：hurt 直接返回 false，一律不补。
+			TrueDamageTestZombie immune = new TrueDamageTestZombie(
+					player.serverLevel(), 0.0F, true, false);
+			spawnTrueDamageTestTarget(player, immune);
+			cleanup.add(immune);
+			makeToughTestTarget(immune);
+			float immuneHealthBefore = immune.getHealth();
+			boolean immuneLanded = com.summy.reliquary.effect.TrueDamageLimits.hurt(immune, source, 20.0F);
+			float immuneLoss = immuneHealthBefore - immune.getHealth();
+
+			// 致死：原始伤害源必须传进 die(source)。
+			TrueDamageTestZombie lethal = new TrueDamageTestZombie(
+					player.serverLevel(), 5.0F, false, false);
+			spawnTrueDamageTestTarget(player, lethal);
+			cleanup.add(lethal);
+			lethal.setHealth(3.0F);
+			com.summy.reliquary.effect.TrueDamageLimits.hurt(lethal, source, 20.0F);
+			boolean deathSourceOk = lethal.lastDeathSource != null
+					&& "summy-reliquary.holy_light_burst".equals(lethal.lastDeathSource.getMsgId());
+
+			// 吸收：总损失仍应为 20（10 吸收 + 10 生命）。
+			Zombie absorbed = spawnTestZombie(player, 6.0D);
+			cleanup.add(absorbed);
+			makeToughTestTarget(absorbed);
+			absorbed.setAbsorptionAmount(10.0F);
+			float absorbedHealthBefore = absorbed.getHealth();
+			float absorbedAbsorptionBefore = absorbed.getAbsorptionAmount();
+			com.summy.reliquary.effect.TrueDamageLimits.hurt(absorbed, source, 20.0F);
+			float absorbedTotal = (absorbedHealthBefore - absorbed.getHealth())
+					+ (absorbedAbsorptionBefore - absorbed.getAbsorptionAmount());
+
+			// 金额折算到 0 但 hurt 返回 true：仍补回应得 8。
+			TrueDamageTestZombie zeroCapped = new TrueDamageTestZombie(
+					player.serverLevel(), 0.0F, false, true);
+			spawnTrueDamageTestTarget(player, zeroCapped);
+			cleanup.add(zeroCapped);
+			makeToughTestTarget(zeroCapped);
+			float zeroHealthBefore = zeroCapped.getHealth();
+			com.summy.reliquary.effect.TrueDamageLimits.hurt(zeroCapped, source, 8.0F);
+			float zeroLoss = zeroHealthBefore - zeroCapped.getHealth();
+
+			// 同一 tick 连续三笔：每笔独立补差，不串账。
+			Zombie multi = spawnTestZombie(player, 6.0D);
+			cleanup.add(multi);
+			makeToughTestTarget(multi);
+			float multiHealthBefore = multi.getHealth();
+			for (float amount : new float[]{3.0F, 4.0F, 5.0F}) {
+				multi.invulnerableTime = 0;
+				com.summy.reliquary.effect.TrueDamageLimits.hurt(multi, source, amount);
+			}
+			float multiLoss = multiHealthBefore - multi.getHealth();
+
+			boolean ok = truthTable
+					&& eventLanded && Math.abs(eventLoss - 12.0F) < 1.0E-4F
+					&& Math.abs(disabledLoss - 5.0F) < 1.0E-4F
+					&& Math.abs(entityLoss - 20.0F) < 1.0E-4F
+					&& !immuneLanded && Math.abs(immuneLoss) < 1.0E-4F
+					&& !lethal.isAlive() && deathSourceOk
+					&& Math.abs(absorbedTotal - 20.0F) < 1.0E-4F
+					&& Math.abs(zeroLoss - 8.0F) < 1.0E-4F
+					&& Math.abs(multiLoss - 12.0F) < 1.0E-4F;
+			log(String.format("真伤限伤破除（2.9）：真值表=%s、事件削额损失 %.1f（应 12）、开关关闭 %.1f（应 5）、"
+							+ "实体削额 %.1f（应 20）、阶段免疫 false/损失 %.1f（应 true/0）、致死源=%s、"
+							+ "吸收总损失 %.1f（应 20）、零伤害折算 %.1f（应 8）、同 tick 三笔 %.1f（应 12）"
+							+ " → 整体=%s（应 true）",
+					truthTable, eventLoss, disabledLoss, entityLoss, immuneLoss, deathSourceOk,
+					absorbedTotal, zeroLoss, multiLoss, ok));
+		} finally {
+			trueDamageCapTargetId = previousCapTarget;
+			com.summy.reliquary.config.ReliquaryConfig.setTrueDamageIgnoresDamageLimitsForDevCheck(originalEnabled);
+			com.summy.reliquary.config.ReliquaryConfig.setTrueDamageLimitAffectsPlayersForDevCheck(originalAffectsPlayers);
+			for (LivingEntity target : cleanup) {
+				if (target != null) {
+					target.discard();
+				}
+			}
 		}
 	}
 
@@ -14871,5 +15051,35 @@ public final class ForgeDevCheck {
 		log("防火·客户端火焰覆盖层（1.8.5）：清火前 isOnFire=" + before + "（应 true）、清火后 ticks=0="
 				+ ticksCleared + "、isOnFire=false=" + afterClear + "、只清 tick 后仍为 false（同步位已压掉）="
 				+ flagCleared + " → 整体=" + ok + "（应 true）");
+	}
+
+	/** 2.9 自检：在实体层模拟第三方 Boss 的金额钳制、阶段免疫与死亡源记录。 */
+	private static final class TrueDamageTestZombie extends Zombie {
+		private final float cap;
+		private final boolean immune;
+		private final boolean forceLanded;
+		private DamageSource lastDeathSource;
+
+		private TrueDamageTestZombie(ServerLevel level, float cap, boolean immune, boolean forceLanded) {
+			super(EntityType.ZOMBIE, level);
+			this.cap = cap;
+			this.immune = immune;
+			this.forceLanded = forceLanded;
+		}
+
+		@Override
+		public boolean hurt(DamageSource source, float amount) {
+			if (immune) {
+				return false;
+			}
+			boolean landed = super.hurt(source, Math.min(amount, cap));
+			return landed || forceLanded;
+		}
+
+		@Override
+		public void die(DamageSource source) {
+			lastDeathSource = source;
+			super.die(source);
+		}
 	}
 }

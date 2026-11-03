@@ -852,7 +852,7 @@ public final class DemonPact {
 				}
 				// 无视无敌帧（与圣光同款做法）
 				target.invulnerableTime = 0;
-				target.hurt(pactShatterSource(level, player), (float) damage);
+				TrueDamageLimits.hurt(target, pactShatterSource(level, player), (float) damage);
 				hits++;
 			}
 			if (hits > 0) {

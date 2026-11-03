@@ -78,7 +78,7 @@ public class HellfireEffect extends MobEffect {
 		}
 		// 与复仇之魂同款：先清无敌帧，保证每秒这一下必定落地
 		entity.invulnerableTime = 0;
-		entity.hurt(hellfireSource(level), (float) damage);
+		TrueDamageLimits.hurt(entity, hellfireSource(level), (float) damage);
 	}
 
 	/** 每秒结算一次 */

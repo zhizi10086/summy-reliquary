@@ -131,6 +131,7 @@ public final class Sacrifice {
 			double blackBefore = PlayerFlags.blackHeartPoints(player);
 			// 自伤不产生击退：结算前后保存 / 恢复速度（与神性光环同款做法）
 			net.minecraft.world.phys.Vec3 velocity = player.getDeltaMovement();
+			// 献祭自伤明确不接入 TrueDamageLimits：目标恒为玩家且不属于 2.9 的限伤破除范围。
 			player.hurt(selfDamageSource(player), damage);
 			player.setDeltaMovement(velocity);
 			player.hurtMarked = true;
