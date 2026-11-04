@@ -181,7 +181,16 @@ public final class RevelationTracker {
 				(int) Math.round(com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player)),
 				com.summy.reliquary.effect.PlayerFlags.evilUnlocks(player),
 				(int) Math.round(com.summy.reliquary.effect.PlayerFlags.soulHeartPoints(player)),
-				com.summy.reliquary.effect.PlayerFlags.bloodDebtShield(player));
+				com.summy.reliquary.effect.PlayerFlags.bloodDebtShield(player),
+				com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+						? (int) Math.max(0L, com.summy.reliquary.effect.PlayerFlags.deathFormStartedAt(player)
+								+ com.summy.reliquary.effect.PlayerFlags.deathFormDuration(player)
+								- player.serverLevel().getGameTime())
+						: 0,
+				com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+						? com.summy.reliquary.effect.PlayerFlags.deathFormKillWeight(player) : 0,
+				com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+						? com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired() : 0);
 	}
 
 	/** 距离揭示还剩多少秒（已揭示或未佩戴时返回 0） */

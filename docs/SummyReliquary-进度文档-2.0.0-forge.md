@@ -22,7 +22,7 @@
 | 前置 | **Curios** `5.14.1+1.20.1`（`mods.toml` 只有 forge + minecraft + curios） |
 | Fabric 侧 | 通过 **Kilt** 跑同一个 jar（实测组合：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；另需 Sodium + Indium；Kilt 不兼容 Async / Embeddium） |
 | 构建 | `gradlew clean build`（产物自动复制到 `../JAR/summy-reliquary/`） |
-| 当前版本 | `2.0.0-forge`（协议 `"15"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
+| 当前版本 | `2.0.0-forge`（协议 `"16"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
 | 二创与致谢 | 本模组是基于《以撒的结合》（The Binding of Isaac）的**粉丝二创作品**：物品贴图与部分设定有相当数量直接取自或改编自该作，**不主张任何权利**、不用于商业用途；`LICENSE` 的 MIT **只覆盖原创代码与原创素材**。完整中英声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`；联系邮箱 **525277385@qq.com** |
 | 实例部署 | 把新 jar 放进整合包 `mods/`，旧版本就地改名为 `*.jar.disabled`（同名双版本会因 mod id 重复报错） |
 | 诊断开关 | `-Pnodata`（去掉自定义伤害类型 + 原版伤害类型标签覆盖）、`-Pnotags`（只去掉标签覆盖）、`-Pnomodel`（去掉终末天启模型/贴图）；产物改名进 `_test/` |
@@ -33,7 +33,7 @@
 >
 > **1.8.8 其余三项**：2.6 死亡拦截首触注释订正（只剩视觉抖动、不占用无敌帧）；2.12 发射瞬间蹲下的投射物永久不追踪（`EntityJoinLevelEvent` 写 `summy_reliquary_no_homing`，之后站起也不恢复）；2.15 27 件 Curios 饰品全部 `ALWAYS_KEEP`（22 个类补 `getDropRule` + `CurioItemSupport.keepOnDeath`）。
 
-**2.0.0**：2.17 定值真伤增伤转正；2.9 新增真伤限伤破除统一出口；2.13 新增魂心 / 黑心护盾保护、路线容量校验和黑心破碎无敌；2.10 新增天使线背饰「修女服」；2.11 新增恶魔线加护「背叛」与成就「三十枚银钱」；2.3 新增誓约栏与五件主动饰品。神圣裁决改为可破限伤但不吃增伤的固定附伤，厄咒转移同样接入 `TrueDamageLimits`；五件饰品的 25 条 Shift 提示已逐行绑定各自配置值，生死逆转的显示状态由佩戴物品标记驱动并在复活后回翻。注册物品 / 创造页为 **57 / 53**，协议 **`"15"`**，配置段 / 键 **33 / 329**，伤害类型 15；完整 `[DEVCHECK]` **611~613 行全绿**。
+**2.0.0**：2.17 定值真伤增伤转正；2.9 新增真伤限伤破除统一出口；2.13 新增魂心 / 黑心护盾保护、路线容量校验和黑心破碎无敌；2.10 新增天使线背饰「修女服」；2.11 新增恶魔线加护「背叛」与成就「三十枚银钱」；2.3 新增誓约栏与五件主动饰品。神圣裁决改为可破限伤但不吃增伤的固定附伤，厄咒转移同样接入 `TrueDamageLimits`；五件饰品的 25 条 Shift 提示已逐行绑定各自配置值，生死逆转的显示状态由佩戴物品标记驱动并在复活后回翻。**2026-11-04 补修**：死形态到期处决只跳过生死逆转自身，神性等其它免死仍可救下，被救下后进入 30 秒冷却；新增红色死形态 Boss 条、蓝色复活冷却 Boss 条与屏幕边缘暗红警告，最后 5 秒且未达标时轻微脉冲。状态包新增死形态剩余 tick / 击杀权重 / 所需权重，协议升到 `"16"`。注册物品 / 创造页为 **57 / 53**，配置段 / 键 **33 / 329**，伤害类型 15；完整 `[DEVCHECK]` **611~613 行全绿**。
 
 **1.8.8**：长矛第一/第三人称完整动画（2.1）。① **Mixin 基础设施** —— 首次接入 MixinGradle 0.7.38 + Mixin 0.8.5 + MixinExtras 0.5.5（`jarJar` 打入产物），新增 `summy_reliquary.mixins.json`（`required: false` / `defaultRequire: 0`）；发布产物改取 `reobfJarJar`，正式包继续排除 devcheck。② **四个动画 Mixin** —— `LivingEntityMixin`（`getCurrentSwingDuration` = `clamp(round(20 / 攻速), 4, 40)`，与攻击冷却严格同步）、`ItemInHandRendererMixin`（抑制普通挥击位移 / 换手、替换 `applySwingOffset`、在 `getUseAnimation()` 前插入蓄力动画、蓄力时抑制装备偏移）、`HumanoidModelMixin`（`poseRightArm` / `poseLeftArm` / `setupAttackAnimation`）、`HeldItemFeatureRendererMixin`（第三人称手持物品前移 / 前突）。③ **曲线** —— `client/SpearAnimation` 纯函数复刻 `Backported-Spears` 的 `holdUpAnimation` 与戳刺三段曲线；自检新增 `checkSpearAnimationCurves`（攻速 1.0 / 2.0 / 4.0 / 100 / 0.1 → 20 / 10 / 5 / 4 / 40，蓄力 0→1，戳刺 0→1）。④ **边界** —— Mixin 仅限两把长矛动画；左键门禁 / 冷却 / 投掷结算 / GUI 模型全部不变。自检 **605 行全绿**；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议仍 `"14"`。
 

@@ -129,6 +129,9 @@ public final class SummyReliquaryClient {
 		 */
 		@SubscribeEvent
 		public static void onRegisterGuiOverlays(net.minecraftforge.client.event.RegisterGuiOverlaysEvent event) {
+			// 死形态边缘红光：排在原版暗角之后、其它 HUD 之前。
+			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.VIGNETTE.id(),
+					"life_death_screen_red", new LifeDeathScreenOverlay());
 			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
 					"demon_black_hearts", new DemonBlackHeartOverlay());
 			// 魂心：把属于我们的那几颗黄心重新画成蓝心（不隐藏原版黄心）

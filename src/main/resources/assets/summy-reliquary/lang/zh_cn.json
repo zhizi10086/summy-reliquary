@@ -632,6 +632,8 @@
   "item.summy-reliquary.life_death.shift.5": "死形态持续|%s 秒",
   "item.summy-reliquary.life_death.shift.6": "复活后冷却|%s 秒；R 在生形态进入死形态",
   "item.summy-reliquary.life_death.fail.death_form": "当前形态无法主动翻转",
+  "message.summy-reliquary.life_death.hud.death_form": "生死逆转 · 死形态｜%s 秒",
+  "message.summy-reliquary.life_death.hud.cooldown": "生死逆转 · 复活冷却｜%s 秒",
 
   "item.summy-reliquary.divine_intervention": "神圣干预",
   "item.summy-reliquary.divine_intervention.desc.1": "光在身前，",

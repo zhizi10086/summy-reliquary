@@ -39,6 +39,12 @@ public final class ReliquaryClientState {
 	private static int soulHeartPoints = 0;
 	/** 血债祭坛独立护盾点数（2.3；HUD 画独立黄心用） */
 	private static double bloodDebtShield = 0.0D;
+	/** 生死逆转死形态剩余 tick（屏幕边缘红光使用） */
+	private static int lifeDeathRemainingTicks = 0;
+	/** 生死逆转当前击杀权重 */
+	private static int lifeDeathKillWeight = 0;
+	/** 生死逆转复活所需权重 */
+	private static int lifeDeathKillRequired = 0;
 
 	/** 天使标记位 */
 	public static final int FLAG_ANGEL = 1;
@@ -148,6 +154,25 @@ public final class ReliquaryClientState {
 	/** 生死逆转当前是否处于死形态。 */
 	public static boolean isDeathForm() {
 		return (flags & FLAG_DEATH_FORM) != 0;
+	}
+
+	/** 同步生死逆转屏幕警告所需的倒计时与击杀进度。 */
+	public static void setLifeDeathHud(int remainingTicks, int killWeight, int killRequired) {
+		lifeDeathRemainingTicks = Math.max(0, remainingTicks);
+		lifeDeathKillWeight = Math.max(0, killWeight);
+		lifeDeathKillRequired = Math.max(0, killRequired);
+	}
+
+	public static int lifeDeathRemainingTicks() {
+		return lifeDeathRemainingTicks;
+	}
+
+	public static int lifeDeathKillWeight() {
+		return lifeDeathKillWeight;
+	}
+
+	public static int lifeDeathKillRequired() {
+		return lifeDeathKillRequired;
 	}
 
 	/** 是否已经「放弃一切」（无法再佩戴七罪之源） */

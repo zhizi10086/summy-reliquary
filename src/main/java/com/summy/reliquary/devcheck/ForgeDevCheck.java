@@ -4486,8 +4486,18 @@ public final class ForgeDevCheck {
 			boolean deathModel = covenantModelState(player, covenantStack(player), true);
 			refreshClientStateForTest(player);
 			boolean deathSynced = com.summy.reliquary.client.ReliquaryClientState.isDeathForm();
+			boolean deathHud = com.summy.reliquary.effect.LifeDeath.hudVisible(player)
+					&& com.summy.reliquary.effect.LifeDeath.hudColor(player)
+							== net.minecraft.world.BossEvent.BossBarColor.RED
+					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("死形态")
+					&& com.summy.reliquary.effect.LifeDeath.hudProgress(player) > 0.99F;
+			boolean deathPacket = com.summy.reliquary.client.ReliquaryClientState
+					.lifeDeathRemainingTicks() > 0
+					&& com.summy.reliquary.client.ReliquaryClientState.lifeDeathKillWeight() == 0
+					&& com.summy.reliquary.client.ReliquaryClientState.lifeDeathKillRequired()
+							== com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired();
 			boolean lifeOk = lifeActivated && deathForm && fullHealth && debuffsCleared
-					&& deathTagged && deathModel && deathSynced
+					&& deathTagged && deathModel && deathSynced && deathHud && deathPacket
 					&& deathSpeed >= 1.5F && deathMoveModifier > 0.0D;
 
 			Zombie reviveKill = spawnTestZombie(player, 3.0D);
@@ -4512,6 +4522,11 @@ public final class ForgeDevCheck {
 					"life_death_death_form_attack_speed");
 			boolean reviveCooldown = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player)
 					> player.serverLevel().getGameTime();
+			boolean cooldownHud = com.summy.reliquary.effect.LifeDeath.hudVisible(player)
+					&& com.summy.reliquary.effect.LifeDeath.hudColor(player)
+							== net.minecraft.world.BossEvent.BossBarColor.BLUE
+					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("复活冷却")
+					&& com.summy.reliquary.effect.LifeDeath.hudProgress(player) > 0.99F;
 			boolean reviveOk = revived && revivedTagCleared && revivedSyncCleared
 					&& revivedModelLife
 					&& Math.abs(revivedHealth - player.getMaxHealth()) < 1.0E-4F
@@ -4519,7 +4534,7 @@ public final class ForgeDevCheck {
 					&& Math.abs(revivedAttackModifier) < 1.0E-6D
 					&& revivedTooltip.contains("当前形态|生")
 					&& revivedTooltip.contains("下一次翻转|死")
-					&& reviveCooldown;
+					&& reviveCooldown && cooldownHud;
 
 			// BOSS 默认权重应能单独完成复活。
 			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
@@ -4534,8 +4549,43 @@ public final class ForgeDevCheck {
 					&& !com.summy.reliquary.effect.LifeDeath.displayDeathForm(
 							covenantStack(player), player);
 
-			// 登录/换维度恢复时应清掉已经过期的死形态与物品显示缓存。
+			// 到期处决只跳过生死逆转自身；神性仍可救下玩家，随后进入 30 秒冷却。
 			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
+			com.summy.reliquary.effect.Godhead.clearGuards();
+			equipAt(player, ReliquarySlots.REVELATION, 0, SummyReliquary.GODHEAD.get());
+			player.setHealth(player.getMaxHealth());
+			player.setAbsorptionAmount(0.0F);
+			player.setInvulnerable(false);
+			player.invulnerableTime = 0;
+			com.summy.reliquary.effect.LifeDeath.activate(player);
+			long expiryNow = player.serverLevel().getGameTime();
+			int expiryDuration = com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormTicks();
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(
+					player, expiryNow - expiryDuration - 1L, expiryDuration);
+			com.summy.reliquary.effect.LifeDeath.tickPlayer(player);
+			boolean expirySelfSkipped = !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& !com.summy.reliquary.effect.LifeDeath.expiryInProgressForTest(player);
+			boolean expirySavedByGodhead = com.summy.reliquary.effect.Godhead.isGuarded(player)
+					&& player.getHealth() <= 1.01F && !player.isDeadOrDying();
+			long expiryCooldown = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player)
+					- player.serverLevel().getGameTime();
+			boolean expiryCooldownHud = com.summy.reliquary.effect.LifeDeath.hudVisible(player)
+					&& com.summy.reliquary.effect.LifeDeath.hudColor(player)
+							== net.minecraft.world.BossEvent.BossBarColor.BLUE
+					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("复活冷却");
+			refreshClientStateForTest(player);
+			boolean expiryPacketCleared = !com.summy.reliquary.client.ReliquaryClientState.isDeathForm()
+					&& com.summy.reliquary.client.ReliquaryClientState.lifeDeathRemainingTicks() == 0;
+			boolean expiryOk = expirySelfSkipped && expirySavedByGodhead
+					&& expiryCooldown >= expiryDuration
+					&& expiryCooldown <= com.summy.reliquary.config.ReliquaryConfig.lifeDeathCooldownTicks()
+					&& expiryCooldownHud && expiryPacketCleared;
+			com.summy.reliquary.effect.Godhead.clearGuards();
+			unequip(player, ReliquarySlots.REVELATION);
+			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
+			player.setHealth(player.getMaxHealth());
+
+			// 登录/换维度恢复时应清掉已经过期的死形态与物品显示缓存。
 			com.summy.reliquary.effect.LifeDeath.activate(player);
 			long nowTick = player.serverLevel().getGameTime();
 			int durationTicks = com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormTicks();
@@ -4548,6 +4598,19 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.LifeDeath.onUnequip(player);
 			unequip(player, ReliquarySlots.COVENANT);
 			boolean lifeEnds = !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player);
+			int staticAlpha = com.summy.reliquary.client.LifeDeathScreenOverlay.edgeAlpha(
+					true, 200, 0, 10, 0.0F);
+			int metAlpha = com.summy.reliquary.client.LifeDeathScreenOverlay.edgeAlpha(
+					true, 80, 10, 10, 0.0F);
+			int warningLow = com.summy.reliquary.client.LifeDeathScreenOverlay.edgeAlpha(
+					true, 80, 0, 10, 0.0F);
+			int warningHigh = com.summy.reliquary.client.LifeDeathScreenOverlay.edgeAlpha(
+					true, 80, 0, 10, 4.5F);
+			boolean screenOverlay = com.summy.reliquary.client.LifeDeathScreenOverlay.edgeAlpha(
+					false, 80, 0, 10, 0.0F) == 0
+					&& staticAlpha >= 30 && staticAlpha <= 36
+					&& metAlpha == staticAlpha
+					&& warningLow >= staticAlpha && warningHigh > warningLow;
 
 			// 神圣干预：20 点来源伤害 → 10 点真实反伤；R 展开一面固定屏障。
 			com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
@@ -4654,16 +4717,18 @@ public final class ForgeDevCheck {
 					.sacredVerdictBonusDamagePercent() - 5.0D) < 1.0E-6D
 					&& Math.abs(com.summy.reliquary.config.ReliquaryConfig
 							.bloodDebtMinDeferredDamage() - 1.0D) < 1.0E-6D
-					&& "15".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
+					&& "16".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 			boolean ok = registered && covenantSlots == 1 && resources && sourceClassification
 					&& tooltipArguments
-					&& lifeOk && reviveOk && bossRevive && expiredCleared && lifeEnds
+					&& lifeOk && reviveOk && bossRevive && expiryOk && expiredCleared && lifeEnds
+					&& screenOverlay
 					&& interventionOk && sacredOk && debtOk && hexOk && config;
 			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s、伤害归类=%s；"
 							+ "逐行提示参数=%s；"
 							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/移速修饰 %.2f → %s；"
 							+ "死转生=%s/物品标记清除=%s/客户端同步清除=%s/生命 %.1f/移速修饰 %.2f/攻速修饰 %.2f/冷却=%s → %s；"
-							+ "BOSS 单杀复活=%s；过期恢复清理=%s；"
+							+ "BOSS 单杀复活=%s；到期仅跳过自身并由神性救下=%s/冷却 %d tick/冷却 HUD=%s → %s；"
+							+ "过期恢复清理=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
 							+ "神圣干预反伤 %.1f（应 10）/屏障=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/未满攻击强度附伤 %.2f（应 0）→ %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
@@ -4673,7 +4738,9 @@ public final class ForgeDevCheck {
 					lifeActivated, deathForm, fullHealth, debuffsCleared, deathSpeed, deathMoveModifier, lifeOk,
 					revived, revivedTagCleared, revivedSyncCleared, revivedHealth,
 					revivedMoveModifier, revivedAttackModifier, reviveCooldown, reviveOk,
-					bossRevive, expiredCleared,
+					bossRevive, expirySelfSkipped && expirySavedByGodhead, expiryCooldown,
+					expiryCooldownHud, expiryOk, expiredCleared,
+					staticAlpha, metAlpha, warningLow, warningHigh, screenOverlay,
 					reflected, barrier, interventionOk, verdictBonus, unchargedBonus, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
 					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred, hexOk, config, ok));
@@ -7992,7 +8059,7 @@ public final class ForgeDevCheck {
 				&& com.summy.reliquary.config.ReliquaryConfig.soulShatterInvulnerableSeconds() == 5.0D;
 		log("魂心 / 咒印口径：戴灵魂的池容量=" + withSoul + "（应 6）、换成咒印后=" + withMark
 				+ "（应 0 = 魂心转黑心）；协议=" + com.summy.reliquary.net.ReliquaryNetworking.protocolVersion()
-				+ "（应 15 = 2.3 新增「誓约 R 技能」包后升号）、1.6.2 配置默认值=" + config + "（应 true）");
+				+ "（应 16 = 生死逆转屏幕警告字段后升号）、1.6.2 配置默认值=" + config + "（应 true）");
 		resetDemonPactState(player);
 	}
 
@@ -10283,7 +10350,7 @@ public final class ForgeDevCheck {
 				&& healthDamage.contains("血伤 3.0 → 0.0");
 		log("伤害池日志字段（1.6.9）：prepare=「" + prepare + "」、对账=「" + reconcile + "」→ " + ok
 				+ "（应 true）；协议=" + com.summy.reliquary.net.ReliquaryNetworking.protocolVersion()
-				+ "（应 15 = 2.3 新增「誓约 R 技能」包）；新增路径日志=「" + healthDamage + "」");
+				+ "（应 16 = 生死逆转屏幕警告字段）；新增路径日志=「" + healthDamage + "」");
 	}
 
 	// ==================== 1.6.10：创世纪 / 启示属性 / 条件驱动发放 / 饰品联动 ====================
@@ -10295,6 +10362,14 @@ public final class ForgeDevCheck {
 				com.summy.reliquary.sin.SinManager.redeemedMask(player),
 				false, 0, 0,
 				com.summy.reliquary.effect.PlayerFlags.clientFlags(player), 0);
+		boolean deathForm = com.summy.reliquary.effect.PlayerFlags.isDeathForm(player);
+		com.summy.reliquary.client.ReliquaryClientState.setLifeDeathHud(
+				deathForm ? (int) Math.max(0L,
+						com.summy.reliquary.effect.PlayerFlags.deathFormStartedAt(player)
+								+ com.summy.reliquary.effect.PlayerFlags.deathFormDuration(player)
+								- player.serverLevel().getGameTime()) : 0,
+				deathForm ? com.summy.reliquary.effect.PlayerFlags.deathFormKillWeight(player) : 0,
+				deathForm ? com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired() : 0);
 	}
 
 	/** 清空「灵台」栏位（1.6.10 自检里用来切换三件套 / 咒印） */
@@ -11948,12 +12023,12 @@ public final class ForgeDevCheck {
 		boolean teleported = distanceToAnchor <= 2.0D;
 		int animations = com.summy.reliquary.item.GenesisItem.activationCount();
 		int sounds = com.summy.reliquary.item.GenesisItem.soundCount();
-		// 2.3：协议升到 15（新增「誓约饰品 R 技能」的 C2S 空包）
-		boolean protocol15 = "15".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
+		// 2.3：协议升到 16（新增生死逆转屏幕警告状态字段）
+		boolean protocol16 = "16".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 
 		log(String.format("创世纪表现（1.7.2）：用掉=%s（应 true）、使用前离重生点 %.1f 格 → 使用后 %.1f 格"
-				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=15=%s（应 true）",
-				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol15));
+				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=16=%s（应 true）",
+				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol16));
 		player.getInventory().clearContent();
 		resetDemonPactState(player);
 		clearRobeAndSeal(player);

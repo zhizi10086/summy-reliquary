@@ -634,6 +634,8 @@
   "item.summy-reliquary.life_death.shift.5": "Death form duration|%s s",
   "item.summy-reliquary.life_death.shift.6": "Post-revival cooldown|%s s; R enters Death form",
   "item.summy-reliquary.life_death.fail.death_form": "Cannot reverse from the current form",
+  "message.summy-reliquary.life_death.hud.death_form": "Life-Death Reversal · Death Form | %s s",
+  "message.summy-reliquary.life_death.hud.cooldown": "Life-Death Reversal · Revival Cooldown | %s s",
 
   "item.summy-reliquary.divine_intervention": "Divine Intervention",
   "item.summy-reliquary.divine_intervention.desc.1": "Light stands before you,",
