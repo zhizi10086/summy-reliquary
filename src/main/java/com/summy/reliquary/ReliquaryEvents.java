@@ -729,6 +729,10 @@ public final class ReliquaryEvents {
 							com.summy.reliquary.effect.SpearRecovery.holds(event.getOriginal(),
 									SummyReliquary.SERAPH_SPEAR.get()));
 				}
+			// 死形态内实际死亡：持久标记已经随 NBT 复制，冷却从重生这一刻完整起算。
+			if (event.isWasDeath()) {
+				com.summy.reliquary.effect.LifeDeath.onRespawn(player);
+			}
 		}
 	}
 

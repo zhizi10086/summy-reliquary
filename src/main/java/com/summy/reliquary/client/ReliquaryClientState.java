@@ -45,6 +45,8 @@ public final class ReliquaryClientState {
 	private static int lifeDeathKillWeight = 0;
 	/** 生死逆转复活所需权重 */
 	private static int lifeDeathKillRequired = 0;
+	/** 死形态状态在客户端连续稳定的 tick 数。 */
+	private static int lifeDeathVisualStableTicks = 0;
 
 	/** 天使标记位 */
 	public static final int FLAG_ANGEL = 1;
@@ -173,6 +175,30 @@ public final class ReliquaryClientState {
 
 	public static int lifeDeathKillRequired() {
 		return lifeDeathKillRequired;
+	}
+
+	/**
+	 * 每客户端 tick 更新死形态视觉稳定性。
+	 *
+	 * <p>状态刚开始时先观察 2 tick，避免网络包切换或旧状态造成单帧闪红。
+	 */
+	public static void tickLifeDeathVisual() {
+		if (isDeathForm() && lifeDeathRemainingTicks > 0) {
+			if (lifeDeathVisualStableTicks < 2) {
+				lifeDeathVisualStableTicks++;
+			}
+		} else {
+			lifeDeathVisualStableTicks = 0;
+		}
+	}
+
+	public static boolean isDeathFormVisualActive() {
+		return isDeathForm() && lifeDeathRemainingTicks > 0 && lifeDeathVisualStableTicks >= 2;
+	}
+
+	/** 自检用：清掉视觉稳定计数。 */
+	public static void resetLifeDeathVisualForTest() {
+		lifeDeathVisualStableTicks = 0;
 	}
 
 	/** 是否已经「放弃一切」（无法再佩戴七罪之源） */

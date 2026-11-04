@@ -28,7 +28,7 @@ public final class LifeDeathScreenOverlay implements IGuiOverlay {
 			float partialTick, int width, int height) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.player == null || client.options.hideGui || client.screen != null
-				|| client.player.isSpectator() || !ReliquaryClientState.isDeathForm()) {
+				|| client.player.isSpectator() || !ReliquaryClientState.isDeathFormVisualActive()) {
 			return;
 		}
 		int alpha = edgeAlpha(true,

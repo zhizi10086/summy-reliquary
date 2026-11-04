@@ -14,7 +14,6 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 
 import java.lang.reflect.Field;
-import java.util.UUID;
 
 /**
  * 长矛的「没冷却完不能出手」门禁（1.8.4）。
@@ -35,8 +34,8 @@ import java.util.UUID;
 @Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE,
 		value = Dist.CLIENT)
 public final class SpearAttackGate {
-	/** 上一次真正放行的玩家；切换玩家时重置时间戳 */
-	private static UUID lastPlayerId;
+	/** 上一次真正放行的玩家实例；重生 / 换维度会替换实例。 */
+	private static LocalPlayer lastPlayer;
 	/** 上一次真正放行的客户端 tick */
 	private static long lastAttackTick = Long.MIN_VALUE;
 	/** Minecraft.missTime：>0 时 startAttack 直接返回 */
@@ -65,13 +64,14 @@ public final class SpearAttackGate {
 		// 这里用自己记录的放行 tick，按 20 / 攻速严格拦截。
 		int cooldown = SpearAnimation.swingDuration((float) player.getAttributeValue(Attributes.ATTACK_SPEED));
 		long now = player.tickCount;
-		if (player.getUUID().equals(lastPlayerId) && now - lastAttackTick < cooldown) {
+		boolean sameSession = ensureSession(client, player, now);
+		if (isCoolingDown(sameSession, now, lastAttackTick, cooldown)) {
 			event.setCanceled(true);
 			event.setSwingHand(false);
 			// 硬限：把 missTime 拉到剩余冷却，按住 / 连点也不会再进 startAttack
 			applyMissTime(client, (int) (cooldown - (now - lastAttackTick)));
 		} else {
-			lastPlayerId = player.getUUID();
+			lastPlayer = player;
 			lastAttackTick = now;
 		}
 	}
@@ -89,7 +89,13 @@ public final class SpearAttackGate {
 		}
 		Minecraft client = Minecraft.getInstance();
 		LocalPlayer player = client.player;
-		if (player == null || !isSpearInMainHand(player) || isChargingSpear(player)) {
+		if (player == null) {
+			if (lastPlayer != null) {
+				resetSession(client, null);
+			}
+			return;
+		}
+		if (!isSpearInMainHand(player) || isChargingSpear(player)) {
 			return;
 		}
 		if (!client.options.keyAttack.isDown()) {
@@ -97,18 +103,46 @@ public final class SpearAttackGate {
 		}
 		int cooldown = SpearAnimation.swingDuration((float) player.getAttributeValue(Attributes.ATTACK_SPEED));
 		long now = player.tickCount;
-		if (player.getUUID().equals(lastPlayerId) && now - lastAttackTick < cooldown) {
+		boolean sameSession = ensureSession(client, player, now);
+		if (isCoolingDown(sameSession, now, lastAttackTick, cooldown)) {
 			applyMissTime(client, (int) (cooldown - (now - lastAttackTick)) + 1);
 		}
 	}
 
+	/**
+	 * 冷却判定纯函数：只有同一 LocalPlayer、tick 未回退且确实是过去时才可能处于冷却。
+	 */
+	public static boolean isCoolingDown(boolean sameSession, long now, long lastAttackTick, int cooldown) {
+		return sameSession && lastAttackTick != Long.MIN_VALUE
+				&& now >= lastAttackTick && now - lastAttackTick < cooldown;
+	}
+
+	/** 新玩家实例、重登、换维度或重生导致 tickCount 回退时，建立全新会话。 */
+	private static boolean ensureSession(Minecraft client, LocalPlayer player, long now) {
+		if (lastPlayer == player && lastAttackTick != Long.MIN_VALUE && now >= lastAttackTick) {
+			return true;
+		}
+		resetSession(client, player);
+		return false;
+	}
+
+	private static void resetSession(Minecraft client, LocalPlayer player) {
+		lastPlayer = player;
+		lastAttackTick = player == null ? Long.MIN_VALUE : player.tickCount;
+		setMissTime(client, 0);
+	}
+
 	/** 反射设置 Minecraft.missTime；失败只警告一次，降级为普通事件取消 */
 	private static void applyMissTime(Minecraft client, int ticks) {
+		setMissTime(client, Math.max(1, ticks));
+	}
+
+	private static void setMissTime(Minecraft client, int ticks) {
 		try {
 			if (missTimeField == null) {
 				missTimeField = ObfuscationReflectionHelper.findField(Minecraft.class, "missTime");
 			}
-			missTimeField.setInt(client, Math.max(1, ticks));
+			missTimeField.setInt(client, ticks);
 		} catch (Throwable t) {
 			if (!missTimeWarned) {
 				missTimeWarned = true;

@@ -174,6 +174,7 @@ public final class SummyReliquaryClient {
 			registerUsingProperty();
 			registerDeathFormProperty();
 			Minecraft client = Minecraft.getInstance();
+			ReliquaryClientState.tickLifeDeathVisual();
 			// 1.8.2：X 键 —— 神性回溯 / 亚巴顿主动恶魔形态（长按蓄力后发包，服务端再校验装备）
 			tickDivineAction(client);
 			tickOathAction(client);

@@ -4,7 +4,6 @@ import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -476,10 +475,11 @@ public final class DamagePools {
 	/**
 	 * 2.13：非空池子会整击保护玩家。
 	 *
-	 * <p>{@code /kill} 使用 {@link DamageTypes#GENERIC_KILL}，必须回退旧语义；献祭自伤不豁免。
+	 * <p>{@code /kill} 与生死逆转到期处决必须回退旧语义；献祭自伤不豁免。
 	 */
 	private static boolean shieldProtectionActive(DamageSource source, double poolTotal) {
-		return source != null && poolTotal > 0.0D && !source.is(DamageTypes.GENERIC_KILL);
+		return source != null && poolTotal > 0.0D
+				&& !com.summy.reliquary.effect.LifeDeath.bypassesWholeHitShield(source);
 	}
 
 	/**

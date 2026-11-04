@@ -7,15 +7,20 @@ import com.summy.reliquary.util.CurioHelper;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.BossEvent;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.Holder;
 import top.theillusivec4.curios.api.CuriosApi;
 
 import java.util.HashMap;
@@ -36,6 +41,8 @@ public final class LifeDeath {
 			TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation("c", "bosses"));
 	private static final TagKey<EntityType<?>> SUMMY_BOSSES =
 			TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation(SummyReliquary.NAMESPACE, "bosses"));
+	private static final ResourceKey<DamageType> REVIVAL_FAILURE_DAMAGE =
+			ResourceKey.create(Registries.DAMAGE_TYPE, SummyReliquary.id("life_death_failure"));
 	/** 转形态后的统一 2 秒完全无敌窗口 */
 	private static final Map<UUID, Long> GUARD_UNTIL = new HashMap<>();
 	/** 正在执行死形态到期处决的玩家；只跳过生死逆转自身，不跳其它免死。 */
@@ -52,6 +59,7 @@ public final class LifeDeath {
 		private final ServerBossEvent bar;
 		private HudMode mode;
 		private int shownSeconds = -1;
+		private int shownKillWeight = -1;
 
 		private HudEntry(ServerBossEvent bar) {
 			this.bar = bar;
@@ -85,6 +93,27 @@ public final class LifeDeath {
 			return stack.getTag().getBoolean(DISPLAY_TAG);
 		}
 		return entity != null && PlayerFlags.isDeathForm(entity);
+	}
+
+	/**
+	 * 死形态到期处决的专用伤害源。
+	 *
+	 * <p>数据包缺失时退回原版 {@code generic_kill}，确保旧包或诊断包仍能正常结束死形态。
+	 */
+	public static DamageSource revivalFailureSource(ServerPlayer player) {
+		var registry = player.serverLevel().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE);
+		Holder<DamageType> holder = registry.getHolder(REVIVAL_FAILURE_DAMAGE)
+				.<Holder<DamageType>>map(value -> value)
+				.orElseGet(() -> registry.getHolderOrThrow(DamageTypes.GENERIC_KILL));
+		return new DamageSource(holder);
+	}
+
+	/**
+	 * 这类伤害必须按旧 {@code /kill} 口径穿过魂心 / 黑心整击保护。
+	 */
+	public static boolean bypassesWholeHitShield(DamageSource source) {
+		return source != null && (source.is(DamageTypes.GENERIC_KILL)
+				|| source.is(REVIVAL_FAILURE_DAMAGE));
 	}
 
 	public static void onHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
@@ -153,12 +182,13 @@ public final class LifeDeath {
 		// 正常到期时这个守卫早已结束；主动清除也避免配置调整或调试改时间后残留旧无敌窗口。
 		GUARD_UNTIL.remove(player.getUUID());
 		EXPIRING.add(player.getUUID());
+		PlayerFlags.setLifeDeathCooldownPending(player, true);
 		try {
 			PlayerFlags.setDeathForm(player, 0L, 0);
 			updateEquippedDisplay(player, false);
 			com.summy.reliquary.effect.AttributeManager.apply(player);
 			RevelationTracker.sync(player);
-			net.minecraft.world.damagesource.DamageSource timeout = player.damageSources().genericKill();
+			DamageSource timeout = revivalFailureSource(player);
 			player.invulnerableTime = 0;
 			player.hurt(timeout, Float.MAX_VALUE);
 		} finally {
@@ -166,6 +196,7 @@ public final class LifeDeath {
 		}
 		// 被神性 / 亚巴顿 / 灵台免死等其它机制救下时，视为这次死形态已消耗。
 		if (!player.isDeadOrDying() && player.isAlive()) {
+			PlayerFlags.setLifeDeathCooldownPending(player, false);
 			PlayerFlags.setLifeDeathCooldownUntil(player,
 					now + ReliquaryConfig.lifeDeathCooldownTicks());
 			RevelationTracker.sync(player);
@@ -205,13 +236,37 @@ public final class LifeDeath {
 	}
 
 	public static void onPlayerDeath(ServerPlayer player) {
-		if (PlayerFlags.isDeathForm(player)) {
+		boolean hadDeathForm = PlayerFlags.deathFormStartedAt(player) > 0L
+				&& PlayerFlags.deathFormDuration(player) > 0;
+		if (hadDeathForm || PlayerFlags.lifeDeathCooldownPending(player)) {
+			PlayerFlags.setLifeDeathCooldownPending(player, true);
 			PlayerFlags.setDeathForm(player, 0L, 0);
 		}
 		updateEquippedDisplay(player, false);
 		GUARD_UNTIL.remove(player.getUUID());
 		EXPIRING.remove(player.getUUID());
 		removeHud(player);
+	}
+
+	/**
+	 * 重生完成：从此刻开始完整复活冷却。
+	 *
+	 * <p>死亡瞬间只写待处理标记，避免死亡界面停留时间提前消耗冷却。
+	 */
+	public static void onRespawn(ServerPlayer player) {
+		if (!PlayerFlags.lifeDeathCooldownPending(player)) {
+			updateEquippedDisplay(player, false);
+			updateHud(player, player.serverLevel().getGameTime());
+			return;
+		}
+		PlayerFlags.setLifeDeathCooldownPending(player, false);
+		PlayerFlags.setDeathForm(player, 0L, 0);
+		updateEquippedDisplay(player, false);
+		PlayerFlags.setLifeDeathCooldownUntil(player,
+				player.serverLevel().getGameTime() + ReliquaryConfig.lifeDeathCooldownTicks());
+		AttributeManager.apply(player);
+		RevelationTracker.sync(player);
+		updateHud(player, player.serverLevel().getGameTime());
 	}
 
 	public static void onUnequip(ServerPlayer player) {
@@ -225,6 +280,7 @@ public final class LifeDeath {
 		}
 		GUARD_UNTIL.remove(player.getUUID());
 		EXPIRING.remove(player.getUUID());
+		PlayerFlags.setLifeDeathCooldownPending(player, false);
 		removeHud(player);
 	}
 
@@ -234,6 +290,10 @@ public final class LifeDeath {
 	 * <p>过期或不再佩戴时清掉玩家死形态状态；仍在死形态则把标记补回物品栈。
 	 */
 	public static void syncDisplayState(ServerPlayer player) {
+		if (PlayerFlags.lifeDeathCooldownPending(player)) {
+			onRespawn(player);
+			return;
+		}
 		if (!wears(player)) {
 			PlayerFlags.setDeathForm(player, 0L, 0);
 			updateEquippedDisplay(player, false);
@@ -302,6 +362,7 @@ public final class LifeDeath {
 		}
 		player.setHealth(player.getMaxHealth());
 		long now = player.serverLevel().getGameTime();
+		PlayerFlags.setLifeDeathCooldownPending(player, false);
 		PlayerFlags.setDeathForm(player, now, ReliquaryConfig.lifeDeathDeathFormTicks());
 		updateEquippedDisplay(player, true);
 		GUARD_UNTIL.put(player.getUUID(), now + 40L);
@@ -311,6 +372,7 @@ public final class LifeDeath {
 	}
 
 	private static void revive(ServerPlayer player) {
+		PlayerFlags.setLifeDeathCooldownPending(player, false);
 		PlayerFlags.setDeathForm(player, 0L, 0);
 		updateEquippedDisplay(player, false);
 		player.setHealth(player.getMaxHealth());
@@ -334,8 +396,9 @@ public final class LifeDeath {
 		HudMode mode = null;
 		int remainingTicks = 0;
 		int totalTicks = 0;
+		int killWeight = -1;
+		int killRequired = -1;
 		BossEvent.BossBarColor color = BossEvent.BossBarColor.RED;
-		String titleKey = "";
 
 		if (PlayerFlags.isDeathForm(player)) {
 			int duration = PlayerFlags.deathFormDuration(player);
@@ -344,8 +407,9 @@ public final class LifeDeath {
 			if (duration > 0 && remainingTicks > 0) {
 				mode = HudMode.DEATH_FORM;
 				totalTicks = duration;
+				killWeight = PlayerFlags.deathFormKillWeight(player);
+				killRequired = ReliquaryConfig.lifeDeathReviveKillRequired();
 				color = BossEvent.BossBarColor.RED;
-				titleKey = "message.summy-reliquary.life_death.hud.death_form";
 			}
 		}
 		if (mode == null) {
@@ -355,7 +419,6 @@ public final class LifeDeath {
 				remainingTicks = (int) Math.min(Integer.MAX_VALUE, cooldown - now);
 				totalTicks = Math.max(1, ReliquaryConfig.lifeDeathCooldownTicks());
 				color = BossEvent.BossBarColor.BLUE;
-				titleKey = "message.summy-reliquary.life_death.hud.cooldown";
 			}
 		}
 		if (mode == null) {
@@ -366,10 +429,11 @@ public final class LifeDeath {
 		int seconds = Math.max(1, (remainingTicks + 19) / 20);
 		HudEntry entry = HUD_ENTRIES.get(player.getUUID());
 		if (entry == null) {
-			Component title = Component.translatable(titleKey, seconds);
+			Component title = hudTitle(mode, seconds, killWeight, killRequired);
 			entry = new HudEntry(new ServerBossEvent(title, color, BossEvent.BossBarOverlay.PROGRESS));
 			entry.mode = mode;
 			entry.shownSeconds = seconds;
+			entry.shownKillWeight = killWeight;
 			entry.bar.setDarkenScreen(false);
 			entry.bar.setCreateWorldFog(false);
 			entry.bar.setPlayBossMusic(false);
@@ -381,14 +445,25 @@ public final class LifeDeath {
 		if (!entry.bar.getPlayers().contains(player)) {
 			entry.bar.addPlayer(player);
 		}
-		if (entry.mode != mode || entry.shownSeconds != seconds) {
+		if (entry.mode != mode || entry.shownSeconds != seconds
+				|| entry.shownKillWeight != killWeight) {
 			entry.mode = mode;
 			entry.shownSeconds = seconds;
-			entry.bar.setName(Component.translatable(titleKey, seconds));
+			entry.shownKillWeight = killWeight;
+			entry.bar.setName(hudTitle(mode, seconds, killWeight, killRequired));
 			entry.bar.setColor(color);
 			entry.bar.setOverlay(BossEvent.BossBarOverlay.PROGRESS);
-			entry.bar.setProgress(Mth.clamp(remainingTicks / (float) totalTicks, 0.0F, 1.0F));
 		}
+		// 每 tick 推送进度；标题仍只在模式 / 秒数 / 权重变化时更新。
+		entry.bar.setProgress(Mth.clamp(remainingTicks / (float) totalTicks, 0.0F, 1.0F));
+	}
+
+	private static Component hudTitle(HudMode mode, int seconds, int killWeight, int killRequired) {
+		if (mode == HudMode.DEATH_FORM) {
+			return Component.translatable("message.summy-reliquary.life_death.hud.death_form",
+					seconds, killWeight, killRequired);
+		}
+		return Component.translatable("message.summy-reliquary.life_death.hud.cooldown", seconds);
 	}
 
 	private static void removeHud(ServerPlayer player) {

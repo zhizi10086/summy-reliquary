@@ -4490,19 +4490,45 @@ public final class ForgeDevCheck {
 					&& com.summy.reliquary.effect.LifeDeath.hudColor(player)
 							== net.minecraft.world.BossEvent.BossBarColor.RED
 					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("死形态")
+					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("击杀 0/")
 					&& com.summy.reliquary.effect.LifeDeath.hudProgress(player) > 0.99F;
 			boolean deathPacket = com.summy.reliquary.client.ReliquaryClientState
 					.lifeDeathRemainingTicks() > 0
 					&& com.summy.reliquary.client.ReliquaryClientState.lifeDeathKillWeight() == 0
 					&& com.summy.reliquary.client.ReliquaryClientState.lifeDeathKillRequired()
 							== com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired();
+			com.summy.reliquary.client.ReliquaryClientState.resetLifeDeathVisualForTest();
+			com.summy.reliquary.client.ReliquaryClientState.tickLifeDeathVisual();
+			boolean firstTransientHidden =
+					!com.summy.reliquary.client.ReliquaryClientState.isDeathFormVisualActive();
+			com.summy.reliquary.client.ReliquaryClientState.tickLifeDeathVisual();
+			boolean visualAfterStable =
+					com.summy.reliquary.client.ReliquaryClientState.isDeathFormVisualActive();
+			boolean redStart = firstTransientHidden && visualAfterStable;
 			boolean lifeOk = lifeActivated && deathForm && fullHealth && debuffsCleared
-					&& deathTagged && deathModel && deathSynced && deathHud && deathPacket
+					&& deathTagged && deathModel && deathSynced && deathHud && deathPacket && redStart
 					&& deathSpeed >= 1.5F && deathMoveModifier > 0.0D;
+
+			// Boss 进度应随 tick 连续变化，而不是只在整数秒边界跳变。
+			long initialStart = com.summy.reliquary.effect.PlayerFlags.deathFormStartedAt(player);
+			int initialDuration = com.summy.reliquary.effect.PlayerFlags.deathFormDuration(player);
+			float progressStart = com.summy.reliquary.effect.LifeDeath.hudProgress(player);
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(
+					player, player.serverLevel().getGameTime() - initialDuration / 2L, initialDuration);
+			com.summy.reliquary.effect.LifeDeath.tickPlayer(player);
+			float progressMid = com.summy.reliquary.effect.LifeDeath.hudProgress(player);
+			boolean smoothProgress = progressMid < progressStart - 0.2F
+					&& progressMid > 0.4F && progressMid < 0.6F;
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(
+					player, initialStart, initialDuration);
+			com.summy.reliquary.effect.LifeDeath.tickPlayer(player);
 
 			Zombie reviveKill = spawnTestZombie(player, 3.0D);
 			cleanup.add(reviveKill);
-			for (int kill = 0; kill < com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired();
+			com.summy.reliquary.effect.LifeDeath.onKill(player, reviveKill);
+			boolean killCountHud = com.summy.reliquary.effect.LifeDeath.hudTitle(player)
+					.contains("击杀 1/");
+			for (int kill = 1; kill < com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired();
 					kill++) {
 				com.summy.reliquary.effect.LifeDeath.onKill(player, reviveKill);
 			}
@@ -4513,6 +4539,8 @@ public final class ForgeDevCheck {
 			boolean revivedModelLife = covenantModelState(player, covenantStack(player), false);
 			refreshClientStateForTest(player);
 			boolean revivedSyncCleared = !com.summy.reliquary.client.ReliquaryClientState.isDeathForm();
+			com.summy.reliquary.client.ReliquaryClientState.tickLifeDeathVisual();
+			boolean redStopped = !com.summy.reliquary.client.ReliquaryClientState.isDeathFormVisualActive();
 			String revivedTooltip = covenantStateTooltip(player, covenantStack(player));
 			double revivedMoveModifier = modifierAmount(player,
 					net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED,
@@ -4529,6 +4557,7 @@ public final class ForgeDevCheck {
 					&& com.summy.reliquary.effect.LifeDeath.hudProgress(player) > 0.99F;
 			boolean reviveOk = revived && revivedTagCleared && revivedSyncCleared
 					&& revivedModelLife
+					&& redStopped
 					&& Math.abs(revivedHealth - player.getMaxHealth()) < 1.0E-4F
 					&& Math.abs(revivedMoveModifier) < 1.0E-6D
 					&& Math.abs(revivedAttackModifier) < 1.0E-6D
@@ -4585,6 +4614,32 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
 			player.setHealth(player.getMaxHealth());
 
+			// 死形态被外部直接打死：死亡时只挂待处理，重生后再开始完整 30 秒冷却。
+			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownPending(player, false);
+			com.summy.reliquary.effect.LifeDeath.activate(player);
+			com.summy.reliquary.effect.LifeDeath.onPlayerDeath(player);
+			boolean deathPending = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownPending(player)
+					&& !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& !com.summy.reliquary.effect.LifeDeath.displayDeathForm(
+							covenantStack(player), player);
+			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
+			com.summy.reliquary.effect.LifeDeath.onRespawn(player);
+			long respawnCooldown = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player)
+					- player.serverLevel().getGameTime();
+			boolean respawnCooldownOk = !com.summy.reliquary.effect.PlayerFlags
+					.lifeDeathCooldownPending(player)
+					&& !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& respawnCooldown >= com.summy.reliquary.config.ReliquaryConfig.lifeDeathCooldownTicks() - 1L
+					&& respawnCooldown <= com.summy.reliquary.config.ReliquaryConfig.lifeDeathCooldownTicks()
+					&& com.summy.reliquary.effect.LifeDeath.hudVisible(player)
+					&& com.summy.reliquary.effect.LifeDeath.hudColor(player)
+							== net.minecraft.world.BossEvent.BossBarColor.BLUE;
+			refreshClientStateForTest(player);
+			boolean respawnClientLife = !com.summy.reliquary.client.ReliquaryClientState.isDeathForm();
+			boolean directDeathRespawnOk = deathPending && respawnCooldownOk && respawnClientLife;
+			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
+			player.setHealth(player.getMaxHealth());
+
 			// 登录/换维度恢复时应清掉已经过期的死形态与物品显示缓存。
 			com.summy.reliquary.effect.LifeDeath.activate(player);
 			long nowTick = player.serverLevel().getGameTime();
@@ -4611,6 +4666,24 @@ public final class ForgeDevCheck {
 					&& staticAlpha >= 30 && staticAlpha <= 36
 					&& metAlpha == staticAlpha
 					&& warningLow >= staticAlpha && warningHigh > warningLow;
+			DamageSource failureSource = com.summy.reliquary.effect.LifeDeath
+					.revivalFailureSource(player);
+			String failureText = failureSource.getLocalizedDeathMessage(player).getString();
+			String expectedFailureText = net.minecraft.network.chat.Component.translatable(
+					"death.attack.summy-reliquary.life_death_failure",
+					player.getDisplayName()).getString();
+			boolean failureInvulnerabilityTag = failureSource.is(
+					damageTypeTag("bypasses_invulnerability"));
+			boolean failureTextOk = failureText.equals(expectedFailureText);
+			boolean failureSourceOk = failureInvulnerabilityTag
+					&& com.summy.reliquary.effect.LifeDeath.bypassesWholeHitShield(failureSource)
+					&& failureTextOk;
+			boolean spearGateReset = com.summy.reliquary.client.SpearAttackGate.isCoolingDown(
+					true, 30L, 100L, 20) == false
+					&& com.summy.reliquary.client.SpearAttackGate.isCoolingDown(
+							true, 95L, 90L, 20)
+					&& !com.summy.reliquary.client.SpearAttackGate.isCoolingDown(
+							false, 95L, 90L, 20);
 
 			// 神圣干预：20 点来源伤害 → 10 点真实反伤；R 展开一面固定屏障。
 			com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
@@ -4720,15 +4793,18 @@ public final class ForgeDevCheck {
 					&& "16".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 			boolean ok = registered && covenantSlots == 1 && resources && sourceClassification
 					&& tooltipArguments
-					&& lifeOk && reviveOk && bossRevive && expiryOk && expiredCleared && lifeEnds
-					&& screenOverlay
+					&& lifeOk && smoothProgress && killCountHud && reviveOk && bossRevive
+					&& expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds
+					&& screenOverlay && failureSourceOk && spearGateReset
 					&& interventionOk && sacredOk && debtOk && hexOk && config;
 			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s、伤害归类=%s；"
 							+ "逐行提示参数=%s；"
 							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/移速修饰 %.2f → %s；"
 							+ "死转生=%s/物品标记清除=%s/客户端同步清除=%s/生命 %.1f/移速修饰 %.2f/攻速修饰 %.2f/冷却=%s → %s；"
 							+ "BOSS 单杀复活=%s；到期仅跳过自身并由神性救下=%s/冷却 %d tick/冷却 HUD=%s → %s；"
-							+ "过期恢复清理=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
+							+ "直接死亡待结算/重生冷却=%s；过期恢复清理=%s；"
+							+ "进度平滑=%s/首杀文字=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
+							+ "专属死亡源=%s（免伤标签=%s/文本=「%s」）/长矛门禁回绕=%s；"
 							+ "神圣干预反伤 %.1f（应 10）/屏障=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/未满攻击强度附伤 %.2f（应 0）→ %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
@@ -4739,8 +4815,10 @@ public final class ForgeDevCheck {
 					revived, revivedTagCleared, revivedSyncCleared, revivedHealth,
 					revivedMoveModifier, revivedAttackModifier, reviveCooldown, reviveOk,
 					bossRevive, expirySelfSkipped && expirySavedByGodhead, expiryCooldown,
-					expiryCooldownHud, expiryOk, expiredCleared,
+					expiryCooldownHud, expiryOk, directDeathRespawnOk, expiredCleared,
+					smoothProgress, killCountHud,
 					staticAlpha, metAlpha, warningLow, warningHigh, screenOverlay,
+					failureSourceOk, failureInvulnerabilityTag, failureText, spearGateReset,
 					reflected, barrier, interventionOk, verdictBonus, unchargedBonus, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
 					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred, hexOk, config, ok));

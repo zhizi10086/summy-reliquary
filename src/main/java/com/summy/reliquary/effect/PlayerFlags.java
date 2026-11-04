@@ -126,6 +126,8 @@ public final class PlayerFlags {
 	private static final String DEATH_FORM_KILL_WEIGHT = "death_form_kill_weight";
 	/** 生死逆转：复活后的冷却截止时间（game tick；0 = 可用） */
 	private static final String LIFE_DEATH_COOLDOWN_UNTIL = "life_death_cooldown_until";
+	/** 生死逆转：死形态死亡后，等待重生时开始冷却 */
+	private static final String LIFE_DEATH_COOLDOWN_PENDING = "life_death_cooldown_pending";
 	/** 血债祭坛：独立血债盾点数 */
 	private static final String BLOOD_DEBT_SHIELD = "blood_debt_shield";
 	/** 当日已获得的邪恶度总量（受 daily_cap 限制） */
@@ -634,6 +636,19 @@ public final class PlayerFlags {
 
 	public static void setLifeDeathCooldownUntil(ServerPlayer player, long value) {
 		mutableRoot(player).putLong(LIFE_DEATH_COOLDOWN_UNTIL, Math.max(0L, value));
+	}
+
+	public static boolean lifeDeathCooldownPending(LivingEntity entity) {
+		return entity != null && root(entity).getBoolean(LIFE_DEATH_COOLDOWN_PENDING);
+	}
+
+	public static void setLifeDeathCooldownPending(ServerPlayer player, boolean value) {
+		CompoundTag root = mutableRoot(player);
+		if (value) {
+			root.putBoolean(LIFE_DEATH_COOLDOWN_PENDING, true);
+		} else {
+			root.remove(LIFE_DEATH_COOLDOWN_PENDING);
+		}
 	}
 
 	public static double bloodDebtShield(LivingEntity entity) {
