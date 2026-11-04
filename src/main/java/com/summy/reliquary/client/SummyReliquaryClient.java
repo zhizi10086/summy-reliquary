@@ -435,8 +435,8 @@ public final class SummyReliquaryClient {
 		deathFormPropertyRegistered = true;
 		net.minecraft.client.renderer.item.ItemProperties.registerGeneric(
 				SummyReliquary.id("death_form"),
-				(stack, level, entity, seed) -> entity != null
-						&& com.summy.reliquary.effect.PlayerFlags.isDeathForm(entity) ? 1.0F : 0.0F);
+				(stack, level, entity, seed) ->
+						com.summy.reliquary.effect.LifeDeath.displayDeathForm(stack, entity) ? 1.0F : 0.0F);
 	}
 
 	public static boolean isDeathFormPropertyRegistered() {

@@ -4458,7 +4458,8 @@ public final class ForgeDevCheck {
 					&& hasResource(client, "textures/item/hex_seal.png")
 					&& hasResource(client, "models/item/life_death.json")
 					&& hasResource(client, "models/item/life_death_life.json")
-					&& hasResource(client, "textures/slot/covenant.png");
+					&& hasResource(client, "textures/slot/covenant.png")
+					&& com.summy.reliquary.client.SummyReliquaryClient.isDeathFormPropertyRegistered();
 			DamageSource sacredSource = srSource(player, "sacred_verdict");
 			boolean sourceClassification = com.summy.reliquary.effect.HolyLightEffect.isDivine(sacredSource)
 					&& !com.summy.reliquary.effect.HolyLightEffect.isExactDamage(sacredSource)
@@ -4480,8 +4481,70 @@ public final class ForgeDevCheck {
 			double deathMoveModifier = modifierAmount(player,
 					net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED,
 					"life_death_death_form_speed");
+			boolean deathTagged = com.summy.reliquary.effect.LifeDeath.displayDeathForm(
+					covenantStack(player), player);
+			boolean deathModel = covenantModelState(player, covenantStack(player), true);
+			refreshClientStateForTest(player);
+			boolean deathSynced = com.summy.reliquary.client.ReliquaryClientState.isDeathForm();
 			boolean lifeOk = lifeActivated && deathForm && fullHealth && debuffsCleared
+					&& deathTagged && deathModel && deathSynced
 					&& deathSpeed >= 1.5F && deathMoveModifier > 0.0D;
+
+			Zombie reviveKill = spawnTestZombie(player, 3.0D);
+			cleanup.add(reviveKill);
+			for (int kill = 0; kill < com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired();
+					kill++) {
+				com.summy.reliquary.effect.LifeDeath.onKill(player, reviveKill);
+			}
+			boolean revived = !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player);
+			float revivedHealth = player.getHealth();
+			boolean revivedTagCleared = !com.summy.reliquary.effect.LifeDeath.displayDeathForm(
+					covenantStack(player), player);
+			boolean revivedModelLife = covenantModelState(player, covenantStack(player), false);
+			refreshClientStateForTest(player);
+			boolean revivedSyncCleared = !com.summy.reliquary.client.ReliquaryClientState.isDeathForm();
+			String revivedTooltip = covenantStateTooltip(player, covenantStack(player));
+			double revivedMoveModifier = modifierAmount(player,
+					net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED,
+					"life_death_death_form_speed");
+			double revivedAttackModifier = modifierAmount(player,
+					net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_SPEED,
+					"life_death_death_form_attack_speed");
+			boolean reviveCooldown = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player)
+					> player.serverLevel().getGameTime();
+			boolean reviveOk = revived && revivedTagCleared && revivedSyncCleared
+					&& revivedModelLife
+					&& Math.abs(revivedHealth - player.getMaxHealth()) < 1.0E-4F
+					&& Math.abs(revivedMoveModifier) < 1.0E-6D
+					&& Math.abs(revivedAttackModifier) < 1.0E-6D
+					&& revivedTooltip.contains("当前形态|生")
+					&& revivedTooltip.contains("下一次翻转|死")
+					&& reviveCooldown;
+
+			// BOSS 默认权重应能单独完成复活。
+			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
+			com.summy.reliquary.effect.LifeDeath.activate(player);
+			var boss = net.minecraft.world.entity.EntityType.WITHER.create(player.serverLevel());
+			if (boss != null) {
+				cleanup.add(boss);
+				com.summy.reliquary.effect.LifeDeath.onKill(player, boss);
+			}
+			boolean bossRevive = boss != null
+					&& !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& !com.summy.reliquary.effect.LifeDeath.displayDeathForm(
+							covenantStack(player), player);
+
+			// 登录/换维度恢复时应清掉已经过期的死形态与物品显示缓存。
+			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
+			com.summy.reliquary.effect.LifeDeath.activate(player);
+			long nowTick = player.serverLevel().getGameTime();
+			int durationTicks = com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormTicks();
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(
+					player, nowTick - durationTicks - 1L, durationTicks);
+			com.summy.reliquary.effect.LifeDeath.syncDisplayState(player);
+			boolean expiredCleared = !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& !com.summy.reliquary.effect.LifeDeath.displayDeathForm(
+							covenantStack(player), player);
 			com.summy.reliquary.effect.LifeDeath.onUnequip(player);
 			unequip(player, ReliquarySlots.COVENANT);
 			boolean lifeEnds = !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player);
@@ -4594,10 +4657,13 @@ public final class ForgeDevCheck {
 					&& "15".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 			boolean ok = registered && covenantSlots == 1 && resources && sourceClassification
 					&& tooltipArguments
-					&& lifeOk && lifeEnds && interventionOk && sacredOk && debtOk && hexOk && config;
+					&& lifeOk && reviveOk && bossRevive && expiredCleared && lifeEnds
+					&& interventionOk && sacredOk && debtOk && hexOk && config;
 			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s、伤害归类=%s；"
 							+ "逐行提示参数=%s；"
 							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/移速修饰 %.2f → %s；"
+							+ "死转生=%s/物品标记清除=%s/客户端同步清除=%s/生命 %.1f/移速修饰 %.2f/攻速修饰 %.2f/冷却=%s → %s；"
+							+ "BOSS 单杀复活=%s；过期恢复清理=%s；"
 							+ "神圣干预反伤 %.1f（应 10）/屏障=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/未满攻击强度附伤 %.2f（应 0）→ %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
@@ -4605,6 +4671,9 @@ public final class ForgeDevCheck {
 							+ "配置与协议=%s；整体=%s（应 true）",
 					registered, covenantSlots, resources, sourceClassification, tooltipArguments,
 					lifeActivated, deathForm, fullHealth, debuffsCleared, deathSpeed, deathMoveModifier, lifeOk,
+					revived, revivedTagCleared, revivedSyncCleared, revivedHealth,
+					revivedMoveModifier, revivedAttackModifier, reviveCooldown, reviveOk,
+					bossRevive, expiredCleared,
 					reflected, barrier, interventionOk, verdictBonus, unchargedBonus, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
 					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred, hexOk, config, ok));
@@ -4732,6 +4801,28 @@ public final class ForgeDevCheck {
 			}
 		}
 		return true;
+	}
+
+	private static ItemStack covenantStack(ServerPlayer player) {
+		return CuriosApi.getCuriosInventory(player)
+				.map(handler -> handler.getCurios().get(ReliquarySlots.COVENANT))
+				.map(handler -> handler.getStacks().getStackInSlot(0))
+				.orElse(ItemStack.EMPTY);
+	}
+
+	private static String covenantStateTooltip(ServerPlayer player, ItemStack stack) {
+		List<Component> lines = new java.util.ArrayList<>();
+		stack.getItem().appendHoverText(stack, player.level(), lines,
+				net.minecraft.world.item.TooltipFlag.Default.NORMAL);
+		return lines.stream().map(Component::getString)
+				.collect(java.util.stream.Collectors.joining("\n"));
+	}
+
+	private static boolean covenantModelState(ServerPlayer player, ItemStack stack, boolean deathForm) {
+		var property = net.minecraft.client.renderer.item.ItemProperties.getProperty(
+				SummyReliquary.LIFE_DEATH.get(), SummyReliquary.id("death_form"));
+		return property != null && (property.call(stack, Minecraft.getInstance().level, player, 0) >= 0.5F)
+				== deathForm;
 	}
 
 	/**

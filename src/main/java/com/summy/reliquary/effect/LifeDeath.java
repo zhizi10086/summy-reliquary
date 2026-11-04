@@ -2,9 +2,8 @@ package com.summy.reliquary.effect;
 
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
-import com.summy.reliquary.item.CovenantItem;
+import com.summy.reliquary.slot.ReliquarySlots;
 import com.summy.reliquary.util.CurioHelper;
-import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -12,6 +11,8 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import top.theillusivec4.curios.api.CuriosApi;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,6 +22,8 @@ import java.util.UUID;
  * 生死逆转：生形态拦截致死伤害并进入死形态，死形态累计击杀权重后满血复活。
  */
 public final class LifeDeath {
+	/** 物品栈上的显示缓存；只负责图标与提示，玩法状态仍以玩家 NBT 为准。 */
+	public static final String DISPLAY_TAG = "summy_reliquary_death_form";
 	private static final TagKey<EntityType<?>> FORGE_BOSSES =
 			TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation("forge", "bosses"));
 	private static final TagKey<EntityType<?>> COMMON_BOSSES =
@@ -48,6 +51,15 @@ public final class LifeDeath {
 		}
 		long until = GUARD_UNTIL.getOrDefault(entity.getUUID(), 0L);
 		return until > entity.level().getGameTime();
+	}
+
+	/** 物品图标与提示的权威显示值；标记缺失时回退到客户端同步位。 */
+	public static boolean displayDeathForm(ItemStack stack, LivingEntity entity) {
+		if (stack != null && !stack.isEmpty() && stack.hasTag()
+				&& stack.getTag().contains(DISPLAY_TAG)) {
+			return stack.getTag().getBoolean(DISPLAY_TAG);
+		}
+		return entity != null && PlayerFlags.isDeathForm(entity);
 	}
 
 	public static void onHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
@@ -94,20 +106,20 @@ public final class LifeDeath {
 	}
 
 	public static void tickPlayer(ServerPlayer player) {
-		if (!PlayerFlags.isDeathForm(player)) {
-			return;
-		}
-		long now = player.serverLevel().getGameTime();
 		long startedAt = PlayerFlags.deathFormStartedAt(player);
 		int duration = PlayerFlags.deathFormDuration(player);
 		if (startedAt <= 0L || duration <= 0) {
-			PlayerFlags.setDeathForm(player, 0L, 0);
+			// 状态已经清掉，但物品上可能残留上一帧的显示缓存。
+			updateEquippedDisplay(player, false);
 			return;
 		}
+		long now = player.serverLevel().getGameTime();
 		if (now < startedAt + duration) {
+			updateEquippedDisplay(player, true);
 			return;
 		}
 		PlayerFlags.setDeathForm(player, 0L, 0);
+		updateEquippedDisplay(player, false);
 		com.summy.reliquary.effect.AttributeManager.apply(player);
 		RevelationTracker.sync(player);
 		net.minecraft.world.damagesource.DamageSource timeout = player.damageSources().genericKill();
@@ -145,20 +157,42 @@ public final class LifeDeath {
 	}
 
 	public static void onPlayerDeath(ServerPlayer player) {
-		if (!PlayerFlags.isDeathForm(player)) {
-			return;
+		if (PlayerFlags.isDeathForm(player)) {
+			PlayerFlags.setDeathForm(player, 0L, 0);
 		}
-		PlayerFlags.setDeathForm(player, 0L, 0);
+		updateEquippedDisplay(player, false);
 		GUARD_UNTIL.remove(player.getUUID());
 	}
 
 	public static void onUnequip(ServerPlayer player) {
 		if (PlayerFlags.isDeathForm(player)) {
 			PlayerFlags.setDeathForm(player, 0L, 0);
+			updateEquippedDisplay(player, false);
 			AttributeManager.apply(player);
 			RevelationTracker.sync(player);
+		} else {
+			updateEquippedDisplay(player, false);
 		}
 		GUARD_UNTIL.remove(player.getUUID());
+	}
+
+	/**
+	 * 登录 / 换维度 / 状态恢复时校准物品显示缓存。
+	 *
+	 * <p>过期或不再佩戴时清掉玩家死形态状态；仍在死形态则把标记补回物品栈。
+	 */
+	public static void syncDisplayState(ServerPlayer player) {
+		if (!wears(player)) {
+			PlayerFlags.setDeathForm(player, 0L, 0);
+			updateEquippedDisplay(player, false);
+			return;
+		}
+		boolean active = PlayerFlags.isDeathForm(player);
+		if (!active && (PlayerFlags.deathFormStartedAt(player) > 0L
+				|| PlayerFlags.deathFormDuration(player) > 0)) {
+			PlayerFlags.setDeathForm(player, 0L, 0);
+		}
+		updateEquippedDisplay(player, active);
 	}
 
 	public static void forget(ServerPlayer player) {
@@ -179,6 +213,7 @@ public final class LifeDeath {
 		player.setHealth(player.getMaxHealth());
 		long now = player.serverLevel().getGameTime();
 		PlayerFlags.setDeathForm(player, now, ReliquaryConfig.lifeDeathDeathFormTicks());
+		updateEquippedDisplay(player, true);
 		GUARD_UNTIL.put(player.getUUID(), now + 40L);
 		AttributeManager.apply(player);
 		RevelationTracker.sync(player);
@@ -186,11 +221,43 @@ public final class LifeDeath {
 
 	private static void revive(ServerPlayer player) {
 		PlayerFlags.setDeathForm(player, 0L, 0);
+		updateEquippedDisplay(player, false);
 		player.setHealth(player.getMaxHealth());
 		PlayerFlags.setLifeDeathCooldownUntil(player,
 				player.serverLevel().getGameTime() + ReliquaryConfig.lifeDeathCooldownTicks());
 		AttributeManager.apply(player);
 		RevelationTracker.sync(player);
+	}
+
+	/** 把显示缓存写回实际佩戴的 ItemStack；Curios 会随槽位内容同步给客户端。 */
+	private static void updateEquippedDisplay(ServerPlayer player, boolean deathForm) {
+		var handler = CuriosApi.getCuriosInventory(player).orElse(null);
+		if (handler == null) {
+			return;
+		}
+		var covenant = handler.getCurios().get(ReliquarySlots.COVENANT);
+		if (covenant == null) {
+			return;
+		}
+		for (int index = 0; index < covenant.getSlots(); index++) {
+			ItemStack worn = covenant.getStacks().getStackInSlot(index);
+			if (!worn.is(SummyReliquary.LIFE_DEATH.get())) {
+				continue;
+			}
+			ItemStack updated = worn.copy();
+			if (deathForm) {
+				updated.getOrCreateTag().putBoolean(DISPLAY_TAG, true);
+			} else if (updated.hasTag()) {
+				updated.getTag().remove(DISPLAY_TAG);
+				if (updated.getTag().isEmpty()) {
+					updated.setTag(null);
+				}
+			}
+			if (!ItemStack.matches(updated, worn)) {
+				covenant.getStacks().setStackInSlot(index, updated);
+			}
+			return;
+		}
 	}
 
 	private static int killWeight(LivingEntity killed, ServerPlayer player) {

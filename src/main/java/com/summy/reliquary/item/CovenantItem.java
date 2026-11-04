@@ -122,7 +122,7 @@ public class CovenantItem extends Item implements ICurioItem {
 		}
 
 		if (kind == Kind.LIFE_DEATH) {
-			appendLifeDeathState(tooltip);
+			appendLifeDeathState(stack, tooltip);
 		}
 		if (!ReliquaryTooltips.shiftDown()) {
 			tooltip.add(ReliquaryTooltips.shiftHint());
@@ -148,8 +148,9 @@ public class CovenantItem extends Item implements ICurioItem {
 		ReliquaryTooltips.add(tooltip, line);
 	}
 
-	private static void appendLifeDeathState(List<Component> tooltip) {
-		boolean death = PlayerFlags.isDeathForm(ReliquaryTooltips.localPlayer());
+	private static void appendLifeDeathState(ItemStack stack, List<Component> tooltip) {
+		boolean death = com.summy.reliquary.effect.LifeDeath.displayDeathForm(
+				stack, ReliquaryTooltips.localPlayer());
 		int currentColor = death ? DEATH_COLOR : LIFE_COLOR;
 		int nextColor = death ? LIFE_COLOR : DEATH_COLOR;
 		tooltip.add(Component.translatable("item.summy-reliquary.life_death.state.current",

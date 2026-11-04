@@ -570,6 +570,7 @@ public final class ReliquaryEvents {
 			logSlotSnapshot(player, "登录早期");
 			// 首次进入世界：发放七罪之源与光环（只发一次；是否自动佩戴七罪之源按配置）
 			StarterKit.grantIfFirst(player);
+			com.summy.reliquary.effect.LifeDeath.syncDisplayState(player);
 			RevelationTracker.sync(player);
 			AttributeManager.apply(player);
 			SoulShield.onJoin(player);
@@ -653,6 +654,7 @@ public final class ReliquaryEvents {
 	@SubscribeEvent
 	public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
+			com.summy.reliquary.effect.LifeDeath.syncDisplayState(player);
 			RevelationTracker.sync(player);
 			SoulShield.onJoin(player);
 			com.summy.reliquary.effect.DemonPact.onJoin(player);

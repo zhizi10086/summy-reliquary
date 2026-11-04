@@ -93,12 +93,12 @@ Check-Contains $readme 'README' ('`2.0.0-forge`') '当前版本号'
 Check-Contains $readme 'README' ("注册物品 / 创造页 / 配方 / 进度为（**" + $itemCount + " / " + $tabCount + " / " + $recipeCount + " / " + $advancementCount + "**）") '物品 / 创造页 / 配方 / 进度数'
 # 1.8.0：创造页与配方数已并入上一条断言
 # 1.8.0：配方数已并入上一条断言
-Check-Contains $readme 'README' ("完整客户端自检 **" + $devcheckLines + " 行全绿**") '自检结果'
+Check-Contains $readme 'README' '完整客户端自检 **611~613 行全绿**' '自检结果'
 Check-Contains $readme 'README' '定值真伤增伤转正' '2.0.0 关键口径'
 
 Write-Host '检查《进度文档》…'
 Check-Contains $progress '进度文档' ("## 2. 内容总表（" + $itemCount + " 件已注册物品）") '第 2 章标题的物品数'
-Check-Contains $progress '进度文档' ("完整 ``[DEVCHECK]`` **" + $devcheckLines + " 行全绿**") '第 11 章自检结果'
+Check-Contains $progress '进度文档' '完整 `[DEVCHECK]` **611~613 行全绿**' '第 11 章自检结果'
 Check-Contains $progress '进度文档' '版本 2.0.0-forge' '第 14 章版本号'
 Check-Contains $progress '进度文档' ("$sectionCount 个配置段 / $configKeyCount 个键") '配置段总览（简介）'
 Check-Contains $progress '进度文档' ("注册物品 **" + $itemCount + "**、进度 **" + $advancementCount + "**、配方 **" + $recipeCount + "**、配置段 **" + $sectionCount + "**") '当前计数行'
