@@ -62,6 +62,8 @@ public final class SummyReliquaryClient {
 	private static int divineCharge;
 	/** 本次按住 X 是否已经触发过（避免按住时连发） */
 	private static boolean divineFiredWhileHeld;
+	/** R 键本次按下是否已经由原始键盘事件即时发送，避免 END tick 重复发包。 */
+	private static boolean oathKeyPressHandled;
 
 	/** 当前蓄力进度（0~1；未蓄力为 0），供 FOV 收缩使用 */
 	public static double chargeProgress() {
@@ -187,6 +189,27 @@ public final class SummyReliquaryClient {
 			// 1.8.5：防火（恶魔线 / 神性）时把本地玩家身上的火压掉 —— 服务端的清火管不到
 			// 客户端本地预测出来的剩余着火 tick，屏幕上的火焰覆盖层得在这里清。
 			keepNotOnFireOnClient();
+		}
+
+		/**
+		 * R 键在键盘按下事件里即时发包。
+		 *
+		 * <p>END tick 的 {@link KeyMapping#consumeClick()} 继续作为兜底，但本次按下若已在这里
+		 * 处理则不再重复发包。这样不依赖客户端 tick 排队，也不会出现“按住后才触发”的观感。
+		 */
+		public static void onKeyInput(net.minecraftforge.client.event.InputEvent.Key event) {
+			Minecraft client = Minecraft.getInstance();
+			if (event.getAction() == GLFW.GLFW_RELEASE) {
+				oathKeyPressHandled = false;
+				return;
+			}
+			if (event.getAction() != GLFW.GLFW_PRESS
+					|| !OATH_ACTION_KEY.matches(event.getKey(), event.getScanCode())
+					|| client.player == null || client.level == null || client.screen != null) {
+				return;
+			}
+			ReliquaryNetworking.sendOathAction();
+			oathKeyPressHandled = true;
 		}
 
 		/**
@@ -338,9 +361,11 @@ public final class SummyReliquaryClient {
 		/** R 键：誓约饰品点击即释放，只在没有界面时消费一次。 */
 		private static void tickOathAction(Minecraft client) {
 			while (OATH_ACTION_KEY.consumeClick()) {
-				if (client.player != null && client.level != null && client.screen == null) {
+				if (!oathKeyPressHandled
+						&& client.player != null && client.level != null && client.screen == null) {
 					ReliquaryNetworking.sendOathAction();
 				}
+				oathKeyPressHandled = false;
 			}
 		}
 

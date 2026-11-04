@@ -634,6 +634,9 @@
   "item.summy-reliquary.life_death.fail.death_form": "当前形态无法主动翻转",
   "message.summy-reliquary.life_death.hud.death_form": "生死逆转 · 死形态｜%s 秒｜击杀 %s/%s",
   "message.summy-reliquary.life_death.hud.cooldown": "生死逆转 · 复活冷却｜%s 秒",
+  "message.summy-reliquary.life_death.status.start": "生死逆转｜死形态：%s 秒 · 击杀 %s/%s",
+  "message.summy-reliquary.life_death.status.kill": "生死逆转｜击杀权重 %s/%s",
+  "message.summy-reliquary.life_death.status.revived": "生死逆转｜已复活 · 冷却 %s 秒",
   "death.attack.summy-reliquary.life_death_failure": "%1$s没能逆转生死",
   "death.attack.summy-reliquary.life_death_failure.player": "%1$s没能逆转生死",
 

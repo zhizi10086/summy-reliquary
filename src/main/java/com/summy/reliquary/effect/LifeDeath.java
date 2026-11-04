@@ -230,6 +230,9 @@ public final class LifeDeath {
 			revive(killer);
 		} else {
 			PlayerFlags.setDeathFormKillWeight(killer, total);
+			killer.displayClientMessage(Component.translatable(
+					"message.summy-reliquary.life_death.status.kill",
+					total, ReliquaryConfig.lifeDeathReviveKillRequired()), true);
 			RevelationTracker.sync(killer);
 			updateHud(killer, killer.serverLevel().getGameTime());
 		}
@@ -280,7 +283,6 @@ public final class LifeDeath {
 		}
 		GUARD_UNTIL.remove(player.getUUID());
 		EXPIRING.remove(player.getUUID());
-		PlayerFlags.setLifeDeathCooldownPending(player, false);
 		removeHud(player);
 	}
 
@@ -367,6 +369,10 @@ public final class LifeDeath {
 		updateEquippedDisplay(player, true);
 		GUARD_UNTIL.put(player.getUUID(), now + 40L);
 		AttributeManager.apply(player);
+		player.displayClientMessage(Component.translatable(
+				"message.summy-reliquary.life_death.status.start",
+				ReliquaryConfig.lifeDeathDeathFormSeconds(), 0,
+				ReliquaryConfig.lifeDeathReviveKillRequired()), true);
 		RevelationTracker.sync(player);
 		updateHud(player, now);
 	}
@@ -379,6 +385,9 @@ public final class LifeDeath {
 		PlayerFlags.setLifeDeathCooldownUntil(player,
 				player.serverLevel().getGameTime() + ReliquaryConfig.lifeDeathCooldownTicks());
 		AttributeManager.apply(player);
+		player.displayClientMessage(Component.translatable(
+				"message.summy-reliquary.life_death.status.revived",
+				ReliquaryConfig.lifeDeathCooldownSeconds()), true);
 		RevelationTracker.sync(player);
 		updateHud(player, player.serverLevel().getGameTime());
 	}

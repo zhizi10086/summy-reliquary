@@ -44,4 +44,10 @@ public final class ReliquaryClientTicks {
 	public static void onComputeFov(net.minecraftforge.client.event.ViewportEvent.ComputeFov event) {
 		SummyReliquaryClient.ForgeBus.onComputeFov(event);
 	}
+
+	/** 原始按键事件：誓约 R 键在按下瞬间即可发包，不等待 END tick。 */
+	@SubscribeEvent
+	public static void onKeyInput(net.minecraftforge.client.event.InputEvent.Key event) {
+		SummyReliquaryClient.ForgeBus.onKeyInput(event);
+	}
 }

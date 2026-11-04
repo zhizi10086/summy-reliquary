@@ -4618,6 +4618,8 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownPending(player, false);
 			com.summy.reliquary.effect.LifeDeath.activate(player);
 			com.summy.reliquary.effect.LifeDeath.onPlayerDeath(player);
+			// Curios 在死亡清理时可能触发卸装回调；待结算冷却不能被它清掉。
+			com.summy.reliquary.effect.LifeDeath.onUnequip(player);
 			boolean deathPending = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownPending(player)
 					&& !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
 					&& !com.summy.reliquary.effect.LifeDeath.displayDeathForm(
@@ -4678,6 +4680,9 @@ public final class ForgeDevCheck {
 			boolean failureSourceOk = failureInvulnerabilityTag
 					&& com.summy.reliquary.effect.LifeDeath.bypassesWholeHitShield(failureSource)
 					&& failureTextOk;
+			boolean deathStatusTexts = translated("message.summy-reliquary.life_death.status.start")
+					&& translated("message.summy-reliquary.life_death.status.kill")
+					&& translated("message.summy-reliquary.life_death.status.revived");
 			boolean spearGateReset = com.summy.reliquary.client.SpearAttackGate.isCoolingDown(
 					true, 30L, 100L, 20) == false
 					&& com.summy.reliquary.client.SpearAttackGate.isCoolingDown(
@@ -4795,7 +4800,7 @@ public final class ForgeDevCheck {
 					&& tooltipArguments
 					&& lifeOk && smoothProgress && killCountHud && reviveOk && bossRevive
 					&& expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds
-					&& screenOverlay && failureSourceOk && spearGateReset
+					&& screenOverlay && failureSourceOk && deathStatusTexts && spearGateReset
 					&& interventionOk && sacredOk && debtOk && hexOk && config;
 			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s、伤害归类=%s；"
 							+ "逐行提示参数=%s；"
@@ -4804,7 +4809,7 @@ public final class ForgeDevCheck {
 							+ "BOSS 单杀复活=%s；到期仅跳过自身并由神性救下=%s/冷却 %d tick/冷却 HUD=%s → %s；"
 							+ "直接死亡待结算/重生冷却=%s；过期恢复清理=%s；"
 							+ "进度平滑=%s/首杀文字=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
-							+ "专属死亡源=%s（免伤标签=%s/文本=「%s」）/长矛门禁回绕=%s；"
+							+ "专属死亡源=%s（免伤标签=%s/文本=「%s」）/动作栏文本=%s/长矛门禁回绕=%s；"
 							+ "神圣干预反伤 %.1f（应 10）/屏障=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/未满攻击强度附伤 %.2f（应 0）→ %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
@@ -4818,7 +4823,8 @@ public final class ForgeDevCheck {
 					expiryCooldownHud, expiryOk, directDeathRespawnOk, expiredCleared,
 					smoothProgress, killCountHud,
 					staticAlpha, metAlpha, warningLow, warningHigh, screenOverlay,
-					failureSourceOk, failureInvulnerabilityTag, failureText, spearGateReset,
+					failureSourceOk, failureInvulnerabilityTag, failureText,
+					deathStatusTexts, spearGateReset,
 					reflected, barrier, interventionOk, verdictBonus, unchargedBonus, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
 					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred, hexOk, config, ok));
