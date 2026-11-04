@@ -1,6 +1,7 @@
 package com.summy.reliquary.devcheck;
 
 import com.summy.reliquary.SummyReliquary;
+import com.summy.reliquary.item.CovenantItem;
 import com.summy.reliquary.attribute.ReliquaryAttributes;
 import com.summy.reliquary.client.SpearAnimation;
 import com.summy.reliquary.effect.RevelationTracker;
@@ -4462,6 +4463,7 @@ public final class ForgeDevCheck {
 			boolean sourceClassification = com.summy.reliquary.effect.HolyLightEffect.isDivine(sacredSource)
 					&& !com.summy.reliquary.effect.HolyLightEffect.isExactDamage(sacredSource)
 					&& com.summy.reliquary.effect.HolyLightEffect.isTrueDamage(sacredSource);
+			boolean tooltipArguments = covenantTooltipArgumentsOk();
 
 			// 生死逆转：R 进入死形态、满血、图标同步位与固定移速/攻速。
 			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
@@ -4591,15 +4593,17 @@ public final class ForgeDevCheck {
 							.bloodDebtMinDeferredDamage() - 1.0D) < 1.0E-6D
 					&& "15".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 			boolean ok = registered && covenantSlots == 1 && resources && sourceClassification
+					&& tooltipArguments
 					&& lifeOk && lifeEnds && interventionOk && sacredOk && debtOk && hexOk && config;
 			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s、伤害归类=%s；"
+							+ "逐行提示参数=%s；"
 							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/移速修饰 %.2f → %s；"
 							+ "神圣干预反伤 %.1f（应 10）/屏障=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/未满攻击强度附伤 %.2f（应 0）→ %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
 							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）→ %s；"
 							+ "配置与协议=%s；整体=%s（应 true）",
-					registered, covenantSlots, resources, sourceClassification,
+					registered, covenantSlots, resources, sourceClassification, tooltipArguments,
 					lifeActivated, deathForm, fullHealth, debuffsCleared, deathSpeed, deathMoveModifier, lifeOk,
 					reflected, barrier, interventionOk, verdictBonus, unchargedBonus, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
@@ -4623,6 +4627,111 @@ public final class ForgeDevCheck {
 				}
 			}
 		}
+	}
+
+	/** 2.3：逐行核对五件誓约饰品的提示参数，确保每一行只取自己的配置值。 */
+	private static boolean covenantTooltipArgumentsOk() {
+		CovenantItem.Kind life = CovenantItem.Kind.LIFE_DEATH;
+		CovenantItem.Kind intervention = CovenantItem.Kind.DIVINE_INTERVENTION;
+		CovenantItem.Kind verdict = CovenantItem.Kind.SACRED_VERDICT;
+		CovenantItem.Kind debt = CovenantItem.Kind.BLOOD_DEBT_ALTAR;
+		CovenantItem.Kind hex = CovenantItem.Kind.HEX_SEAL;
+		return covenantArgs(life, 1,
+					com.summy.reliquary.item.ReliquaryTooltips.number(
+							com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageBase()),
+					com.summy.reliquary.item.ReliquaryTooltips.number(
+							com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageStepPercent()),
+					com.summy.reliquary.item.ReliquaryTooltips.number(
+							com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageCap()))
+				&& covenantArgs(life, 2,
+						com.summy.reliquary.config.ReliquaryConfig.lifeDeathMoveSpeedPercent())
+				&& covenantArgs(life, 3,
+						com.summy.reliquary.config.ReliquaryConfig.lifeDeathAttackSpeedPercent())
+				&& covenantArgs(life, 4,
+						com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired())
+				&& covenantArgs(life, 5,
+						com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormSeconds())
+				&& covenantArgs(life, 6,
+						com.summy.reliquary.config.ReliquaryConfig.lifeDeathCooldownSeconds())
+				&& covenantArgs(intervention, 1,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.divineInterventionReflectPercent()))
+				&& covenantArgs(intervention, 2,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierWidth()),
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierHeight()),
+						com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierTicks() / 20)
+				&& covenantArgs(intervention, 3,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.divineInterventionProjectileDamagePercent()))
+				&& covenantArgs(intervention, 4,
+						com.summy.reliquary.config.ReliquaryConfig.divineInterventionCooldownSeconds())
+				&& covenantArgs(verdict, 1,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictProcChancePercent()),
+						com.summy.reliquary.config.ReliquaryConfig.sacredVerdictProcTicks() / 20)
+				&& covenantArgs(verdict, 2,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictBonusDamagePercent()))
+				&& covenantArgs(verdict, 3,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCastRadius()),
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCastDamage()))
+				&& covenantArgs(verdict, 4,
+						com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCastMarkTicks() / 20)
+				&& covenantArgs(verdict, 5,
+						com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCooldownSeconds())
+				&& covenantArgs(debt, 1,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.bloodDebtReductionPercent()),
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.bloodDebtDeferTicks() / 20.0D))
+				&& covenantArgs(debt, 2,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.bloodDebtMinDeferredDamage()))
+				&& covenantArgs(debt, 3,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.bloodDebtActiveAbsorbPercent()),
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.bloodDebtCapMaxHealthPercent()))
+				&& covenantArgs(debt, 4,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.bloodDebtKillReduceSeconds()))
+				&& covenantArgs(debt, 5,
+						com.summy.reliquary.config.ReliquaryConfig.bloodDebtCooldownSeconds())
+				&& covenantArgs(hex, 1,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.hexSealProcChancePercent()),
+						com.summy.reliquary.config.ReliquaryConfig.hexSealProcTicks() / 20)
+				&& covenantArgs(hex, 2,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.hexSealCastAngleDegrees()),
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.hexSealCastRange()),
+						com.summy.reliquary.config.ReliquaryConfig.hexSealCastTicks() / 20)
+				&& covenantArgs(hex, 3,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.hexSealDamageTakenPercent()))
+				&& covenantArgs(hex, 4,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.hexSealTransferPercent()))
+				&& covenantArgs(hex, 5,
+						com.summy.reliquary.config.ReliquaryConfig.hexSealCooldownSeconds());
+	}
+
+	private static boolean covenantArgs(CovenantItem.Kind kind, int line, Object... expected) {
+		Object[] actual = com.summy.reliquary.effect.CovenantActions.tooltipArguments(kind, line);
+		if (actual.length != expected.length) {
+			return false;
+		}
+		for (int index = 0; index < actual.length; index++) {
+			if (!String.valueOf(actual[index]).equals(String.valueOf(expected[index]))) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**

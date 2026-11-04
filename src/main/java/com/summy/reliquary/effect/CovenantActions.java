@@ -87,53 +87,91 @@ public final class CovenantActions {
 		}
 	}
 
-	public static Object[] tooltipArguments(CovenantItem.Kind kind) {
+	/**
+	 * 每行提示只返回该行需要的参数，避免同一件饰品的后续行误用第一行的值。
+	 */
+	public static Object[] tooltipArguments(CovenantItem.Kind kind, int lineIndex) {
 		return switch (kind) {
-			case LIFE_DEATH -> new Object[]{
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageBase()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageStepPercent()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageCap()),
-					ReliquaryConfig.lifeDeathMoveSpeedPercent(),
-					ReliquaryConfig.lifeDeathAttackSpeedPercent(),
-					ReliquaryConfig.lifeDeathReviveKillRequired(),
-					ReliquaryConfig.lifeDeathDeathFormSeconds(),
-					ReliquaryConfig.lifeDeathCooldownSeconds()
+			case LIFE_DEATH -> switch (lineIndex) {
+				case 1 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageBase()),
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageStepPercent()),
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageCap())
+				};
+				case 2 -> new Object[]{ReliquaryConfig.lifeDeathMoveSpeedPercent()};
+				case 3 -> new Object[]{ReliquaryConfig.lifeDeathAttackSpeedPercent()};
+				case 4 -> new Object[]{ReliquaryConfig.lifeDeathReviveKillRequired()};
+				case 5 -> new Object[]{ReliquaryConfig.lifeDeathDeathFormSeconds()};
+				case 6 -> new Object[]{ReliquaryConfig.lifeDeathCooldownSeconds()};
+				default -> new Object[0];
 			};
-			case DIVINE_INTERVENTION -> new Object[]{
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionReflectPercent()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionBarrierWidth()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionBarrierHeight()),
-					ReliquaryConfig.divineInterventionBarrierTicks() / 20,
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionProjectileDamagePercent()),
-					ReliquaryConfig.divineInterventionCooldownSeconds()
+			case DIVINE_INTERVENTION -> switch (lineIndex) {
+				case 1 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionReflectPercent())
+				};
+				case 2 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionBarrierWidth()),
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionBarrierHeight()),
+						ReliquaryConfig.divineInterventionBarrierTicks() / 20
+				};
+				case 3 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionProjectileDamagePercent())
+				};
+				case 4 -> new Object[]{ReliquaryConfig.divineInterventionCooldownSeconds()};
+				default -> new Object[0];
 			};
-			case SACRED_VERDICT -> new Object[]{
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictProcChancePercent()),
-					ReliquaryConfig.sacredVerdictProcTicks() / 20,
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictBonusDamagePercent()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictCastRadius()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictCastDamage()),
-					ReliquaryConfig.sacredVerdictCastMarkTicks() / 20,
-					ReliquaryConfig.sacredVerdictCooldownSeconds()
+			case SACRED_VERDICT -> switch (lineIndex) {
+				case 1 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictProcChancePercent()),
+						ReliquaryConfig.sacredVerdictProcTicks() / 20
+				};
+				case 2 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictBonusDamagePercent())
+				};
+				case 3 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictCastRadius()),
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictCastDamage())
+				};
+				case 4 -> new Object[]{ReliquaryConfig.sacredVerdictCastMarkTicks() / 20};
+				case 5 -> new Object[]{ReliquaryConfig.sacredVerdictCooldownSeconds()};
+				default -> new Object[0];
 			};
-			case BLOOD_DEBT_ALTAR -> new Object[]{
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtReductionPercent()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtDeferTicks() / 20.0D),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtMinDeferredDamage()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtActiveAbsorbPercent()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtCapMaxHealthPercent()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtKillReduceSeconds()),
-					ReliquaryConfig.bloodDebtCooldownSeconds()
+			case BLOOD_DEBT_ALTAR -> switch (lineIndex) {
+				case 1 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtReductionPercent()),
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtDeferTicks() / 20.0D)
+				};
+				case 2 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtMinDeferredDamage())
+				};
+				case 3 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtActiveAbsorbPercent()),
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtCapMaxHealthPercent())
+				};
+				case 4 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtKillReduceSeconds())
+				};
+				case 5 -> new Object[]{ReliquaryConfig.bloodDebtCooldownSeconds()};
+				default -> new Object[0];
 			};
-			case HEX_SEAL -> new Object[]{
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealProcChancePercent()),
-					ReliquaryConfig.hexSealProcTicks() / 20,
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealCastAngleDegrees()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealCastRange()),
-					ReliquaryConfig.hexSealCastTicks() / 20,
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealDamageTakenPercent()),
-					ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealTransferPercent()),
-					ReliquaryConfig.hexSealCooldownSeconds()
+			case HEX_SEAL -> switch (lineIndex) {
+				case 1 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealProcChancePercent()),
+						ReliquaryConfig.hexSealProcTicks() / 20
+				};
+				case 2 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealCastAngleDegrees()),
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealCastRange()),
+						ReliquaryConfig.hexSealCastTicks() / 20
+				};
+				case 3 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealDamageTakenPercent())
+				};
+				case 4 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealTransferPercent())
+				};
+				case 5 -> new Object[]{ReliquaryConfig.hexSealCooldownSeconds()};
+				default -> new Object[0];
 			};
 		};
 	}

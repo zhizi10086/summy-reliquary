@@ -131,7 +131,7 @@ public class CovenantItem extends Item implements ICurioItem {
 		for (int index = 1; index <= kind.functionLineCount(); index++) {
 			ReliquaryTooltips.statLine(tooltip, kind.faction(),
 					"item.summy-reliquary." + kind.id() + ".shift." + index,
-					CovenantActions.tooltipArguments(kind));
+					CovenantActions.tooltipArguments(kind, index));
 		}
 	}
 
