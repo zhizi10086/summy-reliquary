@@ -4492,6 +4492,22 @@ public final class ForgeDevCheck {
 					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("死形态")
 					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("击杀 0/")
 					&& com.summy.reliquary.effect.LifeDeath.hudProgress(player) > 0.99F;
+			// Curios 会把显示 NBT 变化识别为同物品替换；模拟其 onUnequip 回调，状态必须保留。
+			ItemStack displayRefreshStack = covenantStack(player);
+			net.minecraft.world.item.ItemStack refreshCopy = displayRefreshStack.copy();
+			((com.summy.reliquary.item.CovenantItem) refreshCopy.getItem()).onUnequip(
+					new top.theillusivec4.curios.api.SlotContext(
+							ReliquarySlots.COVENANT, player, 0, false, true),
+					ItemStack.EMPTY, refreshCopy);
+			boolean displayRefreshKeepsForm = com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& com.summy.reliquary.effect.LifeDeath.displayDeathForm(
+							covenantStack(player), player)
+					&& com.summy.reliquary.effect.LifeDeath.hudVisible(player)
+					&& com.summy.reliquary.effect.LifeDeath.hudColor(player)
+							== net.minecraft.world.BossEvent.BossBarColor.RED;
+			boolean repeatedActivationKeepsForm = !com.summy.reliquary.effect.LifeDeath.activate(player)
+					&& com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& com.summy.reliquary.effect.LifeDeath.hudVisible(player);
 			boolean deathPacket = com.summy.reliquary.client.ReliquaryClientState
 					.lifeDeathRemainingTicks() > 0
 					&& com.summy.reliquary.client.ReliquaryClientState.lifeDeathKillWeight() == 0
@@ -4507,6 +4523,7 @@ public final class ForgeDevCheck {
 			boolean redStart = firstTransientHidden && visualAfterStable;
 			boolean lifeOk = lifeActivated && deathForm && fullHealth && debuffsCleared
 					&& deathTagged && deathModel && deathSynced && deathHud && deathPacket && redStart
+					&& displayRefreshKeepsForm && repeatedActivationKeepsForm
 					&& deathSpeed >= 1.5F && deathMoveModifier > 0.0D;
 
 			// Boss 进度应随 tick 连续变化，而不是只在整数秒边界跳变。

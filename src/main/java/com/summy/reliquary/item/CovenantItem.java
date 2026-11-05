@@ -6,6 +6,7 @@ import com.summy.reliquary.effect.PlayerFlags;
 import com.summy.reliquary.slot.ReliquarySlots;
 import com.summy.reliquary.text.ReliquaryFaction;
 import com.summy.reliquary.text.SinTexts;
+import com.summy.reliquary.util.CurioHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -94,6 +95,12 @@ public class CovenantItem extends Item implements ICurioItem {
 	@Override
 	public void onUnequip(SlotContext slotContext, ItemStack newStack, ItemStack stack) {
 		if (slotContext.entity() instanceof net.minecraft.server.level.ServerPlayer player) {
+			// Curios 会把 NBT-only 变化识别为槽位替换，并分别触发旧栈卸下 / 新栈装上。
+			// 同种饰品仍在身上时这是显示数据刷新，不能按真实卸装清理技能状态与冷却。
+			if (CurioHelper.wears(player, kind.item())) {
+				com.summy.reliquary.effect.AttributeManager.apply(player);
+				return;
+			}
 			CovenantActions.onUnequip(player, kind);
 			com.summy.reliquary.effect.AttributeManager.apply(player);
 		}
