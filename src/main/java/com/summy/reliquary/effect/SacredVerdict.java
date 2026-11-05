@@ -42,6 +42,8 @@ public final class SacredVerdict {
 	private static final Map<UUID, Mark> MARKS = new HashMap<>();
 	private static final List<Candidate> CANDIDATES = new ArrayList<>();
 	private static final List<Confirmed> CONFIRMED = new ArrayList<>();
+	private static final Map<UUID, Long> LAST_CAST_TICK = new HashMap<>();
+	private static final Map<ActorTarget, Long> LAST_BONUS_TICK = new HashMap<>();
 	private static boolean applyingBonus;
 	private static Boolean forcedProc;
 	private static Boolean forcedReady;
@@ -110,6 +112,9 @@ public final class SacredVerdict {
 
 	/** Server tick END：结算已确认的附伤与新标记，并清掉未落地的候选。 */
 	public static void tickServer(MinecraftServer server) {
+		long serverNow = server.overworld().getGameTime();
+		LAST_CAST_TICK.entrySet().removeIf(entry -> serverNow - entry.getValue() > 1L);
+		LAST_BONUS_TICK.entrySet().removeIf(entry -> serverNow - entry.getValue() > 1L);
 		if (CANDIDATES.isEmpty() && CONFIRMED.isEmpty()) {
 			return;
 		}
@@ -134,7 +139,14 @@ public final class SacredVerdict {
 				continue;
 			}
 			long now = attacker.serverLevel().getGameTime();
-			if (confirmed.hadMark() && confirmed.ready()) {
+			boolean bonusEligible = confirmed.hadMark() && confirmed.ready();
+			ActorTarget actorTarget = new ActorTarget(confirmed.attacker(), confirmed.target());
+			if (bonusEligible && shouldDebounce(now, LAST_BONUS_TICK.get(actorTarget))) {
+				// 相邻 tick 的重复确认静默丢弃，连新标记概率也不再重掷。
+				continue;
+			}
+			if (bonusEligible) {
+				LAST_BONUS_TICK.put(actorTarget, now);
 				float bonus = (float) (target.getMaxHealth()
 						* ReliquaryConfig.sacredVerdictBonusDamagePercent() / 100.0D);
 				if (bonus > 0.0F) {
@@ -199,6 +211,11 @@ public final class SacredVerdict {
 		double radius = ReliquaryConfig.sacredVerdictCastRadius();
 		float damage = ReliquaryConfig.sacredVerdictCastDamage();
 		long now = level.getGameTime();
+		if (shouldDebounce(now, LAST_CAST_TICK.get(player.getUUID()))) {
+			// 同一 R 请求或相邻 tick 的重复包只允许展开一次爆炸。
+			return false;
+		}
+		LAST_CAST_TICK.put(player.getUUID(), now);
 		for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class,
 				new AABB(center, center).inflate(radius),
 				entity -> Godhead.isAuraTarget(player, entity))) {
@@ -224,6 +241,7 @@ public final class SacredVerdict {
 
 	public static void onDeath(LivingEntity entity) {
 		MARKS.remove(entity.getUUID());
+		LAST_BONUS_TICK.keySet().removeIf(key -> key.target().equals(entity.getUUID()));
 	}
 
 	public static boolean marked(LivingEntity entity) {
@@ -235,6 +253,8 @@ public final class SacredVerdict {
 		MARKS.clear();
 		CANDIDATES.clear();
 		CONFIRMED.clear();
+		LAST_CAST_TICK.clear();
+		LAST_BONUS_TICK.clear();
 		applyingBonus = false;
 		forcedProc = null;
 		forcedReady = null;
@@ -251,6 +271,17 @@ public final class SacredVerdict {
 	/** 自检用：当前尚未由 LivingDamageEvent 确认的候选数。 */
 	public static int pendingCandidateCountForTest() {
 		return CANDIDATES.size();
+	}
+
+	/** 自检用：清空短窗幂等记录，不影响已有裁决标记。 */
+	public static void clearDebounceForTest() {
+		LAST_CAST_TICK.clear();
+		LAST_BONUS_TICK.clear();
+	}
+
+	/** 同一施法 / 附伤在相邻 2 tick 内重复时返回 true。 */
+	public static boolean shouldDebounce(long now, Long lastTick) {
+		return lastTick != null && now >= lastTick && now - lastTick <= 1L;
 	}
 
 	public static void applyMarkForTest(LivingEntity target, int ticks) {
@@ -321,5 +352,8 @@ public final class SacredVerdict {
 	}
 
 	private record BonusKey(UUID attacker, UUID target, long tick) {
+	}
+
+	private record ActorTarget(UUID attacker, UUID target) {
 	}
 }

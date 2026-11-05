@@ -20,6 +20,8 @@ public final class LifeDeathScreenOverlay implements IGuiOverlay {
 	private static final int WARNING_TICKS = 100;
 	/** 18 tick ≈ 0.9 秒一次完整呼吸。 */
 	private static final float PULSE_PERIOD_TICKS = 18.0F;
+	/** 原版 Boss 标题位于 y=3，进度条位于 y=12~22；红边从该安全区下方开始。 */
+	private static final int TOP_SAFE_HEIGHT = 24;
 	private static final int EDGE_RGB = 0x7A1010;
 	private static final int SIDE_BANDS = 6;
 
@@ -42,17 +44,25 @@ public final class LifeDeathScreenOverlay implements IGuiOverlay {
 
 		int edge = Math.max(18, Math.min(64, Math.min(width, height) / 10));
 		// 上下使用纵向渐变，左右用少量横向色带近似，中间视野保持完全透明。
-		graphics.fillGradient(0, 0, width, edge, argb(alpha), argb(0));
+		int topStart = topSafeStart(edge);
+		if (topStart < edge) {
+			graphics.fillGradient(0, topStart, width, edge, argb(alpha), argb(0));
+		}
 		graphics.fillGradient(0, height - edge, width, height, argb(0), argb(alpha));
 		for (int band = 0; band < SIDE_BANDS; band++) {
 			int x0 = band * edge / SIDE_BANDS;
 			int x1 = (band + 1) * edge / SIDE_BANDS;
 			int bandAlpha = Math.round(alpha * (SIDE_BANDS - band) / (float) SIDE_BANDS);
 			if (x1 > x0 && bandAlpha > 0) {
-				graphics.fill(0, 0, x1, height, argb(bandAlpha));
-				graphics.fill(width - x1, 0, width - x0, height, argb(bandAlpha));
+				graphics.fill(0, topStart, x1, height, argb(bandAlpha));
+				graphics.fill(width - x1, topStart, width - x0, height, argb(bandAlpha));
 			}
 		}
+	}
+
+	/** 顶部红边不得进入 Boss 标题与进度条的安全区。 */
+	public static int topSafeStart(int edge) {
+		return Math.min(Math.max(0, edge), TOP_SAFE_HEIGHT);
 	}
 
 	/**

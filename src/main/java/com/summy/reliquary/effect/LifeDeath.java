@@ -292,13 +292,31 @@ public final class LifeDeath {
 
 	public static void onUnequip(ServerPlayer player) {
 		if (PlayerFlags.isDeathForm(player)) {
+			long now = player.serverLevel().getGameTime();
+			PlayerFlags.setLifeDeathCooldownPending(player, true);
 			PlayerFlags.setDeathForm(player, 0L, 0);
 			updateEquippedDisplay(player, false);
 			AttributeManager.apply(player);
 			RevelationTracker.sync(player);
-		} else {
-			updateEquippedDisplay(player, false);
+			GUARD_UNTIL.remove(player.getUUID());
+			EXPIRING.add(player.getUUID());
+			removeHud(player);
+			player.invulnerableTime = 0;
+			try {
+				// 真实摘下生死逆转视同逆转失败；若其它免死接管则按获救后的冷却口径结算。
+				player.hurt(revivalFailureSource(player), Float.MAX_VALUE);
+			} finally {
+				EXPIRING.remove(player.getUUID());
+			}
+			if (!player.isDeadOrDying() && player.isAlive()) {
+				PlayerFlags.setLifeDeathCooldownPending(player, false);
+				PlayerFlags.setLifeDeathCooldownUntil(player,
+						now + ReliquaryConfig.lifeDeathCooldownTicks());
+				RevelationTracker.sync(player);
+			}
+			return;
 		}
+		updateEquippedDisplay(player, false);
 		GUARD_UNTIL.remove(player.getUUID());
 		EXPIRING.remove(player.getUUID());
 		removeHud(player);

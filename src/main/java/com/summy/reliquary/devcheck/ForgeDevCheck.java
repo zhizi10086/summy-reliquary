@@ -4669,9 +4669,35 @@ public final class ForgeDevCheck {
 			boolean expiredCleared = !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
 					&& !com.summy.reliquary.effect.LifeDeath.displayDeathForm(
 							covenantStack(player), player);
+			// 死形态真实摘下必须立即处决；重生后仍从此刻开始 30 秒冷却。
+			clearSpiritAltar(player);
+			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
+			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownPending(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, 0L, 0);
+			player.setHealth(player.getMaxHealth());
+			player.setInvulnerable(false);
+			player.invulnerableTime = 0;
+			boolean removalArmed = com.summy.reliquary.effect.LifeDeath.activate(player);
 			com.summy.reliquary.effect.LifeDeath.onUnequip(player);
+			boolean removalKilled = removalArmed && player.isDeadOrDying()
+					&& com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownPending(player);
+			player.revive();
+			player.setHealth(player.getMaxHealth());
+			com.summy.reliquary.effect.LifeDeath.onRespawn(player);
+			long removalCooldown = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player)
+					- player.serverLevel().getGameTime();
+			boolean removalRespawn = !com.summy.reliquary.effect.PlayerFlags
+					.lifeDeathCooldownPending(player)
+					&& !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& removalCooldown >= com.summy.reliquary.config.ReliquaryConfig
+							.lifeDeathCooldownTicks() - 1L;
+			boolean removalDeathOk = removalKilled && removalRespawn;
+			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
+			com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownPending(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, 0L, 0);
 			unequip(player, ReliquarySlots.COVENANT);
 			boolean lifeEnds = !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player);
+			boolean lifeAllOk = lifeOk && removalDeathOk;
 			int staticAlpha = com.summy.reliquary.client.LifeDeathScreenOverlay.edgeAlpha(
 					true, 200, 0, 10, 0.0F);
 			int metAlpha = com.summy.reliquary.client.LifeDeathScreenOverlay.edgeAlpha(
@@ -4685,7 +4711,9 @@ public final class ForgeDevCheck {
 					&& staticAlpha == 40
 					&& metAlpha == staticAlpha
 					&& warningLow == 46
-					&& warningHigh == 52;
+					&& warningHigh == 52
+					&& com.summy.reliquary.client.LifeDeathScreenOverlay.topSafeStart(64) == 24
+					&& com.summy.reliquary.client.LifeDeathScreenOverlay.topSafeStart(18) == 18;
 			DamageSource failureSource = com.summy.reliquary.effect.LifeDeath
 					.revivalFailureSource(player);
 			String failureText = failureSource.getLocalizedDeathMessage(player).getString();
@@ -4750,6 +4778,7 @@ public final class ForgeDevCheck {
 					player, verdictTarget, verdictSource, true);
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float verdictBonus = verdictBefore - verdictTarget.getHealth();
+			com.summy.reliquary.effect.SacredVerdict.clearDebounceForTest();
 			verdictTarget.setHealth(100.0F);
 			verdictTarget.invulnerableTime = 0;
 			DamageSource duplicateVerdictSource = player.damageSources().playerAttack(player);
@@ -4769,6 +4798,7 @@ public final class ForgeDevCheck {
 			float duplicateVerdictBonus = 100.0F - verdictTarget.getHealth();
 
 			// 即使测试路径直接塞入两条确认记录，最终批次也按攻击者 / 目标 / tick 合并。
+			com.summy.reliquary.effect.SacredVerdict.clearDebounceForTest();
 			verdictTarget.setHealth(100.0F);
 			verdictTarget.invulnerableTime = 0;
 			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
@@ -4788,6 +4818,27 @@ public final class ForgeDevCheck {
 					player, verdictTarget, unchargedSource, false);
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float unchargedBonus = beforeUncharged - verdictTarget.getHealth();
+			boolean debounceWindowOk = com.summy.reliquary.effect.SacredVerdict
+					.shouldDebounce(100L, 100L)
+					&& com.summy.reliquary.effect.SacredVerdict.shouldDebounce(101L, 100L)
+					&& !com.summy.reliquary.effect.SacredVerdict.shouldDebounce(102L, 100L)
+					&& !com.summy.reliquary.effect.SacredVerdict.shouldDebounce(90L, 100L);
+
+			// 同一 tick 重复 R：只允许一次爆炸视觉与一次 21 点伤害。
+			com.summy.reliquary.effect.SacredVerdict.clear();
+			Zombie castTarget = spawnTestZombie(player, 3.0D);
+			cleanup.add(castTarget);
+			makeToughTestTarget(castTarget);
+			castTarget.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)
+					.setBaseValue(100.0D);
+			castTarget.setHealth(100.0F);
+			player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES,
+					castTarget, net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES);
+			boolean firstCast = com.summy.reliquary.effect.SacredVerdict.activate(player);
+			boolean duplicateCast = com.summy.reliquary.effect.SacredVerdict.activate(player);
+			float castDamage = 100.0F - castTarget.getHealth();
+			boolean duplicateCastBlocked = firstCast && !duplicateCast
+					&& Math.abs(castDamage - 21.0F) < 0.05F;
 			boolean barrierDensityOk = com.summy.reliquary.effect.DivineIntervention
 					.edgeParticleCount(0, 5.0D, 3.0D) == 0
 					&& com.summy.reliquary.effect.DivineIntervention
@@ -4800,7 +4851,8 @@ public final class ForgeDevCheck {
 					&& duplicateCandidates == 1
 					&& Math.abs(duplicateVerdictBonus - 5.0F) < 0.05F
 					&& Math.abs(mergedVerdictBonus - 5.0F) < 0.05F
-					&& Math.abs(unchargedBonus) < 1.0E-4F;
+					&& Math.abs(unchargedBonus) < 1.0E-4F
+					&& debounceWindowOk && duplicateCastBlocked;
 			unequip(player, ReliquarySlots.COVENANT);
 
 			// 血债祭坛：10 点伤害只落地 5 点、延迟 ≤1 的段不生成；R 独立血债盾。
@@ -4859,7 +4911,7 @@ public final class ForgeDevCheck {
 					&& "16".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 			boolean ok = registered && covenantSlots == 1 && resources && sourceClassification
 					&& tooltipArguments
-					&& lifeOk && smoothProgress && killCountHud && reviveOk && bossRevive
+					&& lifeAllOk && smoothProgress && killCountHud && reviveOk && bossRevive
 					&& expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds
 					&& screenOverlay && failureSourceOk && spearGateReset && oathPressEdge
 					&& interventionOk && barrierDensityOk && sacredOk && debtOk && hexOk && config;
@@ -4868,12 +4920,13 @@ public final class ForgeDevCheck {
 							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/移速修饰 %.2f → %s；"
 							+ "死转生=%s/物品标记清除=%s/客户端同步清除=%s/生命 %.1f/移速修饰 %.2f/攻速修饰 %.2f/冷却=%s → %s；"
 							+ "BOSS 单杀复活=%s；到期仅跳过自身并由神性救下=%s/冷却 %d tick/冷却 HUD=%s → %s；"
-							+ "直接死亡待结算/重生冷却=%s；过期恢复清理=%s；"
+							+ "直接死亡待结算/重生冷却=%s；过期恢复清理=%s；摘除即死/重生冷却=%s；"
 							+ "进度平滑=%s/首杀文字=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
 							+ "专属死亡源=%s（免伤标签=%s/文本=「%s」）/按下沿=%s/长矛门禁回绕=%s；"
 							+ "神圣干预反伤 %.1f（应 10）/屏障=%s/描边密度=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/重复候选 %d（应 1）/重复附伤 %.2f（应 5）/"
-							+ "批次合并附伤 %.2f（应 5）/未满攻击强度附伤 %.2f（应 0）→ %s；"
+							+ "批次合并附伤 %.2f（应 5）/重复施法=%s/爆炸伤害 %.2f（应 21）/"
+							+ "未满攻击强度附伤 %.2f（应 0）→ %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
 							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）→ %s；"
 							+ "配置与协议=%s；整体=%s（应 true）",
@@ -4882,14 +4935,14 @@ public final class ForgeDevCheck {
 					revived, revivedTagCleared, revivedSyncCleared, revivedHealth,
 					revivedMoveModifier, revivedAttackModifier, reviveCooldown, reviveOk,
 					bossRevive, expirySelfSkipped && expirySavedByGodhead, expiryCooldown,
-					expiryCooldownHud, expiryOk, directDeathRespawnOk, expiredCleared,
+					expiryCooldownHud, expiryOk, directDeathRespawnOk, expiredCleared, removalDeathOk,
 					smoothProgress, killCountHud,
 					staticAlpha, metAlpha, warningLow, warningHigh, screenOverlay,
 					failureSourceOk, failureInvulnerabilityTag, failureText,
 					oathPressEdge, spearGateReset,
 					reflected, barrier, barrierDensityOk, interventionOk,
 					verdictBonus, duplicateCandidates, duplicateVerdictBonus, mergedVerdictBonus,
-					unchargedBonus, sacredOk,
+					duplicateCastBlocked, castDamage, unchargedBonus, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
 					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred, hexOk, config, ok));
 		} finally {
