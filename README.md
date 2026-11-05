@@ -310,6 +310,12 @@ Summy Reliquary 是一个以 **Curios** 为前置的七罪主题饰品与武器�
 - **背叛 / Betrayal（2.11）**：恶魔线加护，需当前恶魔标记；8 格内至少 2 名敌人时，每 tick 逐敌 0.5% 掷骰，取最近命中者为 18 秒靶子，范围内敌人强制攻击它，结束后冷却 5 秒；新增挑战成就「三十枚银钱」。
 - **交付**：版本 `2.0.0-forge`；注册物品 / 创造页 / 配方 / 进度为（**57 / 53 / 36 / 25**）；协议为 **`"16"`**；配置段 / 键为 **33 / 329**；伤害类型 16；完整客户端自检 **611~613 行全绿**。
 
+### 2.0.0 显示与结算补修
+
+- 死形态红边移到 HUD 下方，不再遮挡 Boss 标题；静态透明度 40、末段脉冲峰值 52。
+- 神圣裁决对同一 tick、同攻击者、同目标、同 `DamageSource` 的重复候选与确认只结算一次附伤。
+- 神圣干预描边默认 24，并按屏障实际周长保证连续轮廓；旧配置 8 也会自动提高有效密度。
+
 ## 1.8.8 变更
 
 > 1.8.7 及更早的历史见 [CHANGELOG.md](CHANGELOG.md)。
@@ -495,7 +501,8 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
                    #        revive_kill_required(10) / boss_weight_default(10) / cooldown_seconds(30) / kill_weights
 [divine_intervention] # 神圣干预：enable_divine_intervention(true) / reflect_percent(50)
                    #        barrier_distance(1) / barrier_width(5) / barrier_height(3) / barrier_seconds(15)
-                   #        barrier_edge_particles_per_tick(8) / player_projectile_damage_percent(30) / cooldown_seconds(60)
+                   #        barrier_edge_particles_per_tick(24；实际还会按屏障周长保证每格约 1.5 点)
+                   #        player_projectile_damage_percent(30) / cooldown_seconds(60)
 [sacred_verdict]   # 神圣裁决：enable_sacred_verdict(true) / proc_chance_percent(20) / proc_seconds(7)
                    #        cast_range(200) / cast_radius(8) / cast_damage(21) / cast_mark_seconds(21)
                    #        bonus_damage_percent(5) / cooldown_seconds(60)

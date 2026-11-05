@@ -31,6 +31,8 @@ import java.util.UUID;
  */
 public final class DivineIntervention {
 	public static final String PROJECTILE_BOOST_TAG = "summy_reliquary_divine_intervention_boosts";
+	/** 旧配置可能仍是 8；只要描边未显式关闭，就按每格约 1.5 点保证屏障轮廓可见。 */
+	private static final double MIN_EDGE_PARTICLES_PER_BLOCK = 1.5D;
 	private static final List<Barrier> BARRIERS = new ArrayList<>();
 	private static final Map<UUID, Vec3> LAST_PROJECTILE_POS = new HashMap<>();
 
@@ -196,21 +198,49 @@ public final class DivineIntervention {
 	}
 
 	private static void drawEdges(Barrier barrier) {
-		int count = ReliquaryConfig.divineInterventionEdgeParticles();
+		double width = barrier.halfWidth() * 2.0D;
+		double height = barrier.halfHeight() * 2.0D;
+		int count = edgeParticleCount(ReliquaryConfig.divineInterventionEdgeParticles(),
+				width, height);
 		if (count <= 0) {
 			return;
 		}
+		double perimeter = 2.0D * (width + height);
+		// 相邻 tick 错开半个采样间距，用前后两批粒子把固定亮点补成连续轮廓。
+		double phase = (barrier.level().getGameTime() & 1L) == 0L ? 0.0D : 0.5D;
 		for (int index = 0; index < count; index++) {
-			double progress = (index + 0.5D) / count;
-			int edge = index % 4;
-			double horizontal = edge < 2 ? -1.0D + progress * 2.0D : (edge == 2 ? -1.0D : 1.0D);
-			double vertical = edge < 2 ? (edge == 0 ? -1.0D : 1.0D) : -1.0D + progress * 2.0D;
+			double distance = ((index + 0.5D + phase) / count * perimeter) % perimeter;
+			double horizontal;
+			double vertical;
+			if (distance < width) {
+				horizontal = -0.5D + distance / width;
+				vertical = -0.5D;
+			} else if (distance < width + height) {
+				horizontal = 0.5D;
+				vertical = -0.5D + (distance - width) / height;
+			} else if (distance < width * 2.0D + height) {
+				horizontal = 0.5D - (distance - width - height) / width;
+				vertical = 0.5D;
+			} else {
+				horizontal = -0.5D;
+				vertical = 0.5D - (distance - width * 2.0D - height) / height;
+			}
 			Vec3 point = barrier.center()
-					.add(barrier.right().scale(horizontal * barrier.halfWidth()))
-					.add(barrier.up().scale(vertical * barrier.halfHeight()));
+					.add(barrier.right().scale(horizontal * width))
+					.add(barrier.up().scale(vertical * height));
 			barrier.level().sendParticles(ParticleTypes.END_ROD, point.x, point.y, point.z,
-					1, 0.01D, 0.01D, 0.01D, 0.0D);
+					1, 0.015D, 0.015D, 0.015D, 0.0D);
 		}
+	}
+
+	/** 按实际周长计算描边数量；显式配置 0 时保持关闭。 */
+	public static int edgeParticleCount(int configured, double width, double height) {
+		if (configured <= 0) {
+			return 0;
+		}
+		double perimeter = 2.0D * (Math.max(0.5D, width) + Math.max(0.5D, height));
+		int densityFloor = (int) Math.ceil(perimeter * MIN_EDGE_PARTICLES_PER_BLOCK);
+		return Math.max(configured, densityFloor);
 	}
 
 	private static DamageSource reflectSource(ServerLevel level, ServerPlayer player) {

@@ -662,7 +662,7 @@ public final class ReliquaryConfig {
 		DIVINE_INTERVENTION_BARRIER_SECONDS = builder.comment("屏障持续时间（秒）")
 				.defineInRange("barrier_seconds", 15, 1, 600);
 		DIVINE_INTERVENTION_EDGE_PARTICLES = builder.comment("屏障每 tick 的描边粒子数")
-				.defineInRange("barrier_edge_particles_per_tick", 8, 0, 128);
+				.defineInRange("barrier_edge_particles_per_tick", 24, 0, 128);
 		DIVINE_INTERVENTION_PROJECTILE_PERCENT = builder.comment("玩家投射物穿过屏障后的伤害加成（百分比）")
 				.defineInRange("player_projectile_damage_percent", 30.0D, 0.0D, 1000.0D);
 		DIVINE_INTERVENTION_COOLDOWN_SECONDS = builder.comment("冷却秒数")
@@ -1553,7 +1553,7 @@ public final class ReliquaryConfig {
 	}
 
 	public static int divineInterventionEdgeParticles() {
-		return Math.max(0, intOr(DIVINE_INTERVENTION_EDGE_PARTICLES, 8));
+		return Math.max(0, intOr(DIVINE_INTERVENTION_EDGE_PARTICLES, 24));
 	}
 
 	public static double divineInterventionProjectileDamagePercent() {

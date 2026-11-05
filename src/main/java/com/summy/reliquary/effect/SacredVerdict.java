@@ -29,6 +29,7 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -73,6 +74,16 @@ public final class SacredVerdict {
 			MARKS.remove(target.getUUID());
 			mark = null;
 		}
+		// Kilt / Connector 等环境可能对同一击重复派发 LivingHurtEvent。
+		// 同一 tick 的同攻击者、同目标、同 DamageSource 实例只登记一次。
+		for (Candidate existing : CANDIDATES) {
+			if (existing.tick() == now
+					&& existing.target().equals(target.getUUID())
+					&& existing.attacker().equals(attacker.getUUID())
+					&& existing.source() == event.getSource()) {
+				return;
+			}
+		}
 		CANDIDATES.add(new Candidate(now, target.getUUID(), attacker.getUUID(), event.getSource(),
 				attackReady(attacker, event.getSource()), mark != null));
 	}
@@ -90,8 +101,10 @@ public final class SacredVerdict {
 				continue;
 			}
 			CANDIDATES.remove(index);
-			CONFIRMED.add(new Confirmed(candidate.attacker(), candidate.target(), candidate.ready(),
-					candidate.hadMark()));
+			CONFIRMED.add(new Confirmed(candidate.attacker(), candidate.target(), candidate.tick(),
+					candidate.ready(), candidate.hadMark()));
+			// 一个 LivingDamageEvent 只确认一次，剩余同组候选在 tickServer 开头统一丢弃。
+			break;
 		}
 	}
 
@@ -101,7 +114,15 @@ public final class SacredVerdict {
 			return;
 		}
 		CANDIDATES.clear();
-		List<Confirmed> batch = new ArrayList<>(CONFIRMED);
+		Map<BonusKey, Confirmed> merged = new LinkedHashMap<>();
+		for (Confirmed confirmed : CONFIRMED) {
+			BonusKey key = new BonusKey(confirmed.attacker(), confirmed.target(), confirmed.tick());
+			Confirmed existing = merged.get(key);
+			if (existing == null || (!existing.hadMark() && confirmed.hadMark())) {
+				merged.put(key, confirmed);
+			}
+		}
+		List<Confirmed> batch = new ArrayList<>(merged.values());
 		CONFIRMED.clear();
 		for (Confirmed confirmed : batch) {
 			ServerPlayer attacker = server.getPlayerList().getPlayer(confirmed.attacker());
@@ -227,6 +248,11 @@ public final class SacredVerdict {
 		forcedReady = value;
 	}
 
+	/** 自检用：当前尚未由 LivingDamageEvent 确认的候选数。 */
+	public static int pendingCandidateCountForTest() {
+		return CANDIDATES.size();
+	}
+
 	public static void applyMarkForTest(LivingEntity target, int ticks) {
 		applyMark(target, target.level().getGameTime() + Math.max(1, ticks));
 	}
@@ -234,7 +260,8 @@ public final class SacredVerdict {
 	public static void confirmForTest(ServerPlayer attacker, LivingEntity target, DamageSource source,
 			boolean ready) {
 		boolean hadMark = marked(target);
-		CONFIRMED.add(new Confirmed(attacker.getUUID(), target.getUUID(), ready, hadMark));
+		CONFIRMED.add(new Confirmed(attacker.getUUID(), target.getUUID(),
+				target.level().getGameTime(), ready, hadMark));
 	}
 
 	private static boolean attackReady(ServerPlayer attacker, DamageSource source) {
@@ -290,6 +317,9 @@ public final class SacredVerdict {
 			boolean hadMark) {
 	}
 
-	private record Confirmed(UUID attacker, UUID target, boolean ready, boolean hadMark) {
+	private record Confirmed(UUID attacker, UUID target, long tick, boolean ready, boolean hadMark) {
+	}
+
+	private record BonusKey(UUID attacker, UUID target, long tick) {
 	}
 }

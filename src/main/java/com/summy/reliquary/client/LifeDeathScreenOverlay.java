@@ -12,10 +12,10 @@ import net.minecraftforge.client.gui.overlay.IGuiOverlay;
  * 尚未达到复活击杀目标时，以 18 tick 为一个周期轻微呼吸；目标达成后恢复为静态红光。
  */
 public final class LifeDeathScreenOverlay implements IGuiOverlay {
-	/** 静态外侧不透明度：33 / 255 ≈ 13%。 */
-	private static final int BASE_ALPHA = 33;
-	/** 警告脉冲最多额外增加的 10 / 255 ≈ 4 个百分点。 */
-	private static final int PULSE_ALPHA = 10;
+	/** 静态外侧不透明度：40 / 255 ≈ 15.7%。 */
+	private static final int BASE_ALPHA = 40;
+	/** 警告脉冲最多额外增加的 12 / 255 ≈ 4.7 个百分点。 */
+	private static final int PULSE_ALPHA = 12;
 	/** 最后 5 秒开始警告。 */
 	private static final int WARNING_TICKS = 100;
 	/** 18 tick ≈ 0.9 秒一次完整呼吸。 */

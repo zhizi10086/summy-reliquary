@@ -133,8 +133,9 @@ public final class SummyReliquaryClient {
 		 */
 		@SubscribeEvent
 		public static void onRegisterGuiOverlays(net.minecraftforge.client.event.RegisterGuiOverlaysEvent event) {
-			// 死形态边缘红光：排在原版暗角之后、其它 HUD 之前。
-			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.VIGNETTE.id(),
+			// 死形态边缘红光：高于暗角，但必须低于快捷栏、准星与 Boss 条等 HUD。
+			// 直接注册在 HOTBAR 下方，避免红边覆盖死形态 Boss 条标题。
+			event.registerBelow(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.HOTBAR.id(),
 					"life_death_screen_red", new LifeDeathScreenOverlay());
 			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
 					"demon_black_hearts", new DemonBlackHeartOverlay());

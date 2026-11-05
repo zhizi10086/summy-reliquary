@@ -4682,9 +4682,10 @@ public final class ForgeDevCheck {
 					true, 80, 0, 10, 4.5F);
 			boolean screenOverlay = com.summy.reliquary.client.LifeDeathScreenOverlay.edgeAlpha(
 					false, 80, 0, 10, 0.0F) == 0
-					&& staticAlpha >= 30 && staticAlpha <= 36
+					&& staticAlpha == 40
 					&& metAlpha == staticAlpha
-					&& warningLow >= staticAlpha && warningHigh > warningLow;
+					&& warningLow == 46
+					&& warningHigh == 52;
 			DamageSource failureSource = com.summy.reliquary.effect.LifeDeath
 					.revivalFailureSource(player);
 			String failureText = failureSource.getLocalizedDeathMessage(player).getString();
@@ -4751,6 +4752,33 @@ public final class ForgeDevCheck {
 			float verdictBonus = verdictBefore - verdictTarget.getHealth();
 			verdictTarget.setHealth(100.0F);
 			verdictTarget.invulnerableTime = 0;
+			DamageSource duplicateVerdictSource = player.damageSources().playerAttack(player);
+			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
+					verdictTarget, duplicateVerdictSource, 10.0F));
+			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
+					verdictTarget, duplicateVerdictSource, 10.0F));
+			int duplicateCandidates = com.summy.reliquary.effect.SacredVerdict
+					.pendingCandidateCountForTest();
+			com.summy.reliquary.effect.SacredVerdict.confirmLanding(
+					new net.minecraftforge.event.entity.living.LivingDamageEvent(
+					verdictTarget, duplicateVerdictSource, 10.0F));
+			com.summy.reliquary.effect.SacredVerdict.confirmLanding(
+					new net.minecraftforge.event.entity.living.LivingDamageEvent(
+					verdictTarget, duplicateVerdictSource, 10.0F));
+			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
+			float duplicateVerdictBonus = 100.0F - verdictTarget.getHealth();
+
+			// 即使测试路径直接塞入两条确认记录，最终批次也按攻击者 / 目标 / tick 合并。
+			verdictTarget.setHealth(100.0F);
+			verdictTarget.invulnerableTime = 0;
+			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
+					player, verdictTarget, duplicateVerdictSource, true);
+			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
+					player, verdictTarget, duplicateVerdictSource, true);
+			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
+			float mergedVerdictBonus = 100.0F - verdictTarget.getHealth();
+			verdictTarget.setHealth(100.0F);
+			verdictTarget.invulnerableTime = 0;
 			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(false);
 			float beforeUncharged = verdictTarget.getHealth();
 			DamageSource unchargedSource = player.damageSources().playerAttack(player);
@@ -4760,7 +4788,18 @@ public final class ForgeDevCheck {
 					player, verdictTarget, unchargedSource, false);
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float unchargedBonus = beforeUncharged - verdictTarget.getHealth();
+			boolean barrierDensityOk = com.summy.reliquary.effect.DivineIntervention
+					.edgeParticleCount(0, 5.0D, 3.0D) == 0
+					&& com.summy.reliquary.effect.DivineIntervention
+							.edgeParticleCount(8, 5.0D, 3.0D) == 24
+					&& com.summy.reliquary.effect.DivineIntervention
+							.edgeParticleCount(24, 5.0D, 3.0D) == 24
+					&& com.summy.reliquary.effect.DivineIntervention
+							.edgeParticleCount(8, 8.0D, 5.0D) == 39;
 			boolean sacredOk = Math.abs(verdictBonus - 5.0F) < 0.05F
+					&& duplicateCandidates == 1
+					&& Math.abs(duplicateVerdictBonus - 5.0F) < 0.05F
+					&& Math.abs(mergedVerdictBonus - 5.0F) < 0.05F
 					&& Math.abs(unchargedBonus) < 1.0E-4F;
 			unequip(player, ReliquarySlots.COVENANT);
 
@@ -4823,7 +4862,7 @@ public final class ForgeDevCheck {
 					&& lifeOk && smoothProgress && killCountHud && reviveOk && bossRevive
 					&& expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds
 					&& screenOverlay && failureSourceOk && spearGateReset && oathPressEdge
-					&& interventionOk && sacredOk && debtOk && hexOk && config;
+					&& interventionOk && barrierDensityOk && sacredOk && debtOk && hexOk && config;
 			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s、伤害归类=%s；"
 							+ "逐行提示参数=%s；"
 							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/移速修饰 %.2f → %s；"
@@ -4832,8 +4871,9 @@ public final class ForgeDevCheck {
 							+ "直接死亡待结算/重生冷却=%s；过期恢复清理=%s；"
 							+ "进度平滑=%s/首杀文字=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
 							+ "专属死亡源=%s（免伤标签=%s/文本=「%s」）/按下沿=%s/长矛门禁回绕=%s；"
-							+ "神圣干预反伤 %.1f（应 10）/屏障=%s → %s；"
-							+ "神圣裁决附伤 %.2f（应 5）/未满攻击强度附伤 %.2f（应 0）→ %s；"
+							+ "神圣干预反伤 %.1f（应 10）/屏障=%s/描边密度=%s → %s；"
+							+ "神圣裁决附伤 %.2f（应 5）/重复候选 %d（应 1）/重复附伤 %.2f（应 5）/"
+							+ "批次合并附伤 %.2f（应 5）/未满攻击强度附伤 %.2f（应 0）→ %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
 							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）→ %s；"
 							+ "配置与协议=%s；整体=%s（应 true）",
@@ -4847,7 +4887,9 @@ public final class ForgeDevCheck {
 					staticAlpha, metAlpha, warningLow, warningHigh, screenOverlay,
 					failureSourceOk, failureInvulnerabilityTag, failureText,
 					oathPressEdge, spearGateReset,
-					reflected, barrier, interventionOk, verdictBonus, unchargedBonus, sacredOk,
+					reflected, barrier, barrierDensityOk, interventionOk,
+					verdictBonus, duplicateCandidates, duplicateVerdictBonus, mergedVerdictBonus,
+					unchargedBonus, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
 					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred, hexOk, config, ok));
 		} finally {
