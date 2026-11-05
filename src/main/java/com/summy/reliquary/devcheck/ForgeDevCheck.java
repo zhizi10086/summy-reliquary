@@ -4680,15 +4680,20 @@ public final class ForgeDevCheck {
 			boolean failureSourceOk = failureInvulnerabilityTag
 					&& com.summy.reliquary.effect.LifeDeath.bypassesWholeHitShield(failureSource)
 					&& failureTextOk;
-			boolean deathStatusTexts = translated("message.summy-reliquary.life_death.status.start")
-					&& translated("message.summy-reliquary.life_death.status.kill")
-					&& translated("message.summy-reliquary.life_death.status.revived");
 			boolean spearGateReset = com.summy.reliquary.client.SpearAttackGate.isCoolingDown(
 					true, 30L, 100L, 20) == false
 					&& com.summy.reliquary.client.SpearAttackGate.isCoolingDown(
 							true, 95L, 90L, 20)
 					&& !com.summy.reliquary.client.SpearAttackGate.isCoolingDown(
 							false, 95L, 90L, 20);
+			boolean oathPressEdge = com.summy.reliquary.client.SummyReliquaryClient.ForgeBus
+					.shouldFireOath(false, true, false, true)
+					&& !com.summy.reliquary.client.SummyReliquaryClient.ForgeBus
+							.shouldFireOath(true, true, false, true)
+					&& !com.summy.reliquary.client.SummyReliquaryClient.ForgeBus
+							.shouldFireOath(false, true, true, true)
+					&& !com.summy.reliquary.client.SummyReliquaryClient.ForgeBus
+							.shouldFireOath(false, true, false, false);
 
 			// 神圣干预：20 点来源伤害 → 10 点真实反伤；R 展开一面固定屏障。
 			com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
@@ -4800,7 +4805,7 @@ public final class ForgeDevCheck {
 					&& tooltipArguments
 					&& lifeOk && smoothProgress && killCountHud && reviveOk && bossRevive
 					&& expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds
-					&& screenOverlay && failureSourceOk && deathStatusTexts && spearGateReset
+					&& screenOverlay && failureSourceOk && spearGateReset && oathPressEdge
 					&& interventionOk && sacredOk && debtOk && hexOk && config;
 			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s、伤害归类=%s；"
 							+ "逐行提示参数=%s；"
@@ -4809,7 +4814,7 @@ public final class ForgeDevCheck {
 							+ "BOSS 单杀复活=%s；到期仅跳过自身并由神性救下=%s/冷却 %d tick/冷却 HUD=%s → %s；"
 							+ "直接死亡待结算/重生冷却=%s；过期恢复清理=%s；"
 							+ "进度平滑=%s/首杀文字=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
-							+ "专属死亡源=%s（免伤标签=%s/文本=「%s」）/动作栏文本=%s/长矛门禁回绕=%s；"
+							+ "专属死亡源=%s（免伤标签=%s/文本=「%s」）/按下沿=%s/长矛门禁回绕=%s；"
 							+ "神圣干预反伤 %.1f（应 10）/屏障=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/未满攻击强度附伤 %.2f（应 0）→ %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
@@ -4824,7 +4829,7 @@ public final class ForgeDevCheck {
 					smoothProgress, killCountHud,
 					staticAlpha, metAlpha, warningLow, warningHigh, screenOverlay,
 					failureSourceOk, failureInvulnerabilityTag, failureText,
-					deathStatusTexts, spearGateReset,
+					oathPressEdge, spearGateReset,
 					reflected, barrier, interventionOk, verdictBonus, unchargedBonus, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
 					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred, hexOk, config, ok));
@@ -5160,6 +5165,7 @@ public final class ForgeDevCheck {
 		player.hurt(player.damageSources().generic(), 1.0F);
 		int beamThrottled = com.summy.reliquary.effect.RevelationBeam.cooldownRemainingForTest(
 				player, com.summy.reliquary.effect.RevelationBeam.BeamKind.HOLY);
+		boolean beamAdvanceOk = beamRemaining == 80 && beamThrottled == 80;
 
 		// X 恶魔形态：1200 秒冷却，一次受击推进 10% = 120 秒。
 		com.summy.reliquary.effect.RevelationBeam.forget(player);
@@ -5171,9 +5177,75 @@ public final class ForgeDevCheck {
 		player.hurt(player.damageSources().generic(), 1.0F);
 		long abaddonRemaining = com.summy.reliquary.effect.PlayerFlags.abaddonReviveReadyAt(player)
 				- player.serverLevel().getGameTime();
+		boolean abaddonAdvanceOk = abaddonRemaining >= 21595L && abaddonRemaining <= 21605L;
+
+		// 誓约共享冷却：按该技能总冷却 60 秒的 10% 推进，而不是按剩余时间缩水。
+		com.summy.reliquary.effect.PlayerFlags.setAbaddonReviveReadyAt(player, 0L);
+		equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.DIVINE_INTERVENTION.get());
+		long covenantNow = player.serverLevel().getGameTime();
+		com.summy.reliquary.effect.PlayerFlags.setOathCooldownUntil(player, covenantNow + 1200L);
+		com.summy.reliquary.effect.Habit.clearThrottleForTest(player);
+		com.summy.reliquary.effect.Habit.onHurt(new LivingHurtEvent(
+				player, player.damageSources().generic(), 1.0F));
+		long covenantRemaining = com.summy.reliquary.effect.PlayerFlags.oathCooldownUntil(player)
+				- player.serverLevel().getGameTime();
+		boolean covenantAdvanceOk = covenantRemaining >= 1075L && covenantRemaining <= 1085L;
+
+		// 生死逆转的独立复活冷却：30 秒的 10% = 3 秒（60 tick）。
+		unequip(player, ReliquarySlots.COVENANT);
+		equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.LIFE_DEATH.get());
+		long lifeNow = player.serverLevel().getGameTime();
+		com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, lifeNow + 600L);
+		com.summy.reliquary.effect.Habit.clearThrottleForTest(player);
+		com.summy.reliquary.effect.Habit.onHurt(new LivingHurtEvent(
+				player, player.damageSources().generic(), 1.0F));
+		long lifeRemaining = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player)
+				- player.serverLevel().getGameTime();
+		boolean lifeAdvanceOk = lifeRemaining >= 535L && lifeRemaining <= 545L;
+
+		// 献祭自伤不推进、不消耗节流窗口；紧接着的真实受击仍应正常推进。
+		com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(
+				player, player.serverLevel().getGameTime() + 600L);
+		com.summy.reliquary.effect.Habit.clearThrottleForTest(player);
+		var sacrificeSelfKey = net.minecraft.resources.ResourceKey.create(
+				net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+				SummyReliquary.id("sacrifice_self"));
+		var sacrificeSelfHolder = player.serverLevel().registryAccess()
+				.registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE)
+				.getHolderOrThrow(sacrificeSelfKey);
+		net.minecraft.world.damagesource.DamageSource sacrificeSelf =
+				new net.minecraft.world.damagesource.DamageSource(
+						sacrificeSelfHolder, player, player);
+		com.summy.reliquary.effect.Habit.onHurt(new LivingHurtEvent(
+				player, sacrificeSelf, 1.0F));
+		long afterSacrificeSelf = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player)
+				- player.serverLevel().getGameTime();
+		com.summy.reliquary.effect.Habit.onHurt(new LivingHurtEvent(
+				player, player.damageSources().generic(), 1.0F));
+		long afterSacrificeThenReal = com.summy.reliquary.effect.PlayerFlags
+				.lifeDeathCooldownUntil(player) - player.serverLevel().getGameTime();
+		boolean sacrificeSelfIgnored = afterSacrificeSelf >= 595L && afterSacrificeSelf <= 605L
+				&& afterSacrificeThenReal >= 535L && afterSacrificeThenReal <= 545L;
+
+		// 暴怒自伤走原版 generic 来源，必须依赖结算窗口标记豁免。
+		com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(
+				player, player.serverLevel().getGameTime() + 600L);
+		com.summy.reliquary.effect.Habit.clearThrottleForTest(player);
+		com.summy.reliquary.sin.SinEffects.setApplyingSelfHitForTest(true);
+		try {
+			com.summy.reliquary.effect.Habit.onHurt(new LivingHurtEvent(
+					player, player.damageSources().generic(), 1.0F));
+		} finally {
+			com.summy.reliquary.sin.SinEffects.setApplyingSelfHitForTest(false);
+		}
+		long afterWrathSelf = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player)
+				- player.serverLevel().getGameTime();
+		boolean wrathSelfIgnored = afterWrathSelf >= 595L && afterWrathSelf <= 605L;
 
 		// 没有技能在冷却时，触发次数不增长；已取消的事件完全不处理。
 		com.summy.reliquary.effect.PlayerFlags.setAbaddonReviveReadyAt(player, 0L);
+		com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
+		com.summy.reliquary.effect.PlayerFlags.setOathCooldownUntil(player, 0L);
 		com.summy.reliquary.effect.Habit.clearThrottleForTest(player);
 		int triggersBeforeEmpty = com.summy.reliquary.effect.Habit.triggerCount();
 		player.invulnerableTime = 0;
@@ -5188,8 +5260,8 @@ public final class ForgeDevCheck {
 				&& Math.abs(soulAfter - 8.0D) < 1.0E-4D
 				&& Math.abs(armorAfter - armorBefore - 2.0D) < 1.0E-4D
 				&& backTagged && recipeOk && configOk && modelOk && textsOk
-				&& beamRemaining == 80 && beamThrottled == 80
-				&& abaddonRemaining >= 21595L && abaddonRemaining <= 21605L
+				&& beamAdvanceOk && abaddonAdvanceOk && covenantAdvanceOk
+				&& lifeAdvanceOk && sacrificeSelfIgnored && wrathSelfIgnored
 				&& triggersAfterEmpty == triggersBeforeEmpty;
 		log("修女服（2.10）：无天使锁定=" + locked + " / 有天使可装=" + angelAllowed
 				+ "、魂心容量 " + soulBefore + " → " + soulAfter + "（应 4 → 8）、护甲 +"
@@ -5197,12 +5269,21 @@ public final class ForgeDevCheck {
 				+ "、配置=" + configOk + "、模型/文本=" + modelOk + "/" + textsOk
 				+ "；V 冷却 100 → " + beamRemaining + " tick、同 tick 再受击 → " + beamThrottled
 				+ "（应 80/80）；X 冷却剩 " + abaddonRemaining + " tick（应约 21600 = 24000−2400）；"
+				+ "誓约 60 秒冷却剩 " + covenantRemaining + " tick（应约 1080）、"
+				+ "生死逆转 30 秒冷却剩 " + lifeRemaining + " tick（应约 540）；"
+				+ "献祭自伤=" + afterSacrificeSelf + "/随后真实受击=" + afterSacrificeThenReal
+				+ "（应约 600/540）、暴怒自伤=" + afterWrathSelf + "（应约 600）；"
+				+ "分项=" + beamAdvanceOk + "/" + abaddonAdvanceOk + "/" + covenantAdvanceOk
+				+ "/" + lifeAdvanceOk + "/" + sacrificeSelfIgnored + "/" + wrathSelfIgnored + "；"
 				+ "无冷却作废=" + (triggersAfterEmpty == triggersBeforeEmpty) + " → 整体=" + overall
 				+ "（应 true）");
 
 		com.summy.reliquary.effect.Habit.clear();
 		com.summy.reliquary.effect.RevelationBeam.forget(player);
 		com.summy.reliquary.effect.PlayerFlags.setAbaddonReviveReadyAt(player, 0L);
+		com.summy.reliquary.effect.PlayerFlags.setLifeDeathCooldownUntil(player, 0L);
+		com.summy.reliquary.effect.PlayerFlags.setOathCooldownUntil(player, 0L);
+		unequip(player, ReliquarySlots.COVENANT);
 		unequip(player, ReliquarySlots.BACK);
 		unequip(player, ReliquarySlots.REVELATION);
 		com.summy.reliquary.effect.AttributeManager.apply(player);

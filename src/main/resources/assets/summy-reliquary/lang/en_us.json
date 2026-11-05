@@ -636,9 +636,6 @@
   "item.summy-reliquary.life_death.fail.death_form": "Cannot reverse from the current form",
   "message.summy-reliquary.life_death.hud.death_form": "Life-Death Reversal · Death Form | %s s | Kills %s/%s",
   "message.summy-reliquary.life_death.hud.cooldown": "Life-Death Reversal · Revival Cooldown | %s s",
-  "message.summy-reliquary.life_death.status.start": "Life-Death Reversal | Death Form: %s s · Kills %s/%s",
-  "message.summy-reliquary.life_death.status.kill": "Life-Death Reversal | Kill weight %s/%s",
-  "message.summy-reliquary.life_death.status.revived": "Life-Death Reversal | Revived · Cooldown %s s",
   "death.attack.summy-reliquary.life_death_failure": "%1$s failed to reverse life and death",
   "death.attack.summy-reliquary.life_death_failure.player": "%1$s failed to reverse life and death",
 

@@ -2,6 +2,7 @@ package com.summy.reliquary.effect;
 
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
+import com.summy.reliquary.sin.SinEffects;
 import com.summy.reliquary.util.CurioHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -36,6 +37,10 @@ public final class Habit {
 				|| event.getAmount() <= 0.0F || !wears(player)) {
 			return;
 		}
+		// 自伤按既定规格不计入受击充能，也不占用 0.5 秒触发窗口。
+		if (Sacrifice.isSelfDamage(event.getSource()) || SinEffects.isApplyingSelfHit()) {
+			return;
+		}
 		long now = player.serverLevel().getGameTime();
 		Long last = LAST_TRIGGER.get(player.getUUID());
 		int interval = ReliquaryConfig.habitChargeIntervalTicks();
@@ -48,7 +53,8 @@ public final class Habit {
 		boolean beamCooling = RevelationBeam.hasActiveCooldown(player);
 		boolean abaddonCooling = Abaddon.hasActiveCooldown(player);
 		boolean oathCooling = CovenantActions.hasActiveCooldown(player);
-		if (!beamCooling && !abaddonCooling && !oathCooling) {
+		boolean lifeDeathCooling = LifeDeath.hasActiveCooldown(player);
+		if (!beamCooling && !abaddonCooling && !oathCooling && !lifeDeathCooling) {
 			return;
 		}
 		double fraction = Math.max(0.0D, ReliquaryConfig.habitChargePercent() / 100.0D);
@@ -61,6 +67,9 @@ public final class Habit {
 		}
 		if (oathCooling) {
 			CovenantActions.advanceCooldown(player, fraction, minTicks);
+		}
+		if (lifeDeathCooling) {
+			LifeDeath.advanceCooldown(player, fraction, minTicks);
 		}
 		triggerCount++;
 	}

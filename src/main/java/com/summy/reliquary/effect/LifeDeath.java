@@ -74,6 +74,27 @@ public final class LifeDeath {
 				&& CurioHelper.wears(entity, SummyReliquary.LIFE_DEATH.get());
 	}
 
+	/** 修女服：复活后的独立 30 秒冷却是否仍在进行。 */
+	public static boolean hasActiveCooldown(ServerPlayer player) {
+		return player != null && wears(player)
+				&& PlayerFlags.lifeDeathCooldownUntil(player) > player.serverLevel().getGameTime();
+	}
+
+	/** 修女服：按生死逆转总复活冷却推进，至少推进 {@code minTicks}。 */
+	public static void advanceCooldown(ServerPlayer player, double fraction, int minTicks) {
+		if (!hasActiveCooldown(player)) {
+			return;
+		}
+		long now = player.serverLevel().getGameTime();
+		long remaining = PlayerFlags.lifeDeathCooldownUntil(player) - now;
+		int advance = Math.max(minTicks, (int) Math.ceil(
+				ReliquaryConfig.lifeDeathCooldownTicks() * Math.max(0.0D, fraction)));
+		long next = Math.max(0L, remaining - advance);
+		PlayerFlags.setLifeDeathCooldownUntil(player, now + next);
+		RevelationTracker.sync(player);
+		updateHud(player, now);
+	}
+
 	public static boolean shieldSuppressed(LivingEntity entity) {
 		return wears(entity) && PlayerFlags.isDeathForm(entity);
 	}
@@ -230,9 +251,6 @@ public final class LifeDeath {
 			revive(killer);
 		} else {
 			PlayerFlags.setDeathFormKillWeight(killer, total);
-			killer.displayClientMessage(Component.translatable(
-					"message.summy-reliquary.life_death.status.kill",
-					total, ReliquaryConfig.lifeDeathReviveKillRequired()), true);
 			RevelationTracker.sync(killer);
 			updateHud(killer, killer.serverLevel().getGameTime());
 		}
@@ -369,10 +387,6 @@ public final class LifeDeath {
 		updateEquippedDisplay(player, true);
 		GUARD_UNTIL.put(player.getUUID(), now + 40L);
 		AttributeManager.apply(player);
-		player.displayClientMessage(Component.translatable(
-				"message.summy-reliquary.life_death.status.start",
-				ReliquaryConfig.lifeDeathDeathFormSeconds(), 0,
-				ReliquaryConfig.lifeDeathReviveKillRequired()), true);
 		RevelationTracker.sync(player);
 		updateHud(player, now);
 	}
@@ -385,9 +399,6 @@ public final class LifeDeath {
 		PlayerFlags.setLifeDeathCooldownUntil(player,
 				player.serverLevel().getGameTime() + ReliquaryConfig.lifeDeathCooldownTicks());
 		AttributeManager.apply(player);
-		player.displayClientMessage(Component.translatable(
-				"message.summy-reliquary.life_death.status.revived",
-				ReliquaryConfig.lifeDeathCooldownSeconds()), true);
 		RevelationTracker.sync(player);
 		updateHud(player, player.serverLevel().getGameTime());
 	}
@@ -448,6 +459,13 @@ public final class LifeDeath {
 			entry.bar.setPlayBossMusic(false);
 			entry.bar.setProgress(Mth.clamp(remainingTicks / (float) totalTicks, 0.0F, 1.0F));
 			entry.bar.addPlayer(player);
+			// 部分客户端在 ADD 包抵达时只先建立空进度条；加入玩家后再显式补发一次完整状态，
+			// 确保标题无需等下一秒或打开背包界面才出现。
+			entry.bar.setName(title);
+			entry.bar.setColor(color);
+			entry.bar.setOverlay(BossEvent.BossBarOverlay.PROGRESS);
+			entry.bar.setProgress(Mth.clamp(remainingTicks / (float) totalTicks, 0.0F, 1.0F));
+			entry.shownSeconds = -1;
 			HUD_ENTRIES.put(player.getUUID(), entry);
 			return;
 		}

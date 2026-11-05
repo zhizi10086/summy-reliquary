@@ -332,6 +332,16 @@ public final class SinEffects {
 		}
 	}
 
+	/** 暴怒自伤结算窗口；修女服等“真实受伤”逻辑据此豁免。 */
+	public static boolean isApplyingSelfHit() {
+		return applyingSelfHit;
+	}
+
+	/** 自检用：模拟暴怒自伤的结算窗口。 */
+	public static void setApplyingSelfHitForTest(boolean applying) {
+		applyingSelfHit = applying;
+	}
+
 	// ==================== 触发事件 ====================
 
 	/** 击杀生物（傲慢的中立击杀、暴怒的累计击杀、暴食的击杀回复） */

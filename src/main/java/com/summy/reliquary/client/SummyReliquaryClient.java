@@ -64,6 +64,8 @@ public final class SummyReliquaryClient {
 	private static boolean divineFiredWhileHeld;
 	/** R 键本次按下是否已经由原始键盘事件即时发送，避免 END tick 重复发包。 */
 	private static boolean oathKeyPressHandled;
+	/** 上一 tick 的 R 键物理按下状态，用于原始事件未送达时补一次按下沿。 */
+	private static boolean oathKeyDownLastTick;
 
 	/** 当前蓄力进度（0~1；未蓄力为 0），供 FOV 收缩使用 */
 	public static double chargeProgress() {
@@ -166,6 +168,13 @@ public final class SummyReliquaryClient {
 
 		/** 真正的客户端 tick 逻辑（由 {@link ReliquaryClientTicks} 调用） */
 		static void onClientTick(TickEvent.ClientTickEvent event) {
+			Minecraft client = Minecraft.getInstance();
+			if (event.phase == TickEvent.Phase.START) {
+				// 原始按键事件在 Kilt / 部分输入环境中可能不派发。START tick 只补“松开 → 按下”的
+				// 边沿，既不等待 END tick，也不会在长按时每 tick 重复释放。
+				tickOathAction(client);
+				return;
+			}
 			if (event.phase != TickEvent.Phase.END) {
 				return;
 			}
@@ -175,11 +184,9 @@ public final class SummyReliquaryClient {
 			// 1.7.9：蓄力谓词的兜底注册（Kilt 上模组总线事件可能不触发，这里每 tick 幂等补一次）
 			registerUsingProperty();
 			registerDeathFormProperty();
-			Minecraft client = Minecraft.getInstance();
 			ReliquaryClientState.tickLifeDeathVisual();
 			// 1.8.2：X 键 —— 神性回溯 / 亚巴顿主动恶魔形态（长按蓄力后发包，服务端再校验装备）
 			tickDivineAction(client);
-			tickOathAction(client);
 
 			// JEI：按玩家状态隐藏 / 放开「赎罪」与天使线（三件套 / 圣光 / 斗篷 / 神性 / 救恩 / 圣心）与仪式法袍的配方。
 			// 桥内部只在目标状态变化或刚换世界时才真正通知 JEI，没装 JEI 时这里是空操作。
@@ -194,8 +201,8 @@ public final class SummyReliquaryClient {
 		/**
 		 * R 键在键盘按下事件里即时发包。
 		 *
-		 * <p>END tick 的 {@link KeyMapping#consumeClick()} 继续作为兜底，但本次按下若已在这里
-		 * 处理则不再重复发包。这样不依赖客户端 tick 排队，也不会出现“按住后才触发”的观感。
+		 * <p>这里直接比较绑定键值；tick START 的边沿检测只作为事件漏发兜底。
+		 * 两条路径共享“本次按下已处理”标记，因此同一次物理按下最多发包一次。
 		 */
 		public static void onKeyInput(net.minecraftforge.client.event.InputEvent.Key event) {
 			Minecraft client = Minecraft.getInstance();
@@ -204,12 +211,17 @@ public final class SummyReliquaryClient {
 				return;
 			}
 			if (event.getAction() != GLFW.GLFW_PRESS
-					|| !OATH_ACTION_KEY.matches(event.getKey(), event.getScanCode())
-					|| client.player == null || client.level == null || client.screen != null) {
+					|| event.getKey() != OATH_ACTION_KEY.getKey().getValue()) {
 				return;
 			}
-			ReliquaryNetworking.sendOathAction();
+			if (oathKeyPressHandled) {
+				return;
+			}
+			// 即使按下发生在界面中，也把这一轮物理按下记为已处理，避免关界面后同一次长按补发。
 			oathKeyPressHandled = true;
+			if (client.player != null && client.level != null && client.screen == null) {
+				ReliquaryNetworking.sendOathAction();
+			}
 		}
 
 		/**
@@ -358,15 +370,33 @@ public final class SummyReliquaryClient {
 			}
 		}
 
-		/** R 键：誓约饰品点击即释放，只在没有界面时消费一次。 */
+		/**
+		 * R 键：誓约饰品按下即释放。
+		 *
+		 * <p>旧版用 {@link KeyMapping#consumeClick()} 在 END tick 兜底，但在事件漏发时只能等
+		 * 下一 tick，且会留下点击队列。现在只看“上一 tick 未按、本 tick 已按”的物理边沿，
+		 * 并清空原版点击队列，确保既不会漏掉按下，也不会延迟到松开或长时间按住后触发。
+		 */
 		private static void tickOathAction(Minecraft client) {
-			while (OATH_ACTION_KEY.consumeClick()) {
-				if (!oathKeyPressHandled
-						&& client.player != null && client.level != null && client.screen == null) {
-					ReliquaryNetworking.sendOathAction();
-				}
+			boolean down = OATH_ACTION_KEY.isDown();
+			boolean canUse = client.player != null && client.level != null && client.screen == null;
+			if (shouldFireOath(oathKeyDownLastTick, down, oathKeyPressHandled, canUse)) {
+				ReliquaryNetworking.sendOathAction();
+				oathKeyPressHandled = true;
+			}
+			if (!down) {
 				oathKeyPressHandled = false;
 			}
+			oathKeyDownLastTick = down;
+			// consumeClick 只负责清掉原版队列；任何旧触发都不再在这里补发。
+			while (OATH_ACTION_KEY.consumeClick()) {
+			}
+		}
+
+		/** 纯函数：仅在一个物理按下沿且本次尚未处理时允许发送誓约行动包。 */
+		public static boolean shouldFireOath(
+				boolean wasDown, boolean isDown, boolean alreadyHandled, boolean canUse) {
+			return isDown && !wasDown && !alreadyHandled && canUse;
 		}
 
 		/** 蓄力状态变化时通知服务端（用于附近可见的蓄力粒子） */

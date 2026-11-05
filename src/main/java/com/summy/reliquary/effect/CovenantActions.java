@@ -71,20 +71,22 @@ public final class CovenantActions {
 				> player.serverLevel().getGameTime();
 	}
 
-	/** 修女服推进誓约 R 冷却：按剩余时长比例推进，并保留最小推进量。 */
+	/** 修女服推进誓约 R 冷却：按该技能总冷却比例推进，并保留最小推进量。 */
 	public static void advanceCooldown(ServerPlayer player, double fraction, int minTicks) {
 		if (!hasActiveCooldown(player)) {
 			return;
 		}
+		KindState state = current(player);
+		if (state == null || state.kind() == CovenantItem.Kind.LIFE_DEATH) {
+			return;
+		}
 		long now = player.serverLevel().getGameTime();
 		long remaining = PlayerFlags.oathCooldownUntil(player) - now;
-		long advanced = Math.max(minTicks, (long) Math.ceil(remaining * fraction));
+		long advanced = Math.max(minTicks, (long) Math.ceil(
+				cooldownTicks(state.kind()) * Math.max(0.0D, fraction)));
 		long next = Math.max(0L, remaining - advanced);
 		PlayerFlags.setOathCooldownUntil(player, now + next);
-		KindState state = current(player);
-		if (state != null) {
-			player.getCooldowns().addCooldown(state.stack().getItem(), (int) next);
-		}
+		player.getCooldowns().addCooldown(state.stack().getItem(), (int) next);
 	}
 
 	/**
