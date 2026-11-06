@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "HGH",
+    "ESE",
+    "HGH"
+  ],
+  "key": {
+    "H": { "item": "summy-reliquary:heart_shard" },
+    "G": { "item": "minecraft:gold_block" },
+    "E": { "item": "minecraft:echo_shard" },
+    "S": { "item": "minecraft:shield" }
+  },
+  "result": { "item": "summy-reliquary:divine_intervention", "count": 1 }
+}

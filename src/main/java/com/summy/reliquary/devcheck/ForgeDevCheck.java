@@ -4549,7 +4549,7 @@ public final class ForgeDevCheck {
 					&& com.summy.reliquary.effect.LifeDeath.hudColor(player)
 							== net.minecraft.world.BossEvent.BossBarColor.RED
 					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("死形态")
-					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("击杀 0/")
+					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("击杀权重 0/")
 					&& com.summy.reliquary.effect.LifeDeath.hudProgress(player) > 0.99F;
 			// Curios 会把显示 NBT 变化识别为同物品替换；模拟其 onUnequip 回调，状态必须保留。
 			ItemStack displayRefreshStack = covenantStack(player);
@@ -4589,13 +4589,13 @@ public final class ForgeDevCheck {
 			float damageAtFiveSeconds = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
 			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, growthNow - 200L, initialDuration);
 			float damageAtTenSeconds = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
-			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, growthNow - 400L, initialDuration);
-			float damageAtTwentySeconds = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, growthNow - 380L, initialDuration);
+			float damageNearExpiry = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
 			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, initialStart, initialDuration);
 			boolean tenSecondDamageGrowth = Math.abs(damageAtZeroSeconds - 1.5F) < 1.0E-4F
 					&& Math.abs(damageAtFiveSeconds - 1.75F) < 1.0E-4F
 					&& Math.abs(damageAtTenSeconds - 2.0F) < 1.0E-4F
-					&& Math.abs(damageAtTwentySeconds - 2.0F) < 1.0E-4F;
+					&& Math.abs(damageNearExpiry - 2.0F) < 1.0E-4F;
 			boolean lifeOk = lifeActivated && deathForm && fullHealth && debuffsCleared
 					&& deathTagged && deathModel && deathSynced && deathHud && deathPacket && redStart
 					&& displayRefreshKeepsForm && repeatedActivationKeepsForm
@@ -4634,7 +4634,7 @@ public final class ForgeDevCheck {
 					&& com.summy.reliquary.effect.PlayerFlags.deathFormKillWeight(player)
 							== requiredKillWeight
 					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player)
-							.contains("击杀 " + requiredKillWeight + "/" + requiredKillWeight);
+							.contains("击杀权重 " + requiredKillWeight + "/" + requiredKillWeight);
 			long reachedNow = player.serverLevel().getGameTime();
 			int reachedDuration = com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormTicks();
 			com.summy.reliquary.effect.PlayerFlags.setDeathFormClockForTest(
@@ -4671,7 +4671,7 @@ public final class ForgeDevCheck {
 					&& Math.abs(revivedMoveModifier) < 1.0E-6D
 					&& Math.abs(revivedAttackModifier) < 1.0E-6D
 					&& revivedTooltip.contains("当前形态|生")
-					&& revivedTooltip.contains("下一次翻转|死")
+					&& revivedTooltip.contains("下一次逆转|死")
 					&& reviveCooldown && cooldownHud;
 
 			// BOSS 默认权重应能单独完成复活。
@@ -5341,11 +5341,26 @@ public final class ForgeDevCheck {
 					&& hexOwnerRemovalCleared && hexStaleMarkerCleared && hexDeathCleared;
 			unequip(player, ReliquarySlots.COVENANT);
 
-			boolean config = Math.abs(com.summy.reliquary.config.ReliquaryConfig
-					.sacredVerdictBonusDamagePercent() - 5.0D) < 1.0E-6D
-					&& Math.abs(com.summy.reliquary.config.ReliquaryConfig
-							.bloodDebtMinDeferredDamage() - 1.0D) < 1.0E-6D
-					&& "18".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
+			boolean acquisitionOk = checkCovenantAcquisition(player);
+			double verdictDefault = com.summy.reliquary.config.ReliquaryConfig
+					.sacredVerdictBonusDamagePercent();
+			double debtThresholdDefault = com.summy.reliquary.config.ReliquaryConfig
+					.bloodDebtMinDeferredDamage();
+			boolean covenantEnabled = com.summy.reliquary.config.ReliquaryConfig
+					.enableCovenantAcquisition();
+			int covenantChance = com.summy.reliquary.config.ReliquaryConfig.covenantLootChancePercent();
+			int covenantPity = com.summy.reliquary.config.ReliquaryConfig.covenantPityChests();
+			String protocol = com.summy.reliquary.net.ReliquaryNetworking.protocolVersion();
+			boolean config = Math.abs(verdictDefault - 5.0D) < 1.0E-6D
+					&& Math.abs(debtThresholdDefault - 1.0D) < 1.0E-6D
+					&& covenantEnabled && covenantChance == 15 && covenantPity == 10
+					&& "19".equals(protocol);
+			if (!config) {
+				log(String.format("誓约配置诊断：裁决附伤=%.2f（应 5）、血债阈值=%.2f（应 1）、"
+								+ "野箱开关=%s、概率=%d（应 15）、保底=%d（应 10）、协议=%s（应 19）",
+						verdictDefault, debtThresholdDefault, covenantEnabled,
+						covenantChance, covenantPity, protocol));
+			}
 			boolean ok = registered && covenantSlots == 1 && resources && dataResources
 					&& sourceClassification && verdictSeTag
 					&& tooltipArguments
@@ -5354,7 +5369,7 @@ public final class ForgeDevCheck {
 					&& expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds
 					&& screenOverlay && failureSourceOk && spearGateReset && oathPressEdge
 					&& interventionOk && barrierDensityOk && sacredOk
-					&& debtOk && hexOk && hexVisualOk && config;
+					&& debtOk && hexOk && hexVisualOk && acquisitionOk && config;
 			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s/数据包=%s、伤害归类=%s/"
 							+ "SE 裁决排除标签=%s；"
 							+ "逐行提示参数=%s；"
@@ -5372,6 +5387,7 @@ public final class ForgeDevCheck {
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/"
 							+ "独立盾 %.1f（应 %.1f）/原版吸收 %.1f（应 0） → %s；"
 							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）/触发范围、图标与清理=%s → %s；"
+							+ "野箱获取=%s；"
 							+ "配置与协议=%s；整体=%s（应 true）",
 					registered, covenantSlots, resources, dataResources, sourceClassification,
 					verdictSeTag, tooltipArguments,
@@ -5393,7 +5409,30 @@ public final class ForgeDevCheck {
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
 					shieldGain, expectedShieldGain, absorptionAfterActivation, debtOk,
 					hexEvent.getAmount(), pendingTransfers, transferred,
-					hexVisualOk, hexOk, config, ok));
+					hexVisualOk, hexOk, acquisitionOk, config, ok));
+			log("COVENANT_STATE registered=" + (registered && covenantSlots == 1)
+					+ " resources=" + (resources && dataResources && sourceClassification && verdictSeTag)
+					+ " tooltip=" + (tooltipArguments && markerEffectDefinitions)
+					+ " life=" + (lifeAllOk && smoothProgress && reachedAwaitingTimer && reviveOk && bossRevive
+							&& expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds)
+					+ " life_parts=" + lifeActivated + "/" + deathForm + "/" + fullHealth + "/"
+					+ debuffsCleared + "/" + deathTagged + "/" + deathModel + "/" + deathSynced + "/"
+					+ deathHud + "/" + deathPacket + "/" + redStart + "/"
+					+ displayRefreshKeepsForm + "/" + repeatedActivationKeepsForm + "/"
+					+ (deathSpeed >= 1.5F) + "/" + (deathMoveModifier > 0.0D) + "/" + tenSecondDamageGrowth
+					+ " life_late=" + smoothProgress + "/" + reachedAwaitingTimer + "/" + reviveOk + "/"
+					+ bossRevive + "/" + expiryOk + "/" + directDeathRespawnOk + "/" + expiredCleared + "/"
+					+ lifeEnds
+					+ " removal_parts=" + removalKilled + "/" + removalRespawn
+					+ " visuals=" + (screenOverlay && failureSourceOk)
+					+ " inputs=" + (spearGateReset && oathPressEdge)
+					+ " intervention=" + (interventionOk && barrierDensityOk)
+					+ " verdict=" + sacredOk
+					+ " debt=" + debtOk
+					+ " hex=" + (hexOk && hexVisualOk)
+					+ " acquisition=" + acquisitionOk
+					+ " config=" + config
+					+ " ok=" + ok);
 		} finally {
 			com.summy.reliquary.effect.SacredVerdict.setForcedProcForTest(null);
 			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(null);
@@ -5403,6 +5442,10 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.BloodDebtAltar.clear();
 			com.summy.reliquary.effect.DivineIntervention.clear();
 			com.summy.reliquary.effect.LifeDeath.clear();
+			com.summy.reliquary.loot.CovenantAcquisition.clearContainerWindowsForTest();
+			com.summy.reliquary.loot.CovenantAcquisition.clearStateForTest(player);
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
 			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, 0L, 0);
 			com.summy.reliquary.effect.PlayerFlags.setBloodDebtShield(player, 0.0D);
 			com.summy.reliquary.client.ClientBloodDebtState.clear();
@@ -5415,6 +5458,336 @@ public final class ForgeDevCheck {
 				}
 			}
 		}
+	}
+
+	/** 2.3：誓约五件的无阵营中立掉落、分线池、去重、保底、补记与补铸门禁。 */
+	private static boolean checkCovenantAcquisition(ServerPlayer player) {
+		boolean oldAngel = com.summy.reliquary.effect.PlayerFlags.hasAngel(player);
+		boolean oldDemon = com.summy.reliquary.effect.PlayerFlags.isDemon(player);
+		int oldOwned = com.summy.reliquary.effect.PlayerFlags.covenantOwned(player);
+		int oldAngelPity = com.summy.reliquary.effect.PlayerFlags.covenantPity(player, true);
+		int oldDemonPity = com.summy.reliquary.effect.PlayerFlags.covenantPity(player, false);
+		ItemStack[] savedInventory = new ItemStack[player.getInventory().getContainerSize()];
+		for (int slot = 0; slot < savedInventory.length; slot++) {
+			savedInventory[slot] = player.getInventory().getItem(slot).copy();
+		}
+		try {
+			player.getInventory().clearContent();
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+			com.summy.reliquary.loot.CovenantAcquisition.clearStateForTest(player);
+			com.summy.reliquary.loot.CovenantAcquisition.clearContainerWindowsForTest();
+			com.summy.reliquary.loot.CovenantAcquisition.setPityForTest(player, true, 7);
+			com.summy.reliquary.loot.CovenantAcquisition.setPityForTest(player, false, 8);
+
+			// 无阵营：失败不动两线保底；成功只能得到生死逆转且不能重复。
+			boolean neutralFail = !com.summy.reliquary.loot.CovenantAcquisition.attemptForTest(player, 99);
+			boolean neutralPityUntouched =
+					com.summy.reliquary.loot.CovenantAcquisition.pityForTest(player, true) == 7
+					&& com.summy.reliquary.loot.CovenantAcquisition.pityForTest(player, false) == 8;
+			boolean neutralSuccess = com.summy.reliquary.loot.CovenantAcquisition
+					.attemptForTest(player, 0);
+			boolean neutralOnlyLife =
+					com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player)
+							== com.summy.reliquary.loot.CovenantAcquisition.LIFE_DEATH_BIT
+					&& countItem(player, SummyReliquary.LIFE_DEATH.get()) == 1;
+			boolean neutralNoRepeat = !com.summy.reliquary.loot.CovenantAcquisition
+					.attemptForTest(player, 0)
+					&& countItem(player, SummyReliquary.LIFE_DEATH.get()) == 1;
+
+			// 天使：10 次失败后下一箱必得；继续补满三件时只会出现天使池的三位。
+			player.getInventory().clearContent();
+			com.summy.reliquary.loot.CovenantAcquisition.clearStateForTest(player);
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+			for (int attempt = 0; attempt < 10; attempt++) {
+				com.summy.reliquary.loot.CovenantAcquisition.attemptForTest(player, 99);
+			}
+			boolean tenFailures =
+					com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player) == 0
+					&& com.summy.reliquary.loot.CovenantAcquisition.pityForTest(player, true) == 10;
+			boolean angelPityGrant = com.summy.reliquary.loot.CovenantAcquisition
+					.attemptForTest(player, 99)
+					&& com.summy.reliquary.loot.CovenantAcquisition.pityForTest(player, true) == 0;
+			for (int fill = 0; fill < 2; fill++) {
+				com.summy.reliquary.loot.CovenantAcquisition.setPityForTest(player, true, 10);
+				com.summy.reliquary.loot.CovenantAcquisition.attemptForTest(player, 99);
+			}
+			int angelPoolBits = com.summy.reliquary.loot.CovenantAcquisition.LIFE_DEATH_BIT
+					| com.summy.reliquary.loot.CovenantAcquisition.DIVINE_INTERVENTION_BIT
+					| com.summy.reliquary.loot.CovenantAcquisition.SACRED_VERDICT_BIT;
+			int angelMask = com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player);
+			boolean angelPoolOnly = angelMask == angelPoolBits;
+
+			// 恶魔：共享生死逆转位后，只会在血债 / 厄咒中继续抽取。
+			player.getInventory().clearContent();
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+			for (int attempt = 0; attempt < 10; attempt++) {
+				com.summy.reliquary.loot.CovenantAcquisition.attemptForTest(player, 99);
+			}
+			boolean demonTenFailures =
+					com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player) == angelPoolBits
+					&& com.summy.reliquary.loot.CovenantAcquisition.pityForTest(player, false) == 10;
+			boolean demonPityGrant = com.summy.reliquary.loot.CovenantAcquisition
+					.attemptForTest(player, 99);
+			boolean noDuplicateLife = countItem(player, SummyReliquary.LIFE_DEATH.get()) == 0;
+			for (int fill = 0; fill < 2; fill++) {
+				com.summy.reliquary.loot.CovenantAcquisition.setPityForTest(player, false, 10);
+				com.summy.reliquary.loot.CovenantAcquisition.attemptForTest(player, 99);
+			}
+			int finalMask = com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player);
+			int demonPoolBits = com.summy.reliquary.loot.CovenantAcquisition.LIFE_DEATH_BIT
+					| com.summy.reliquary.loot.CovenantAcquisition.BLOOD_DEBT_ALTAR_BIT
+					| com.summy.reliquary.loot.CovenantAcquisition.HEX_SEAL_BIT;
+			boolean demonPoolOnly = (finalMask & ~(angelPoolBits | demonPoolBits)) == 0
+					&& (finalMask & demonPoolBits) == demonPoolBits;
+
+			// 双标记异常：不发放、不推进任何保底。
+			// 正常运行路径互斥，这里直接写入 NBT，模拟旧存档或异常数据同时含两个标记。
+			net.minecraft.nbt.CompoundTag abnormalRoot =
+					player.getPersistentData().getCompound(SinManager.ROOT);
+			abnormalRoot.putBoolean("angel", true);
+			abnormalRoot.putBoolean("demon_mark", true);
+			player.getPersistentData().put(SinManager.ROOT, abnormalRoot);
+			com.summy.reliquary.loot.CovenantAcquisition.setPityForTest(player, true, 5);
+			com.summy.reliquary.loot.CovenantAcquisition.setPityForTest(player, false, 6);
+			int beforeDual = com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player);
+			boolean dualPaused = !com.summy.reliquary.loot.CovenantAcquisition.attemptForTest(player, 99)
+					&& com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player) == beforeDual
+					&& com.summy.reliquary.loot.CovenantAcquisition.pityForTest(player, true) == 5
+					&& com.summy.reliquary.loot.CovenantAcquisition.pityForTest(player, false) == 6;
+
+			// /give 或旧存档已有物品：登录扫描补记取得位。
+			player.getInventory().clearContent();
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+			com.summy.reliquary.loot.CovenantAcquisition.clearStateForTest(player);
+			player.getInventory().add(new ItemStack(SummyReliquary.HEX_SEAL.get()));
+			com.summy.reliquary.loot.CovenantAcquisition.reconcileOwned(player);
+			boolean reconciledExisting =
+					(com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player)
+							& com.summy.reliquary.loot.CovenantAcquisition.HEX_SEAL_BIT) != 0;
+			player.getInventory().clearContent();
+			com.summy.reliquary.loot.CovenantAcquisition.clearStateForTest(player);
+
+			top.theillusivec4.curios.api.CuriosApi.getCuriosInventory(player).ifPresent(handler ->
+					handler.setEquippedCurio(ReliquarySlots.COVENANT, 0,
+							new ItemStack(SummyReliquary.SACRED_VERDICT.get())));
+			com.summy.reliquary.loot.CovenantAcquisition.reconcileOwned(player);
+			boolean reconciledCurio =
+					(com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player)
+							& com.summy.reliquary.loot.CovenantAcquisition.SACRED_VERDICT_BIT) != 0;
+			unequip(player, ReliquarySlots.COVENANT);
+			com.summy.reliquary.loot.CovenantAcquisition.clearStateForTest(player);
+
+			// 补铸：未取得全隐藏；生死逆转无路线，其他四件仍看当前路线。
+			var visibleNone = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(
+					false, false, false, false, false, 0);
+			var visibleAngel = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(
+					true, false, false, false, false, angelPoolBits);
+			var visibleDemon = com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(
+					false, false, true, false, false, demonPoolBits);
+			boolean recipeVisibility = Boolean.FALSE.equals(visibleNone.get(SummyReliquary.id("life_death")))
+					&& Boolean.TRUE.equals(visibleAngel.get(SummyReliquary.id("divine_intervention")))
+					&& Boolean.TRUE.equals(visibleAngel.get(SummyReliquary.id("sacred_verdict")))
+					&& Boolean.FALSE.equals(visibleAngel.get(SummyReliquary.id("blood_debt_altar")))
+					&& Boolean.TRUE.equals(visibleDemon.get(SummyReliquary.id("blood_debt_altar")))
+					&& Boolean.TRUE.equals(visibleDemon.get(SummyReliquary.id("hex_seal")))
+					&& Boolean.FALSE.equals(visibleDemon.get(SummyReliquary.id("sacred_verdict")));
+
+			String modifier = serverResourceText(player.getServer(), SummyReliquary.NAMESPACE,
+					"loot_modifiers/covenant_acquisition.json");
+			String global = serverResourceText(player.getServer(), "forge",
+					"loot_modifiers/global_loot_modifiers.json");
+			boolean resources = modifier.contains("summy-reliquary:covenant_acquisition")
+					&& global.contains("summy-reliquary:covenant_acquisition");
+
+			boolean lifeRecipe = covenantRecipe(player, "life_death",
+					java.util.Map.of(Items.ECHO_SHARD, 4, Items.SOUL_SAND, 3,
+							Items.TOTEM_OF_UNDYING, 1, Items.GOLD_BLOCK, 1));
+			boolean interventionRecipe = covenantRecipe(player, "divine_intervention",
+					java.util.Map.of(SummyReliquary.HEART_SHARD.get(), 4, Items.GOLD_BLOCK, 2,
+							Items.ECHO_SHARD, 2, Items.SHIELD, 1));
+			boolean verdictRecipe = covenantRecipe(player, "sacred_verdict",
+					java.util.Map.of(Items.ECHO_SHARD, 4, SummyReliquary.HEART_SHARD.get(), 4,
+							Items.NETHER_STAR, 1));
+			boolean debtRecipe = covenantRecipe(player, "blood_debt_altar",
+					java.util.Map.of(Items.REDSTONE_BLOCK, 4, Items.NETHER_WART_BLOCK, 4,
+							Items.GOLD_BLOCK, 1));
+			boolean hexRecipe = covenantRecipe(player, "hex_seal",
+					java.util.Map.of(Items.ENDER_PEARL, 4, Items.SOUL_SAND, 2,
+							Items.WITHER_ROSE, 2, Items.NETHER_STAR, 1));
+			boolean recipes = lifeRecipe && interventionRecipe && verdictRecipe
+					&& debtRecipe && hexRecipe;
+			var covenantRefunds = com.summy.reliquary.effect.SpiritAltarRecipeGate.gateRefunds();
+			boolean lifeRefund = covenantRefunds.containsKey(SummyReliquary.LIFE_DEATH.get());
+			boolean interventionRefund =
+					covenantRefunds.containsKey(SummyReliquary.DIVINE_INTERVENTION.get());
+			boolean verdictRefund = covenantRefunds.containsKey(SummyReliquary.SACRED_VERDICT.get());
+			boolean debtRefund = covenantRefunds.containsKey(SummyReliquary.BLOOD_DEBT_ALTAR.get());
+			boolean hexRefund = covenantRefunds.containsKey(SummyReliquary.HEX_SEAL.get());
+			boolean refunds = lifeRefund && interventionRefund && verdictRefund && debtRefund && hexRefund;
+
+			boolean containerSource = checkCovenantContainerSource(player);
+			boolean ok = neutralFail && neutralPityUntouched && neutralSuccess && neutralOnlyLife
+					&& neutralNoRepeat && tenFailures && angelPityGrant && angelPoolOnly
+					&& demonTenFailures && demonPityGrant && noDuplicateLife && demonPoolOnly
+					&& dualPaused && reconciledExisting && reconciledCurio
+					&& recipeVisibility && resources && recipes && refunds
+					&& containerSource;
+			log("誓约野箱获取：无阵营失败/保底不变=" + (neutralFail && neutralPityUntouched)
+					+ "、中立成功仅生死逆转且不重复=" + (neutralSuccess && neutralOnlyLife && neutralNoRepeat)
+					+ "、天使 10 失败后必得与三件池=" + (tenFailures && angelPityGrant && angelPoolOnly)
+					+ "、恶魔独立保底/共享生死逆转去重/两件池="
+					+ (demonTenFailures && demonPityGrant && noDuplicateLife && demonPoolOnly)
+					+ "、双标记暂停=" + dualPaused
+					+ "、已有物品补记=" + (reconciledExisting && reconciledCurio)
+					+ "、补铸 JEI=" + recipeVisibility
+					+ "、资源=" + resources + "、配方=" + recipes
+					+ "[" + (lifeRecipe ? 1 : 0) + (interventionRecipe ? 1 : 0)
+					+ (verdictRecipe ? 1 : 0) + (debtRecipe ? 1 : 0) + (hexRecipe ? 1 : 0) + "]"
+					+ "/退料=" + refunds
+					+ "[" + (lifeRefund ? 1 : 0) + (interventionRefund ? 1 : 0)
+					+ (verdictRefund ? 1 : 0) + (debtRefund ? 1 : 0) + (hexRefund ? 1 : 0) + "]"
+					+ "、真实箱子来源过滤=" + containerSource
+					+ " → " + ok + "（应 true）");
+			return ok;
+		} finally {
+			player.getInventory().clearContent();
+			for (int slot = 0; slot < savedInventory.length; slot++) {
+				if (!savedInventory[slot].isEmpty()) {
+					player.getInventory().setItem(slot, savedInventory[slot]);
+				}
+			}
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, oldAngel);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, oldDemon);
+			com.summy.reliquary.effect.PlayerFlags.setCovenantOwned(player, oldOwned);
+			com.summy.reliquary.effect.PlayerFlags.setCovenantPity(player, true, oldAngelPity);
+			com.summy.reliquary.effect.PlayerFlags.setCovenantPity(player, false, oldDemonPity);
+			com.summy.reliquary.loot.CovenantAcquisition.clearContainerWindowsForTest();
+		}
+	}
+
+	/** 2.3：用真实箱子战利品上下文核对来源窗口，确保只认玩家首次打开的野生箱。 */
+	private static boolean checkCovenantContainerSource(ServerPlayer player) {
+		var level = player.serverLevel();
+		net.minecraft.core.BlockPos pos = null;
+		for (int dy = 6; dy <= 10 && pos == null; dy++) {
+			for (int dx = -4; dx <= 4 && pos == null; dx++) {
+				for (int dz = -4; dz <= 4; dz++) {
+					net.minecraft.core.BlockPos candidate = player.blockPosition().offset(dx, dy, dz);
+					if (level.getBlockState(candidate).isAir()) {
+						pos = candidate;
+						break;
+					}
+				}
+			}
+		}
+		if (pos == null) {
+			return false;
+		}
+
+		var table = new net.minecraft.resources.ResourceLocation("minecraft", "chests/simple_dungeon");
+		var hit = new net.minecraft.world.phys.BlockHitResult(
+				net.minecraft.world.phys.Vec3.atCenterOf(pos), net.minecraft.core.Direction.UP, pos, false);
+		net.minecraft.world.level.GameType previousGameType = player.gameMode.getGameModeForPlayer();
+		try {
+			player.getInventory().clearContent();
+			com.summy.reliquary.loot.CovenantAcquisition.clearStateForTest(player);
+			com.summy.reliquary.loot.CovenantAcquisition.clearContainerWindowsForTest();
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+			com.summy.reliquary.loot.CovenantAcquisition.setPityForTest(player, true, 10);
+
+			// 自然箱：右击来源命中后，真实 LootTable 生成会直接取得一个天使池物品。
+			level.setBlockAndUpdate(pos, net.minecraft.world.level.block.Blocks.CHEST.defaultBlockState());
+			var natural = (net.minecraft.world.level.block.entity.ChestBlockEntity) level.getBlockEntity(pos);
+			natural.setLootTable(table, 12345L);
+			com.summy.reliquary.loot.CovenantAcquisition.onRightClickBlock(
+					new PlayerInteractEvent.RightClickBlock(player,
+							net.minecraft.world.InteractionHand.MAIN_HAND, pos, hit));
+			boolean naturalTracked = com.summy.reliquary.loot.CovenantAcquisition
+					.containerWindowCountForTest() == 1;
+			natural.unpackLootTable(player);
+			int naturalMask = com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player);
+			int angelPool = com.summy.reliquary.loot.CovenantAcquisition.LIFE_DEATH_BIT
+					| com.summy.reliquary.loot.CovenantAcquisition.DIVINE_INTERVENTION_BIT
+					| com.summy.reliquary.loot.CovenantAcquisition.SACRED_VERDICT_BIT;
+			boolean naturalGranted = (naturalMask & angelPool) != 0
+					&& (naturalMask & ~angelPool) == 0
+					&& com.summy.reliquary.loot.CovenantAcquisition
+							.containerWindowCountForTest() == 0;
+
+			// 已开箱的战利品表已被原版清空，再次右击不得建立来源窗口。
+			com.summy.reliquary.loot.CovenantAcquisition.onRightClickBlock(
+					new PlayerInteractEvent.RightClickBlock(player,
+							net.minecraft.world.InteractionHand.MAIN_HAND, pos, hit));
+			boolean openedIgnored = com.summy.reliquary.loot.CovenantAcquisition
+					.containerWindowCountForTest() == 0
+					&& com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player) == naturalMask;
+
+			// 直接填充没有玩家右击来源，必须被忽略。
+			player.getInventory().clearContent();
+			com.summy.reliquary.loot.CovenantAcquisition.clearStateForTest(player);
+			level.setBlockAndUpdate(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+			level.setBlockAndUpdate(pos, net.minecraft.world.level.block.Blocks.CHEST.defaultBlockState());
+			var direct = (net.minecraft.world.level.block.entity.ChestBlockEntity) level.getBlockEntity(pos);
+			direct.setLootTable(table, 54321L);
+			direct.unpackLootTable(player);
+			boolean directFillIgnored = com.summy.reliquary.loot.CovenantAcquisition
+					.ownedMaskForTest(player) == 0
+					&& com.summy.reliquary.loot.CovenantAcquisition.containerWindowCountForTest() == 0;
+
+			// 普通玩家放置箱没有战利品表，只存在箱子方块也不会命中。
+			level.setBlockAndUpdate(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+			level.setBlockAndUpdate(pos, net.minecraft.world.level.block.Blocks.CHEST.defaultBlockState());
+			com.summy.reliquary.loot.CovenantAcquisition.onRightClickBlock(
+					new PlayerInteractEvent.RightClickBlock(player,
+							net.minecraft.world.InteractionHand.MAIN_HAND, pos, hit));
+			boolean placedIgnored = com.summy.reliquary.loot.CovenantAcquisition
+					.containerWindowCountForTest() == 0;
+
+			// 旁观者即使能触达带战利品表的箱子，也不得记录来源。
+			var spectatorChest = (net.minecraft.world.level.block.entity.ChestBlockEntity) level.getBlockEntity(pos);
+			spectatorChest.setLootTable(table, 98765L);
+			player.setGameMode(net.minecraft.world.level.GameType.SPECTATOR);
+			com.summy.reliquary.loot.CovenantAcquisition.onRightClickBlock(
+					new PlayerInteractEvent.RightClickBlock(player,
+							net.minecraft.world.InteractionHand.MAIN_HAND, pos, hit));
+			boolean spectatorIgnored = com.summy.reliquary.loot.CovenantAcquisition
+					.containerWindowCountForTest() == 0;
+
+			boolean ok = naturalTracked && naturalGranted && openedIgnored
+					&& directFillIgnored && placedIgnored && spectatorIgnored;
+			log("誓约野箱来源：自然箱捕获/必得=" + (naturalTracked && naturalGranted)
+					+ "、已开箱=" + openedIgnored
+					+ "、直接填充=" + directFillIgnored
+					+ "、玩家放置箱=" + placedIgnored
+					+ "、旁观者=" + spectatorIgnored + " → " + ok + "（应 true）");
+			return ok;
+		} finally {
+			player.setGameMode(previousGameType);
+			level.setBlockAndUpdate(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+			com.summy.reliquary.loot.CovenantAcquisition.clearContainerWindowsForTest();
+		}
+	}
+
+	private static boolean covenantRecipe(ServerPlayer player, String id,
+			java.util.Map<Item, Integer> expected) {
+		if (player.getServer() == null) {
+			return false;
+		}
+		var recipe = player.getServer().getRecipeManager().byKey(SummyReliquary.id(id)).orElse(null);
+		if (recipe == null) {
+			log("誓约补铸配方缺失：" + id);
+			return false;
+		}
+		java.util.Map<Item, Integer> actual = ingredientCounts(recipe);
+		if (!actual.equals(expected)) {
+			log("誓约补铸配方不匹配：" + id + "，实际=" + actual + "，期望=" + expected);
+		}
+		return actual.equals(expected);
 	}
 
 	/** 2.3：逐行核对五件誓约饰品的提示参数，确保每一行只取自己的配置值。 */
@@ -11724,6 +12097,8 @@ public final class ForgeDevCheck {
 			"holy_spear", "seraph_spear",
 			// 1.7.10：金刀片（无门槛的普通合成表）
 			"golden_razor",
+			// 2.3：誓约五件的取得后补铸配方
+			"life_death", "divine_intervention", "sacred_verdict", "blood_debt_altar", "hex_seal",
 			// 其它两件
 			"bangbang_halo", "freeloaders_rice"
 		};
@@ -11747,7 +12122,7 @@ public final class ForgeDevCheck {
 				missing.append(id).append(' ');
 			}
 		}
-		int recipeFiles = 36;
+		int recipeFiles = 41;
 		log("配方覆盖（1.7.0）：按 id 取到 " + found + " / " + recipeFiles + " 张（应全中，缺失="
 				+ (missing.length() == 0 ? "无" : missing.toString().trim()) + "）");
 
@@ -12848,12 +13223,12 @@ public final class ForgeDevCheck {
 		boolean teleported = distanceToAnchor <= 2.0D;
 		int animations = com.summy.reliquary.item.GenesisItem.activationCount();
 		int sounds = com.summy.reliquary.item.GenesisItem.soundCount();
-		// 2.3：协议升到 18（独立血债盾 + 静默生命同步目标）
-		boolean protocol18 = "18".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
+		// 誓约取得位图使协议升到 19。
+		boolean protocol19 = "19".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 
 		log(String.format("创世纪表现（1.7.2）：用掉=%s（应 true）、使用前离重生点 %.1f 格 → 使用后 %.1f 格"
-				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=18=%s（应 true）",
-				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol18));
+				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=19=%s（应 true）",
+				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol19));
 		player.getInventory().clearContent();
 		resetDemonPactState(player);
 		clearRobeAndSeal(player);

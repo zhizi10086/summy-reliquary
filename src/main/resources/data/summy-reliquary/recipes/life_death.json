@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ESE",
+    "STS",
+    "EGE"
+  ],
+  "key": {
+    "E": { "item": "minecraft:echo_shard" },
+    "S": { "item": "minecraft:soul_sand" },
+    "T": { "item": "minecraft:totem_of_undying" },
+    "G": { "item": "minecraft:gold_block" }
+  },
+  "result": { "item": "summy-reliquary:life_death", "count": 1 }
+}

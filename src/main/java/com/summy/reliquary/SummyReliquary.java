@@ -1,6 +1,7 @@
 package com.summy.reliquary;
 
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.Codec;
 import com.summy.reliquary.config.ReliquaryConfig;
 import com.summy.reliquary.attribute.ReliquaryAttributes;
 import com.summy.reliquary.advancement.ReliquaryTrigger;
@@ -24,6 +25,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.common.loot.IGlobalLootModifier;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
@@ -59,6 +61,8 @@ public class SummyReliquary {
 			DeferredRegister.create(ForgeRegistries.ITEMS, NAMESPACE);
 	private static final DeferredRegister<CreativeModeTab> TABS =
 			DeferredRegister.create(Registries.CREATIVE_MODE_TAB, NAMESPACE);
+	private static final DeferredRegister<Codec<? extends IGlobalLootModifier>> LOOT_MODIFIER_CODECS =
+			DeferredRegister.create(ForgeRegistries.Keys.GLOBAL_LOOT_MODIFIER_SERIALIZERS, NAMESPACE);
 	/** 状态效果：1.5.6 起新增「启示之光」（纯标记） */
 	private static final DeferredRegister<net.minecraft.world.effect.MobEffect> EFFECTS =
 			DeferredRegister.create(Registries.MOB_EFFECT, NAMESPACE);
@@ -339,6 +343,11 @@ public class SummyReliquary {
 					new Item.Properties().stacksTo(1),
 					com.summy.reliquary.item.CovenantItem.Kind.HEX_SEAL));
 
+	/** 誓约五件的野箱获取入口。 */
+	public static final RegistryObject<Codec<com.summy.reliquary.loot.CovenantLootModifier>>
+			COVENANT_LOOT_MODIFIER = LOOT_MODIFIER_CODECS.register("covenant_acquisition",
+					() -> com.summy.reliquary.loot.CovenantLootModifier.CODEC);
+
 	/** 心之碎片（1.5.6）：带启示之光的生物死亡时的掉落材料（1.6.1 起用自家贴图） */
 	public static final RegistryObject<Item> HEART_SHARD =
 			ITEMS.register("heart_shard", () -> new com.summy.reliquary.item.HeartShardItem(
@@ -474,6 +483,7 @@ public class SummyReliquary {
 		EFFECTS.register(modBus);
 		PARTICLES.register(modBus);
 		ENTITY_TYPES.register(modBus);
+		LOOT_MODIFIER_CODECS.register(modBus);
 		// 自定义属性（魂心）
 		ReliquaryAttributes.ATTRIBUTES.register(modBus);
 

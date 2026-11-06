@@ -4,9 +4,12 @@ import com.summy.reliquary.SummyReliquary;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
+import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Recipe;
 
@@ -36,6 +39,20 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 	public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
 		runtime = jeiRuntime;
 		RecipeVisibility.setApplier(this::apply);
+	}
+
+	@Override
+	public void registerRecipes(IRecipeRegistration registration) {
+		List<ItemStack> angel = List.of(
+				new ItemStack(SummyReliquary.LIFE_DEATH.get()),
+				new ItemStack(SummyReliquary.DIVINE_INTERVENTION.get()),
+				new ItemStack(SummyReliquary.SACRED_VERDICT.get()));
+		List<ItemStack> demon = List.of(
+				new ItemStack(SummyReliquary.LIFE_DEATH.get()),
+				new ItemStack(SummyReliquary.BLOOD_DEBT_ALTAR.get()),
+				new ItemStack(SummyReliquary.HEX_SEAL.get()));
+		registerCovenantPool(registration, angel, "angel");
+		registerCovenantPool(registration, demon, "demon");
 	}
 
 	@Override
@@ -75,5 +92,19 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 			runtime.getRecipeManager().unhideRecipes(RecipeTypes.CRAFTING, unhide);
 		}
 		return true;
+	}
+
+	private static void registerCovenantPool(IRecipeRegistration registration, List<ItemStack> items, String route) {
+		int chance = com.summy.reliquary.config.ReliquaryConfig.covenantLootChancePercent();
+		int pity = com.summy.reliquary.config.ReliquaryConfig.covenantPityChests();
+		registration.addItemStackInfo(items,
+				text("covenant." + route),
+				text("covenant.chance", chance + "%"),
+				pity > 0 ? text("covenant.pity", pity) : text("covenant.no_pity"),
+				text("covenant.neutral"));
+	}
+
+	private static Component text(String key, Object... arguments) {
+		return Component.translatable("jei.summy-reliquary." + key, arguments);
 	}
 }

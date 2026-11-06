@@ -36,11 +36,13 @@ public class PlayerStateMessage {
 	private final int lifeDeathKillWeight;
 	/** 复活所需击杀权重 */
 	private final int lifeDeathKillRequired;
+	/** 誓约五件永久取得位图，供 JEI 显示补铸配方 */
+	private final int covenantOwned;
 
 	public PlayerStateMessage(UUID owner, int sins, int redeemed, boolean revealed, int revealX, int revealZ,
 			int flags, int revealRemainingSeconds, double evil, int blackHeartPoints, int evilUnlocks,
 			int soulHeartPoints, int lifeDeathRemainingTicks,
-			int lifeDeathKillWeight, int lifeDeathKillRequired) {
+			int lifeDeathKillWeight, int lifeDeathKillRequired, int covenantOwned) {
 		this.owner = owner;
 		this.sins = sins;
 		this.redeemed = redeemed;
@@ -56,6 +58,7 @@ public class PlayerStateMessage {
 		this.lifeDeathRemainingTicks = lifeDeathRemainingTicks;
 		this.lifeDeathKillWeight = lifeDeathKillWeight;
 		this.lifeDeathKillRequired = lifeDeathKillRequired;
+		this.covenantOwned = covenantOwned;
 	}
 
 	public PlayerStateMessage(FriendlyByteBuf buffer) {
@@ -74,6 +77,7 @@ public class PlayerStateMessage {
 		this.lifeDeathRemainingTicks = buffer.readVarInt();
 		this.lifeDeathKillWeight = buffer.readVarInt();
 		this.lifeDeathKillRequired = buffer.readVarInt();
+		this.covenantOwned = buffer.readVarInt();
 	}
 
 	public void encode(FriendlyByteBuf buffer) {
@@ -92,6 +96,7 @@ public class PlayerStateMessage {
 		buffer.writeVarInt(lifeDeathRemainingTicks);
 		buffer.writeVarInt(lifeDeathKillWeight);
 		buffer.writeVarInt(lifeDeathKillRequired);
+		buffer.writeVarInt(covenantOwned);
 	}
 
 	public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
@@ -102,6 +107,7 @@ public class PlayerStateMessage {
 		ReliquaryClientState.setSoulHeartPoints(soulHeartPoints);
 		ReliquaryClientState.setLifeDeathHud(lifeDeathRemainingTicks,
 				lifeDeathKillWeight, lifeDeathKillRequired);
+		ReliquaryClientState.setCovenantOwned(covenantOwned);
 		context.setPacketHandled(true);
 	}
 }

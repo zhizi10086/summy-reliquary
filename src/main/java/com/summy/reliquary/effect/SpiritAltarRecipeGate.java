@@ -1,6 +1,7 @@
 package com.summy.reliquary.effect;
 
 import com.summy.reliquary.SummyReliquary;
+import com.summy.reliquary.loot.CovenantAcquisition;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -48,7 +49,13 @@ public final class SpiritAltarRecipeGate {
 		/** 1.8.1：需要**当前**持恶魔标记（痛悔短祷：没有约就没有可忏悔的对象） */
 		DEMON,
 		/** 2.0：服务端需要当前恶魔标记，但 JEI 里永久隐藏（背叛） */
-		DEMON_ALWAYS_HIDDEN
+		DEMON_ALWAYS_HIDDEN,
+		/** 2.3：已从野箱取得，且补铸不受路线限制（生死逆转） */
+		COVENANT_NEUTRAL,
+		/** 2.3：已取得 + 当前天使标记 */
+		COVENANT_ANGEL,
+		/** 2.3：已取得 + 当前恶魔标记 */
+		COVENANT_DEMON
 	}
 
 	/** 一条门禁：判据类型 + 不满足时要退回的全部材料 */
@@ -97,6 +104,21 @@ public final class SpiritAltarRecipeGate {
 				new ItemStack(Items.WHITE_WOOL, 3),
 				new ItemStack(Items.BLACK_WOOL, 2),
 				new ItemStack(SummyReliquary.HEART_SHARD.get())));
+		register(SummyReliquary.LIFE_DEATH.get(), Lock.COVENANT_NEUTRAL, List.of(
+				new ItemStack(Items.ECHO_SHARD, 4), new ItemStack(Items.SOUL_SAND, 3),
+				new ItemStack(Items.TOTEM_OF_UNDYING), new ItemStack(Items.GOLD_BLOCK)));
+		register(SummyReliquary.DIVINE_INTERVENTION.get(), Lock.COVENANT_ANGEL, List.of(
+				new ItemStack(SummyReliquary.HEART_SHARD.get(), 4), new ItemStack(Items.GOLD_BLOCK, 2),
+				new ItemStack(Items.ECHO_SHARD, 2), new ItemStack(Items.SHIELD)));
+		register(SummyReliquary.SACRED_VERDICT.get(), Lock.COVENANT_ANGEL, List.of(
+				new ItemStack(Items.ECHO_SHARD, 4), new ItemStack(SummyReliquary.HEART_SHARD.get(), 4),
+				new ItemStack(Items.NETHER_STAR)));
+		register(SummyReliquary.BLOOD_DEBT_ALTAR.get(), Lock.COVENANT_DEMON, List.of(
+				new ItemStack(Items.REDSTONE_BLOCK, 4), new ItemStack(Items.NETHER_WART_BLOCK, 4),
+				new ItemStack(Items.GOLD_BLOCK)));
+		register(SummyReliquary.HEX_SEAL.get(), Lock.COVENANT_DEMON, List.of(
+				new ItemStack(Items.ENDER_PEARL, 4), new ItemStack(Items.SOUL_SAND, 2),
+				new ItemStack(Items.WITHER_ROSE, 2), new ItemStack(Items.NETHER_STAR)));
 		register(SummyReliquary.BETRAYAL.get(), Lock.DEMON_ALWAYS_HIDDEN, List.of(
 				new ItemStack(Items.IRON_INGOT, 3), new ItemStack(Items.ROTTEN_FLESH)));
 		// 救恩：判据同上，但 JEI 永久隐藏（1.5.6 起的既有行为）
@@ -166,7 +188,7 @@ public final class SpiritAltarRecipeGate {
 
 		// ① 有条件门禁：不满足 → 收走产物 + 退回全部材料 + 提示
 		Gate gate = GATES.get(item);
-		if (gate != null && !allowed(player, gate.lock())) {
+		if (gate != null && !allowed(player, item, gate.lock())) {
 			confiscate(player, crafted, count);
 			give(player, gate.refunds(), count);
 			player.displayClientMessage(Component.translatable(lockHint(gate.lock())), true);
@@ -185,7 +207,7 @@ public final class SpiritAltarRecipeGate {
 	}
 
 	/** 判据：天使标记 / 已签约 */
-	private static boolean allowed(ServerPlayer player, Lock lock) {
+	private static boolean allowed(ServerPlayer player, Item result, Lock lock) {
 		return switch (lock) {
 			case ANGEL, ALWAYS_HIDDEN -> PlayerFlags.hasAngel(player);
 			case DEMON, DEMON_ALWAYS_HIDDEN -> PlayerFlags.isDemon(player);
@@ -193,6 +215,9 @@ public final class SpiritAltarRecipeGate {
 			case DAGGER_LOST -> DaggerRecovery.isOpen(player);
 			// 1.7.9：丢失态 + 天使标记（两个条件都要满足）
 			case SPEAR_LOST -> SpearRecovery.isOpen(player) && PlayerFlags.hasAngel(player);
+			case COVENANT_NEUTRAL -> CovenantAcquisition.acquired(player, result);
+			case COVENANT_ANGEL -> CovenantAcquisition.acquired(player, result) && PlayerFlags.hasAngel(player);
+			case COVENANT_DEMON -> CovenantAcquisition.acquired(player, result) && PlayerFlags.isDemon(player);
 		};
 	}
 
@@ -205,6 +230,8 @@ public final class SpiritAltarRecipeGate {
 			case DAGGER_LOST -> "message.summy-reliquary.recipe.dagger_present";
 			case SPEAR_LOST -> "message.summy-reliquary.recipe.spear_present";
 			case ANGEL, ALWAYS_HIDDEN -> "message.summy-reliquary.recipe.angel_locked";
+			case COVENANT_NEUTRAL, COVENANT_ANGEL, COVENANT_DEMON ->
+					"message.summy-reliquary.recipe.covenant_reforge_locked";
 		};
 	}
 
@@ -216,6 +243,11 @@ public final class SpiritAltarRecipeGate {
 	 */
 	public static Map<ResourceLocation, Boolean> jeiVisibility(boolean angel, boolean signed,
 			boolean demon, boolean daggerLost, boolean spearLost) {
+		return jeiVisibility(angel, signed, demon, daggerLost, spearLost, 0);
+	}
+
+	public static Map<ResourceLocation, Boolean> jeiVisibility(boolean angel, boolean signed,
+			boolean demon, boolean daggerLost, boolean spearLost, int covenantOwned) {
 		Map<ResourceLocation, Boolean> wanted = new LinkedHashMap<>();
 		GATES.forEach((item, gate) -> wanted.put(
 				net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item),
@@ -227,6 +259,12 @@ public final class SpiritAltarRecipeGate {
 					case ALWAYS_HIDDEN -> false;
 					case DAGGER_LOST -> daggerLost;
 					case SPEAR_LOST -> spearLost && angel;
+					case COVENANT_NEUTRAL ->
+							(covenantOwned & CovenantAcquisition.bitFor(item)) != 0;
+					case COVENANT_ANGEL ->
+							angel && (covenantOwned & CovenantAcquisition.bitFor(item)) != 0;
+					case COVENANT_DEMON ->
+							demon && (covenantOwned & CovenantAcquisition.bitFor(item)) != 0;
 				}));
 		return wanted;
 	}

@@ -27,7 +27,8 @@ public final class ReliquaryNetworking {
 	// 16：生死逆转死形态剩余时间、击杀权重与目标权重同步（客户端屏幕警告要用）
 	// 17：血债盾并入原版吸收，玩家状态包删除独立血债盾字段
 	// 18：血债盾恢复为独立结算层，并新增逐 tick 静默扣血时的预期生命值同步
-	private static final String VERSION = "18";
+	// 19：玩家状态包新增誓约五件取得位图，客户端据此控制补铸配方的 JEI 可见性
+	private static final String VERSION = "19";
 
 	public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
 			SummyReliquary.id("main"),
@@ -159,14 +160,15 @@ public final class ReliquaryNetworking {
 	public static void sendPlayerState(net.minecraft.server.level.ServerPlayer player, int sins,
 			int redeemed, boolean revealed, int revealX, int revealZ, int flags, int revealRemainingSeconds,
 			double evil, int blackHeartPoints, int evilUnlocks, int soulHeartPoints,
-			int lifeDeathRemainingTicks, int lifeDeathKillWeight, int lifeDeathKillRequired) {
+			int lifeDeathRemainingTicks, int lifeDeathKillWeight, int lifeDeathKillRequired,
+			int covenantOwned) {
 		// 玩家实体还在加载时 connection 可能为空（例如 Curios 在读档时就触发装备事件），此时跳过
 		if (player.connection == null) {
 			return;
 		}
 		CHANNEL.sendTo(new PlayerStateMessage(player.getUUID(), sins, redeemed, revealed, revealX, revealZ,
 				flags, revealRemainingSeconds, evil, blackHeartPoints, evilUnlocks, soulHeartPoints,
-				lifeDeathRemainingTicks, lifeDeathKillWeight, lifeDeathKillRequired),
+				lifeDeathRemainingTicks, lifeDeathKillWeight, lifeDeathKillRequired, covenantOwned),
 				player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
 	}
 

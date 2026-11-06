@@ -118,6 +118,12 @@ public final class PlayerFlags {
 	private static final String BETRAYAL_COOLDOWN_UNTIL = "betrayal_cooldown_until";
 	/** 誓约主动：当前饰品技能冷却截止时间（game tick；0 = 可用） */
 	private static final String OATH_COOLDOWN_UNTIL = "oath_cooldown_until";
+	/** 誓约五件的永久取得位图（bit0 生死逆转 / bit1 神圣干预 / bit2 神圣裁决 / bit3 血债祭坛 / bit4 厄咒之印） */
+	private static final String COVENANT_OWNED = "covenant_owned";
+	/** 天使路线连续未出货的野箱数 */
+	private static final String COVENANT_ANGEL_PITY = "covenant_angel_pity";
+	/** 恶魔路线连续未出货的野箱数 */
+	private static final String COVENANT_DEMON_PITY = "covenant_demon_pity";
 	/** 生死逆转：死形态开始时间（game tick；0 = 生形态） */
 	private static final String DEATH_FORM_STARTED_AT = "death_form_started_at";
 	/** 生死逆转：死形态持续时间（tick；用于重启后继续倒计时） */
@@ -601,6 +607,31 @@ public final class PlayerFlags {
 
 	public static void setOathCooldownUntil(ServerPlayer player, long value) {
 		mutableRoot(player).putLong(OATH_COOLDOWN_UNTIL, Math.max(0L, value));
+	}
+
+	public static int covenantOwned(LivingEntity entity) {
+		if (entity == null) {
+			return 0;
+		}
+		if (entity.level().isClientSide()) {
+			return ReliquaryClientState.covenantOwned();
+		}
+		return root(entity).getInt(COVENANT_OWNED);
+	}
+
+	public static void setCovenantOwned(ServerPlayer player, int value) {
+		setInt(player, COVENANT_OWNED, Math.max(0, value));
+	}
+
+	public static int covenantPity(LivingEntity entity, boolean angel) {
+		if (entity == null) {
+			return 0;
+		}
+		return Math.max(0, root(entity).getInt(angel ? COVENANT_ANGEL_PITY : COVENANT_DEMON_PITY));
+	}
+
+	public static void setCovenantPity(ServerPlayer player, boolean angel, int value) {
+		setInt(player, angel ? COVENANT_ANGEL_PITY : COVENANT_DEMON_PITY, Math.max(0, value));
 	}
 
 	public static long deathFormStartedAt(LivingEntity entity) {

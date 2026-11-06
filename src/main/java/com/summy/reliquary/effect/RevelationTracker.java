@@ -189,7 +189,8 @@ public final class RevelationTracker {
 				com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
 						? com.summy.reliquary.effect.PlayerFlags.deathFormKillWeight(player) : 0,
 				com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
-						? com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired() : 0);
+						? com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired() : 0,
+				com.summy.reliquary.effect.PlayerFlags.covenantOwned(player));
 	}
 
 	/** 距离揭示还剩多少秒（已揭示或未佩戴时返回 0） */

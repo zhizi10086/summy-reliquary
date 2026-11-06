@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ESE",
+    "WNW",
+    "ESE"
+  ],
+  "key": {
+    "E": { "item": "minecraft:ender_pearl" },
+    "S": { "item": "minecraft:soul_sand" },
+    "W": { "item": "minecraft:wither_rose" },
+    "N": { "item": "minecraft:nether_star" }
+  },
+  "result": { "item": "summy-reliquary:hex_seal", "count": 1 }
+}

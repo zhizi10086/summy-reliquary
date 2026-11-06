@@ -43,6 +43,8 @@ public final class ReliquaryClientState {
 	private static int lifeDeathKillWeight = 0;
 	/** 生死逆转复活所需权重 */
 	private static int lifeDeathKillRequired = 0;
+	/** 誓约五件永久取得位图（只同步取得状态，不同步保底计数） */
+	private static int covenantOwned = 0;
 	/** 死形态状态在客户端连续稳定的 tick 数。 */
 	private static int lifeDeathVisualStableTicks = 0;
 
@@ -154,6 +156,14 @@ public final class ReliquaryClientState {
 	/** 生死逆转当前是否处于死形态。 */
 	public static boolean isDeathForm() {
 		return (flags & FLAG_DEATH_FORM) != 0;
+	}
+
+	public static int covenantOwned() {
+		return covenantOwned;
+	}
+
+	public static void setCovenantOwned(int value) {
+		covenantOwned = Math.max(0, value);
 	}
 
 	/** 同步生死逆转屏幕警告所需的倒计时与击杀进度。 */

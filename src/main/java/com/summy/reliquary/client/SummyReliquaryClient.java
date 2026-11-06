@@ -269,7 +269,8 @@ public final class SummyReliquaryClient {
 			// 1.7.6：献祭匕首的「防丢失配方」另看一个同步位（长时间没匕首才开放）
 			wanted.putAll(com.summy.reliquary.effect.SpiritAltarRecipeGate.jeiVisibility(angel, signed,
 					ReliquaryClientState.isDemon(),
-					ReliquaryClientState.isDaggerRecoveryOpen(), ReliquaryClientState.isSpearRecoveryOpen()));
+					ReliquaryClientState.isDaggerRecoveryOpen(), ReliquaryClientState.isSpearRecoveryOpen(),
+					ReliquaryClientState.covenantOwned()));
 			// 邪恶度门禁（1.6.0）：未解锁的配方在 JEI 里也查不到（服务端另有一道拦截）
 			int unlocks = ReliquaryClientState.evilUnlocks();
 			for (java.util.Map.Entry<net.minecraft.resources.ResourceLocation,

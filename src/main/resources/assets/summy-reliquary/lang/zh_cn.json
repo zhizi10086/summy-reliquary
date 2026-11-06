@@ -676,6 +676,14 @@
   "item.summy-reliquary.hex_seal.shift.5": "冷却|%s 秒",
 
   "item.summy-reliquary.covenant.fail.cooldown": "誓约技能尚未就绪，还需 %s 秒。",
+  "item.summy-reliquary.covenant.fail.reforge_locked": "尚未满足该誓约的补铸条件。",
+
+  "jei.summy-reliquary.covenant.angel": "天使路线：每次打开合格的野生战利品箱，会从尚未取得的生死逆转、神圣干预、神圣裁决中抽取。",
+  "jei.summy-reliquary.covenant.demon": "恶魔路线：每次打开合格的野生战利品箱，会从尚未取得的生死逆转、血债祭坛、厄咒之印中抽取。",
+  "jei.summy-reliquary.covenant.chance": "基础获取概率：%s",
+  "jei.summy-reliquary.covenant.pity": "连续 %s 次未获得后，下一次必定获得缺失物品。",
+  "jei.summy-reliquary.covenant.no_pity": "当前配置未启用保底。",
+  "jei.summy-reliquary.covenant.neutral": "无天使或恶魔标记时，仍可按基础概率取得生死逆转，但不会累计保底。",
 
   "death.attack.summy-reliquary.sacred_verdict": "%1$s 被神圣裁决处决",
   "death.attack.summy-reliquary.sacred_verdict.player": "%1$s 被 %2$s 的神圣裁决处决",

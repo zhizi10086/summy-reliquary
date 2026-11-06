@@ -131,6 +131,9 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_TRANSFER_PERCENT;
 	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_SPREAD_RADIUS;
 	private static final ForgeConfigSpec.IntValue HEX_SEAL_COOLDOWN_SECONDS;
+	private static final ForgeConfigSpec.BooleanValue ENABLE_COVENANT_ACQUISITION;
+	private static final ForgeConfigSpec.IntValue COVENANT_LOOT_CHANCE_PERCENT;
+	private static final ForgeConfigSpec.IntValue COVENANT_PITY_CHESTS;
 
 	// ===== 七罪效果（1.4.0） =====
 	private static final ForgeConfigSpec.BooleanValue ENABLE_SIN_EFFECTS;
@@ -731,6 +734,15 @@ public final class ReliquaryConfig {
 				.defineInRange("spread_radius", 6.0D, 0.5D, 64.0D);
 		HEX_SEAL_COOLDOWN_SECONDS = builder.comment("主动冷却秒数")
 				.defineInRange("cooldown_seconds", 60, 0, 3600);
+		builder.pop();
+
+		builder.comment("誓约五件：野生战利品箱首次获取与分线保底").push("covenant_acquisition");
+		ENABLE_COVENANT_ACQUISITION = builder.comment("总开关")
+				.define("enable_covenant_loot", true);
+		COVENANT_LOOT_CHANCE_PERCENT = builder.comment("每次合格野箱的获取概率（百分比）")
+				.defineInRange("loot_chance_percent", 15, 0, 100);
+		COVENANT_PITY_CHESTS = builder.comment("天使 / 恶魔路线连续失败多少箱后必得；0 = 关闭保底")
+				.defineInRange("pity_chests", 10, 0, 1000);
 		builder.pop();
 
 		builder.comment("七罪之源：每一项罪的具体效果数值（只有佩戴七罪之源时才会生效）").push("sins");
@@ -1703,6 +1715,18 @@ public final class ReliquaryConfig {
 
 	public static int hexSealCooldownTicks() {
 		return hexSealCooldownSeconds() * 20;
+	}
+
+	public static boolean enableCovenantAcquisition() {
+		return boolOr(ENABLE_COVENANT_ACQUISITION, true);
+	}
+
+	public static int covenantLootChancePercent() {
+		return Math.max(0, Math.min(100, intOr(COVENANT_LOOT_CHANCE_PERCENT, 15)));
+	}
+
+	public static int covenantPityChests() {
+		return Math.max(0, intOr(COVENANT_PITY_CHESTS, 10));
 	}
 
 	public static int bodySetDamageReductionPercent() {

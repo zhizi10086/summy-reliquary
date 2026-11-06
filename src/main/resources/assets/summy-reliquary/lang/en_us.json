@@ -678,6 +678,14 @@
   "item.summy-reliquary.hex_seal.shift.5": "Cooldown|%s s",
 
   "item.summy-reliquary.covenant.fail.cooldown": "Covenant ability not ready yet. %s s remaining.",
+  "item.summy-reliquary.covenant.fail.reforge_locked": "The reforging requirements for this Covenant are not met.",
+
+  "jei.summy-reliquary.covenant.angel": "Angel route: each qualifying wild loot chest rolls from your missing Life and Death, Divine Intervention, and Sacred Verdict.",
+  "jei.summy-reliquary.covenant.demon": "Demon route: each qualifying wild loot chest rolls from your missing Life and Death, Blood Debt Altar, and Hex Seal.",
+  "jei.summy-reliquary.covenant.chance": "Base acquisition chance: %s",
+  "jei.summy-reliquary.covenant.pity": "After %s consecutive failures, the next chest is guaranteed to grant a missing item.",
+  "jei.summy-reliquary.covenant.no_pity": "Pity is disabled in the current configuration.",
+  "jei.summy-reliquary.covenant.neutral": "Without an Angel or Demon mark, Life and Death can still be obtained at the base chance, but this attempt does not build pity.",
 
   "death.attack.summy-reliquary.sacred_verdict": "%1$s was executed by Sacred Verdict",
   "death.attack.summy-reliquary.sacred_verdict.player": "%1$s was executed by %2$s's Sacred Verdict",
