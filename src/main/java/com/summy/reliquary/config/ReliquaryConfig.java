@@ -653,7 +653,7 @@ public final class ReliquaryConfig {
 		ENABLE_DIVINE_INTERVENTION = builder.comment("总开关").define("enable_divine_intervention", true);
 		DIVINE_INTERVENTION_REFLECT_PERCENT = builder.comment("减伤后、吸收前的反伤比例（百分比）")
 				.defineInRange("reflect_percent", 50.0D, 0.0D, 1000.0D);
-		DIVINE_INTERVENTION_BARRIER_DISTANCE = builder.comment("屏障相对玩家的距离（格）")
+		DIVINE_INTERVENTION_BARRIER_DISTANCE = builder.comment("沿完整视线方向生成屏障的距离（格）")
 				.defineInRange("barrier_distance", 1.0D, 0.0D, 16.0D);
 		DIVINE_INTERVENTION_BARRIER_WIDTH = builder.comment("屏障宽度（格）")
 				.defineInRange("barrier_width", 5.0D, 0.5D, 32.0D);

@@ -45,23 +45,18 @@ public final class DivineIntervention {
 				&& !PlayerFlags.isDeathForm(entity);
 	}
 
-	/** R：在脚底高度、视线前方展开固定屏障。 */
+	/** R：沿完整视线方向展开固定屏障。 */
 	public static boolean activate(ServerPlayer player) {
 		if (!wears(player)) {
 			return false;
 		}
-		Vec3 look = player.getLookAngle();
-		Vec3 horizontal = new Vec3(look.x, 0.0D, look.z);
-		if (horizontal.lengthSqr() < 1.0E-6D) {
-			horizontal = new Vec3(1.0D, 0.0D, 0.0D);
-		}
-		horizontal = horizontal.normalize();
-		Vec3 normal = new Vec3(look.x, 0.0D, look.z).normalize();
-		Vec3 right = new Vec3(-normal.z, 0.0D, normal.x);
-		Vec3 up = new Vec3(0.0D, 1.0D, 0.0D);
+		Vec3[] basis = barrierBasis(player.getLookAngle(), player.getYRot());
+		Vec3 normal = basis[0];
+		Vec3 right = basis[1];
+		Vec3 up = basis[2];
 		double halfWidth = ReliquaryConfig.divineInterventionBarrierWidth() / 2.0D;
 		double height = ReliquaryConfig.divineInterventionBarrierHeight();
-		Vec3 center = new Vec3(player.getX(), player.getY() + height / 2.0D, player.getZ())
+		Vec3 center = new Vec3(player.getX(), player.getY() + player.getBbHeight() / 2.0D, player.getZ())
 				.add(normal.scale(ReliquaryConfig.divineInterventionBarrierDistance()));
 		BARRIERS.removeIf(barrier -> barrier.owner().equals(player.getUUID()));
 		BARRIERS.add(new Barrier(player.serverLevel(), player.getUUID(), center, normal, right, up,
@@ -167,6 +162,37 @@ public final class DivineIntervention {
 		return BARRIERS.size();
 	}
 
+	/** 自检：完整视线方向下的屏障正交基。 */
+	public static Vec3[] barrierBasisForTest(Vec3 look, float yRot) {
+		return barrierBasis(look, yRot);
+	}
+
+	/** 自检：当前玩家屏障的法线。 */
+	public static Vec3 barrierNormalForTest(ServerPlayer player) {
+		for (Barrier barrier : BARRIERS) {
+			if (barrier.owner().equals(player.getUUID())) {
+				return barrier.normal();
+			}
+		}
+		return Vec3.ZERO;
+	}
+
+	/** 自检：当前玩家屏障的中心。 */
+	public static Vec3 barrierCenterForTest(ServerPlayer player) {
+		for (Barrier barrier : BARRIERS) {
+			if (barrier.owner().equals(player.getUUID())) {
+				return barrier.center();
+			}
+		}
+		return Vec3.ZERO;
+	}
+
+	/** 自检：用指定三维正交基验证线段与矩形平面的相交。 */
+	public static boolean barrierSegmentHitsForTest(Vec3 center, Vec3 normal, Vec3 right, Vec3 up,
+			double halfWidth, double halfHeight, Vec3 from, Vec3 to) {
+		return segmentHits(center, normal, right, up, halfWidth, halfHeight, from, to);
+	}
+
 	private static boolean blocked(ServerLevel level, Vec3 from, Vec3 to) {
 		for (Barrier barrier : BARRIERS) {
 			if (barrier.level() == level && segmentHits(barrier, from, to)) {
@@ -181,20 +207,46 @@ public final class DivineIntervention {
 	}
 
 	private static boolean segmentHits(Barrier barrier, Vec3 from, Vec3 to) {
+		return segmentHits(barrier.center(), barrier.normal(), barrier.right(), barrier.up(),
+				barrier.halfWidth(), barrier.halfHeight(), from, to);
+	}
+
+	private static boolean segmentHits(Vec3 center, Vec3 normal, Vec3 rightAxis, Vec3 upAxis,
+			double halfWidth, double halfHeight, Vec3 from, Vec3 to) {
 		Vec3 delta = to.subtract(from);
-		double denominator = delta.dot(barrier.normal());
+		double denominator = delta.dot(normal);
 		if (Math.abs(denominator) < 1.0E-7D) {
 			return false;
 		}
-		Vec3 offset = barrier.center().subtract(from);
-		double t = offset.dot(barrier.normal()) / denominator;
+		Vec3 offset = center.subtract(from);
+		double t = offset.dot(normal) / denominator;
 		if (t < 0.0D || t > 1.0D) {
 			return false;
 		}
-		Vec3 point = from.add(delta.scale(t)).subtract(barrier.center());
-		double right = Math.abs(point.dot(barrier.right()));
-		double up = Math.abs(point.dot(barrier.up()));
-		return right <= barrier.halfWidth() && up <= barrier.halfHeight();
+		Vec3 point = from.add(delta.scale(t)).subtract(center);
+		double right = Math.abs(point.dot(rightAxis));
+		double up = Math.abs(point.dot(upAxis));
+		return right <= halfWidth && up <= halfHeight;
+	}
+
+	private static Vec3[] barrierBasis(Vec3 look, float yRot) {
+		Vec3 horizontal = new Vec3(look.x, 0.0D, look.z);
+		if (horizontal.lengthSqr() < 1.0E-8D) {
+			double yaw = Math.toRadians(yRot);
+			horizontal = new Vec3(-Math.sin(yaw), 0.0D, Math.cos(yaw));
+		}
+		horizontal = horizontal.normalize();
+		Vec3 normal = look.lengthSqr() < 1.0E-8D ? horizontal : look.normalize();
+		Vec3 right = normal.cross(new Vec3(0.0D, 1.0D, 0.0D));
+		if (right.lengthSqr() < 1.0E-8D) {
+			right = normal.cross(horizontal);
+		}
+		if (right.lengthSqr() < 1.0E-8D) {
+			right = new Vec3(1.0D, 0.0D, 0.0D);
+		}
+		right = right.normalize();
+		Vec3 up = right.cross(normal).normalize();
+		return new Vec3[]{normal, right, up};
 	}
 
 	private static void drawEdges(Barrier barrier) {

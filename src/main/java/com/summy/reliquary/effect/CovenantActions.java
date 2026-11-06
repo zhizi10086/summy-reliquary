@@ -119,10 +119,10 @@ public final class CovenantActions {
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionBarrierWidth()),
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionBarrierHeight())
 				};
-				case 4 -> new Object[]{
+				case 3 -> new Object[]{
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionProjectileDamagePercent())
 				};
-				case 5 -> new Object[]{ReliquaryConfig.divineInterventionCooldownSeconds()};
+				case 4 -> new Object[]{ReliquaryConfig.divineInterventionCooldownSeconds()};
 				default -> new Object[0];
 			};
 			case SACRED_VERDICT -> switch (lineIndex) {
@@ -133,12 +133,12 @@ public final class CovenantActions {
 				case 2 -> new Object[]{
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictBonusDamagePercent())
 				};
-				case 4 -> new Object[]{
+				case 3 -> new Object[]{
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictCastRadius()),
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictCastDamage()),
 						ReliquaryConfig.sacredVerdictCastMarkTicks() / 20
 				};
-				case 5 -> new Object[]{ReliquaryConfig.sacredVerdictCooldownSeconds()};
+				case 4 -> new Object[]{ReliquaryConfig.sacredVerdictCooldownSeconds()};
 				default -> new Object[0];
 			};
 			case BLOOD_DEBT_ALTAR -> switch (lineIndex) {
@@ -168,15 +168,13 @@ public final class CovenantActions {
 						ReliquaryConfig.hexSealCastTicks() / 20
 				};
 				case 3 -> new Object[]{
-						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealDamageTakenPercent())
-				};
-				case 4 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealDamageTakenPercent()),
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealTransferPercent())
 				};
-				case 5 -> new Object[]{
+				case 4 -> new Object[]{
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealSpreadRadius())
 				};
-				case 6 -> new Object[]{ReliquaryConfig.hexSealCooldownSeconds()};
+				case 5 -> new Object[]{ReliquaryConfig.hexSealCooldownSeconds()};
 				default -> new Object[0];
 			};
 		};

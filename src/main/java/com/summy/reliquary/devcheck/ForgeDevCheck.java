@@ -4857,8 +4857,53 @@ public final class ForgeDevCheck {
 			float attackerBefore = attacker.getHealth();
 			com.summy.reliquary.effect.DivineIntervention.onIncomingHurt(received);
 			float reflected = attackerBefore - attacker.getHealth();
+			Vec3 horizontalLook = new Vec3(0.0D, 0.0D, -1.0D);
+			Vec3[] horizontalBasis = com.summy.reliquary.effect.DivineIntervention
+					.barrierBasisForTest(horizontalLook, 0.0F);
+			Vec3 pitchedUpLook = new Vec3(0.0D, 1.0D, 1.0D).normalize();
+			Vec3 pitchedDownLook = new Vec3(0.0D, -1.0D, 1.0D).normalize();
+			Vec3[] pitchedUpBasis = com.summy.reliquary.effect.DivineIntervention
+					.barrierBasisForTest(pitchedUpLook, 0.0F);
+			Vec3[] pitchedDownBasis = com.summy.reliquary.effect.DivineIntervention
+					.barrierBasisForTest(pitchedDownLook, 0.0F);
+			Vec3[] verticalUpBasis = com.summy.reliquary.effect.DivineIntervention
+					.barrierBasisForTest(new Vec3(0.0D, 1.0D, 0.0D), 30.0F);
+			Vec3[] verticalDownBasis = com.summy.reliquary.effect.DivineIntervention
+					.barrierBasisForTest(new Vec3(0.0D, -1.0D, 0.0D), -60.0F);
+			boolean basisOrthonormal = basisOrthonormal(horizontalBasis)
+					&& basisOrthonormal(pitchedUpBasis)
+					&& basisOrthonormal(pitchedDownBasis)
+					&& basisOrthonormal(verticalUpBasis)
+					&& basisOrthonormal(verticalDownBasis)
+					&& Math.abs(pitchedUpBasis[0].dot(pitchedUpLook) - 1.0D) < 1.0E-4D
+					&& Math.abs(pitchedDownBasis[0].dot(pitchedDownLook) - 1.0D) < 1.0E-4D
+					&& Math.abs(pitchedUpBasis[2].y) < 0.999D
+					&& Math.abs(pitchedDownBasis[2].y) < 0.999D
+					&& horizontalBasis[2].dot(new Vec3(0.0D, 1.0D, 0.0D)) > 0.999D;
+			Vec3 segmentCenter = Vec3.ZERO;
+			boolean angledPlaneHit = com.summy.reliquary.effect.DivineIntervention
+					.barrierSegmentHitsForTest(segmentCenter, pitchedUpBasis[0], pitchedUpBasis[1],
+							pitchedUpBasis[2], 2.5D, 1.5D,
+							pitchedUpBasis[0].scale(-2.0D), pitchedUpBasis[0].scale(2.0D));
+			Vec3 outsideCenter = pitchedUpBasis[1].scale(3.6D);
+			boolean outsidePlaneMiss = !com.summy.reliquary.effect.DivineIntervention
+					.barrierSegmentHitsForTest(segmentCenter, pitchedUpBasis[0], pitchedUpBasis[1],
+							pitchedUpBasis[2], 2.5D, 1.5D,
+							outsideCenter.add(pitchedUpBasis[0].scale(-2.0D)),
+							outsideCenter.add(pitchedUpBasis[0].scale(2.0D)));
+			player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES,
+					player.getEyePosition().add(0.0D, 10.0D, 10.0D));
+			Vec3 expectedNormal = player.getLookAngle().normalize();
+			Vec3 expectedCenter = new Vec3(player.getX(), player.getY() + player.getBbHeight() / 2.0D,
+					player.getZ()).add(expectedNormal.scale(com.summy.reliquary.config.ReliquaryConfig
+							.divineInterventionBarrierDistance()));
 			boolean barrier = com.summy.reliquary.effect.DivineIntervention.activate(player)
-					&& com.summy.reliquary.effect.DivineIntervention.barrierCount() == 1;
+					&& com.summy.reliquary.effect.DivineIntervention.barrierCount() == 1
+					&& com.summy.reliquary.effect.DivineIntervention.barrierNormalForTest(player)
+							.dot(expectedNormal) > 0.999D
+					&& com.summy.reliquary.effect.DivineIntervention.barrierCenterForTest(player)
+							.distanceToSqr(expectedCenter) < 1.0E-6D
+					&& basisOrthonormal && angledPlaneHit && outsidePlaneMiss;
 			boolean interventionOk = Math.abs(reflected - 10.0F) < 0.25F && barrier;
 			unequip(player, ReliquarySlots.COVENANT);
 
@@ -5010,25 +5055,25 @@ public final class ForgeDevCheck {
 			boolean sacredStaleMarkerCleared = !verdictTarget.hasEffect(
 					SummyReliquary.SACRED_VERDICT_EFFECT.get());
 			double expectedHalfAngle = Math.toRadians(45.0D);
-			Vec3[] horizontalBasis = com.summy.reliquary.effect.HexSeal.castBasisForTest(
+			Vec3[] horizontalConeBasis = com.summy.reliquary.effect.HexSeal.castBasisForTest(
 					new Vec3(0.0D, 0.0D, -1.0D), new Vec3(0.0D, 0.0D, -1.0D));
 			Vec3 horizontalConePoint = com.summy.reliquary.effect.HexSeal.coneBoundaryPointForTest(
-					Vec3.ZERO, horizontalBasis[0], horizontalBasis[1], horizontalBasis[2],
+					Vec3.ZERO, horizontalConeBasis[0], horizontalConeBasis[1], horizontalConeBasis[2],
 					expectedHalfAngle, 12.0D, Math.PI * 0.25D);
-			Vec3[] verticalBasis = com.summy.reliquary.effect.HexSeal.castBasisForTest(
+			Vec3[] verticalConeBasis = com.summy.reliquary.effect.HexSeal.castBasisForTest(
 					new Vec3(0.0D, 1.0D, 0.0D), new Vec3(0.0D, 0.0D, 1.0D));
 			Vec3 verticalConePoint = com.summy.reliquary.effect.HexSeal.coneBoundaryPointForTest(
-					Vec3.ZERO, verticalBasis[0], verticalBasis[1], verticalBasis[2],
+					Vec3.ZERO, verticalConeBasis[0], verticalConeBasis[1], verticalConeBasis[2],
 					expectedHalfAngle, 12.0D, Math.PI * 0.25D);
 			boolean coneParticleGeometry = Math.abs(horizontalConePoint.length() - 12.0D) < 1.0E-4D
-					&& Math.abs(horizontalConePoint.normalize().dot(horizontalBasis[0])
+					&& Math.abs(horizontalConePoint.normalize().dot(horizontalConeBasis[0])
 							- Math.cos(expectedHalfAngle)) < 1.0E-4D
 					&& Math.abs(verticalConePoint.length() - 12.0D) < 1.0E-4D
-					&& Math.abs(verticalConePoint.normalize().dot(verticalBasis[0])
+					&& Math.abs(verticalConePoint.normalize().dot(verticalConeBasis[0])
 							- Math.cos(expectedHalfAngle)) < 1.0E-4D
-					&& Math.abs(verticalBasis[0].dot(verticalBasis[1])) < 1.0E-4D
-					&& Math.abs(verticalBasis[0].dot(verticalBasis[2])) < 1.0E-4D
-					&& Math.abs(verticalBasis[1].dot(verticalBasis[2])) < 1.0E-4D;
+					&& Math.abs(verticalConeBasis[0].dot(verticalConeBasis[1])) < 1.0E-4D
+					&& Math.abs(verticalConeBasis[0].dot(verticalConeBasis[2])) < 1.0E-4D
+					&& Math.abs(verticalConeBasis[1].dot(verticalConeBasis[2])) < 1.0E-4D;
 			boolean barrierDensityOk = com.summy.reliquary.effect.DivineIntervention
 					.edgeParticleCount(0, 5.0D, 3.0D) == 0
 					&& com.summy.reliquary.effect.DivineIntervention
@@ -5377,11 +5422,10 @@ public final class ForgeDevCheck {
 								com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierWidth()),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierHeight()))
-				&& covenantArgs(intervention, 3)
-				&& covenantArgs(intervention, 4,
+				&& covenantArgs(intervention, 3,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.divineInterventionProjectileDamagePercent()))
-				&& covenantArgs(intervention, 5,
+				&& covenantArgs(intervention, 4,
 						com.summy.reliquary.config.ReliquaryConfig.divineInterventionCooldownSeconds())
 				&& covenantArgs(verdict, 1,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
@@ -5390,14 +5434,13 @@ public final class ForgeDevCheck {
 				&& covenantArgs(verdict, 2,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictBonusDamagePercent()))
-				&& covenantArgs(verdict, 3)
-				&& covenantArgs(verdict, 4,
+				&& covenantArgs(verdict, 3,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCastRadius()),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCastDamage()),
 						com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCastMarkTicks() / 20)
-				&& covenantArgs(verdict, 5,
+				&& covenantArgs(verdict, 4,
 						com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCooldownSeconds())
 				&& covenantArgs(debt, 1,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
@@ -5429,14 +5472,13 @@ public final class ForgeDevCheck {
 						com.summy.reliquary.config.ReliquaryConfig.hexSealCastTicks() / 20)
 				&& covenantArgs(hex, 3,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
-								com.summy.reliquary.config.ReliquaryConfig.hexSealDamageTakenPercent()))
-				&& covenantArgs(hex, 4,
+								com.summy.reliquary.config.ReliquaryConfig.hexSealDamageTakenPercent()),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.hexSealTransferPercent()))
-				&& covenantArgs(hex, 5,
+				&& covenantArgs(hex, 4,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.hexSealSpreadRadius()))
-				&& covenantArgs(hex, 6,
+				&& covenantArgs(hex, 5,
 						com.summy.reliquary.config.ReliquaryConfig.hexSealCooldownSeconds())
 				&& covenantTooltipStyleOk();
 	}
@@ -5447,19 +5489,22 @@ public final class ForgeDevCheck {
 		for (CovenantItem.Kind kind : CovenantItem.Kind.values()) {
 			totalLines += kind.functionLineCount();
 		}
-		if (totalLines != 26) {
+		if (totalLines != 23) {
 			return false;
 		}
 		return covenantNarrativeLines(CovenantItem.Kind.LIFE_DEATH, 1, 4)
 				&& covenantStatLine(CovenantItem.Kind.LIFE_DEATH, 5)
-				&& covenantNarrativeLines(CovenantItem.Kind.DIVINE_INTERVENTION, 1, 4)
-				&& covenantStatLine(CovenantItem.Kind.DIVINE_INTERVENTION, 5)
-				&& covenantNarrativeLines(CovenantItem.Kind.SACRED_VERDICT, 1, 4)
-				&& covenantStatLine(CovenantItem.Kind.SACRED_VERDICT, 5)
+				&& covenantNarrativeLines(CovenantItem.Kind.DIVINE_INTERVENTION, 1, 3)
+				&& covenantStatLine(CovenantItem.Kind.DIVINE_INTERVENTION, 4)
+				&& covenantNarrativeLines(CovenantItem.Kind.SACRED_VERDICT, 1, 3)
+				&& covenantStatLine(CovenantItem.Kind.SACRED_VERDICT, 4)
 				&& covenantNarrativeLines(CovenantItem.Kind.BLOOD_DEBT_ALTAR, 1, 4)
 				&& covenantStatLine(CovenantItem.Kind.BLOOD_DEBT_ALTAR, 5)
-				&& covenantNarrativeLines(CovenantItem.Kind.HEX_SEAL, 1, 5)
-				&& covenantStatLine(CovenantItem.Kind.HEX_SEAL, 6);
+				&& covenantNarrativeLines(CovenantItem.Kind.HEX_SEAL, 1, 4)
+				&& covenantStatLine(CovenantItem.Kind.HEX_SEAL, 5)
+				&& covenantLineMissing(CovenantItem.Kind.DIVINE_INTERVENTION, 5)
+				&& covenantLineMissing(CovenantItem.Kind.SACRED_VERDICT, 5)
+				&& covenantLineMissing(CovenantItem.Kind.HEX_SEAL, 6);
 	}
 
 	private static boolean covenantNarrativeLines(CovenantItem.Kind kind, int first, int last) {
@@ -5479,9 +5524,26 @@ public final class ForgeDevCheck {
 				&& raw.contains("|");
 	}
 
+	private static boolean covenantLineMissing(CovenantItem.Kind kind, int line) {
+		return !net.minecraft.locale.Language.getInstance().has(
+				"item.summy-reliquary." + kind.id() + ".shift." + line);
+	}
+
 	private static String covenantRawTooltip(CovenantItem.Kind kind, int line) {
 		return net.minecraft.locale.Language.getInstance().getOrDefault(
 				"item.summy-reliquary." + kind.id() + ".shift." + line);
+	}
+
+	private static boolean basisOrthonormal(Vec3[] basis) {
+		if (basis == null || basis.length != 3) {
+			return false;
+		}
+		return basis[0].lengthSqr() > 1.0E-8D
+				&& basis[1].lengthSqr() > 1.0E-8D
+				&& basis[2].lengthSqr() > 1.0E-8D
+				&& Math.abs(basis[0].dot(basis[1])) < 1.0E-4D
+				&& Math.abs(basis[0].dot(basis[2])) < 1.0E-4D
+				&& Math.abs(basis[1].dot(basis[2])) < 1.0E-4D;
 	}
 
 	private static boolean covenantArgs(CovenantItem.Kind kind, int line, Object... expected) {
