@@ -483,8 +483,8 @@
   "item.summy-reliquary.the_pact.linkage": "Synergy|Dark Arts has been empowered.",
   "death.attack.summy-reliquary.sacrifice": "%1$s was sacrificed",
   "death.attack.summy-reliquary.sacrifice.player": "%1$s was sacrificed by %2$s",
-  "death.attack.summy-reliquary.pact_shatter": "%1$s was devoured by a shattered black heart",
-  "death.attack.summy-reliquary.pact_shatter.player": "%1$s was struck down by %2$s's contract",
+  "death.attack.summy-reliquary.pact_shatter": "%1$s died in a Black Heart burst",
+  "death.attack.summy-reliquary.pact_shatter.player": "%1$s died in %2$s's Black Heart burst",
   "death.attack.summy-reliquary.hellfire": "%1$s was consumed by hellfire",
   "death.attack.summy-reliquary.hellfire.player": "%1$s was burned by %2$s's hellfire",
   "death.attack.summy-reliquary.abyss_aura": "%1$s was consumed by the abyssal aura",
@@ -637,8 +637,8 @@
   "item.summy-reliquary.life_death.fail.death_form": "You cannot reverse manually while in Death Form.",
   "message.summy-reliquary.life_death.hud.death_form": "Life-Death Reversal · Death Form | %s s left | Kill weight %s/%s",
   "message.summy-reliquary.life_death.hud.cooldown": "Life-Death Reversal · Revival Cooldown | %s s left",
-  "death.attack.summy-reliquary.life_death_failure": "%1$s failed to complete the life-death reversal",
-  "death.attack.summy-reliquary.life_death_failure.player": "%1$s failed to complete the life-death reversal",
+  "death.attack.summy-reliquary.life_death_failure": "%1$s failed to reverse life and death",
+  "death.attack.summy-reliquary.life_death_failure.player": "%1$s failed to reverse life and death",
 
   "item.summy-reliquary.divine_intervention": "Divine Intervention",
   "item.summy-reliquary.divine_intervention.desc.1": "Light stands before you,",
@@ -687,12 +687,12 @@
   "jei.summy-reliquary.covenant.no_pity": "Pity is disabled in the current configuration.",
   "jei.summy-reliquary.covenant.neutral": "Without an Angel or Demon mark, Life and Death can still be obtained at the base chance, but this attempt does not build pity.",
 
-  "death.attack.summy-reliquary.sacred_verdict": "%1$s was executed by Sacred Verdict",
-  "death.attack.summy-reliquary.sacred_verdict.player": "%1$s was executed by %2$s's Sacred Verdict",
-  "death.attack.summy-reliquary.divine_intervention_reflect": "%1$s was slain by damage reflected by Divine Intervention",
-  "death.attack.summy-reliquary.divine_intervention_reflect.player": "%1$s was slain by damage reflected by %2$s's Divine Intervention",
-  "death.attack.summy-reliquary.blood_debt": "%1$s was consumed by unpaid Blood Debt",
-  "death.attack.summy-reliquary.blood_debt.player": "%1$s was consumed by %2$s's Blood Debt",
-  "death.attack.summy-reliquary.hex_transfer": "%1$s was consumed by a transferred Hex",
-  "death.attack.summy-reliquary.hex_transfer.player": "%1$s died from a Hex transferred by %2$s"
+  "death.attack.summy-reliquary.sacred_verdict": "%1$s was struck down by Sacred Verdict",
+  "death.attack.summy-reliquary.sacred_verdict.player": "%1$s was struck down by %2$s's Sacred Verdict",
+  "death.attack.summy-reliquary.divine_intervention_reflect": "%1$s's malice was reflected by Divine Intervention",
+  "death.attack.summy-reliquary.divine_intervention_reflect.player": "%1$s's malice was reflected by %2$s's Divine Intervention",
+  "death.attack.summy-reliquary.blood_debt": "%1$s failed to repay their Blood Debt",
+  "death.attack.summy-reliquary.blood_debt.player": "%1$s failed to repay %2$s's Blood Debt",
+  "death.attack.summy-reliquary.hex_transfer": "%1$s died from a spreading Hex",
+  "death.attack.summy-reliquary.hex_transfer.player": "%1$s died from a Hex spread by %2$s"
 }

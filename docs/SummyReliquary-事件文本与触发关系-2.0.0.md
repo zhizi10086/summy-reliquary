@@ -233,7 +233,7 @@
 | `summy-reliquary:holy_light`（圣光饰品命中 / 神性光环） | 「%1$s 被圣光审判了」／玩家击杀变体「%1$s 被 %2$s 的圣光审判了」 |
 | `summy-reliquary:revelation_light`（启示之光柱 / 救恩领域） | 「%1$s 被启示之光贯穿」／「%1$s 被 %2$s 的启示之光贯穿」 |
 | `summy-reliquary:sacrifice`（献祭） | 「%1$s 被献祭了」／「%1$s 被 %2$s 献祭了」 |
-| **`summy-reliquary:pact_shatter`（1.6.1 黑心碎裂）** | 「%1$s 被黑心的破碎吞噬」／「%1$s 被 %2$s 的契约反噬」 |
+| **`summy-reliquary:pact_shatter`（1.6.1 黑心碎裂）** | 「%1$s死于黑心爆发」／「%1$s死于%2$s的黑心爆发」 |
 | **`summy-reliquary:hellfire`（1.6.2 狱火）** | 「%1$s 被狱火焚烧」／「%1$s 被 %2$s 的狱火焚烧」 |
 
 ### 1.12 配方门槛 ｜ 实现：`SpiritAltarRecipeGate` / `RedemptionRecipeGate`
@@ -832,10 +832,20 @@
 | `holy_light.player` | %1$s 被 %2$s 的圣光审判了 |
 | `sacrifice` | %1$s 被献祭了 |
 | `sacrifice.player` | %1$s 被 %2$s 献祭了 |
-| `pact_shatter` | %1$s 被黑心的破碎吞噬 |
-| `pact_shatter.player` | %1$s 被 %2$s 的契约反噬 |
+| `pact_shatter` | %1$s死于黑心爆发 |
+| `pact_shatter.player` | %1$s死于%2$s的黑心爆发 |
 | **`hellfire`（1.6.2）** | %1$s 被狱火焚烧 |
 | **`hellfire.player`（1.6.2）** | %1$s 被 %2$s 的狱火焚烧 |
+| `life_death_failure` | %1$s没能逆转生死 |
+| `life_death_failure.player` | %1$s没能逆转生死 |
+| `sacred_verdict` | %1$s被神圣制裁 |
+| `sacred_verdict.player` | %1$s被%2$s的神圣制裁 |
+| `divine_intervention_reflect` | %1$s的恶意被神圣干预反噬 |
+| `divine_intervention_reflect.player` | %1$s的恶意被%2$s的神圣干预反噬 |
+| `blood_debt` | %1$s没能偿还血债 |
+| `blood_debt.player` | %1$s没能偿还%2$s留下的血债 |
+| `hex_transfer` | %1$s死于蔓延的厄咒 |
+| `hex_transfer.player` | %1$s死于%2$s传播的厄咒 |
 
 ### 5.3 进度（`advancements.summy-reliquary.*`）
 
@@ -946,7 +956,7 @@
 | `item.summy-reliquary.blood_debt_altar.*` | 血债祭坛 / 四行完整机制句 + 冷却行 / 失败提示 | **2.3 调整，文本精修订正**：说明延迟阈值、结算顺序、血债盾独立上限、近满时按空间扣血与击杀减债 |
 | `item.summy-reliquary.hex_seal.*` | 厄咒之印 / 四行完整机制句 + 冷却行 | **2.3 最终文案**：被动接受玩家普通伤害，保留 R 锥形施加、受伤增幅、每 tick 最高伤害传播与非玩家死亡传播 |
 | `effect.summy-reliquary.sacred_verdict` / `effect.summy-reliquary.hex_seal` | 神圣裁决 / 厄咒 | **2.3 补充**：纯视觉 MobEffect 名称；无属性，显示图标、倒计时和原版彩色状态粒子 |
-| `death.attack.summy-reliquary.sacred_verdict(.player)` 等四组 | 神圣裁决 / 神圣干预反噬 / 未偿血债 / 厄咒转移 | **2.3 新增**：四类伤害各自独立死亡文本 |
+| `death.attack.summy-reliquary.sacred_verdict(.player)` 等四组 | 神圣制裁 / 神圣干预反噬 / 未偿还血债 / 蔓延厄咒 | **2.3 新增**：四类伤害各自独立死亡文本 |
 | `item.summy-reliquary.pentagram.phrase` | 埋葬无尽灵魂 | **不是显示文本**，是"慢速呼吸"要强调的短语（中英各一套，供代码定位） |
 
 ---

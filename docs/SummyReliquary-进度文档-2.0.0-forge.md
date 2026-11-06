@@ -35,7 +35,7 @@
 
 **2.0.0**：2.17 定值真伤增伤转正；2.9 新增真伤限伤破除统一出口；2.13 新增魂心 / 黑心护盾保护、路线容量校验和黑心破碎无敌；2.10 新增天使线背饰「修女服」；2.11 新增恶魔线加护「背叛」与成就「三十枚银钱」；2.3 新增誓约栏与五件主动饰品。神圣裁决改为可破限伤但不吃增伤的固定附伤，厄咒转移同样接入 `TrueDamageLimits`；五件饰品的 23 条 Shift 提示已逐行绑定各自配置值，核心机制按完整自然句组织，只有状态与冷却行保留两段配色；生死逆转的显示状态由佩戴物品标记驱动并在复活后回翻。**2026-11-04 补修**：死形态到期处决只跳过生死逆转自身，神性等其它免死仍可救下，被救下后进入 30 秒冷却；新增逐 tick 平滑的红 / 蓝 Boss 条与屏幕边缘暗红警告，死形态标题显示秒数和击杀权重，最后 5 秒未达标时轻微脉冲。死形态直接死亡或超时处决会在重生时恢复生形态并从重生时刻开始完整 30 秒冷却，Curios 死亡卸装回调不再清除待结算标记；超时处决新增 `life_death_failure` 专属死亡文本。状态包新增死形态剩余 tick / 击杀权重 / 所需权重。同时修复重生后长矛客户端门禁因旧 tick 时间戳而长期吞左键。**2026-11-05 补修**：誓约 R 改为物理按下沿即时发包，并用客户端 tick 起点边沿检测兜底；Boss 条加入玩家后强制补发标题，移除三条状态动作栏提示，仅保留失败原因提示；修女服补接生死逆转独立复活冷却，誓约共享冷却改为按总冷却比例推进，并豁免献祭 / 暴怒自伤；Curios 对双形态显示 NBT 的同物品替换回调不再被误判为真实卸装，修复生死逆转单次短按只闪一下、必须高频连按的问题。**2026-11-06 补修**：依据试验假人日志，确认 R 爆炸单目标只有一个 Hurt / Damage 事件；普通攻击双附伤来自同一近战的 `player_attack` 与 `indirect_magic`。裁决语义命中键改为“攻击者 + 目标 + 直接实体”，伤害类型只用于日志；生死逆转击杀达标后只锁定资格，必须等倒计时归零才复活；同一实体重复死亡事件按玩家 / 目标 / tick 幂等。死形态摘下处决不再暂存、截获或补发物品，旧归还 NBT 只清理不复制。同轮新增生死逆转进入 / 复活音画、神圣裁决与厄咒纯视觉状态效果（图标、倒计时和原版粒子）、厄咒真实 3D 锥形粒子轮廓。血债祭坛恢复独立账本与原版黄心外观，标准顺序为原版吸收 → 血债盾 → 魂心 → 黑心 → 生命；独立血债消费不再混入 SE 吸收池记账。逐 tick 静默生命还款新增预期生命值同步，客户端只在精确匹配时清除受击镜头。厄咒死亡传播排除所有玩家；神圣干预屏障按完整 yaw + pitch 跟随视线创建。协议升为 `"18"`。注册物品 / 创造页为 **57 / 53**，配置段 / 键 **33 / 329**，伤害类型 18，状态效果 5。
 
-**2026-11-06 文案终稿**：五件誓约饰品按最终修改稿重排 23 条中英 Shift 提示；血债祭坛改为承伤、换盾、近满补盾、击杀减债、冷却五段。生死逆转提示改用精确小数格式，`0.05×/秒` 不再显示成 `0.1×`；厄咒被动恢复为玩家普通伤害均可触发。
+**2026-11-06 文案终稿**：五件誓约饰品按最终修改稿重排 23 条中英 Shift 提示；血债祭坛改为承伤、换盾、近满补盾、击杀减债、冷却五段。生死逆转提示改用精确小数格式，`0.05×/秒` 不再显示成 `0.1×`；厄咒被动恢复为玩家普通伤害均可触发。六类死亡文本同步定为黑心爆发、没能逆转生死、神圣制裁、神圣干预反噬、没能偿还血债与蔓延的厄咒。
 
 **2026-11-06 誓约获取**：五件改为野箱首获 + 取得后补铸。无天使 / 恶魔时仅按 `15%` 尝试生死逆转且不累计保底；天使路线从“生死逆转 / 神圣干预 / 神圣裁决”的缺失池抽取，恶魔路线从“生死逆转 / 血债祭坛 / 厄咒之印”的缺失池抽取，两线各自连续 10 箱失败后下一箱必得。生死逆转使用共享取得位，任一路线取得后同时退出两线池和后续中立掉落；双标记异常暂停发放。登录与周期扫描背包 / Curios 补记 `/give`、旧存档和创造模式已有物品。补铸配方在取得前由 JEI 隐藏、服务端退料，取得后仍受当前路线门禁约束。生死逆转参考表为 10 件、超出原版 3×3 的 9 格，落定为 4 回响碎片 + 3 灵魂沙 + 1 不死图腾 + 1 金块。协议升为 `"19"`，配置新增 `[covenant_acquisition]` 三项。
 
@@ -296,7 +296,7 @@
 | 启示之光柱 / 救恩领域 | `revelation_light` + **真实伤害**（无视护甲/附魔保护/抗性、先扣黄血、清无敌帧） |
 | 神性光环 | `holy_light` **类型** + **真实伤害**口径（不挂启示之光、死亡文本「被圣光审判了」） |
 | 献祭（佩戴契约打村民） | `summy-reliquary:sacrifice` + **真实伤害**（无视护甲/附魔保护/抗性、先扣黄血、清无敌帧；死亡文本「被献祭了」；仅首次献祭前生效） |
-| **黑心碎裂（1.6.1，撒旦圣经）** | `summy-reliquary:pact_shatter` + **变种魔法**（`bypasses_armor` 标签：**无视护甲**；保护附魔与抗性照常生效；清无敌帧；18 格 24 点；死亡文本「被黑心的破碎吞噬」/「被 xxx 的契约反噬」）。它和圣光 / 启示之光一样被列入"本模组特效伤害"（`HolyLightEffect.isDivine`），所以**不会**被当成玩家近战命中吃七罪/七德/最终倍率，也不触发契约生命吸取 |
+| **黑心碎裂（1.6.1，撒旦圣经）** | `summy-reliquary:pact_shatter` + **变种魔法**（`bypasses_armor` 标签：**无视护甲**；保护附魔与抗性照常生效；清无敌帧；18 格 24 点；死亡文本「死于黑心爆发」/「死于 xxx 的黑心爆发」）。它和圣光 / 启示之光一样被列入"本模组特效伤害"（`HolyLightEffect.isDivine`），所以**不会**被当成玩家近战命中吃七罪/七德/最终倍率，也不触发契约生命吸取 |
 | **狱火（1.6.2，复仇之魂）** | `summy-reliquary:hellfire` + **变种魔法**（同样在 `bypasses_armor` 标签里；清无敌帧；3 格内每秒 6 点；死亡文本「被狱火焚烧」/「被 xxx 的狱火焚烧」）；同属特效伤害名单 |
 | **咒印加成（1.6.2）** | 佩戴咒印时：**黑心碎裂伤害改取 `mark_shatter_damage`(40)**；**邪恶每日衰减为 0**；**灵台套装效果（含 20% 免死）照常生效但不算真三件套** |
 
@@ -615,7 +615,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 ## 10. 数据与资源
 
 - **伤害类型**：`summy-reliquary:revelation_light`（挂启示之光）、`summy-reliquary:holy_light`（并列入原版 `bypasses_armor` 标签 → 变种魔法口径）、`summy-reliquary:sacrifice`（1.6.0，献祭用，真实伤害口径）、`summy-reliquary:pact_shatter`（1.6.1，黑心碎裂用；同样在 `bypasses_armor` 标签里 → 变种魔法口径）、**`summy-reliquary:hellfire`（1.6.2，复仇之魂的狱火；同样在 `bypasses_armor` 标签里）**。
-- **死亡文本**：`death.attack.summy-reliquary.revelation_light`（+`.player`）、`death.attack.summy-reliquary.holy_light`（+`.player`）、`death.attack.summy-reliquary.sacrifice`（+`.player`，「被献祭了」）、`death.attack.summy-reliquary.pact_shatter`（+`.player`，「被黑心的破碎吞噬」/「被 xxx 的契约反噬」）、**`death.attack.summy-reliquary.hellfire`（+`.player`，「被狱火焚烧」/「被 xxx 的狱火焚烧」）**。
+- **死亡文本**：`death.attack.summy-reliquary.revelation_light`（+`.player`）、`death.attack.summy-reliquary.holy_light`（+`.player`）、`death.attack.summy-reliquary.sacrifice`（+`.player`，「被献祭了」）、`death.attack.summy-reliquary.pact_shatter`（+`.player`，「死于黑心爆发」/「死于 xxx 的黑心爆发」）、**`death.attack.summy-reliquary.hellfire`（+`.player`，「被狱火焚烧」/「被 xxx 的狱火焚烧」）**。
 - **状态效果（5）**：`summy-reliquary:revelation_light`（「启示之光」）、`fear`（「恐惧」）、`hellfire`（「狱火」）、`sacred_verdict`（「神圣裁决」纯视觉镜像）、`hex_seal`（「厄咒」纯视觉镜像）。誓约两个效果无属性与 tick 行为，显示 HUD 图标、倒计时和原版状态粒子；服务端标记仍是玩法权威，图标缺失时下一 tick 自动补回，实体重新载入时清理重启遗留的孤立图标。
 - **命名规范（长期约定）**：物品贴图 `textures/item/<id>.png`、模型 `models/item/<id>.json`（`layer0` 指同名贴图）、栏位图标 `textures/slot/<栏位id>.png`、语言键 `item.summy-reliquary.<id>`；一律**小写 snake_case**。
 - **素材 → 落库路径（累计）**：`the body/mind/soul/halo`、`Star of Bethlehem → star_of_bethlehem`、`Revelation → final_revelation`、`trinity`、`error`、`purity`、`Vengeful Spirit → vengeful_spirit`、`The Pact → the_pact`、`The Mark → the_mark`、`Ceremonial Robes → ceremonial_robes`、`Pentagram → pentagram`、`Holy Light → holy_light`、`Holy Mantle → holy_mantle`、`Godhead → godhead`、`Sacred Heart → sacred_heart`；栏位图 `Spirit Altar → slot/spirit_altar`、`revelation.png → slot/revelation`、`blessing.png → slot/blessing`。

@@ -481,8 +481,8 @@
   "item.summy-reliquary.the_pact.linkage": "联动|暗仪刺刀已被强化。",
   "death.attack.summy-reliquary.sacrifice": "%1$s 被献祭了",
   "death.attack.summy-reliquary.sacrifice.player": "%1$s 被 %2$s 献祭了",
-  "death.attack.summy-reliquary.pact_shatter": "%1$s 被黑心的破碎吞噬",
-  "death.attack.summy-reliquary.pact_shatter.player": "%1$s 被 %2$s 的契约反噬",
+  "death.attack.summy-reliquary.pact_shatter": "%1$s死于黑心爆发",
+  "death.attack.summy-reliquary.pact_shatter.player": "%1$s死于%2$s的黑心爆发",
   "death.attack.summy-reliquary.hellfire": "%1$s 被狱火焚烧",
   "death.attack.summy-reliquary.hellfire.player": "%1$s 被 %2$s 的狱火焚烧",
   "death.attack.summy-reliquary.abyss_aura": "%1$s 被恶魔光环吞噬",
@@ -635,8 +635,8 @@
   "item.summy-reliquary.life_death.fail.death_form": "死形态期间无法主动逆转。",
   "message.summy-reliquary.life_death.hud.death_form": "生死逆转 · 死形态｜剩余 %s 秒｜击杀权重 %s/%s",
   "message.summy-reliquary.life_death.hud.cooldown": "生死逆转 · 复活冷却｜剩余 %s 秒",
-  "death.attack.summy-reliquary.life_death_failure": "%1$s 没能完成生死逆转",
-  "death.attack.summy-reliquary.life_death_failure.player": "%1$s 没能完成生死逆转",
+  "death.attack.summy-reliquary.life_death_failure": "%1$s没能逆转生死",
+  "death.attack.summy-reliquary.life_death_failure.player": "%1$s没能逆转生死",
 
   "item.summy-reliquary.divine_intervention": "神圣干预",
   "item.summy-reliquary.divine_intervention.desc.1": "光在身前，",
@@ -685,12 +685,12 @@
   "jei.summy-reliquary.covenant.no_pity": "当前配置未启用保底。",
   "jei.summy-reliquary.covenant.neutral": "无天使或恶魔标记时，仍可按基础概率取得生死逆转，但不会累计保底。",
 
-  "death.attack.summy-reliquary.sacred_verdict": "%1$s 被神圣裁决处决",
-  "death.attack.summy-reliquary.sacred_verdict.player": "%1$s 被 %2$s 的神圣裁决处决",
-  "death.attack.summy-reliquary.divine_intervention_reflect": "%1$s 被神圣干预反射的伤害击杀",
-  "death.attack.summy-reliquary.divine_intervention_reflect.player": "%1$s 被 %2$s 的神圣干预反射伤害击杀",
-  "death.attack.summy-reliquary.blood_debt": "%1$s 被尚未偿还的血债吞没",
-  "death.attack.summy-reliquary.blood_debt.player": "%1$s 被 %2$s 留下的血债吞没",
-  "death.attack.summy-reliquary.hex_transfer": "%1$s 被转移而来的厄咒吞噬",
-  "death.attack.summy-reliquary.hex_transfer.player": "%1$s 因 %2$s 转移的厄咒而死亡"
+  "death.attack.summy-reliquary.sacred_verdict": "%1$s被神圣制裁",
+  "death.attack.summy-reliquary.sacred_verdict.player": "%1$s被%2$s的神圣制裁",
+  "death.attack.summy-reliquary.divine_intervention_reflect": "%1$s的恶意被神圣干预反噬",
+  "death.attack.summy-reliquary.divine_intervention_reflect.player": "%1$s的恶意被%2$s的神圣干预反噬",
+  "death.attack.summy-reliquary.blood_debt": "%1$s没能偿还血债",
+  "death.attack.summy-reliquary.blood_debt.player": "%1$s没能偿还%2$s留下的血债",
+  "death.attack.summy-reliquary.hex_transfer": "%1$s死于蔓延的厄咒",
+  "death.attack.summy-reliquary.hex_transfer.player": "%1$s死于%2$s传播的厄咒"
 }
