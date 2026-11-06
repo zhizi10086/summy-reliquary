@@ -24,9 +24,13 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 厄咒之印：给敌人施加无图标诅咒，增伤并把同一 tick 最高的一笔伤害转移给其它受诅咒单位。
+ * 厄咒之印：给敌人施加带可视化图标的诅咒，增伤并把同一 tick 最高的一笔伤害转移给其它受诅咒单位。
  */
 public final class HexSeal {
+	private static final double[] CAST_RING_FRACTIONS = {0.35D, 0.7D, 1.0D};
+	private static final int[] CAST_RING_PARTICLES = {12, 20, 32};
+	private static final int CAST_RAY_COUNT = 8;
+	private static final int CAST_RAY_SAMPLES = 7;
 	private static final Map<UUID, Mark> MARKS = new HashMap<>();
 	private static final Map<UUID, PendingTransfer> TRANSFERS = new HashMap<>();
 	private static boolean applyingTransfer;
@@ -95,8 +99,9 @@ public final class HexSeal {
 		}
 		Vec3 look = player.getLookAngle().normalize();
 		double range = ReliquaryConfig.hexSealCastRange();
-		double cosine = Math.cos(Math.toRadians(
-				Math.max(1.0D, Math.min(360.0D, ReliquaryConfig.hexSealCastAngleDegrees())) / 2.0D));
+		double halfAngle = Math.toRadians(
+				Math.max(1.0D, Math.min(360.0D, ReliquaryConfig.hexSealCastAngleDegrees())) / 2.0D);
+		double cosine = Math.cos(halfAngle);
 		List<LivingEntity> targets = player.serverLevel().getEntitiesOfClass(LivingEntity.class,
 				player.getBoundingBox().inflate(range),
 				entity -> Godhead.isAuraTarget(player, entity) && entity.distanceTo(player) <= range
@@ -105,20 +110,93 @@ public final class HexSeal {
 		for (LivingEntity target : targets) {
 			applyMark(target, player.getUUID(), ReliquaryConfig.hexSealCastTicks());
 		}
-		for (int index = 0; index < 64; index++) {
-			double distance = range * (index % 8 + 1) / 8.0D;
-			double spread = Math.tan(Math.acos(cosine)) * distance;
-			Vec3 point = player.getEyePosition().add(look.scale(distance))
-					.add(new Vec3((index % 3 - 1) * spread / 2.0D, 0.0D,
-							((index / 3) % 3 - 1) * spread / 2.0D));
-			player.serverLevel().sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
-					point.x, point.y, point.z, 1, 0.02D, 0.02D, 0.02D, 0.0D);
-		}
+		drawCastCone(player, look, halfAngle, range);
 		return true;
+	}
+
+	private static void drawCastCone(ServerPlayer player, Vec3 look, double halfAngle, double range) {
+		Vec3 fallback = new Vec3(player.getDirection().getStepX(), 0.0D,
+				player.getDirection().getStepZ());
+		Vec3[] basis = castBasis(look, fallback);
+		Vec3 forward = basis[0];
+		Vec3 right = basis[1];
+		Vec3 up = basis[2];
+		Vec3 origin = player.getEyePosition();
+		ServerLevel level = player.serverLevel();
+
+		for (int ring = 0; ring < CAST_RING_FRACTIONS.length; ring++) {
+			int count = CAST_RING_PARTICLES[ring];
+			double distance = range * CAST_RING_FRACTIONS[ring];
+			for (int index = 0; index < count; index++) {
+				double phi = Math.PI * 2.0D * index / count;
+				Vec3 point = coneBoundaryPointForTest(origin, forward, right, up,
+						halfAngle, distance, phi);
+				level.sendParticles(ring == CAST_RING_FRACTIONS.length - 1
+								? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SOUL,
+						point.x, point.y, point.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+			}
+		}
+
+		for (int ray = 0; ray < CAST_RAY_COUNT; ray++) {
+			double phi = Math.PI * 2.0D * ray / CAST_RAY_COUNT;
+			Vec3 direction = coneDirection(forward, right, up, halfAngle, phi);
+			for (int sample = 1; sample <= CAST_RAY_SAMPLES; sample++) {
+				double distance = 1.0D + (range - 1.0D) * sample / CAST_RAY_SAMPLES;
+				Vec3 point = origin.add(direction.scale(distance));
+				level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
+						point.x, point.y, point.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+			}
+		}
+	}
+
+	public static Vec3[] castBasisForTest(Vec3 look, Vec3 fallbackHorizontal) {
+		return castBasis(look, fallbackHorizontal);
+	}
+
+	public static Vec3 coneBoundaryPointForTest(Vec3 origin, Vec3 forward, Vec3 right, Vec3 up,
+			double halfAngle, double distance, double phi) {
+		return origin.add(coneDirection(forward, right, up, halfAngle, phi).scale(distance));
+	}
+
+	private static Vec3[] castBasis(Vec3 look, Vec3 fallbackHorizontal) {
+		Vec3 forward = look.lengthSqr() < 1.0E-8D ? new Vec3(0.0D, 0.0D, -1.0D) : look.normalize();
+		Vec3 right = forward.cross(new Vec3(0.0D, 1.0D, 0.0D));
+		if (right.lengthSqr() < 1.0E-8D) {
+			Vec3 fallback = fallbackHorizontal.lengthSqr() < 1.0E-8D
+					? new Vec3(1.0D, 0.0D, 0.0D) : fallbackHorizontal.normalize();
+			right = forward.cross(fallback);
+		}
+		if (right.lengthSqr() < 1.0E-8D) {
+			right = new Vec3(1.0D, 0.0D, 0.0D);
+		}
+		right = right.normalize();
+		Vec3 up = right.cross(forward).normalize();
+		return new Vec3[]{forward, right, up};
+	}
+
+	private static Vec3 coneDirection(Vec3 forward, Vec3 right, Vec3 up,
+			double halfAngle, double phi) {
+		Vec3 radial = right.scale(Math.cos(phi)).add(up.scale(Math.sin(phi))).normalize();
+		double sin = Math.sin(halfAngle);
+		if (sin < 1.0E-5D) {
+			// 配置为 360° 时锥体边界退化；用完整正交基上的方向代替，仍能显示球形范围。
+			return radial;
+		}
+		return forward.scale(Math.cos(halfAngle)).add(radial.scale(sin)).normalize();
 	}
 
 	/** 服务端 tick 末尾统一结算：每个施法者只取本 tick 最高的一笔。 */
 	public static void tickServer(MinecraftServer server) {
+		long now = server.overworld().getGameTime();
+		MARKS.entrySet().removeIf(entry -> {
+			if (entry.getValue().until() > now) {
+				return false;
+			}
+			LivingEntity target = CovenantMarkerEffects.findEntity(server, entry.getKey());
+			CovenantMarkerEffects.remove(target, SummyReliquary.HEX_SEAL_EFFECT.get());
+			return true;
+		});
+		synchronizeMarkers(server);
 		if (TRANSFERS.isEmpty()) {
 			return;
 		}
@@ -153,6 +231,7 @@ public final class HexSeal {
 	}
 
 	public static void onDeath(LivingEntity entity) {
+		CovenantMarkerEffects.remove(entity, SummyReliquary.HEX_SEAL_EFFECT.get());
 		Mark mark = activeMark(entity);
 		if (mark == null) {
 			MARKS.remove(entity.getUUID());
@@ -181,6 +260,16 @@ public final class HexSeal {
 		return mark == null ? 0 : (int) Math.max(0L, mark.until() - entity.level().getGameTime());
 	}
 
+	/** 实体加入世界时清掉重启遗留、但服务端已不存在的图标。 */
+	public static void reconcileMarker(LivingEntity entity) {
+		Mark mark = activeMark(entity);
+		if (mark == null) {
+			CovenantMarkerEffects.remove(entity, SummyReliquary.HEX_SEAL_EFFECT.get());
+			return;
+		}
+		CovenantMarkerEffects.mirror(entity, SummyReliquary.HEX_SEAL_EFFECT.get(), mark.until());
+	}
+
 	public static void clear() {
 		MARKS.clear();
 		TRANSFERS.clear();
@@ -200,12 +289,20 @@ public final class HexSeal {
 		return TRANSFERS.size();
 	}
 
-	public static void removeOwner(UUID owner) {
+	public static void removeOwner(ServerPlayer owner) {
 		if (owner == null) {
 			return;
 		}
-		MARKS.entrySet().removeIf(entry -> entry.getValue().owner().equals(owner));
-		TRANSFERS.remove(owner);
+		UUID ownerId = owner.getUUID();
+		for (Map.Entry<UUID, Mark> entry : List.copyOf(MARKS.entrySet())) {
+			if (!entry.getValue().owner().equals(ownerId)) {
+				continue;
+			}
+			LivingEntity target = CovenantMarkerEffects.findEntity(owner.getServer(), entry.getKey());
+			CovenantMarkerEffects.remove(target, SummyReliquary.HEX_SEAL_EFFECT.get());
+			MARKS.remove(entry.getKey());
+		}
+		TRANSFERS.remove(ownerId);
 	}
 
 	private static void applyMark(LivingEntity target, UUID owner, int ticks) {
@@ -213,8 +310,19 @@ public final class HexSeal {
 			return;
 		}
 		long until = target.level().getGameTime() + ticks;
-		MARKS.merge(target.getUUID(), new Mark(owner, until), (old, fresh) ->
+		Mark merged = MARKS.merge(target.getUUID(), new Mark(owner, until), (old, fresh) ->
 				new Mark(fresh.owner(), Math.max(old.until(), fresh.until())));
+		CovenantMarkerEffects.mirror(target, SummyReliquary.HEX_SEAL_EFFECT.get(), merged.until());
+	}
+
+	private static void synchronizeMarkers(MinecraftServer server) {
+		for (Map.Entry<UUID, Mark> entry : MARKS.entrySet()) {
+			LivingEntity target = CovenantMarkerEffects.findEntity(server, entry.getKey());
+			if (target != null && target.isAlive()) {
+				CovenantMarkerEffects.mirror(target,
+						SummyReliquary.HEX_SEAL_EFFECT.get(), entry.getValue().until());
+			}
+		}
 	}
 
 	private static Mark activeMark(LivingEntity entity) {

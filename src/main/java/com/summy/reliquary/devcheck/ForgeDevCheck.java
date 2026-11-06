@@ -4451,7 +4451,9 @@ public final class ForgeDevCheck {
 					&& SummyReliquary.DIVINE_INTERVENTION.isPresent()
 					&& SummyReliquary.SACRED_VERDICT.isPresent()
 					&& SummyReliquary.BLOOD_DEBT_ALTAR.isPresent()
-					&& SummyReliquary.HEX_SEAL.isPresent();
+					&& SummyReliquary.HEX_SEAL.isPresent()
+					&& SummyReliquary.SACRED_VERDICT_EFFECT.isPresent()
+					&& SummyReliquary.HEX_SEAL_EFFECT.isPresent();
 			int covenantSlots = CuriosApi.getCuriosInventory(player)
 					.map(handler -> handler.getCurios().containsKey(ReliquarySlots.COVENANT)
 							? handler.getCurios().get(ReliquarySlots.COVENANT).getSlots() : -1)
@@ -4466,11 +4468,27 @@ public final class ForgeDevCheck {
 					&& hasResource(client, "models/item/life_death.json")
 					&& hasResource(client, "models/item/life_death_life.json")
 					&& hasResource(client, "textures/slot/covenant.png")
+					&& hasResource(client, "textures/mob_effect/sacred_verdict.png")
+					&& hasResource(client, "textures/mob_effect/hex_seal.png")
 					&& com.summy.reliquary.client.SummyReliquaryClient.isDeathFormPropertyRegistered();
 			boolean dataResources = hasServerResource(player.getServer(), SummyReliquary.NAMESPACE,
 					"damage_type/sacred_verdict_empowered.json")
 					&& hasServerResource(player.getServer(), SummyReliquary.NAMESPACE,
 							"damage_type/sacred_verdict_bonus.json");
+			long covenantEffectCount = BuiltInRegistries.MOB_EFFECT.entrySet().stream()
+					.filter(entry -> SummyReliquary.NAMESPACE.equals(entry.getKey().location().getNamespace()))
+					.count();
+			boolean markerEffectDefinitions = covenantEffectCount == 5
+					&& SummyReliquary.SACRED_VERDICT_EFFECT.get().getCategory()
+							== net.minecraft.world.effect.MobEffectCategory.HARMFUL
+					&& SummyReliquary.SACRED_VERDICT_EFFECT.get().getColor() == 0xFFD700
+					&& SummyReliquary.HEX_SEAL_EFFECT.get().getCategory()
+							== net.minecraft.world.effect.MobEffectCategory.HARMFUL
+					&& SummyReliquary.HEX_SEAL_EFFECT.get().getColor() == 0x7B2CBF
+					&& Component.translatable("effect.summy-reliquary.sacred_verdict")
+							.getString().equals("神圣裁决")
+					&& Component.translatable("effect.summy-reliquary.hex_seal")
+							.getString().equals("厄咒");
 			DamageSource sacredSource = srSource(player, "sacred_verdict");
 			DamageSource empoweredSacredSource = srSource(player, "sacred_verdict_empowered");
 			DamageSource bonusSacredSource = srSource(player, "sacred_verdict_bonus");
@@ -4852,6 +4870,23 @@ public final class ForgeDevCheck {
 					.setBaseValue(100.0D);
 			verdictTarget.setHealth(100.0F);
 			com.summy.reliquary.effect.SacredVerdict.applyMarkForTest(verdictTarget, 200);
+			net.minecraft.world.effect.MobEffectInstance sacredMarker =
+					verdictTarget.getEffect(SummyReliquary.SACRED_VERDICT_EFFECT.get());
+			int sacredMarkerDuration = sacredMarker == null ? 0 : sacredMarker.getDuration();
+			com.summy.reliquary.effect.SacredVerdict.applyMarkForTest(verdictTarget, 20);
+			net.minecraft.world.effect.MobEffectInstance sacredMarkerExtended =
+					verdictTarget.getEffect(SummyReliquary.SACRED_VERDICT_EFFECT.get());
+			boolean sacredMarkerExtendedOk = sacredMarker != null
+					&& sacredMarker.getAmplifier() == 0
+					&& !sacredMarker.isAmbient()
+					&& !sacredMarker.isVisible()
+					&& sacredMarker.showIcon()
+					&& sacredMarkerExtended != null
+					&& sacredMarkerExtended.getDuration() >= sacredMarkerDuration - 1;
+			verdictTarget.removeEffect(SummyReliquary.SACRED_VERDICT_EFFECT.get());
+			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
+			boolean sacredMarkerRestored = verdictTarget.hasEffect(
+					SummyReliquary.SACRED_VERDICT_EFFECT.get());
 			com.summy.reliquary.effect.SacredVerdict.setForcedProcForTest(false);
 			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(true);
 			float verdictBefore = verdictTarget.getHealth();
@@ -4965,6 +5000,34 @@ public final class ForgeDevCheck {
 			boolean duplicateCastBlocked = firstCast && !duplicateCast
 					&& Math.abs(castDamage - 21.0F) < 0.05F
 					&& com.summy.reliquary.effect.SacredVerdict.suppressedCastCountForTest() == 1;
+			com.summy.reliquary.effect.SacredVerdict.onDeath(verdictTarget);
+			boolean sacredMarkerDeathCleared = !verdictTarget.hasEffect(
+					SummyReliquary.SACRED_VERDICT_EFFECT.get());
+			verdictTarget.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+					SummyReliquary.SACRED_VERDICT_EFFECT.get(), 200, 0, false, false, true));
+			com.summy.reliquary.effect.SacredVerdict.reconcileMarker(verdictTarget);
+			boolean sacredStaleMarkerCleared = !verdictTarget.hasEffect(
+					SummyReliquary.SACRED_VERDICT_EFFECT.get());
+			double expectedHalfAngle = Math.toRadians(45.0D);
+			Vec3[] horizontalBasis = com.summy.reliquary.effect.HexSeal.castBasisForTest(
+					new Vec3(0.0D, 0.0D, -1.0D), new Vec3(0.0D, 0.0D, -1.0D));
+			Vec3 horizontalConePoint = com.summy.reliquary.effect.HexSeal.coneBoundaryPointForTest(
+					Vec3.ZERO, horizontalBasis[0], horizontalBasis[1], horizontalBasis[2],
+					expectedHalfAngle, 12.0D, Math.PI * 0.25D);
+			Vec3[] verticalBasis = com.summy.reliquary.effect.HexSeal.castBasisForTest(
+					new Vec3(0.0D, 1.0D, 0.0D), new Vec3(0.0D, 0.0D, 1.0D));
+			Vec3 verticalConePoint = com.summy.reliquary.effect.HexSeal.coneBoundaryPointForTest(
+					Vec3.ZERO, verticalBasis[0], verticalBasis[1], verticalBasis[2],
+					expectedHalfAngle, 12.0D, Math.PI * 0.25D);
+			boolean coneParticleGeometry = Math.abs(horizontalConePoint.length() - 12.0D) < 1.0E-4D
+					&& Math.abs(horizontalConePoint.normalize().dot(horizontalBasis[0])
+							- Math.cos(expectedHalfAngle)) < 1.0E-4D
+					&& Math.abs(verticalConePoint.length() - 12.0D) < 1.0E-4D
+					&& Math.abs(verticalConePoint.normalize().dot(verticalBasis[0])
+							- Math.cos(expectedHalfAngle)) < 1.0E-4D
+					&& Math.abs(verticalBasis[0].dot(verticalBasis[1])) < 1.0E-4D
+					&& Math.abs(verticalBasis[0].dot(verticalBasis[2])) < 1.0E-4D
+					&& Math.abs(verticalBasis[1].dot(verticalBasis[2])) < 1.0E-4D;
 			boolean barrierDensityOk = com.summy.reliquary.effect.DivineIntervention
 					.edgeParticleCount(0, 5.0D, 3.0D) == 0
 					&& com.summy.reliquary.effect.DivineIntervention
@@ -4974,6 +5037,9 @@ public final class ForgeDevCheck {
 					&& com.summy.reliquary.effect.DivineIntervention
 							.edgeParticleCount(8, 8.0D, 5.0D) == 39;
 			boolean sacredOk = Math.abs(verdictBonus - 5.0F) < 0.05F
+					&& sacredMarkerExtendedOk && sacredMarkerRestored
+					&& sacredMarkerDeathCleared && sacredStaleMarkerCleared
+					&& coneParticleGeometry
 					&& duplicateCandidates == 1
 					&& Math.abs(duplicateVerdictBonus - 5.0F) < 0.05F
 					&& Math.abs(mergedVerdictBonus - 5.0F) < 0.05F
@@ -5032,6 +5098,16 @@ public final class ForgeDevCheck {
 			hexB.setHealth(40.0F);
 			com.summy.reliquary.effect.HexSeal.applyMarkForTest(hexA, player.getUUID(), 200);
 			com.summy.reliquary.effect.HexSeal.applyMarkForTest(hexB, player.getUUID(), 200);
+			net.minecraft.world.effect.MobEffectInstance hexMarker =
+					hexA.getEffect(SummyReliquary.HEX_SEAL_EFFECT.get());
+			boolean hexMarkerOk = hexMarker != null
+					&& hexMarker.getAmplifier() == 0
+					&& !hexMarker.isAmbient()
+					&& !hexMarker.isVisible()
+					&& hexMarker.showIcon();
+			hexA.removeEffect(SummyReliquary.HEX_SEAL_EFFECT.get());
+			com.summy.reliquary.effect.HexSeal.tickServer(player.getServer());
+			boolean hexMarkerRestored = hexA.hasEffect(SummyReliquary.HEX_SEAL_EFFECT.get());
 			LivingHurtEvent hexEvent = new LivingHurtEvent(hexA,
 					player.damageSources().playerAttack(player), 10.0F);
 			com.summy.reliquary.effect.HexSeal.onIncomingHurt(hexEvent);
@@ -5041,6 +5117,19 @@ public final class ForgeDevCheck {
 			float transferred = hexBBefore - hexB.getHealth();
 			boolean hexOk = Math.abs(hexEvent.getAmount() - 15.0F) < 1.0E-4F
 					&& pendingTransfers == 1 && Math.abs(transferred - 7.5F) < 0.1F;
+			com.summy.reliquary.effect.HexSeal.removeOwner(player);
+			boolean hexOwnerRemovalCleared = !hexA.hasEffect(SummyReliquary.HEX_SEAL_EFFECT.get())
+					&& !hexB.hasEffect(SummyReliquary.HEX_SEAL_EFFECT.get());
+			hexA.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+					SummyReliquary.HEX_SEAL_EFFECT.get(), 200, 0, false, false, true));
+			com.summy.reliquary.effect.HexSeal.reconcileMarker(hexA);
+			boolean hexStaleMarkerCleared = !hexA.hasEffect(SummyReliquary.HEX_SEAL_EFFECT.get());
+			hexA.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+					SummyReliquary.HEX_SEAL_EFFECT.get(), 200, 0, false, false, true));
+			com.summy.reliquary.effect.HexSeal.onDeath(hexA);
+			boolean hexDeathCleared = !hexA.hasEffect(SummyReliquary.HEX_SEAL_EFFECT.get());
+			boolean hexVisualOk = hexMarkerOk && hexMarkerRestored
+					&& hexOwnerRemovalCleared && hexStaleMarkerCleared && hexDeathCleared;
 			unequip(player, ReliquarySlots.COVENANT);
 
 			boolean config = Math.abs(com.summy.reliquary.config.ReliquaryConfig
@@ -5051,10 +5140,12 @@ public final class ForgeDevCheck {
 			boolean ok = registered && covenantSlots == 1 && resources && dataResources
 					&& sourceClassification && verdictSeTag
 					&& tooltipArguments
+					&& markerEffectDefinitions
 					&& lifeAllOk && smoothProgress && reachedAwaitingTimer && reviveOk && bossRevive
 					&& expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds
 					&& screenOverlay && failureSourceOk && spearGateReset && oathPressEdge
-					&& interventionOk && barrierDensityOk && sacredOk && debtOk && hexOk && config;
+					&& interventionOk && barrierDensityOk && sacredOk
+					&& debtOk && hexOk && hexVisualOk && config;
 			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s/数据包=%s、伤害归类=%s/"
 							+ "SE 裁决排除标签=%s；"
 							+ "逐行提示参数=%s；"
@@ -5067,9 +5158,9 @@ public final class ForgeDevCheck {
 							+ "神圣干预反伤 %.1f（应 10）/屏障=%s/描边密度=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/重复候选 %d（应 1）/重复附伤 %.2f（应 5）/"
 							+ "批次合并附伤 %.2f（应 5）/不同直接实体候选=%s/重复施法=%s/爆炸伤害 %.2f（应 21）/"
-							+ "未满攻击强度附伤 %.2f（应 0）→ %s；"
+							+ "未满攻击强度附伤 %.2f（应 0）/状态图标定义=%s（共 %d 个）/锥形采样=%s → %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
-							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）→ %s；"
+							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）/图标与清理=%s → %s；"
 							+ "配置与协议=%s；整体=%s（应 true）",
 					registered, covenantSlots, resources, dataResources, sourceClassification,
 					verdictSeTag, tooltipArguments,
@@ -5084,9 +5175,11 @@ public final class ForgeDevCheck {
 					oathPressEdge, spearGateReset,
 					reflected, barrier, barrierDensityOk, interventionOk,
 					verdictBonus, duplicateCandidates, duplicateVerdictBonus, mergedVerdictBonus,
-					differentDirectEntities, duplicateCastBlocked, castDamage, unchargedBonus, sacredOk,
+					differentDirectEntities, duplicateCastBlocked, castDamage, unchargedBonus,
+					markerEffectDefinitions, covenantEffectCount, coneParticleGeometry, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
-					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred, hexOk, config, ok));
+					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred,
+					hexVisualOk, hexOk, config, ok));
 		} finally {
 			com.summy.reliquary.effect.SacredVerdict.setForcedProcForTest(null);
 			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(null);

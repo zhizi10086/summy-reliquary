@@ -4,12 +4,15 @@ import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
 import com.summy.reliquary.slot.ReliquarySlots;
 import com.summy.reliquary.util.CurioHelper;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.BossEvent;
@@ -474,6 +477,7 @@ public final class LifeDeath {
 		AttributeManager.apply(player);
 		RevelationTracker.sync(player);
 		updateHud(player, now);
+		playDeathFormEffects(player);
 		SummyReliquary.LOGGER.info(
 				"生死逆转进入死形态：玩家={}、开始 tick={}、持续={} tick、初始权重=0/{}",
 				player.getName().getString(), now, duration,
@@ -492,9 +496,37 @@ public final class LifeDeath {
 		AttributeManager.apply(player);
 		RevelationTracker.sync(player);
 		updateHud(player, now);
+		playReviveEffects(player);
 		SummyReliquary.LOGGER.info(
 				"生死逆转倒计时结束复活：玩家={}、生命 {}→{}、tick={}、冷却截止={}、死形态=false",
 				player.getName().getString(), healthBefore, player.getHealth(), now, cooldownUntil);
+	}
+
+	private static void playDeathFormEffects(ServerPlayer player) {
+		var level = player.serverLevel();
+		level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
+				player.getX(), player.getY() + 1.0D, player.getZ(),
+				28, 0.55D, 0.85D, 0.55D, 0.02D);
+		level.sendParticles(ParticleTypes.SOUL,
+				player.getX(), player.getY() + 1.0D, player.getZ(),
+				20, 0.5D, 0.75D, 0.5D, 0.01D);
+		level.sendParticles(ParticleTypes.LARGE_SMOKE,
+				player.getX(), player.getY() + 0.3D, player.getZ(),
+				10, 0.4D, 0.3D, 0.4D, 0.01D);
+		level.playSound(null, player.getX(), player.getY(), player.getZ(),
+				SoundEvents.SOUL_ESCAPE, SoundSource.PLAYERS, 0.8F, 0.65F);
+	}
+
+	private static void playReviveEffects(ServerPlayer player) {
+		var level = player.serverLevel();
+		level.sendParticles(ParticleTypes.TOTEM_OF_UNDYING,
+				player.getX(), player.getY() + 1.0D, player.getZ(),
+				32, 0.5D, 0.8D, 0.5D, 0.12D);
+		level.sendParticles(ParticleTypes.END_ROD,
+				player.getX(), player.getY() + 1.0D, player.getZ(),
+				18, 0.45D, 0.65D, 0.45D, 0.03D);
+		level.playSound(null, player.getX(), player.getY(), player.getZ(),
+				SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.9F, 1.3F);
 	}
 
 	/**

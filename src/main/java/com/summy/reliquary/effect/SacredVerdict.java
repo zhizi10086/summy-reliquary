@@ -141,6 +141,8 @@ public final class SacredVerdict {
 	/** Server tick END：结算已确认的附伤与新标记，并清理过期候选。 */
 	public static void tickServer(MinecraftServer server) {
 		long serverNow = server.overworld().getGameTime();
+		MARKS.entrySet().removeIf(entry -> entry.getValue().until() <= serverNow);
+		synchronizeMarkers(server);
 		LAST_CAST_TICK.entrySet().removeIf(entry ->
 				!withinWindow(serverNow, entry.getValue(), CAST_LOCK_TICKS));
 		LAST_CAST_TRACE.entrySet().removeIf(entry ->
@@ -333,12 +335,27 @@ public final class SacredVerdict {
 
 	public static void onDeath(LivingEntity entity) {
 		MARKS.remove(entity.getUUID());
+		CovenantMarkerEffects.remove(entity, SummyReliquary.SACRED_VERDICT_EFFECT.get());
 		LAST_BONUS_TICK.keySet().removeIf(key -> key.target().equals(entity.getUUID()));
 	}
 
 	public static boolean marked(LivingEntity entity) {
 		Mark mark = entity == null ? null : MARKS.get(entity.getUUID());
 		return mark != null && mark.until() > entity.level().getGameTime();
+	}
+
+	/** 实体加入世界时清掉重启遗留、但服务端已不存在的图标。 */
+	public static void reconcileMarker(LivingEntity entity) {
+		if (entity == null) {
+			return;
+		}
+		Mark mark = MARKS.get(entity.getUUID());
+		if (mark == null || mark.until() <= entity.level().getGameTime()) {
+			MARKS.remove(entity.getUUID());
+			CovenantMarkerEffects.remove(entity, SummyReliquary.SACRED_VERDICT_EFFECT.get());
+			return;
+		}
+		CovenantMarkerEffects.mirror(entity, SummyReliquary.SACRED_VERDICT_EFFECT.get(), mark.until());
 	}
 
 	public static void clear() {
@@ -430,8 +447,19 @@ public final class SacredVerdict {
 	}
 
 	private static void applyMark(LivingEntity target, long until) {
-		MARKS.merge(target.getUUID(), new Mark(until), (old, fresh) ->
+		Mark merged = MARKS.merge(target.getUUID(), new Mark(until), (old, fresh) ->
 				new Mark(Math.max(old.until(), fresh.until())));
+		CovenantMarkerEffects.mirror(target, SummyReliquary.SACRED_VERDICT_EFFECT.get(), merged.until());
+	}
+
+	private static void synchronizeMarkers(MinecraftServer server) {
+		for (Map.Entry<UUID, Mark> entry : MARKS.entrySet()) {
+			LivingEntity target = CovenantMarkerEffects.findEntity(server, entry.getKey());
+			if (target != null && target.isAlive()) {
+				CovenantMarkerEffects.mirror(target,
+						SummyReliquary.SACRED_VERDICT_EFFECT.get(), entry.getValue().until());
+			}
+		}
 	}
 
 	private static HitResult raycast(ServerPlayer player, double range) {

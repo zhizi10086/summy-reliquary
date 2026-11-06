@@ -73,6 +73,16 @@ public class SummyReliquary {
 	/** 狱火（1.6.7）：深渊领主给受害者叠的减益（护甲 -10%/级、每秒 等级×1 点狱火伤害） */
 	public static final RegistryObject<net.minecraft.world.effect.MobEffect> HELLFIRE =
 			EFFECTS.register("hellfire", () -> new com.summy.reliquary.effect.HellfireEffect());
+	/** 神圣裁决：只显示目标身上的裁决状态与剩余时间。 */
+	public static final RegistryObject<net.minecraft.world.effect.MobEffect> SACRED_VERDICT_EFFECT =
+			EFFECTS.register("sacred_verdict",
+					() -> new com.summy.reliquary.effect.VisualMarkerMobEffect(
+							net.minecraft.world.effect.MobEffectCategory.HARMFUL, 0xFFD700));
+	/** 厄咒：只显示目标身上的诅咒状态与剩余时间。 */
+	public static final RegistryObject<net.minecraft.world.effect.MobEffect> HEX_SEAL_EFFECT =
+			EFFECTS.register("hex_seal",
+					() -> new com.summy.reliquary.effect.VisualMarkerMobEffect(
+							net.minecraft.world.effect.MobEffectCategory.HARMFUL, 0x7B2CBF));
 	/** 粒子类型（1.6.7）：复仇之魂范围圈专用的"短寿命火焰"（贴图仍是原版火焰，只把寿命缩短以消除拖尾） */
 	private static final DeferredRegister<net.minecraft.core.particles.ParticleType<?>> PARTICLES =
 			DeferredRegister.create(ForgeRegistries.PARTICLE_TYPES, NAMESPACE);

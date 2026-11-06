@@ -288,6 +288,15 @@ public final class ReliquaryEvents {
 	/** 1.8.8：发射瞬间玩家蹲下 → 该投射物永久不参与圣心追踪 */
 	public static final String NO_HOMING_TAG = "summy_reliquary_no_homing";
 
+	/** 生物载入时校准纯视觉状态，清理服务端重启后残留的誓约图标。 */
+	@SubscribeEvent
+	public static void onLivingJoinLevel(EntityJoinLevelEvent event) {
+		if (!event.getLevel().isClientSide() && event.getEntity() instanceof LivingEntity living) {
+			com.summy.reliquary.effect.SacredVerdict.reconcileMarker(living);
+			com.summy.reliquary.effect.HexSeal.reconcileMarker(living);
+		}
+	}
+
 	/**
 	 * 投射物加入世界：在发射瞬间按玩家是否蹲下打标记。
 	 *
@@ -532,7 +541,7 @@ public final class ReliquaryEvents {
 			com.summy.reliquary.effect.LifeDeath.forget(player);
 			com.summy.reliquary.effect.DivineIntervention.forget(player);
 			com.summy.reliquary.effect.BloodDebtAltar.forget(player);
-			com.summy.reliquary.effect.HexSeal.removeOwner(player.getUUID());
+			com.summy.reliquary.effect.HexSeal.removeOwner(player);
 			com.summy.reliquary.effect.CombatTuning.forget(player);
 			// 1.6.4：还原可能残留的"临时并入吸收值"，并清掉挂起记录
 			com.summy.reliquary.effect.DamagePools.forget(player);
