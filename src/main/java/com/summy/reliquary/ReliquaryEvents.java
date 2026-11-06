@@ -579,7 +579,7 @@ public final class ReliquaryEvents {
 			logSlotSnapshot(player, "登录早期");
 			// 首次进入世界：发放七罪之源与光环（只发一次；是否自动佩戴七罪之源按配置）
 			StarterKit.grantIfFirst(player);
-			com.summy.reliquary.effect.BloodDebtAltar.migrateLegacyShield(player);
+			com.summy.reliquary.effect.BloodDebtAltar.sync(player);
 			com.summy.reliquary.effect.LifeDeath.syncDisplayState(player);
 			RevelationTracker.sync(player);
 			AttributeManager.apply(player);
@@ -665,6 +665,7 @@ public final class ReliquaryEvents {
 	public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
 			com.summy.reliquary.effect.LifeDeath.syncDisplayState(player);
+			com.summy.reliquary.effect.BloodDebtAltar.sync(player);
 			RevelationTracker.sync(player);
 			SoulShield.onJoin(player);
 			com.summy.reliquary.effect.DemonPact.onJoin(player);
@@ -677,6 +678,7 @@ public final class ReliquaryEvents {
 	public static void onCurioEquip(CurioEquipEvent event) {
 		if (event.getSlotContext().entity() instanceof ServerPlayer player) {
 			AttributeManager.apply(player);
+			com.summy.reliquary.effect.BloodDebtAltar.sync(player);
 		}
 	}
 
@@ -684,6 +686,7 @@ public final class ReliquaryEvents {
 	public static void onCurioUnequip(CurioUnequipEvent event) {
 		if (event.getSlotContext().entity() instanceof ServerPlayer player) {
 			AttributeManager.apply(player);
+			com.summy.reliquary.effect.BloodDebtAltar.sync(player);
 		}
 	}
 
@@ -721,6 +724,7 @@ public final class ReliquaryEvents {
 			// 复活 / 换维度后按当前装备状态重建黄血
 			SoulShield.onJoin(player);
 			com.summy.reliquary.effect.DemonPact.onJoin(player);
+			com.summy.reliquary.effect.BloodDebtAltar.sync(player);
 			// 1.7.3：创世纪"死亡不掉落" —— 只按"原玩家身上有没有"判定补发
 			// （主动丢弃后原玩家身上本来就没有 → 不补发；掉入虚空同理）
 			if (event.isWasDeath()) {

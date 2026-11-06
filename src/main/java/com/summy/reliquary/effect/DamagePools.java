@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 魂心 / 黑心的统一结算（1.6.5：**命中前一次算清 + 事后对账**）。
+ * 血债盾 / 魂心 / 黑心的统一结算（1.6.5：**命中前一次算清 + 事后对账**）。
  *
  * <p>为什么不改事件金额、也不靠 {@code LivingDamageEvent}：
  * <ul>
@@ -49,7 +49,8 @@ import java.util.UUID;
 public final class DamagePools {
 	/** 一次命中的挂起记录（1.6.6：额外记住来源与金额，用来识别 Kilt 的"同一击重复事件"） */
 	private record Pending(long tick, float absorptionBefore, float topUp,
-			double chargedSoul, double chargedBlack, DamageSource source, float amount) {
+			double chargedBlood, double chargedSoul, double chargedBlack,
+			DamageSource source, float amount) {
 	}
 
 	private static final Map<UUID, Pending> PENDING = new HashMap<>();
@@ -150,18 +151,24 @@ public final class DamagePools {
 		if (guardOrNullify(player, event, healthPart, absorptionBefore)) {
 			return true;
 		}
-		// ② 池子：魂心 → 黑心（当场扣，破碎推迟到对账）。
-		// 2.13：只要池子非空就整击吞下；/kill 是唯一例外，仍按“能吃多少吃多少”结算。
+		// ② 池子：血债盾 → 魂心 → 黑心（当场扣，破碎推迟到对账）。
+		// 2.13：魂心 / 黑心非空时整击吞下；血债盾按普通数值层结算，/kill 只吃实际可用份额。
+		double blood = effectiveBlood(player);
 		double soul = effectiveSoul(player);
 		double black = effectiveBlack(player);
-		double poolTotal = soul + black;
+		double poolTotal = blood + soul + black;
 		double protectedAmount = shieldProtectionActive(event.getSource(), soul + black)
 				? healthPart : Math.min(poolTotal, healthPart);
-		double usedSoul = Math.min(soul, protectedAmount);
-		double usedBlack = Math.min(black, Math.max(0.0D, protectedAmount - usedSoul));
-		double deducted = usedSoul + usedBlack;
+		double usedBlood = Math.min(blood, protectedAmount);
+		double usedSoul = Math.min(soul, Math.max(0.0D, protectedAmount - usedBlood));
+		double usedBlack = Math.min(black,
+				Math.max(0.0D, protectedAmount - usedBlood - usedSoul));
+		double deducted = usedBlood + usedSoul + usedBlack;
 		if (deducted <= 0.0D) {
 			return false;
+		}
+		if (usedBlood > 0.0D) {
+			BloodDebtAltar.setShield(player, BloodDebtAltar.shield(player) - usedBlood);
 		}
 		if (usedSoul > 0.0D) {
 			SoulShield.deduct(player, usedSoul);
@@ -171,7 +178,7 @@ public final class DamagePools {
 		}
 		float topUp = (float) protectedAmount;
 		PENDING.put(player.getUUID(),
-				new Pending(now(player), absorptionBefore, topUp, usedSoul, usedBlack,
+				new Pending(now(player), absorptionBefore, topUp, usedBlood, usedSoul, usedBlack,
 						event.getSource(), event.getAmount()));
 		player.setAbsorptionAmount(absorptionBefore + topUp);
 		logPrepare("命中前扣池", player, absorptionBefore, topUp, healthPart, deducted);
@@ -191,7 +198,7 @@ public final class DamagePools {
 		if (guardOrNullify(player, event, healthPart, absorptionBefore)) {
 			return true;
 		}
-		if (effectiveSoul(player) + effectiveBlack(player) <= 0.0D) {
+		if (effectiveBlood(player) + effectiveSoul(player) + effectiveBlack(player) <= 0.0D) {
 			return false;
 		}
 		NEW_PATH_HITS.put(player.getUUID(), now(player));
@@ -236,8 +243,12 @@ public final class DamagePools {
 		//    1.8.5 第二轮补修：老写法直接用"忽略池子"的血伤估算判定致命，于是池子还满着也会触发拦截。
 		//    实机（Ponder Time）证据：吸收被打空后一次 1.63 点伤害直接吃掉神性拦截，而魂心池还有 9.4 点
 		//    一动不动 —— 玩家看到的就是"魂心没生效"。
-		double poolTotal = effectiveSoul(player) + effectiveBlack(player);
-		float uncovered = shieldProtectionActive(event.getSource(), poolTotal)
+		double blood = effectiveBlood(player);
+		double soul = effectiveSoul(player);
+		double black = effectiveBlack(player);
+		double poolTotal = blood + soul + black;
+		// 血债盾是普通数值层；只有魂心 / 黑心非空时才采用 2.13 的整击保护语义。
+		float uncovered = shieldProtectionActive(event.getSource(), soul + black)
 				? 0.0F : (float) Math.max(0.0D, healthPart - poolTotal);
 		if (uncovered < player.getHealth()) {
 			return false;
@@ -292,18 +303,23 @@ public final class DamagePools {
 		if (event.isCanceled() || event.getAmount() <= 0.0F) {
 			return;
 		}
+		double blood = effectiveBlood(player);
 		double soul = effectiveSoul(player);
 		double black = effectiveBlack(player);
-		double poolBefore = soul + black;
+		double poolBefore = blood + soul + black;
 		float amountBefore = event.getAmount();
 		double protectedAmount = shieldProtectionActive(event.getSource(), soul + black)
 				? amountBefore : Math.min(poolBefore, amountBefore);
 		if (protectedAmount <= 0.0D) {
 			return;
 		}
-		double usedSoul = Math.min(soul, protectedAmount);
-		double usedBlack = Math.min(black, protectedAmount - usedSoul);
-		double deducted = usedSoul + usedBlack;
+		double usedBlood = Math.min(blood, protectedAmount);
+		double usedSoul = Math.min(soul, protectedAmount - usedBlood);
+		double usedBlack = Math.min(black, protectedAmount - usedBlood - usedSoul);
+		double deducted = usedBlood + usedSoul + usedBlack;
+		if (usedBlood > 0.0D) {
+			BloodDebtAltar.setShield(player, BloodDebtAltar.shield(player) - usedBlood);
+		}
 		if (usedSoul > 0.0D) {
 			SoulShield.deduct(player, usedSoul);
 		}
@@ -350,17 +366,22 @@ public final class DamagePools {
 		float consumed = Math.max(0.0F, pending.absorptionBefore() + pending.topUp() - after);
 		float shieldConsumed = Math.min(pending.absorptionBefore(), consumed);
 		double ourActual = Math.max(0.0D, consumed - shieldConsumed);
-		// 扣减顺序是 魂心 → 黑心，退回时反过来。
-		double charged = pending.chargedSoul() + pending.chargedBlack();
+		// 扣减顺序是 血债盾 → 魂心 → 黑心，退回时反过来。
+		double charged = pending.chargedBlood() + pending.chargedSoul() + pending.chargedBlack();
 		double refund = Math.max(0.0D, charged - ourActual);
 		if (refund > 0.0D) {
 			double refundBlack = Math.min(pending.chargedBlack(), refund);
 			double refundSoul = Math.min(pending.chargedSoul(), refund - refundBlack);
+			double refundBlood = Math.min(pending.chargedBlood(),
+					refund - refundBlack - refundSoul);
 			if (refundBlack > 0.0D) {
 				DemonPact.refundBlackHearts(player, refundBlack);
 			}
 			if (refundSoul > 0.0D) {
 				SoulShield.refund(player, refundSoul);
+			}
+			if (refundBlood > 0.0D) {
+				BloodDebtAltar.setShield(player, BloodDebtAltar.shield(player) + refundBlood);
 			}
 		}
 		// 1.8.5：把"还原吸收值"从**写回绝对值**改成**增量退还** —— 只减掉自己那一份没被吃掉的并入量
@@ -425,7 +446,7 @@ public final class DamagePools {
 	/** 自检用：直接挂一条"待对账"记录（1.7.3 用来验证创世纪会把它清掉） */
 	public static void markPendingForTest(ServerPlayer player) {
 		PENDING.put(player.getUUID(), new Pending(now(player), player.getAbsorptionAmount(), 0.0F,
-				0.0D, 0.0D, player.damageSources().generic(), 0.0F));
+				0.0D, 0.0D, 0.0D, player.damageSources().generic(), 0.0F));
 	}
 
 	// ==================== 内部 ====================
@@ -447,8 +468,18 @@ public final class DamagePools {
 				Math.min(PlayerFlags.blackHeartPoints(player), DemonPact.blackHeartMaxPoints(player)));
 	}
 
+	/** 生效中的血债盾（独立层，位于原版吸收之后、魂心之前）。 */
+	private static double effectiveBlood(ServerPlayer player) {
+		if (!BloodDebtAltar.wears(player)) {
+			return 0.0D;
+		}
+		double cap = player.getMaxHealth()
+				* ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D;
+		return Math.max(0.0D, Math.min(BloodDebtAltar.shield(player), cap));
+	}
+
 	/**
-	 * 2.13：非空池子会整击保护玩家。
+	 * 2.13：非空魂心 / 黑心池会整击保护玩家；血债盾是普通数值层，不启用整击保护。
 	 *
 	 * <p>{@code /kill} 与生死逆转到期处决必须回退旧语义；献祭自伤不豁免。
 	 */

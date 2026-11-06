@@ -26,7 +26,8 @@ public final class ReliquaryNetworking {
 	// 15：2.3 起新增「誓约饰品 R 技能」的 C2S 空包（注册序号 11）与血债盾 HUD 同步，两端必须同版本
 	// 16：生死逆转死形态剩余时间、击杀权重与目标权重同步（客户端屏幕警告要用）
 	// 17：血债盾并入原版吸收，玩家状态包删除独立血债盾字段
-	private static final String VERSION = "17";
+	// 18：血债盾恢复为独立结算层，并新增逐 tick 静默扣血时的预期生命值同步
+	private static final String VERSION = "18";
 
 	public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
 			SummyReliquary.id("main"),
@@ -126,6 +127,13 @@ public final class ReliquaryNetworking {
 				.decoder(OathActionMessage::new)
 				.consumerMainThread(OathActionMessage::handle)
 				.add();
+
+		// 服务端 → 客户端：独立血债盾数值 + 可选的一次静默生命同步目标
+		CHANNEL.messageBuilder(BloodDebtStateMessage.class, 12, NetworkDirection.PLAY_TO_CLIENT)
+				.encoder(BloodDebtStateMessage::encode)
+				.decoder(BloodDebtStateMessage::new)
+				.consumerMainThread(BloodDebtStateMessage::handle)
+				.add();
 	}
 
 	/** 客户端调用：请求切换邦邦女仆状态 */
@@ -159,6 +167,26 @@ public final class ReliquaryNetworking {
 		CHANNEL.sendTo(new PlayerStateMessage(player.getUUID(), sins, redeemed, revealed, revealX, revealZ,
 				flags, revealRemainingSeconds, evil, blackHeartPoints, evilUnlocks, soulHeartPoints,
 				lifeDeathRemainingTicks, lifeDeathKillWeight, lifeDeathKillRequired),
+				player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
+	}
+
+	/** 服务端调用：同步独立血债盾，不改变客户端尚未消费的静默生命目标。 */
+	public static void sendBloodDebtShield(net.minecraft.server.level.ServerPlayer player, double shield) {
+		sendBloodDebtState(player, shield, false, 0.0F);
+	}
+
+	/** 服务端调用：生命层静默还款后，连同预期生命值一起同步。 */
+	public static void sendBloodDebtQuietHealth(net.minecraft.server.level.ServerPlayer player,
+			double shield, float expectedHealth) {
+		sendBloodDebtState(player, shield, true, expectedHealth);
+	}
+
+	private static void sendBloodDebtState(net.minecraft.server.level.ServerPlayer player, double shield,
+			boolean hasQuietTarget, float quietHealthTarget) {
+		if (player.connection == null) {
+			return;
+		}
+		CHANNEL.sendTo(new BloodDebtStateMessage(shield, hasQuietTarget, quietHealthTarget),
 				player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
 	}
 

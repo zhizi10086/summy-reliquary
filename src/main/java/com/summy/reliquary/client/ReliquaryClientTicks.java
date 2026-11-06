@@ -31,6 +31,27 @@ public final class ReliquaryClientTicks {
 	@SubscribeEvent
 	public static void onClientTick(TickEvent.ClientTickEvent event) {
 		SummyReliquaryClient.ForgeBus.onClientTick(event);
+		if (event.phase == TickEvent.Phase.END) {
+			ClientBloodDebtState.tick();
+			// 部分加载器会在客户端 tick 之后才处理网络包；这里先做一次兜底，
+			// 真正稳定的清除点仍在每帧渲染开始前。
+			ClientBloodDebtState.suppressMatchingDamageTilt(
+					net.minecraft.client.Minecraft.getInstance().player);
+		}
+	}
+
+	/**
+	 * 渲染帧开始：清掉血债静默还款触发的原版受击镜头。
+	 *
+	 * <p>1.20.1 的 {@code GameRenderer#bobHurt} 在渲染阶段直接读取
+	 * {@code LivingEntity.hurtTime}；在这里归零发生在镜头矩阵生成之前，因此不必新增 Mixin。
+	 */
+	@SubscribeEvent
+	public static void onRenderTick(TickEvent.RenderTickEvent event) {
+		if (event.phase == TickEvent.Phase.START) {
+			ClientBloodDebtState.suppressMatchingDamageTilt(
+					net.minecraft.client.Minecraft.getInstance().player);
+		}
 	}
 
 	/**

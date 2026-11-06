@@ -2,6 +2,7 @@ package com.summy.reliquary.effect;
 
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
+import com.summy.reliquary.net.ReliquaryNetworking;
 import com.summy.reliquary.util.CurioHelper;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -21,7 +22,11 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 血债祭坛：承伤减半、另一半分 tick 静默偿还，主动用生命换取原版吸收。
+ * 血债祭坛：承伤减半、另一半分 tick 静默偿还，主动用生命换取独立血债盾。
+ *
+ * <p>血债盾不写入原版吸收，避免 Summy Enchantment 等按吸收池差值记账的护盾
+ * 把血债份额混入自己的消耗记录。标准承伤顺序为
+ * 「原版吸收 → 血债盾 → 魂心 → 黑心 → 生命」。
  */
 public final class BloodDebtAltar {
 	private static final TagKey<EntityType<?>> FORGE_BOSSES =
@@ -33,6 +38,8 @@ public final class BloodDebtAltar {
 					new net.minecraft.resources.ResourceLocation(SummyReliquary.NAMESPACE, "bosses"));
 	private static final Map<UUID, List<Debt>> DEBTS = new HashMap<>();
 	private static final Map<UUID, DuplicateGuard> LAST_HURT = new HashMap<>();
+	/** 玩家最近一次真实 LivingHurtEvent 的 tick；同 tick 有真实攻击时不得吞掉受击镜头。 */
+	private static final Map<UUID, Long> LAST_EXTERNAL_HURT_TICK = new HashMap<>();
 
 	private BloodDebtAltar() {
 	}
@@ -42,16 +49,34 @@ public final class BloodDebtAltar {
 				&& CurioHelper.wears(entity, SummyReliquary.BLOOD_DEBT_ALTAR.get());
 	}
 
+	/** 独立血债盾剩余点数。 */
+	public static double shield(LivingEntity entity) {
+		return Math.max(0.0D, PlayerFlags.bloodDebtShield(entity));
+	}
+
+	/** 写入独立血债盾；盾值只受配置上限约束，不修改原版吸收值。 */
+	public static void setShield(ServerPlayer player, double value) {
+		writeShield(player, value);
+		sync(player);
+	}
+
+	/** 登录或重新佩戴时把服务端独立盾值同步给客户端。 */
+	public static void sync(ServerPlayer player) {
+		// 未佩戴时冻结但不显示；重新佩戴后由 Curio 装备事件再次发送实际值。
+		ReliquaryNetworking.sendBloodDebtShield(player, wears(player) ? shield(player) : 0.0D);
+	}
+
 	/** 受伤时把减免部分拆成独立延迟段。 */
 	public static void onIncomingHurt(LivingHurtEvent event) {
 		if (event.isCanceled() || event.getAmount() <= 0.0F
 				|| !(event.getEntity() instanceof ServerPlayer player) || !wears(player)) {
 			return;
 		}
+		long now = player.serverLevel().getGameTime();
+		LAST_EXTERNAL_HURT_TICK.put(player.getUUID(), now);
 		if (HolyLightEffect.isCovenantEffect(event.getSource())) {
 			return;
 		}
-		long now = player.serverLevel().getGameTime();
 		DuplicateGuard guard = LAST_HURT.get(player.getUUID());
 		if (guard != null && guard.tick() == now && guard.source() == event.getSource()
 				&& Math.abs(guard.originalAmount() - event.getAmount()) < 1.0E-4F) {
@@ -74,7 +99,7 @@ public final class BloodDebtAltar {
 				.add(new Debt(deferred, ticks, ticks, event.getSource()));
 	}
 
-	/** 每 tick 静默扣血：原版吸收 → 魂心 → 黑心 → 生命。 */
+	/** 每 tick 静默扣血：原版吸收 → 血债盾 → 魂心 → 黑心 → 生命。 */
 	public static void tickPlayer(ServerPlayer player) {
 		List<Debt> debts = DEBTS.get(player.getUUID());
 		if (debts == null) {
@@ -102,7 +127,7 @@ public final class BloodDebtAltar {
 		}
 	}
 
-	/** R：消耗“当前生命 − 1”，按配置倍率换取原版吸收。 */
+	/** R：消耗“当前生命 − 1”，按配置倍率换取独立血债盾。 */
 	public static boolean activate(ServerPlayer player) {
 		if (!wears(player)) {
 			return false;
@@ -113,14 +138,14 @@ public final class BloodDebtAltar {
 			return false;
 		}
 		double cap = player.getMaxHealth() * ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D;
-		double room = cap - player.getAbsorptionAmount();
+		double room = cap - player.getAbsorptionAmount() - shield(player);
 		if (room <= 1.0E-6D) {
 			fail(player, "item.summy-reliquary.blood_debt_altar.fail.full");
 			return false;
 		}
 		double gain = Math.min(room, cost * ReliquaryConfig.bloodDebtActiveAbsorbPercent() / 100.0D);
 		player.setHealth((float) Math.max(0.5D, player.getHealth() - cost));
-		player.setAbsorptionAmount((float) (player.getAbsorptionAmount() + gain));
+		setShield(player, shield(player) + gain);
 		return true;
 	}
 
@@ -152,33 +177,21 @@ public final class BloodDebtAltar {
 	public static void onDeathOrUnequip(ServerPlayer player) {
 		DEBTS.remove(player.getUUID());
 		LAST_HURT.remove(player.getUUID());
+		LAST_EXTERNAL_HURT_TICK.remove(player.getUUID());
 	}
 
 	public static void forget(ServerPlayer player) {
 		if (player != null) {
 			DEBTS.remove(player.getUUID());
 			LAST_HURT.remove(player.getUUID());
+			LAST_EXTERNAL_HURT_TICK.remove(player.getUUID());
 		}
 	}
 
 	public static void clear() {
 		DEBTS.clear();
 		LAST_HURT.clear();
-	}
-
-	/** 旧版独立血债盾一次性转入原版吸收。 */
-	public static void migrateLegacyShield(ServerPlayer player) {
-		double legacy = PlayerFlags.takeLegacyBloodDebtShield(player);
-		if (legacy <= 0.0D) {
-			return;
-		}
-		double cap = Math.max(0.0D, player.getMaxHealth()
-				* ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D);
-		double room = Math.max(0.0D, cap - player.getAbsorptionAmount());
-		if (room > 0.0D) {
-			player.setAbsorptionAmount((float) Math.min(cap,
-					player.getAbsorptionAmount() + Math.min(legacy, room)));
-		}
+		LAST_EXTERNAL_HURT_TICK.clear();
 	}
 
 	public static int segmentCount(ServerPlayer player) {
@@ -194,12 +207,26 @@ public final class BloodDebtAltar {
 		return debts.stream().mapToDouble(Debt::remainingAmount).sum();
 	}
 
+	/** 自检：本 tick 是否已经记录到真实受击事件。 */
+	public static boolean hasExternalHurtThisTickForTest(ServerPlayer player) {
+		return hasExternalHurtThisTick(player);
+	}
+
 	private static void silentDeduct(ServerPlayer player, double amount, DamageSource source) {
 		double remaining = amount;
 		if (remaining > 0.0D && player.getAbsorptionAmount() > 0.0F) {
 			float used = (float) Math.min(player.getAbsorptionAmount(), remaining);
 			player.setAbsorptionAmount(Math.max(0.0F, player.getAbsorptionAmount() - used));
 			remaining -= used;
+		}
+		boolean shieldChanged = false;
+		if (remaining > 0.0D) {
+			double blood = Math.min(shield(player), remaining);
+			if (blood > 0.0D) {
+				writeShield(player, shield(player) - blood);
+				remaining -= blood;
+				shieldChanged = true;
+			}
 		}
 		if (remaining > 0.0D) {
 			double soul = Math.min(remaining, SoulShield.points(player));
@@ -217,11 +244,34 @@ public final class BloodDebtAltar {
 			}
 		}
 		if (remaining > 0.0D) {
-			player.setHealth((float) Math.max(0.0D, player.getHealth() - remaining));
+			float expectedHealth = (float) Math.max(0.0D, player.getHealth() - remaining);
+			if (hasExternalHurtThisTick(player)) {
+				// 同一 tick 已经发生过真实攻击时保留其受击反馈，只同步变化后的血债值。
+				if (shieldChanged) {
+					sync(player);
+				}
+			} else {
+				// 包必须排在 ServerPlayer 本 tick 自动发送的生命值同步包之前。
+				ReliquaryNetworking.sendBloodDebtQuietHealth(player, shield(player), expectedHealth);
+			}
+			player.setHealth(expectedHealth);
 			if (player.getHealth() <= 0.0F) {
 				player.die(source);
 			}
+		} else if (shieldChanged) {
+			sync(player);
 		}
+	}
+
+	private static void writeShield(ServerPlayer player, double value) {
+		double cap = Math.max(0.0D, player.getMaxHealth()
+				* ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D);
+		PlayerFlags.setBloodDebtShield(player, Math.min(cap, Math.max(0.0D, value)));
+	}
+
+	private static boolean hasExternalHurtThisTick(ServerPlayer player) {
+		long now = player.serverLevel().getGameTime();
+		return LAST_EXTERNAL_HURT_TICK.getOrDefault(player.getUUID(), Long.MIN_VALUE) == now;
 	}
 
 	private static boolean isHostile(LivingEntity entity) {

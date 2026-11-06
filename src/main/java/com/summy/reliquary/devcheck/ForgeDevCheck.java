@@ -40,6 +40,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -5060,15 +5061,18 @@ public final class ForgeDevCheck {
 							true, 31.5F, 5.0F, false, true, false);
 			unequip(player, ReliquarySlots.COVENANT);
 
-			// 血债祭坛：10 点伤害只落地 5 点、延迟 ≤1 的段不生成；R 写入原版吸收。
+			// 血债祭坛：10 点伤害只落地 5 点、延迟 ≤1 的段不生成；R 写入独立血债盾。
 			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
 			com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
 			prepareBarePlayer(player);
 			player.setAbsorptionAmount(0.0F);
 			equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.BLOOD_DEBT_ALTAR.get());
+			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 0.0D);
 			LivingHurtEvent debtEvent = new LivingHurtEvent(player,
 					player.damageSources().magic(), 10.0F);
 			com.summy.reliquary.effect.BloodDebtAltar.onIncomingHurt(debtEvent);
+			boolean realHurtTickMarked =
+					com.summy.reliquary.effect.BloodDebtAltar.hasExternalHurtThisTickForTest(player);
 			int segments = com.summy.reliquary.effect.BloodDebtAltar.segmentCount(player);
 			double pendingBefore = com.summy.reliquary.effect.BloodDebtAltar.pending(player);
 			com.summy.reliquary.effect.BloodDebtAltar.tickPlayer(player);
@@ -5079,29 +5083,91 @@ public final class ForgeDevCheck {
 			int segmentsAfterTiny = com.summy.reliquary.effect.BloodDebtAltar.segmentCount(player);
 			player.setHealth(3.0F);
 			player.setAbsorptionAmount(0.0F);
+			double shieldBeforeActivation = com.summy.reliquary.effect.BloodDebtAltar.shield(player);
 			boolean shieldActivated = com.summy.reliquary.effect.BloodDebtAltar.activate(player);
-			double expectedAbsorption = Math.min(
+			double expectedShieldGain = Math.min(
 					player.getMaxHealth() * com.summy.reliquary.config.ReliquaryConfig
 							.bloodDebtCapMaxHealthPercent() / 100.0D,
 					2.0D * com.summy.reliquary.config.ReliquaryConfig
 							.bloodDebtActiveAbsorbPercent() / 100.0D);
-			float absorptionGain = player.getAbsorptionAmount();
+			double shieldGain = com.summy.reliquary.effect.BloodDebtAltar.shield(player)
+					- shieldBeforeActivation;
+			float absorptionAfterActivation = player.getAbsorptionAmount();
+			// 模拟 SE 生命护盾 / 金苹果等已有吸收：血债获得只做独立加法，绝不重写总吸收值。
+			player.setHealth(3.0F);
+			player.setAbsorptionAmount(6.0F);
+			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 0.0D);
+			boolean additiveActivation = com.summy.reliquary.effect.BloodDebtAltar.activate(player);
+			boolean existingAbsorptionPreserved = additiveActivation
+					&& Math.abs(player.getAbsorptionAmount() - 6.0F) < 1.0E-4F
+					&& Math.abs(com.summy.reliquary.effect.BloodDebtAltar.shield(player)
+							- expectedShieldGain) < 1.0E-4D;
 			double absorptionCap = player.getMaxHealth()
 					* com.summy.reliquary.config.ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D;
 			player.setHealth(3.0F);
+			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 0.0D);
 			player.setAbsorptionAmount((float) absorptionCap);
 			boolean capRejected = !com.summy.reliquary.effect.BloodDebtAltar.activate(player);
 			player.setAbsorptionAmount(0.0F);
-			player.getPersistentData().getCompound("summy_reliquary")
-					.putDouble("blood_debt_shield", 4.0D);
-			com.summy.reliquary.effect.BloodDebtAltar.migrateLegacyShield(player);
-			boolean legacyAbsorptionMigrated = Math.abs(player.getAbsorptionAmount() - 4.0F) < 1.0E-4F
-					&& !player.getPersistentData().getCompound("summy_reliquary")
-							.contains("blood_debt_shield");
+			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 4.0D);
+			boolean independentShieldPersisted =
+					Math.abs(com.summy.reliquary.effect.BloodDebtAltar.shield(player) - 4.0D) < 1.0E-4D
+					&& Math.abs(player.getAbsorptionAmount()) < 1.0E-4F;
+
+			// 标准受击必须先由原版吸收吃掉 2 点，再由独立血债盾吃掉剩余 3 点；
+			// 血债盾不进入原版 absorption_amount，也不会碰生命值。
+			player.setHealth(10.0F);
+			player.setAbsorptionAmount(2.0F);
+			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 3.0D);
+			com.summy.reliquary.effect.DamagePools.clear();
+			com.summy.reliquary.effect.DamagePools.setModeForTest(
+					com.summy.reliquary.effect.DamagePools.Mode.HEALTH_DAMAGE);
+			DamageSource layeredSource = player.damageSources().generic();
+			LivingHurtEvent layeredHurt = new LivingHurtEvent(player, layeredSource, 5.0F);
+			boolean layeredRegistered = com.summy.reliquary.effect.DamagePools.prepare(layeredHurt);
+			LivingDamageEvent layeredDamage = new LivingDamageEvent(player, layeredSource, 3.0F);
+			com.summy.reliquary.effect.DamagePools.applyToHealthDamage(layeredDamage);
+			boolean bloodLayerAfterAbsorption = layeredRegistered
+					&& Math.abs(com.summy.reliquary.effect.BloodDebtAltar.shield(player)) < 1.0E-4D
+					&& Math.abs(player.getAbsorptionAmount() - 2.0F) < 1.0E-4F
+					&& Math.abs(player.getHealth() - 10.0F) < 1.0E-4F
+					&& Math.abs(layeredDamage.getAmount()) < 1.0E-4F;
+			com.summy.reliquary.effect.DamagePools.setModeForTest(null);
+
+			com.summy.reliquary.client.ClientBloodDebtState.clear();
+			com.summy.reliquary.client.ClientBloodDebtState.update(4.0D, true, 7.5F);
+			boolean quietHealthTargetMatches =
+					com.summy.reliquary.client.ClientBloodDebtState.matchesQuietHealthForTest(7.5F)
+					&& !com.summy.reliquary.client.ClientBloodDebtState.matchesQuietHealthForTest(6.5F);
+			net.minecraft.client.player.LocalPlayer localPlayer = Minecraft.getInstance().player;
+			boolean quietHealthTiltSuppression = false;
+			if (localPlayer != null) {
+				int oldHurtTime = localPlayer.hurtTime;
+				localPlayer.hurtTime = 10;
+				com.summy.reliquary.client.ClientBloodDebtState.update(
+						4.0D, true, localPlayer.getHealth());
+				boolean matchedSuppressed =
+						com.summy.reliquary.client.ClientBloodDebtState
+								.suppressMatchingDamageTilt(localPlayer)
+						&& localPlayer.hurtTime == 0;
+				localPlayer.hurtTime = 10;
+				com.summy.reliquary.client.ClientBloodDebtState.update(
+						4.0D, true, localPlayer.getHealth() + 1.0F);
+				boolean mismatchPreserved = !com.summy.reliquary.client.ClientBloodDebtState
+						.suppressMatchingDamageTilt(localPlayer)
+						&& localPlayer.hurtTime == 10;
+				localPlayer.hurtTime = oldHurtTime;
+				quietHealthTiltSuppression = matchedSuppressed && mismatchPreserved;
+			}
+			com.summy.reliquary.client.ClientBloodDebtState.clear();
 			boolean debtOk = Math.abs(debtEvent.getAmount() - 5.0F) < 1.0E-4F
 					&& segments == 1 && pendingAfter < pendingBefore && segmentsAfterTiny == 1
-					&& shieldActivated && Math.abs(absorptionGain - expectedAbsorption) < 1.0E-4F
-					&& capRejected && legacyAbsorptionMigrated;
+					&& shieldActivated && Math.abs(shieldGain - expectedShieldGain) < 1.0E-4D
+					&& Math.abs(absorptionAfterActivation) < 1.0E-4F
+					&& existingAbsorptionPreserved && realHurtTickMarked
+					&& capRejected && independentShieldPersisted
+					&& bloodLayerAfterAbsorption && quietHealthTargetMatches
+					&& quietHealthTiltSuppression;
 			unequip(player, ReliquarySlots.COVENANT);
 			player.setHealth(3.0F);
 			player.setAbsorptionAmount(2.0F);
@@ -5171,7 +5237,7 @@ public final class ForgeDevCheck {
 					.sacredVerdictBonusDamagePercent() - 5.0D) < 1.0E-6D
 					&& Math.abs(com.summy.reliquary.config.ReliquaryConfig
 							.bloodDebtMinDeferredDamage() - 1.0D) < 1.0E-6D
-					&& "17".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
+					&& "18".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 			boolean ok = registered && covenantSlots == 1 && resources && dataResources
 					&& sourceClassification && verdictSeTag
 					&& tooltipArguments
@@ -5194,7 +5260,8 @@ public final class ForgeDevCheck {
 							+ "神圣裁决附伤 %.2f（应 5）/重复候选 %d（应 1）/重复附伤 %.2f（应 5）/"
 							+ "批次合并附伤 %.2f（应 5）/不同直接实体候选=%s/重复施法=%s/爆炸伤害 %.2f（应 21）/"
 							+ "未满攻击强度附伤 %.2f（应 0）/状态图标定义=%s（共 %d 个）/锥形采样=%s → %s；"
-							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/原版吸收 %.1f → %s；"
+							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/"
+							+ "独立盾 %.1f（应 %.1f）/原版吸收 %.1f（应 0） → %s；"
 							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）/图标与清理=%s → %s；"
 							+ "配置与协议=%s；整体=%s（应 true）",
 					registered, covenantSlots, resources, dataResources, sourceClassification,
@@ -5213,7 +5280,8 @@ public final class ForgeDevCheck {
 					differentDirectEntities, duplicateCastBlocked, castDamage, unchargedBonus,
 					markerEffectDefinitions, covenantEffectCount, coneParticleGeometry, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
-					absorptionGain, debtOk, hexEvent.getAmount(), pendingTransfers, transferred,
+					shieldGain, expectedShieldGain, absorptionAfterActivation, debtOk,
+					hexEvent.getAmount(), pendingTransfers, transferred,
 					hexVisualOk, hexOk, config, ok));
 		} finally {
 			com.summy.reliquary.effect.SacredVerdict.setForcedProcForTest(null);
@@ -5225,6 +5293,8 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.DivineIntervention.clear();
 			com.summy.reliquary.effect.LifeDeath.clear();
 			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, 0L, 0);
+			com.summy.reliquary.effect.PlayerFlags.setBloodDebtShield(player, 0.0D);
+			com.summy.reliquary.client.ClientBloodDebtState.clear();
 			player.setAbsorptionAmount(0.0F);
 			stripAllCurios(player);
 			player.setItemSlot(EquipmentSlot.MAINHAND, oldMain);
@@ -12599,12 +12669,12 @@ public final class ForgeDevCheck {
 		boolean teleported = distanceToAnchor <= 2.0D;
 		int animations = com.summy.reliquary.item.GenesisItem.activationCount();
 		int sounds = com.summy.reliquary.item.GenesisItem.soundCount();
-		// 2.3：协议升到 17（删除独立血债盾状态字段）
-		boolean protocol17 = "17".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
+		// 2.3：协议升到 18（独立血债盾 + 静默生命同步目标）
+		boolean protocol18 = "18".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
 
 		log(String.format("创世纪表现（1.7.2）：用掉=%s（应 true）、使用前离重生点 %.1f 格 → 使用后 %.1f 格"
-				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=17=%s（应 true）",
-				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol17));
+				+ "（应 ≤2 = 已送回重生点）=%s（应 true）、图腾动画计数=%d（应 >0）、音效计数=%d（应 >0）、协议=18=%s（应 true）",
+				used, movedAway, distanceToAnchor, teleported, animations, sounds, protocol18));
 		player.getInventory().clearContent();
 		resetDemonPactState(player);
 		clearRobeAndSeal(player);

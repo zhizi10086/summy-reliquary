@@ -142,6 +142,9 @@ public final class SummyReliquaryClient {
 			// 魂心：把属于我们的那几颗黄心重新画成蓝心（不隐藏原版黄心）
 			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
 					"soul_hearts_hud", new SoulHeartOverlay());
+			// 血债盾是独立结算层，但视觉仍使用原版黄心，避免与其它吸收来源互相记账。
+			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
+					"blood_debt_shield", new BloodDebtShieldOverlay());
 		}
 
 		/** 1.7.8：幻影矛的渲染器（投掷出去的矛用物品模型画） */
