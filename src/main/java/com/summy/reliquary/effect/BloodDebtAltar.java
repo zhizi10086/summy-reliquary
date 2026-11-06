@@ -132,19 +132,21 @@ public final class BloodDebtAltar {
 		if (!wears(player)) {
 			return false;
 		}
-		double cost = player.getHealth() - 1.0D;
-		if (cost < 0.5D) {
+		double availableHealth = player.getHealth() - 1.0D;
+		if (availableHealth < 0.5D) {
 			fail(player, "item.summy-reliquary.blood_debt_altar.fail.life");
 			return false;
 		}
-		double cap = player.getMaxHealth() * ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D;
-		double room = cap - player.getAbsorptionAmount() - shield(player);
-		if (room <= 1.0E-6D) {
+		double cost = healthCostFor(availableHealth, shield(player), player.getMaxHealth(),
+				ReliquaryConfig.bloodDebtCapMaxHealthPercent(),
+				ReliquaryConfig.bloodDebtActiveAbsorbPercent());
+		if (cost < 0.0D) {
 			fail(player, "item.summy-reliquary.blood_debt_altar.fail.full");
 			return false;
 		}
-		double gain = Math.min(room, cost * ReliquaryConfig.bloodDebtActiveAbsorbPercent() / 100.0D);
-		player.setHealth((float) Math.max(0.5D, player.getHealth() - cost));
+		double conversion = ReliquaryConfig.bloodDebtActiveAbsorbPercent() / 100.0D;
+		double gain = cost * conversion;
+		player.setHealth((float) Math.max(1.0D, player.getHealth() - cost));
 		setShield(player, shield(player) + gain);
 		return true;
 	}
@@ -212,6 +214,12 @@ public final class BloodDebtAltar {
 		return hasExternalHurtThisTick(player);
 	}
 
+	/** 自检：按血债盾自身上限计算实际需要消耗的生命。 */
+	public static double activationHealthCostForTest(double availableHealth, double currentShield,
+			double maxHealth, double capPercent, double activeAbsorbPercent) {
+		return healthCostFor(availableHealth, currentShield, maxHealth, capPercent, activeAbsorbPercent);
+	}
+
 	private static void silentDeduct(ServerPlayer player, double amount, DamageSource source) {
 		double remaining = amount;
 		if (remaining > 0.0D && player.getAbsorptionAmount() > 0.0F) {
@@ -267,6 +275,21 @@ public final class BloodDebtAltar {
 		double cap = Math.max(0.0D, player.getMaxHealth()
 				* ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D);
 		PlayerFlags.setBloodDebtShield(player, Math.min(cap, Math.max(0.0D, value)));
+	}
+
+	private static double healthCostFor(double availableHealth, double currentShield, double maxHealth,
+			double capPercent, double activeAbsorbPercent) {
+		if (availableHealth < 0.5D) {
+			return -1.0D;
+		}
+		double conversion = Math.max(0.0D, activeAbsorbPercent) / 100.0D;
+		double cap = Math.max(0.0D, maxHealth) * Math.max(0.0D, capPercent) / 100.0D;
+		double room = Math.max(0.0D, cap - Math.max(0.0D, currentShield));
+		if (conversion <= 0.0D || room <= 1.0E-6D) {
+			return -1.0D;
+		}
+		double gain = Math.min(room, availableHealth * conversion);
+		return gain > 1.0E-6D ? gain / conversion : -1.0D;
 	}
 
 	private static boolean hasExternalHurtThisTick(ServerPlayer player) {

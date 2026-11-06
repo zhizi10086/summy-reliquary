@@ -699,7 +699,7 @@ public final class ReliquaryConfig {
 				.defineInRange("min_deferred_damage", 1.0D, 0.0D, 1024.0D);
 		BLOOD_DEBT_ACTIVE_ABSORB_PERCENT = builder.comment("主动换盾比例（百分比；200 = 消耗生命 ×2）")
 				.defineInRange("active_absorb_percent", 200.0D, 0.0D, 10000.0D);
-		BLOOD_DEBT_CAP_PERCENT = builder.comment("主动换取的吸收与当前原版吸收合计上限（最大生命百分比）")
+		BLOOD_DEBT_CAP_PERCENT = builder.comment("血债盾自身最大值（最大生命百分比；不与其他吸收值合计）")
 				.defineInRange("absorb_cap_max_health_percent", 200.0D, 0.0D, 10000.0D);
 		BLOOD_DEBT_KILL_REDUCE_SECONDS = builder.comment("击杀敌对生物后每个延迟段减少的剩余秒数")
 				.defineInRange("kill_reduce_seconds", 1.0D, 0.0D, 60.0D);

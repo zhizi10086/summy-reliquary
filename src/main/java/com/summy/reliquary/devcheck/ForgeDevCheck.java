@@ -5102,13 +5102,47 @@ public final class ForgeDevCheck {
 					&& Math.abs(player.getAbsorptionAmount() - 6.0F) < 1.0E-4F
 					&& Math.abs(com.summy.reliquary.effect.BloodDebtAltar.shield(player)
 							- expectedShieldGain) < 1.0E-4D;
-			double absorptionCap = player.getMaxHealth()
+			double ownShieldCap = player.getMaxHealth()
 					* com.summy.reliquary.config.ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D;
 			player.setHealth(3.0F);
 			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 0.0D);
-			player.setAbsorptionAmount((float) absorptionCap);
-			boolean capRejected = !com.summy.reliquary.effect.BloodDebtAltar.activate(player);
+			player.setAbsorptionAmount((float) ownShieldCap);
+			float fullAbsorptionBefore = player.getAbsorptionAmount();
+			boolean independentCapIgnoresAbsorption =
+					com.summy.reliquary.effect.BloodDebtAltar.activate(player)
+					&& Math.abs(com.summy.reliquary.effect.BloodDebtAltar.shield(player)
+							- expectedShieldGain) < 1.0E-4D
+					&& Math.abs(player.getAbsorptionAmount() - fullAbsorptionBefore) < 1.0E-4F;
 			player.setAbsorptionAmount(0.0F);
+			player.setHealth(5.0F);
+			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, ownShieldCap);
+			float healthAtOwnCap = player.getHealth();
+			boolean capRejected = !com.summy.reliquary.effect.BloodDebtAltar.activate(player)
+					&& Math.abs(player.getHealth() - healthAtOwnCap) < 1.0E-4F;
+
+			double conversion = com.summy.reliquary.config.ReliquaryConfig
+					.bloodDebtActiveAbsorbPercent() / 100.0D;
+			double nearCapRoom = Math.min(10.0D, ownShieldCap);
+			double nearCapHealthCost = nearCapRoom / conversion;
+			float nearCapStartHealth = player.getMaxHealth();
+			player.setHealth(nearCapStartHealth);
+			player.setAbsorptionAmount(7.0F);
+			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, ownShieldCap - nearCapRoom);
+			boolean nearCapCostScaled = com.summy.reliquary.effect.BloodDebtAltar.activate(player)
+					&& Math.abs(com.summy.reliquary.effect.BloodDebtAltar.shield(player)
+							- ownShieldCap) < 1.0E-4D
+					&& Math.abs(player.getHealth()
+							- (nearCapStartHealth - nearCapHealthCost)) < 1.0E-4F
+					&& Math.abs(player.getAbsorptionAmount() - 7.0F) < 1.0E-4F;
+			player.setHealth(1.25F);
+			player.setAbsorptionAmount(0.0F);
+			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 0.0D);
+			boolean lowLifeRejected = !com.summy.reliquary.effect.BloodDebtAltar.activate(player)
+					&& Math.abs(player.getHealth() - 1.25F) < 1.0E-4F;
+			boolean zeroCapRejected = com.summy.reliquary.effect.BloodDebtAltar
+					.activationHealthCostForTest(19.0D, 0.0D, 20.0D, 0.0D, 200.0D) < 0.0D;
+			boolean zeroConversionRejected = com.summy.reliquary.effect.BloodDebtAltar
+					.activationHealthCostForTest(19.0D, 0.0D, 20.0D, 200.0D, 0.0D) < 0.0D;
 			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 4.0D);
 			boolean independentShieldPersisted =
 					Math.abs(com.summy.reliquary.effect.BloodDebtAltar.shield(player) - 4.0D) < 1.0E-4D
@@ -5165,7 +5199,9 @@ public final class ForgeDevCheck {
 					&& shieldActivated && Math.abs(shieldGain - expectedShieldGain) < 1.0E-4D
 					&& Math.abs(absorptionAfterActivation) < 1.0E-4F
 					&& existingAbsorptionPreserved && realHurtTickMarked
-					&& capRejected && independentShieldPersisted
+					&& independentCapIgnoresAbsorption && capRejected && nearCapCostScaled
+					&& lowLifeRejected && zeroCapRejected && zeroConversionRejected
+					&& independentShieldPersisted
 					&& bloodLayerAfterAbsorption && quietHealthTargetMatches
 					&& quietHealthTiltSuppression;
 			unequip(player, ReliquarySlots.COVENANT);
