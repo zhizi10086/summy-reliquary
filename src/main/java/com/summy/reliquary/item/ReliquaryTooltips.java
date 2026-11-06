@@ -11,6 +11,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -285,6 +286,11 @@ public final class ReliquaryTooltips {
 		return Math.abs(value - Math.rint(value)) < 1.0E-6D
 				? String.valueOf((long) Math.rint(value))
 				: String.valueOf(Math.round(value * 10.0D) / 10.0D);
+	}
+
+	/** 提示需要保留实际有效小数时使用；例如 0.05 不能被通用的一位小数格式四舍五入成 0.1。 */
+	public static String exactNumber(double value) {
+		return BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
 	}
 
 	/**

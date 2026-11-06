@@ -97,7 +97,7 @@ public final class CovenantActions {
 				case 2 -> new Object[]{
 						ReliquaryConfig.lifeDeathDeathFormSeconds(),
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageBase()),
-						ReliquaryTooltipsNumber.of(
+						ReliquaryTooltipsNumber.exact(
 								ReliquaryConfig.lifeDeathDamageStepPercent() / 100.0D),
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageCap())
 				};
@@ -224,6 +224,10 @@ public final class CovenantActions {
 	private static final class ReliquaryTooltipsNumber {
 		private static Object of(double value) {
 			return com.summy.reliquary.item.ReliquaryTooltips.number(value);
+		}
+
+		private static Object exact(double value) {
+			return com.summy.reliquary.item.ReliquaryTooltips.exactNumber(value);
 		}
 	}
 }

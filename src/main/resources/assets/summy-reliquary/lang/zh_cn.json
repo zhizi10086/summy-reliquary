@@ -669,7 +669,7 @@
   "item.summy-reliquary.hex_seal": "厄咒之印",
   "item.summy-reliquary.hex_seal.desc.1": "名字被写下，",
   "item.summy-reliquary.hex_seal.desc.2": "诅咒便不再离开。",
-  "item.summy-reliquary.hex_seal.shift.1": "近战攻击命中时，有 %s%% 几率施加持续 %s 秒的厄咒。",
+  "item.summy-reliquary.hex_seal.shift.1": "你的普通伤害命中时，有 %s%% 几率施加持续 %s 秒的厄咒。",
   "item.summy-reliquary.hex_seal.shift.2": "按下 R，会对视线前方 %s° 锥形、%s 格内的敌人施加 %s 秒厄咒。",
   "item.summy-reliquary.hex_seal.shift.3": "厄咒目标受到的伤害提高 %s%%。所受伤害的 %s%% 会以真实伤害传播给其他厄咒单位；同一 tick 内，只生效最高的一次伤害。",
   "item.summy-reliquary.hex_seal.shift.4": "受厄咒的非玩家生物死亡时，剩余厄咒时间的一半会传给 %s 格内的其他非玩家生物。",

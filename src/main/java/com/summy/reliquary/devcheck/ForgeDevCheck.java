@@ -4580,14 +4580,28 @@ public final class ForgeDevCheck {
 			boolean visualAfterStable =
 					com.summy.reliquary.client.ReliquaryClientState.isDeathFormVisualActive();
 			boolean redStart = firstTransientHidden && visualAfterStable;
+			long initialStart = com.summy.reliquary.effect.PlayerFlags.deathFormStartedAt(player);
+			int initialDuration = com.summy.reliquary.effect.PlayerFlags.deathFormDuration(player);
+			long growthNow = player.serverLevel().getGameTime();
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, growthNow, initialDuration);
+			float damageAtZeroSeconds = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, growthNow - 100L, initialDuration);
+			float damageAtFiveSeconds = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, growthNow - 200L, initialDuration);
+			float damageAtTenSeconds = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, growthNow - 400L, initialDuration);
+			float damageAtTwentySeconds = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, initialStart, initialDuration);
+			boolean tenSecondDamageGrowth = Math.abs(damageAtZeroSeconds - 1.5F) < 1.0E-4F
+					&& Math.abs(damageAtFiveSeconds - 1.75F) < 1.0E-4F
+					&& Math.abs(damageAtTenSeconds - 2.0F) < 1.0E-4F
+					&& Math.abs(damageAtTwentySeconds - 2.0F) < 1.0E-4F;
 			boolean lifeOk = lifeActivated && deathForm && fullHealth && debuffsCleared
 					&& deathTagged && deathModel && deathSynced && deathHud && deathPacket && redStart
 					&& displayRefreshKeepsForm && repeatedActivationKeepsForm
-					&& deathSpeed >= 1.5F && deathMoveModifier > 0.0D;
+					&& deathSpeed >= 1.5F && deathMoveModifier > 0.0D && tenSecondDamageGrowth;
 
 			// Boss 进度应随 tick 连续变化，而不是只在整数秒边界跳变。
-			long initialStart = com.summy.reliquary.effect.PlayerFlags.deathFormStartedAt(player);
-			int initialDuration = com.summy.reliquary.effect.PlayerFlags.deathFormDuration(player);
 			float progressStart = com.summy.reliquary.effect.LifeDeath.hudProgress(player);
 			com.summy.reliquary.effect.PlayerFlags.setDeathForm(
 					player, player.serverLevel().getGameTime() - initialDuration / 2L, initialDuration);
@@ -5276,8 +5290,8 @@ public final class ForgeDevCheck {
 					new net.minecraft.world.entity.projectile.Arrow(player.serverLevel(), player);
 			com.summy.reliquary.effect.HexSeal.onOutgoingHurt(new LivingHurtEvent(hexB,
 					player.damageSources().arrow(hexArrow, player), 10.0F));
-			boolean hexRangedExcluded = !com.summy.reliquary.effect.HexSeal.marked(hexB);
-			boolean hexMeleeRangeOk = hexMeleeApplied && hexRangedExcluded;
+			boolean hexRangedApplied = com.summy.reliquary.effect.HexSeal.marked(hexB);
+			boolean hexTriggerScopeOk = hexMeleeApplied && hexRangedApplied;
 			hexArrow.discard();
 			com.summy.reliquary.effect.HexSeal.removeOwner(player);
 			com.summy.reliquary.effect.HexSeal.setForcedProcForTest(null);
@@ -5322,7 +5336,7 @@ public final class ForgeDevCheck {
 					SummyReliquary.HEX_SEAL_EFFECT.get(), 200, 0, false, false, true));
 			com.summy.reliquary.effect.HexSeal.onDeath(hexA);
 			boolean hexDeathCleared = !hexA.hasEffect(SummyReliquary.HEX_SEAL_EFFECT.get());
-			boolean hexVisualOk = hexMeleeRangeOk && hexMarkerOk && hexMarkerRestored
+			boolean hexVisualOk = hexTriggerScopeOk && hexMarkerOk && hexMarkerRestored
 					&& playerSpreadExcluded && mobSpreadApplied
 					&& hexOwnerRemovalCleared && hexStaleMarkerCleared && hexDeathCleared;
 			unequip(player, ReliquarySlots.COVENANT);
@@ -5344,7 +5358,8 @@ public final class ForgeDevCheck {
 			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s/数据包=%s、伤害归类=%s/"
 							+ "SE 裁决排除标签=%s；"
 							+ "逐行提示参数=%s；"
-							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/移速修饰 %.2f → %s；"
+							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/0-5-10 秒 %.2f-%.2f-%.2f/"
+							+ "移速修饰 %.2f → %s；"
 							+ "死转生=%s/物品标记清除=%s/客户端同步清除=%s/生命 %.1f/移速修饰 %.2f/攻速修饰 %.2f/冷却=%s → %s；"
 							+ "BOSS 单杀达标并等待归零复活=%s；到期仅跳过自身并由神性救下=%s/冷却 %d tick/冷却 HUD=%s → %s；"
 							+ "直接死亡待结算/重生冷却=%s；过期恢复清理=%s；摘除即死/重生冷却=%s；"
@@ -5356,11 +5371,13 @@ public final class ForgeDevCheck {
 							+ "未满攻击强度附伤 %.2f（应 0）/状态图标定义=%s（共 %d 个）/锥形采样=%s → %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/"
 							+ "独立盾 %.1f（应 %.1f）/原版吸收 %.1f（应 0） → %s；"
-							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）/近战范围、图标与清理=%s → %s；"
+							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）/触发范围、图标与清理=%s → %s；"
 							+ "配置与协议=%s；整体=%s（应 true）",
 					registered, covenantSlots, resources, dataResources, sourceClassification,
 					verdictSeTag, tooltipArguments,
-					lifeActivated, deathForm, fullHealth, debuffsCleared, deathSpeed, deathMoveModifier, lifeOk,
+					lifeActivated, deathForm, fullHealth, debuffsCleared, deathSpeed,
+					damageAtZeroSeconds, damageAtFiveSeconds, damageAtTenSeconds,
+					deathMoveModifier, lifeOk,
 					revived, revivedTagCleared, revivedSyncCleared, revivedHealth,
 					revivedMoveModifier, revivedAttackModifier, reviveCooldown, reviveOk,
 					bossRevive, expirySelfSkipped && expirySavedByGodhead, expiryCooldown,
@@ -5412,7 +5429,7 @@ public final class ForgeDevCheck {
 						com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormSeconds(),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageBase()),
-						com.summy.reliquary.item.ReliquaryTooltips.number(
+						com.summy.reliquary.item.ReliquaryTooltips.exactNumber(
 								com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageStepPercent()
 										/ 100.0D),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
@@ -5493,6 +5510,7 @@ public final class ForgeDevCheck {
 								com.summy.reliquary.config.ReliquaryConfig.hexSealSpreadRadius()))
 				&& covenantArgs(hex, 5,
 						com.summy.reliquary.config.ReliquaryConfig.hexSealCooldownSeconds())
+				&& "0.05".equals(com.summy.reliquary.item.ReliquaryTooltips.exactNumber(0.05D))
 				&& covenantTooltipStyleOk();
 	}
 

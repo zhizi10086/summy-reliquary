@@ -671,7 +671,7 @@
   "item.summy-reliquary.hex_seal": "Hex Seal",
   "item.summy-reliquary.hex_seal.desc.1": "The name is written,",
   "item.summy-reliquary.hex_seal.desc.2": "and the curse will never leave.",
-  "item.summy-reliquary.hex_seal.shift.1": "Melee hits have a %s%% chance to apply Hex for %s s.",
+  "item.summy-reliquary.hex_seal.shift.1": "Your normal damage has a %s%% chance to Hex the target for %s s.",
   "item.summy-reliquary.hex_seal.shift.2": "Press R to Hex enemies within a %s° cone up to %s blocks ahead for %s s.",
   "item.summy-reliquary.hex_seal.shift.3": "Hexed targets take %s%% more damage. %s%% of damage taken spreads as true damage to other Hexed targets; only the highest hit in the same tick applies.",
   "item.summy-reliquary.hex_seal.shift.4": "When a Hexed non-player creature dies, half of its remaining Hex time spreads to other non-player creatures within %s blocks.",
