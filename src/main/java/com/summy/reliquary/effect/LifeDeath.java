@@ -253,7 +253,18 @@ public final class LifeDeath {
 		}
 		int weight = killWeight(killed, killer);
 		int total = PlayerFlags.deathFormKillWeight(killer) + weight;
-		if (total >= ReliquaryConfig.lifeDeathReviveKillRequired()) {
+		int required = ReliquaryConfig.lifeDeathReviveKillRequired();
+		boolean revives = total >= required;
+		ResourceLocation typeId = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES
+				.getKey(killed.getType());
+		SummyReliquary.LOGGER.info(
+				"生死逆转击杀计数：玩家={}、目标={}、类型={}、本次权重={}、累计={}/{}、"
+						+ "结果={}、tick={}",
+				killer.getName().getString(), killed.getName().getString(),
+				typeId == null ? killed.getType().toString() : typeId.toString(),
+				weight, total, required, revives ? "达标复活" : "继续",
+				killer.serverLevel().getGameTime());
+		if (revives) {
 			revive(killer);
 		} else {
 			PlayerFlags.setDeathFormKillWeight(killer, total);
@@ -521,25 +532,35 @@ public final class LifeDeath {
 		}
 		player.setHealth(player.getMaxHealth());
 		long now = player.serverLevel().getGameTime();
+		int duration = ReliquaryConfig.lifeDeathDeathFormTicks();
 		PlayerFlags.setLifeDeathCooldownPending(player, false);
-		PlayerFlags.setDeathForm(player, now, ReliquaryConfig.lifeDeathDeathFormTicks());
+		PlayerFlags.setDeathForm(player, now, duration);
 		updateEquippedDisplay(player, true);
 		GUARD_UNTIL.put(player.getUUID(), now + 40L);
 		AttributeManager.apply(player);
 		RevelationTracker.sync(player);
 		updateHud(player, now);
+		SummyReliquary.LOGGER.info(
+				"生死逆转进入死形态：玩家={}、开始 tick={}、持续={} tick、初始权重=0/{}",
+				player.getName().getString(), now, duration,
+				ReliquaryConfig.lifeDeathReviveKillRequired());
 	}
 
 	private static void revive(ServerPlayer player) {
+		float healthBefore = player.getHealth();
+		long now = player.serverLevel().getGameTime();
 		PlayerFlags.setLifeDeathCooldownPending(player, false);
 		PlayerFlags.setDeathForm(player, 0L, 0);
 		updateEquippedDisplay(player, false);
 		player.setHealth(player.getMaxHealth());
-		PlayerFlags.setLifeDeathCooldownUntil(player,
-				player.serverLevel().getGameTime() + ReliquaryConfig.lifeDeathCooldownTicks());
+		long cooldownUntil = now + ReliquaryConfig.lifeDeathCooldownTicks();
+		PlayerFlags.setLifeDeathCooldownUntil(player, cooldownUntil);
 		AttributeManager.apply(player);
 		RevelationTracker.sync(player);
-		updateHud(player, player.serverLevel().getGameTime());
+		updateHud(player, now);
+		SummyReliquary.LOGGER.info(
+				"生死逆转达标复活：玩家={}、生命 {}→{}、tick={}、冷却截止={}、死形态=false",
+				player.getName().getString(), healthBefore, player.getHealth(), now, cooldownUntil);
 	}
 
 	/**

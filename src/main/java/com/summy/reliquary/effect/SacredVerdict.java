@@ -33,6 +33,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 
 /**
  * 神圣裁决：普通命中概率施加标记；已标记目标在命中冷却完整时追加最大生命百分比真伤。
@@ -56,9 +58,12 @@ public final class SacredVerdict {
 	private static final List<Candidate> CANDIDATES = new ArrayList<>();
 	private static final List<Confirmed> CONFIRMED = new ArrayList<>();
 	private static final Map<UUID, Long> LAST_CAST_TICK = new HashMap<>();
+	private static final Map<UUID, Long> LAST_CAST_TRACE = new HashMap<>();
 	private static final Map<HitKey, Long> LAST_BONUS_TICK = new HashMap<>();
 	private static final Map<String, Long> LAST_DUPLICATE_LOG = new HashMap<>();
 	private static final ThreadLocal<Integer> APPLYING_DEPTH = ThreadLocal.withInitial(() -> 0);
+	private static final AtomicLong NEXT_CAST_TRACE_ID = new AtomicLong();
+	private static final AtomicLong NEXT_BONUS_TRACE_ID = new AtomicLong();
 	private static Boolean forcedProc;
 	private static Boolean forcedReady;
 	private static int suppressedCastCount;
@@ -136,6 +141,8 @@ public final class SacredVerdict {
 		long serverNow = server.overworld().getGameTime();
 		LAST_CAST_TICK.entrySet().removeIf(entry ->
 				!withinWindow(serverNow, entry.getValue(), CAST_LOCK_TICKS));
+		LAST_CAST_TRACE.entrySet().removeIf(entry ->
+				!LAST_CAST_TICK.containsKey(entry.getKey()));
 		LAST_BONUS_TICK.entrySet().removeIf(entry ->
 				!withinWindow(serverNow, entry.getValue(), BONUS_LOCK_TICKS));
 		LAST_DUPLICATE_LOG.entrySet().removeIf(entry ->
@@ -190,8 +197,12 @@ public final class SacredVerdict {
 						* ReliquaryConfig.sacredVerdictBonusDamagePercent() / 100.0D);
 				if (bonus > 0.0F) {
 					target.invulnerableTime = 0;
-					withApplyingDamage(() -> TrueDamageLimits.hurt(target,
+					long bonusTrace = NEXT_BONUS_TRACE_ID.incrementAndGet();
+					DamageObservation observation = new DamageObservation(target);
+					boolean landed = withApplyingDamage(() -> TrueDamageLimits.hurt(target,
 							source(attacker.serverLevel(), attacker, BONUS_DAMAGE_TYPE), bonus));
+					logBonusSettlement(bonusTrace, attacker, target, confirmed.key(),
+							bonus, observation.lost(target), landed, now);
 				}
 			}
 			boolean proc = forcedProc != null ? forcedProc
@@ -230,7 +241,14 @@ public final class SacredVerdict {
 
 	/** R：命中方块或实体后释放半径爆炸，并给范围内敌人施加裁决。 */
 	public static boolean activate(ServerPlayer player) {
-		if (!wears(player) || isApplyingDamage()) {
+		if (!wears(player)) {
+			return false;
+		}
+		if (isApplyingDamage()) {
+			suppressedCastCount++;
+			long tick = player.serverLevel().getGameTime();
+			logDuplicateCast(player, tick, LAST_CAST_TICK.get(player.getUUID()),
+					LAST_CAST_TRACE.get(player.getUUID()), "执行中重入");
 			return false;
 		}
 		HitResult hit = raycast(player, ReliquaryConfig.sacredVerdictCastRange());
@@ -250,10 +268,13 @@ public final class SacredVerdict {
 		if (withinWindow(now, lastCast, CAST_LOCK_TICKS)) {
 			// 同一 R 请求、重复包及执行中重入只允许展开一次爆炸。
 			suppressedCastCount++;
-			logDuplicateCast(player, now, lastCast);
+			logDuplicateCast(player, now, lastCast,
+					LAST_CAST_TRACE.get(player.getUUID()), "冷却锁");
 			return false;
 		}
 		LAST_CAST_TICK.put(player.getUUID(), now);
+		long castTrace = NEXT_CAST_TRACE_ID.incrementAndGet();
+		LAST_CAST_TRACE.put(player.getUUID(), castTrace);
 		String castType = castDamageType(ReliquaryConfig.exactDamageGetsMultiplier());
 		List<LivingEntity> targets = new ArrayList<>(level.getEntitiesOfClass(LivingEntity.class,
 				new AABB(center, center).inflate(radius),
@@ -265,14 +286,20 @@ public final class SacredVerdict {
 				&& !targets.contains(living)) {
 			targets.add(living);
 		}
+		logCastStart(castTrace, player, castType, targets.size(), damage, now);
 		withApplyingDamage(() -> {
 			for (LivingEntity target : targets) {
 				target.invulnerableTime = 0;
-				TrueDamageLimits.hurt(target, source(level, player, castType), damage);
+				DamageObservation observation = new DamageObservation(target);
+				boolean landed = TrueDamageLimits.hurt(target,
+						source(level, player, castType), damage);
+				logCastSettlement(castTrace, player, target, castType,
+						damage, observation.lost(target), landed, now);
 				if (target.isAlive()) {
 					applyMark(target, now + ReliquaryConfig.sacredVerdictCastMarkTicks());
 				}
 			}
+			return null;
 		});
 		for (int index = 0; index < 96; index++) {
 			double angle = Math.PI * 2.0D * index / 96.0D;
@@ -303,6 +330,7 @@ public final class SacredVerdict {
 		CANDIDATES.clear();
 		CONFIRMED.clear();
 		LAST_CAST_TICK.clear();
+		LAST_CAST_TRACE.clear();
 		LAST_BONUS_TICK.clear();
 		LAST_DUPLICATE_LOG.clear();
 		APPLYING_DEPTH.remove();
@@ -310,6 +338,8 @@ public final class SacredVerdict {
 		forcedReady = null;
 		suppressedCastCount = 0;
 		suppressedBonusCount = 0;
+		NEXT_CAST_TRACE_ID.set(0L);
+		NEXT_BONUS_TRACE_ID.set(0L);
 	}
 
 	public static void setForcedProcForTest(Boolean value) {
@@ -328,6 +358,7 @@ public final class SacredVerdict {
 	/** 自检用：清空施法 / 附伤幂等记录，不影响已有裁决标记。 */
 	public static void clearDebounceForTest() {
 		LAST_CAST_TICK.clear();
+		LAST_CAST_TRACE.clear();
 		LAST_BONUS_TICK.clear();
 		LAST_DUPLICATE_LOG.clear();
 		suppressedCastCount = 0;
@@ -436,10 +467,10 @@ public final class SacredVerdict {
 		return APPLYING_DEPTH.get() > 0;
 	}
 
-	private static void withApplyingDamage(Runnable action) {
+	private static <T> T withApplyingDamage(Supplier<T> action) {
 		APPLYING_DEPTH.set(APPLYING_DEPTH.get() + 1);
 		try {
-			action.run();
+			return action.get();
 		} finally {
 			int depth = APPLYING_DEPTH.get() - 1;
 			if (depth <= 0) {
@@ -450,13 +481,39 @@ public final class SacredVerdict {
 		}
 	}
 
-	private static void logDuplicateCast(ServerPlayer player, long now, Long lastTick) {
+	private static void logCastStart(long traceId, ServerPlayer player, String damageType,
+			int targetCount, float baseDamage, long tick) {
+		SummyReliquary.LOGGER.info(
+				"神圣裁决施法开始：序号={}、玩家={}、类型={}、目标数={}、基础={}、tick={}",
+				traceId, player.getName().getString(), damageType, targetCount, baseDamage, tick);
+	}
+
+	private static void logCastSettlement(long traceId, ServerPlayer player, LivingEntity target,
+			String damageType, float baseDamage, float actualLoss, boolean landed, long tick) {
+		SummyReliquary.LOGGER.info(
+				"神圣裁决施法结算：序号={}、玩家={}、目标={}、类型={}、基础={}、实际={}、落地={}、tick={}",
+				traceId, player.getName().getString(), target.getName().getString(),
+				damageType, baseDamage, actualLoss, landed, tick);
+	}
+
+	private static void logBonusSettlement(long traceId, ServerPlayer attacker, LivingEntity target,
+			HitKey key, float baseDamage, float actualLoss, boolean landed, long tick) {
+		SummyReliquary.LOGGER.info(
+				"神圣裁决附伤结算：序号={}、攻击者={}、目标={}、类型={}、基础={}、实际={}、"
+						+ "落地={}、命中键={}、tick={}",
+				traceId, attacker.getName().getString(), target.getName().getString(),
+				BONUS_DAMAGE_TYPE, baseDamage, actualLoss, landed, key, tick);
+	}
+
+	private static void logDuplicateCast(ServerPlayer player, long now, Long lastTick,
+			Long lastTraceId, String reason) {
 		String key = "cast:" + player.getUUID();
 		if (!shouldLogDuplicate(key, now)) {
 			return;
 		}
-		SummyReliquary.LOGGER.info("神圣裁决重复施法已拦截：玩家={}、tick={}、上次={}",
-				player.getName().getString(), now, lastTick);
+		SummyReliquary.LOGGER.info(
+				"神圣裁决重复施法已拦截：玩家={}、原因={}、tick={}、上次 tick={}、上次序号={}",
+				player.getName().getString(), reason, now, lastTick, lastTraceId);
 	}
 
 	private static void logDuplicateBonus(ServerPlayer attacker, LivingEntity target, HitKey key,
@@ -494,5 +551,16 @@ public final class SacredVerdict {
 	}
 
 	private record HitKey(UUID attacker, UUID target, String damageType, UUID directEntity) {
+	}
+
+	private record DamageObservation(float healthBefore, float absorptionBefore) {
+		private DamageObservation(LivingEntity target) {
+			this(target.getHealth(), target.getAbsorptionAmount());
+		}
+
+		private float lost(LivingEntity target) {
+			return Math.max(0.0F, healthBefore - target.getHealth())
+					+ Math.max(0.0F, absorptionBefore - target.getAbsorptionAmount());
+		}
 	}
 }

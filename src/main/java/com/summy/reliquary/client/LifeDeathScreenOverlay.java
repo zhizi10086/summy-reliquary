@@ -20,8 +20,6 @@ public final class LifeDeathScreenOverlay implements IGuiOverlay {
 	private static final int WARNING_TICKS = 100;
 	/** 18 tick ≈ 0.9 秒一次完整呼吸。 */
 	private static final float PULSE_PERIOD_TICKS = 18.0F;
-	/** 原版 Boss 标题位于 y=3，进度条位于 y=12~22；顶部完全留空，侧边从安全区下方开始。 */
-	private static final int TOP_SAFE_HEIGHT = 24;
 	private static final int EDGE_RGB = 0x7A1010;
 	private static final int SIDE_BANDS = 6;
 
@@ -43,8 +41,8 @@ public final class LifeDeathScreenOverlay implements IGuiOverlay {
 		}
 
 		int edge = Math.max(18, Math.min(64, Math.min(width, height) / 10));
-		// 顶部完全不描，避免任何分辨率下压住 Boss 标题；底部与左右侧边保留。
-		int sideTop = Math.min(TOP_SAFE_HEIGHT, height);
+		// 顶部横向完全不描；左右侧边从屏幕顶端开始，保证侧边连续到四角。
+		int sideTop = 0;
 		graphics.fillGradient(0, height - edge, width, height, argb(0), argb(alpha));
 		for (int band = 0; band < SIDE_BANDS; band++) {
 			int x0 = band * edge / SIDE_BANDS;
@@ -57,9 +55,9 @@ public final class LifeDeathScreenOverlay implements IGuiOverlay {
 		}
 	}
 
-	/** 自检用：左右侧边不得进入顶部 Boss 标题与进度条安全区。 */
-	public static int sideBandStart(int height) {
-		return Math.min(Math.max(0, height), TOP_SAFE_HEIGHT);
+	/** 自检用：左右侧边从屏幕最顶端开始，顶部横向仍由 render 保持不绘制。 */
+	public static int sideBandStart() {
+		return 0;
 	}
 
 	/**

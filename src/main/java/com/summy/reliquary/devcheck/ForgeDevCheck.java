@@ -4766,8 +4766,7 @@ public final class ForgeDevCheck {
 					&& metAlpha == staticAlpha
 					&& warningLow == 46
 					&& warningHigh == 52
-					&& com.summy.reliquary.client.LifeDeathScreenOverlay.sideBandStart(720) == 24
-					&& com.summy.reliquary.client.LifeDeathScreenOverlay.sideBandStart(18) == 18;
+					&& com.summy.reliquary.client.LifeDeathScreenOverlay.sideBandStart() == 0;
 			DamageSource failureSource = com.summy.reliquary.effect.LifeDeath
 					.revivalFailureSource(player);
 			String failureText = failureSource.getLocalizedDeathMessage(player).getString();
