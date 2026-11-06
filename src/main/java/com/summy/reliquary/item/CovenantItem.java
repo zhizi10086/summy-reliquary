@@ -214,11 +214,11 @@ public class CovenantItem extends Item implements ICurioItem {
 	}
 
 	public enum Kind {
-		LIFE_DEATH("life_death", Gate.NONE, ReliquaryFaction.NEUTRAL, 6),
-		DIVINE_INTERVENTION("divine_intervention", Gate.ANGEL, ReliquaryFaction.ANGEL, 4),
+		LIFE_DEATH("life_death", Gate.NONE, ReliquaryFaction.NEUTRAL, 5),
+		DIVINE_INTERVENTION("divine_intervention", Gate.ANGEL, ReliquaryFaction.ANGEL, 5),
 		SACRED_VERDICT("sacred_verdict", Gate.ANGEL, ReliquaryFaction.ANGEL, 5),
 		BLOOD_DEBT_ALTAR("blood_debt_altar", Gate.DEMON, ReliquaryFaction.DEMON, 5),
-		HEX_SEAL("hex_seal", Gate.DEMON, ReliquaryFaction.DEMON, 5);
+		HEX_SEAL("hex_seal", Gate.DEMON, ReliquaryFaction.DEMON, 6);
 
 		private final String id;
 		private final Gate gate;

@@ -94,16 +94,19 @@ public final class CovenantActions {
 	public static Object[] tooltipArguments(CovenantItem.Kind kind, int lineIndex) {
 		return switch (kind) {
 			case LIFE_DEATH -> switch (lineIndex) {
-				case 1 -> new Object[]{
+				case 2 -> new Object[]{
+						ReliquaryConfig.lifeDeathDeathFormSeconds(),
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageBase()),
-						ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageStepPercent()),
+						ReliquaryTooltipsNumber.of(
+								ReliquaryConfig.lifeDeathDamageStepPercent() / 100.0D),
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.lifeDeathDamageCap())
 				};
-				case 2 -> new Object[]{ReliquaryConfig.lifeDeathMoveSpeedPercent()};
-				case 3 -> new Object[]{ReliquaryConfig.lifeDeathAttackSpeedPercent()};
+				case 3 -> new Object[]{
+						ReliquaryConfig.lifeDeathMoveSpeedPercent(),
+						ReliquaryConfig.lifeDeathAttackSpeedPercent()
+				};
 				case 4 -> new Object[]{ReliquaryConfig.lifeDeathReviveKillRequired()};
-				case 5 -> new Object[]{ReliquaryConfig.lifeDeathDeathFormSeconds()};
-				case 6 -> new Object[]{ReliquaryConfig.lifeDeathCooldownSeconds()};
+				case 5 -> new Object[]{ReliquaryConfig.lifeDeathCooldownSeconds()};
 				default -> new Object[0];
 			};
 			case DIVINE_INTERVENTION -> switch (lineIndex) {
@@ -111,14 +114,15 @@ public final class CovenantActions {
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionReflectPercent())
 				};
 				case 2 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionBarrierDistance()),
+						ReliquaryConfig.divineInterventionBarrierTicks() / 20,
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionBarrierWidth()),
-						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionBarrierHeight()),
-						ReliquaryConfig.divineInterventionBarrierTicks() / 20
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionBarrierHeight())
 				};
-				case 3 -> new Object[]{
+				case 4 -> new Object[]{
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.divineInterventionProjectileDamagePercent())
 				};
-				case 4 -> new Object[]{ReliquaryConfig.divineInterventionCooldownSeconds()};
+				case 5 -> new Object[]{ReliquaryConfig.divineInterventionCooldownSeconds()};
 				default -> new Object[0];
 			};
 			case SACRED_VERDICT -> switch (lineIndex) {
@@ -129,20 +133,18 @@ public final class CovenantActions {
 				case 2 -> new Object[]{
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictBonusDamagePercent())
 				};
-				case 3 -> new Object[]{
+				case 4 -> new Object[]{
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictCastRadius()),
-						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictCastDamage())
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.sacredVerdictCastDamage()),
+						ReliquaryConfig.sacredVerdictCastMarkTicks() / 20
 				};
-				case 4 -> new Object[]{ReliquaryConfig.sacredVerdictCastMarkTicks() / 20};
 				case 5 -> new Object[]{ReliquaryConfig.sacredVerdictCooldownSeconds()};
 				default -> new Object[0];
 			};
 			case BLOOD_DEBT_ALTAR -> switch (lineIndex) {
 				case 1 -> new Object[]{
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtReductionPercent()),
-						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtDeferTicks() / 20.0D)
-				};
-				case 2 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtDeferTicks() / 20.0D),
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtMinDeferredDamage())
 				};
 				case 3 -> new Object[]{
@@ -171,7 +173,10 @@ public final class CovenantActions {
 				case 4 -> new Object[]{
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealTransferPercent())
 				};
-				case 5 -> new Object[]{ReliquaryConfig.hexSealCooldownSeconds()};
+				case 5 -> new Object[]{
+						ReliquaryTooltipsNumber.of(ReliquaryConfig.hexSealSpreadRadius())
+				};
+				case 6 -> new Object[]{ReliquaryConfig.hexSealCooldownSeconds()};
 				default -> new Object[0];
 			};
 		};

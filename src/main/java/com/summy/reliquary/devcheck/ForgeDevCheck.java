@@ -5313,36 +5313,39 @@ public final class ForgeDevCheck {
 		CovenantItem.Kind verdict = CovenantItem.Kind.SACRED_VERDICT;
 		CovenantItem.Kind debt = CovenantItem.Kind.BLOOD_DEBT_ALTAR;
 		CovenantItem.Kind hex = CovenantItem.Kind.HEX_SEAL;
-		return covenantArgs(life, 1,
-					com.summy.reliquary.item.ReliquaryTooltips.number(
-							com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageBase()),
-					com.summy.reliquary.item.ReliquaryTooltips.number(
-							com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageStepPercent()),
-					com.summy.reliquary.item.ReliquaryTooltips.number(
-							com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageCap()))
+		return covenantArgs(life, 1)
 				&& covenantArgs(life, 2,
-						com.summy.reliquary.config.ReliquaryConfig.lifeDeathMoveSpeedPercent())
+						com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormSeconds(),
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageBase()),
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageStepPercent()
+										/ 100.0D),
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.lifeDeathDamageCap()))
 				&& covenantArgs(life, 3,
+						com.summy.reliquary.config.ReliquaryConfig.lifeDeathMoveSpeedPercent(),
 						com.summy.reliquary.config.ReliquaryConfig.lifeDeathAttackSpeedPercent())
 				&& covenantArgs(life, 4,
 						com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired())
 				&& covenantArgs(life, 5,
-						com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormSeconds())
-				&& covenantArgs(life, 6,
 						com.summy.reliquary.config.ReliquaryConfig.lifeDeathCooldownSeconds())
 				&& covenantArgs(intervention, 1,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.divineInterventionReflectPercent()))
 				&& covenantArgs(intervention, 2,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierDistance()),
+						com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierTicks() / 20,
+						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierWidth()),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
-								com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierHeight()),
-						com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierTicks() / 20)
-				&& covenantArgs(intervention, 3,
+								com.summy.reliquary.config.ReliquaryConfig.divineInterventionBarrierHeight()))
+				&& covenantArgs(intervention, 3)
+				&& covenantArgs(intervention, 4,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.divineInterventionProjectileDamagePercent()))
-				&& covenantArgs(intervention, 4,
+				&& covenantArgs(intervention, 5,
 						com.summy.reliquary.config.ReliquaryConfig.divineInterventionCooldownSeconds())
 				&& covenantArgs(verdict, 1,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
@@ -5351,12 +5354,12 @@ public final class ForgeDevCheck {
 				&& covenantArgs(verdict, 2,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictBonusDamagePercent()))
-				&& covenantArgs(verdict, 3,
+				&& covenantArgs(verdict, 3)
+				&& covenantArgs(verdict, 4,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCastRadius()),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
-								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCastDamage()))
-				&& covenantArgs(verdict, 4,
+								com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCastDamage()),
 						com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCastMarkTicks() / 20)
 				&& covenantArgs(verdict, 5,
 						com.summy.reliquary.config.ReliquaryConfig.sacredVerdictCooldownSeconds())
@@ -5364,10 +5367,10 @@ public final class ForgeDevCheck {
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.bloodDebtReductionPercent()),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
-								com.summy.reliquary.config.ReliquaryConfig.bloodDebtDeferTicks() / 20.0D))
-				&& covenantArgs(debt, 2,
+								com.summy.reliquary.config.ReliquaryConfig.bloodDebtDeferTicks() / 20.0D),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.bloodDebtMinDeferredDamage()))
+				&& covenantArgs(debt, 2)
 				&& covenantArgs(debt, 3,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.bloodDebtActiveAbsorbPercent()),
@@ -5395,7 +5398,54 @@ public final class ForgeDevCheck {
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.hexSealTransferPercent()))
 				&& covenantArgs(hex, 5,
-						com.summy.reliquary.config.ReliquaryConfig.hexSealCooldownSeconds());
+						com.summy.reliquary.item.ReliquaryTooltips.number(
+								com.summy.reliquary.config.ReliquaryConfig.hexSealSpreadRadius()))
+				&& covenantArgs(hex, 6,
+						com.summy.reliquary.config.ReliquaryConfig.hexSealCooldownSeconds())
+				&& covenantTooltipStyleOk();
+	}
+
+	/** 机制行必须是完整叙述句；只有冷却行允许使用“名称|数值”的两段配色。 */
+	private static boolean covenantTooltipStyleOk() {
+		int totalLines = 0;
+		for (CovenantItem.Kind kind : CovenantItem.Kind.values()) {
+			totalLines += kind.functionLineCount();
+		}
+		if (totalLines != 26) {
+			return false;
+		}
+		return covenantNarrativeLines(CovenantItem.Kind.LIFE_DEATH, 1, 4)
+				&& covenantStatLine(CovenantItem.Kind.LIFE_DEATH, 5)
+				&& covenantNarrativeLines(CovenantItem.Kind.DIVINE_INTERVENTION, 1, 4)
+				&& covenantStatLine(CovenantItem.Kind.DIVINE_INTERVENTION, 5)
+				&& covenantNarrativeLines(CovenantItem.Kind.SACRED_VERDICT, 1, 4)
+				&& covenantStatLine(CovenantItem.Kind.SACRED_VERDICT, 5)
+				&& covenantNarrativeLines(CovenantItem.Kind.BLOOD_DEBT_ALTAR, 1, 4)
+				&& covenantStatLine(CovenantItem.Kind.BLOOD_DEBT_ALTAR, 5)
+				&& covenantNarrativeLines(CovenantItem.Kind.HEX_SEAL, 1, 5)
+				&& covenantStatLine(CovenantItem.Kind.HEX_SEAL, 6);
+	}
+
+	private static boolean covenantNarrativeLines(CovenantItem.Kind kind, int first, int last) {
+		for (int line = first; line <= last; line++) {
+			String raw = covenantRawTooltip(kind, line);
+			if (raw.equals("item.summy-reliquary." + kind.id() + ".shift." + line)
+					|| raw.contains("|")) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static boolean covenantStatLine(CovenantItem.Kind kind, int line) {
+		String raw = covenantRawTooltip(kind, line);
+		return !raw.equals("item.summy-reliquary." + kind.id() + ".shift." + line)
+				&& raw.contains("|");
+	}
+
+	private static String covenantRawTooltip(CovenantItem.Kind kind, int line) {
+		return net.minecraft.locale.Language.getInstance().getOrDefault(
+				"item.summy-reliquary." + kind.id() + ".shift." + line);
 	}
 
 	private static boolean covenantArgs(CovenantItem.Kind kind, int line, Object... expected) {
