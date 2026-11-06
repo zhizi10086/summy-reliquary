@@ -13,6 +13,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -246,7 +247,8 @@ public final class HexSeal {
 		double radius = ReliquaryConfig.hexSealSpreadRadius();
 		for (LivingEntity nearby : entity.level().getEntitiesOfClass(LivingEntity.class,
 				entity.getBoundingBox().inflate(radius),
-				candidate -> candidate != entity && candidate.distanceTo(entity) <= radius)) {
+				candidate -> candidate != entity && !(candidate instanceof Player)
+						&& candidate.distanceTo(entity) <= radius)) {
 			applyMark(nearby, mark.owner(), half);
 		}
 	}

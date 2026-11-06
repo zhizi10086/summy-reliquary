@@ -25,7 +25,8 @@ public final class ReliquaryNetworking {
 	// 14：1.8.5 起新增「切换神性神圣光环」的 C2S 空包（注册序号 10），两端必须同版本
 	// 15：2.3 起新增「誓约饰品 R 技能」的 C2S 空包（注册序号 11）与血债盾 HUD 同步，两端必须同版本
 	// 16：生死逆转死形态剩余时间、击杀权重与目标权重同步（客户端屏幕警告要用）
-	private static final String VERSION = "16";
+	// 17：血债盾并入原版吸收，玩家状态包删除独立血债盾字段
+	private static final String VERSION = "17";
 
 	public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
 			SummyReliquary.id("main"),
@@ -150,15 +151,14 @@ public final class ReliquaryNetworking {
 	public static void sendPlayerState(net.minecraft.server.level.ServerPlayer player, int sins,
 			int redeemed, boolean revealed, int revealX, int revealZ, int flags, int revealRemainingSeconds,
 			double evil, int blackHeartPoints, int evilUnlocks, int soulHeartPoints,
-			double bloodDebtShield, int lifeDeathRemainingTicks, int lifeDeathKillWeight,
-			int lifeDeathKillRequired) {
+			int lifeDeathRemainingTicks, int lifeDeathKillWeight, int lifeDeathKillRequired) {
 		// 玩家实体还在加载时 connection 可能为空（例如 Curios 在读档时就触发装备事件），此时跳过
 		if (player.connection == null) {
 			return;
 		}
 		CHANNEL.sendTo(new PlayerStateMessage(player.getUUID(), sins, redeemed, revealed, revealX, revealZ,
 				flags, revealRemainingSeconds, evil, blackHeartPoints, evilUnlocks, soulHeartPoints,
-				bloodDebtShield, lifeDeathRemainingTicks, lifeDeathKillWeight, lifeDeathKillRequired),
+				lifeDeathRemainingTicks, lifeDeathKillWeight, lifeDeathKillRequired),
 				player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
 	}
 

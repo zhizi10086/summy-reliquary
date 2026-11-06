@@ -181,7 +181,6 @@ public final class RevelationTracker {
 				(int) Math.round(com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player)),
 				com.summy.reliquary.effect.PlayerFlags.evilUnlocks(player),
 				(int) Math.round(com.summy.reliquary.effect.PlayerFlags.soulHeartPoints(player)),
-				com.summy.reliquary.effect.PlayerFlags.bloodDebtShield(player),
 				com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
 						? (int) Math.max(0L, com.summy.reliquary.effect.PlayerFlags.deathFormStartedAt(player)
 								+ com.summy.reliquary.effect.PlayerFlags.deathFormDuration(player)

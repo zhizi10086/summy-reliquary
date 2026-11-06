@@ -579,6 +579,7 @@ public final class ReliquaryEvents {
 			logSlotSnapshot(player, "登录早期");
 			// 首次进入世界：发放七罪之源与光环（只发一次；是否自动佩戴七罪之源按配置）
 			StarterKit.grantIfFirst(player);
+			com.summy.reliquary.effect.BloodDebtAltar.migrateLegacyShield(player);
 			com.summy.reliquary.effect.LifeDeath.syncDisplayState(player);
 			RevelationTracker.sync(player);
 			AttributeManager.apply(player);

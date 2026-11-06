@@ -130,8 +130,8 @@ public final class PlayerFlags {
 	private static final String LIFE_DEATH_COOLDOWN_PENDING = "life_death_cooldown_pending";
 	/** 旧版生死逆转卸装补发遗留键；只用于启动时安全清理。 */
 	private static final String LEGACY_LIFE_DEATH_RETURN_ITEM = "life_death_return_item";
-	/** 血债祭坛：独立血债盾点数 */
-	private static final String BLOOD_DEBT_SHIELD = "blood_debt_shield";
+	/** 旧版血债祭坛独立盾；只用于一次性迁移到原版吸收。 */
+	private static final String LEGACY_BLOOD_DEBT_SHIELD = "blood_debt_shield";
 	/** 当日已获得的邪恶度总量（受 daily_cap 限制） */
 	private static final String EVIL_TODAY = "evil_today";
 	/** 当日友善档已获得的邪恶度（受 friendly_daily_cap 限制） */
@@ -662,12 +662,11 @@ public final class PlayerFlags {
 		mutableRoot(player).remove(LEGACY_LIFE_DEATH_RETURN_ITEM);
 	}
 
-	public static double bloodDebtShield(LivingEntity entity) {
-		return entity == null ? 0.0D : root(entity).getDouble(BLOOD_DEBT_SHIELD);
-	}
-
-	public static void setBloodDebtShield(ServerPlayer player, double value) {
-		mutableRoot(player).putDouble(BLOOD_DEBT_SHIELD, Math.max(0.0D, value));
+	public static double takeLegacyBloodDebtShield(ServerPlayer player) {
+		CompoundTag root = mutableRoot(player);
+		double value = Math.max(0.0D, root.getDouble(LEGACY_BLOOD_DEBT_SHIELD));
+		root.remove(LEGACY_BLOOD_DEBT_SHIELD);
+		return value;
 	}
 
 	/** 生死逆转：当前是否处于死形态。 */

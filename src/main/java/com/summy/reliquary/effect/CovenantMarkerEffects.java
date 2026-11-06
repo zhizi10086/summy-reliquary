@@ -10,7 +10,7 @@ import java.util.UUID;
 /**
  * 誓约状态的纯视觉镜像工具。
  *
- * <p>玩法状态仍由各技能自己的服务端标记维护；这里只确保目标身上的图标与实际剩余时间一致。
+ * <p>玩法状态仍由各技能自己的服务端标记维护；这里只确保目标身上的图标、状态粒子与实际剩余时间一致。
  */
 public final class CovenantMarkerEffects {
 	private static final int DURATION_TOLERANCE_TICKS = 1;
@@ -28,7 +28,7 @@ public final class CovenantMarkerEffects {
 		if (current != null
 				&& current.getAmplifier() == 0
 				&& !current.isAmbient()
-				&& !current.isVisible()
+				&& current.isVisible()
 				&& current.showIcon()
 				&& Math.abs(current.getDuration() - remaining) <= DURATION_TOLERANCE_TICKS) {
 			return;
@@ -37,7 +37,7 @@ public final class CovenantMarkerEffects {
 		if (current != null) {
 			target.removeEffect(effect);
 		}
-		target.addEffect(new MobEffectInstance(effect, remaining, 0, false, false, true));
+		target.addEffect(new MobEffectInstance(effect, remaining, 0, false, true, true));
 	}
 
 	public static void remove(LivingEntity target, MobEffect effect) {

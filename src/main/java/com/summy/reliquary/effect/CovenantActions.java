@@ -59,7 +59,6 @@ public final class CovenantActions {
 			}
 			case BLOOD_DEBT_ALTAR -> {
 				BloodDebtAltar.onDeathOrUnequip(player);
-				BloodDebtAltar.setShield(player, 0.0D);
 			}
 			case HEX_SEAL -> HexSeal.removeOwner(player);
 		}

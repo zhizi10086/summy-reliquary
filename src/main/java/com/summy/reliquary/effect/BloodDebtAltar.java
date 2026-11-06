@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 血债祭坛：承伤减半、另一半分 tick 静默偿还，主动用生命换取独立血债盾。
+ * 血债祭坛：承伤减半、另一半分 tick 静默偿还，主动用生命换取原版吸收。
  */
 public final class BloodDebtAltar {
 	private static final TagKey<EntityType<?>> FORGE_BOSSES =
@@ -40,17 +40,6 @@ public final class BloodDebtAltar {
 	public static boolean wears(LivingEntity entity) {
 		return entity != null && ReliquaryConfig.enableBloodDebtAltar()
 				&& CurioHelper.wears(entity, SummyReliquary.BLOOD_DEBT_ALTAR.get());
-	}
-
-	public static double shield(LivingEntity entity) {
-		return Math.max(0.0D, PlayerFlags.bloodDebtShield(entity));
-	}
-
-	public static void setShield(ServerPlayer player, double value) {
-		double cap = Math.max(0.0D, player.getMaxHealth()
-				* ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D);
-		PlayerFlags.setBloodDebtShield(player, Math.min(cap, Math.max(0.0D, value)));
-		RevelationTracker.sync(player);
 	}
 
 	/** 受伤时把减免部分拆成独立延迟段。 */
@@ -85,7 +74,7 @@ public final class BloodDebtAltar {
 				.add(new Debt(deferred, ticks, ticks, event.getSource()));
 	}
 
-	/** 每 tick 静默扣血：血债盾 → 吸收 → 魂心 → 黑心 → 生命。 */
+	/** 每 tick 静默扣血：原版吸收 → 魂心 → 黑心 → 生命。 */
 	public static void tickPlayer(ServerPlayer player) {
 		List<Debt> debts = DEBTS.get(player.getUUID());
 		if (debts == null) {
@@ -113,7 +102,7 @@ public final class BloodDebtAltar {
 		}
 	}
 
-	/** R：消耗“当前生命 − 1”，按配置倍率换取独立血债盾。 */
+	/** R：消耗“当前生命 − 1”，按配置倍率换取原版吸收。 */
 	public static boolean activate(ServerPlayer player) {
 		if (!wears(player)) {
 			return false;
@@ -124,14 +113,14 @@ public final class BloodDebtAltar {
 			return false;
 		}
 		double cap = player.getMaxHealth() * ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D;
-		double room = cap - player.getAbsorptionAmount() - shield(player);
+		double room = cap - player.getAbsorptionAmount();
 		if (room <= 1.0E-6D) {
 			fail(player, "item.summy-reliquary.blood_debt_altar.fail.full");
 			return false;
 		}
 		double gain = Math.min(room, cost * ReliquaryConfig.bloodDebtActiveAbsorbPercent() / 100.0D);
 		player.setHealth((float) Math.max(0.5D, player.getHealth() - cost));
-		setShield(player, shield(player) + gain);
+		player.setAbsorptionAmount((float) (player.getAbsorptionAmount() + gain));
 		return true;
 	}
 
@@ -177,6 +166,21 @@ public final class BloodDebtAltar {
 		LAST_HURT.clear();
 	}
 
+	/** 旧版独立血债盾一次性转入原版吸收。 */
+	public static void migrateLegacyShield(ServerPlayer player) {
+		double legacy = PlayerFlags.takeLegacyBloodDebtShield(player);
+		if (legacy <= 0.0D) {
+			return;
+		}
+		double cap = Math.max(0.0D, player.getMaxHealth()
+				* ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D);
+		double room = Math.max(0.0D, cap - player.getAbsorptionAmount());
+		if (room > 0.0D) {
+			player.setAbsorptionAmount((float) Math.min(cap,
+					player.getAbsorptionAmount() + Math.min(legacy, room)));
+		}
+	}
+
 	public static int segmentCount(ServerPlayer player) {
 		List<Debt> debts = DEBTS.get(player.getUUID());
 		return debts == null ? 0 : debts.size();
@@ -192,11 +196,6 @@ public final class BloodDebtAltar {
 
 	private static void silentDeduct(ServerPlayer player, double amount, DamageSource source) {
 		double remaining = amount;
-		double blood = Math.min(shield(player), remaining);
-		if (blood > 0.0D) {
-			setShield(player, shield(player) - blood);
-			remaining -= blood;
-		}
 		if (remaining > 0.0D && player.getAbsorptionAmount() > 0.0F) {
 			float used = (float) Math.min(player.getAbsorptionAmount(), remaining);
 			player.setAbsorptionAmount(Math.max(0.0F, player.getAbsorptionAmount() - used));

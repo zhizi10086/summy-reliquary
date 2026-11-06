@@ -30,8 +30,6 @@ public class PlayerStateMessage {
 	private final int evilUnlocks;
 	/** 魂心池剩余点数（1.6.2；HUD 画蓝心） */
 	private final int soulHeartPoints;
-	/** 血债祭坛独立护盾点数（2.3；HUD 画黄心，不写原版吸收） */
-	private final double bloodDebtShield;
 	/** 死形态剩余 tick（客户端边缘红光使用） */
 	private final int lifeDeathRemainingTicks;
 	/** 死形态当前累计击杀权重 */
@@ -41,7 +39,7 @@ public class PlayerStateMessage {
 
 	public PlayerStateMessage(UUID owner, int sins, int redeemed, boolean revealed, int revealX, int revealZ,
 			int flags, int revealRemainingSeconds, double evil, int blackHeartPoints, int evilUnlocks,
-			int soulHeartPoints, double bloodDebtShield, int lifeDeathRemainingTicks,
+			int soulHeartPoints, int lifeDeathRemainingTicks,
 			int lifeDeathKillWeight, int lifeDeathKillRequired) {
 		this.owner = owner;
 		this.sins = sins;
@@ -55,7 +53,6 @@ public class PlayerStateMessage {
 		this.blackHeartPoints = blackHeartPoints;
 		this.evilUnlocks = evilUnlocks;
 		this.soulHeartPoints = soulHeartPoints;
-		this.bloodDebtShield = bloodDebtShield;
 		this.lifeDeathRemainingTicks = lifeDeathRemainingTicks;
 		this.lifeDeathKillWeight = lifeDeathKillWeight;
 		this.lifeDeathKillRequired = lifeDeathKillRequired;
@@ -74,7 +71,6 @@ public class PlayerStateMessage {
 		this.blackHeartPoints = buffer.readVarInt();
 		this.evilUnlocks = buffer.readVarInt();
 		this.soulHeartPoints = buffer.readVarInt();
-		this.bloodDebtShield = buffer.readDouble();
 		this.lifeDeathRemainingTicks = buffer.readVarInt();
 		this.lifeDeathKillWeight = buffer.readVarInt();
 		this.lifeDeathKillRequired = buffer.readVarInt();
@@ -93,7 +89,6 @@ public class PlayerStateMessage {
 		buffer.writeVarInt(blackHeartPoints);
 		buffer.writeVarInt(evilUnlocks);
 		buffer.writeVarInt(soulHeartPoints);
-		buffer.writeDouble(bloodDebtShield);
 		buffer.writeVarInt(lifeDeathRemainingTicks);
 		buffer.writeVarInt(lifeDeathKillWeight);
 		buffer.writeVarInt(lifeDeathKillRequired);
@@ -105,7 +100,6 @@ public class PlayerStateMessage {
 				revealRemainingSeconds);
 		ReliquaryClientState.setDemonStats(evil, blackHeartPoints, evilUnlocks);
 		ReliquaryClientState.setSoulHeartPoints(soulHeartPoints);
-		ReliquaryClientState.setBloodDebtShield(bloodDebtShield);
 		ReliquaryClientState.setLifeDeathHud(lifeDeathRemainingTicks,
 				lifeDeathKillWeight, lifeDeathKillRequired);
 		context.setPacketHandled(true);

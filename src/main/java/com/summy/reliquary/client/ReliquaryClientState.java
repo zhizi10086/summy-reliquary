@@ -37,8 +37,6 @@ public final class ReliquaryClientState {
 	private static int evilUnlocks = 0;
 	/** 魂心池剩余点数（1.6.2；HUD 画蓝心用） */
 	private static int soulHeartPoints = 0;
-	/** 血债祭坛独立护盾点数（2.3；HUD 画独立黄心用） */
-	private static double bloodDebtShield = 0.0D;
 	/** 生死逆转死形态剩余 tick（屏幕边缘红光使用） */
 	private static int lifeDeathRemainingTicks = 0;
 	/** 生死逆转当前击杀权重 */
@@ -278,14 +276,6 @@ public final class ReliquaryClientState {
 
 	public static void setSoulHeartPoints(int value) {
 		soulHeartPoints = Math.max(0, value);
-	}
-
-	public static double bloodDebtShield() {
-		return bloodDebtShield;
-	}
-
-	public static void setBloodDebtShield(double value) {
-		bloodDebtShield = Math.max(0.0D, value);
 	}
 
 	/** 一次性写入契约相关的三项（由 PlayerStateMessage 调用；1.6.4 起邪恶度是 double，保留一位小数） */

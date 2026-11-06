@@ -48,7 +48,7 @@ import java.util.UUID;
  */
 public final class DamagePools {
 	/** 一次命中的挂起记录（1.6.6：额外记住来源与金额，用来识别 Kilt 的"同一击重复事件"） */
-	private record Pending(long tick, float absorptionBefore, float topUp, double chargedBlood,
+	private record Pending(long tick, float absorptionBefore, float topUp,
 			double chargedSoul, double chargedBlack, DamageSource source, float amount) {
 	}
 
@@ -152,22 +152,16 @@ public final class DamagePools {
 		}
 		// ② 池子：魂心 → 黑心（当场扣，破碎推迟到对账）。
 		// 2.13：只要池子非空就整击吞下；/kill 是唯一例外，仍按“能吃多少吃多少”结算。
-		double blood = effectiveBlood(player);
 		double soul = effectiveSoul(player);
 		double black = effectiveBlack(player);
-		double poolTotal = blood + soul + black;
+		double poolTotal = soul + black;
 		double protectedAmount = shieldProtectionActive(event.getSource(), soul + black)
 				? healthPart : Math.min(poolTotal, healthPart);
-		double usedBlood = Math.min(blood, protectedAmount);
-		double usedSoul = Math.min(soul, Math.max(0.0D, protectedAmount - usedBlood));
-		double usedBlack = Math.min(black,
-				Math.max(0.0D, protectedAmount - usedBlood - usedSoul));
-		double deducted = usedBlood + usedSoul + usedBlack;
+		double usedSoul = Math.min(soul, protectedAmount);
+		double usedBlack = Math.min(black, Math.max(0.0D, protectedAmount - usedSoul));
+		double deducted = usedSoul + usedBlack;
 		if (deducted <= 0.0D) {
 			return false;
-		}
-		if (usedBlood > 0.0D) {
-			BloodDebtAltar.setShield(player, BloodDebtAltar.shield(player) - usedBlood);
 		}
 		if (usedSoul > 0.0D) {
 			SoulShield.deduct(player, usedSoul);
@@ -177,7 +171,7 @@ public final class DamagePools {
 		}
 		float topUp = (float) protectedAmount;
 		PENDING.put(player.getUUID(),
-				new Pending(now(player), absorptionBefore, topUp, usedBlood, usedSoul, usedBlack,
+				new Pending(now(player), absorptionBefore, topUp, usedSoul, usedBlack,
 						event.getSource(), event.getAmount()));
 		player.setAbsorptionAmount(absorptionBefore + topUp);
 		logPrepare("命中前扣池", player, absorptionBefore, topUp, healthPart, deducted);
@@ -197,7 +191,7 @@ public final class DamagePools {
 		if (guardOrNullify(player, event, healthPart, absorptionBefore)) {
 			return true;
 		}
-		if (effectiveBlood(player) + effectiveSoul(player) + effectiveBlack(player) <= 0.0D) {
+		if (effectiveSoul(player) + effectiveBlack(player) <= 0.0D) {
 			return false;
 		}
 		NEW_PATH_HITS.put(player.getUUID(), now(player));
@@ -298,23 +292,18 @@ public final class DamagePools {
 		if (event.isCanceled() || event.getAmount() <= 0.0F) {
 			return;
 		}
-		double blood = effectiveBlood(player);
 		double soul = effectiveSoul(player);
 		double black = effectiveBlack(player);
-		double poolBefore = blood + soul + black;
+		double poolBefore = soul + black;
 		float amountBefore = event.getAmount();
 		double protectedAmount = shieldProtectionActive(event.getSource(), soul + black)
 				? amountBefore : Math.min(poolBefore, amountBefore);
 		if (protectedAmount <= 0.0D) {
 			return;
 		}
-		double usedBlood = Math.min(blood, protectedAmount);
-		double usedSoul = Math.min(soul, protectedAmount - usedBlood);
-		double usedBlack = Math.min(black, protectedAmount - usedBlood - usedSoul);
-		double deducted = usedBlood + usedSoul + usedBlack;
-		if (usedBlood > 0.0D) {
-			BloodDebtAltar.setShield(player, BloodDebtAltar.shield(player) - usedBlood);
-		}
+		double usedSoul = Math.min(soul, protectedAmount);
+		double usedBlack = Math.min(black, protectedAmount - usedSoul);
+		double deducted = usedSoul + usedBlack;
 		if (usedSoul > 0.0D) {
 			SoulShield.deduct(player, usedSoul);
 		}
@@ -361,21 +350,17 @@ public final class DamagePools {
 		float consumed = Math.max(0.0F, pending.absorptionBefore() + pending.topUp() - after);
 		float shieldConsumed = Math.min(pending.absorptionBefore(), consumed);
 		double ourActual = Math.max(0.0D, consumed - shieldConsumed);
-		// 扣减顺序是 血债盾 → 魂心 → 黑心，退回时反过来。
-		double charged = pending.chargedBlood() + pending.chargedSoul() + pending.chargedBlack();
+		// 扣减顺序是 魂心 → 黑心，退回时反过来。
+		double charged = pending.chargedSoul() + pending.chargedBlack();
 		double refund = Math.max(0.0D, charged - ourActual);
 		if (refund > 0.0D) {
 			double refundBlack = Math.min(pending.chargedBlack(), refund);
 			double refundSoul = Math.min(pending.chargedSoul(), refund - refundBlack);
-			double refundBlood = refund - refundBlack - refundSoul;
 			if (refundBlack > 0.0D) {
 				DemonPact.refundBlackHearts(player, refundBlack);
 			}
 			if (refundSoul > 0.0D) {
 				SoulShield.refund(player, refundSoul);
-			}
-			if (refundBlood > 0.0D) {
-				BloodDebtAltar.setShield(player, BloodDebtAltar.shield(player) + refundBlood);
 			}
 		}
 		// 1.8.5：把"还原吸收值"从**写回绝对值**改成**增量退还** —— 只减掉自己那一份没被吃掉的并入量
@@ -440,7 +425,7 @@ public final class DamagePools {
 	/** 自检用：直接挂一条"待对账"记录（1.7.3 用来验证创世纪会把它清掉） */
 	public static void markPendingForTest(ServerPlayer player) {
 		PENDING.put(player.getUUID(), new Pending(now(player), player.getAbsorptionAmount(), 0.0F,
-				0.0D, 0.0D, 0.0D, player.damageSources().generic(), 0.0F));
+				0.0D, 0.0D, player.damageSources().generic(), 0.0F));
 	}
 
 	// ==================== 内部 ====================
@@ -460,16 +445,6 @@ public final class DamagePools {
 		}
 		return Math.max(0.0D,
 				Math.min(PlayerFlags.blackHeartPoints(player), DemonPact.blackHeartMaxPoints(player)));
-	}
-
-	/** 生效中的血债盾（独立账本，位于原版吸收之后、魂心之前）。 */
-	private static double effectiveBlood(ServerPlayer player) {
-		if (!BloodDebtAltar.wears(player)) {
-			return 0.0D;
-		}
-		double cap = player.getMaxHealth()
-				* ReliquaryConfig.bloodDebtCapMaxHealthPercent() / 100.0D;
-		return Math.max(0.0D, Math.min(BloodDebtAltar.shield(player), cap));
 	}
 
 	/**
