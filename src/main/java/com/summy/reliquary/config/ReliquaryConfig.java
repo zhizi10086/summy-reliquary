@@ -956,6 +956,7 @@ public final class ReliquaryConfig {
 		EXACT_DAMAGE_GETS_MULTIPLIER = builder
 				.comment("定值真伤是否吃本模组的七罪、七德、最终倍率与思想 / 玄秘魔眼 / 恶魔王冠条件乘区（默认关闭）；"
 						+ "开启后 isExactDamage 名单优先，但纯 isDivine 伤害仍排除。"
+						+ "神圣裁决 R 爆炸开启后会使用增伤版伤害类型，同时允许 SE 死神祝福生效；5% 被动附伤始终排除。"
 						+ "若同时安装 Summy Threat，必须关闭其 [reliquary_compat] enable_fixed_damage_boosts，避免双重放大")
 				.define("exact_damage_gets_multiplier", false);
 		TRUE_DAMAGE_IGNORES_DAMAGE_LIMITS = builder

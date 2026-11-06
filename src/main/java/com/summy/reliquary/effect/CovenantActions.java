@@ -50,9 +50,9 @@ public final class CovenantActions {
 		BloodDebtAltar.tickPlayer(player);
 	}
 
-	public static void onUnequip(ServerPlayer player, CovenantItem.Kind kind) {
+	public static void onUnequip(ServerPlayer player, CovenantItem.Kind kind, ItemStack removedStack) {
 		switch (kind) {
-			case LIFE_DEATH -> LifeDeath.onUnequip(player);
+			case LIFE_DEATH -> LifeDeath.onUnequip(player, removedStack);
 			case DIVINE_INTERVENTION -> DivineIntervention.forget(player);
 			case SACRED_VERDICT -> {
 				// 标记本身无玩家属性；再次佩戴后仍按完整攻击前置结算。

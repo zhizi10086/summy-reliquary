@@ -5,6 +5,7 @@ import com.summy.reliquary.sin.SinManager;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -128,6 +129,8 @@ public final class PlayerFlags {
 	private static final String LIFE_DEATH_COOLDOWN_UNTIL = "life_death_cooldown_until";
 	/** 生死逆转：死形态死亡后，等待重生时开始冷却 */
 	private static final String LIFE_DEATH_COOLDOWN_PENDING = "life_death_cooldown_pending";
+	/** 生死逆转：死形态真实卸下后暂存、等待重生归还的物品栈 */
+	private static final String LIFE_DEATH_RETURN_ITEM = "life_death_return_item";
 	/** 血债祭坛：独立血债盾点数 */
 	private static final String BLOOD_DEBT_SHIELD = "blood_debt_shield";
 	/** 当日已获得的邪恶度总量（受 daily_cap 限制） */
@@ -649,6 +652,34 @@ public final class PlayerFlags {
 		} else {
 			root.remove(LIFE_DEATH_COOLDOWN_PENDING);
 		}
+	}
+
+	public static boolean hasLifeDeathReturnItem(LivingEntity entity) {
+		if (entity == null) {
+			return false;
+		}
+		CompoundTag root = root(entity);
+		return root.contains(LIFE_DEATH_RETURN_ITEM, CompoundTag.TAG_COMPOUND);
+	}
+
+	public static ItemStack lifeDeathReturnItem(LivingEntity entity) {
+		if (!hasLifeDeathReturnItem(entity)) {
+			return ItemStack.EMPTY;
+		}
+		return ItemStack.of(root(entity).getCompound(LIFE_DEATH_RETURN_ITEM).copy());
+	}
+
+	public static void setLifeDeathReturnItem(ServerPlayer player, ItemStack stack) {
+		CompoundTag root = mutableRoot(player);
+		if (stack == null || stack.isEmpty()) {
+			root.remove(LIFE_DEATH_RETURN_ITEM);
+			return;
+		}
+		root.put(LIFE_DEATH_RETURN_ITEM, stack.save(new CompoundTag()));
+	}
+
+	public static void clearLifeDeathReturnItem(ServerPlayer player) {
+		mutableRoot(player).remove(LIFE_DEATH_RETURN_ITEM);
 	}
 
 	public static double bloodDebtShield(LivingEntity entity) {

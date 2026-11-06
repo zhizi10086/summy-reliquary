@@ -85,8 +85,11 @@ public final class HolyLightEffect {
 
 	/** 1.8.6：献祭匕首自身那 4 点自损的真伤类型 */
 	private static final String SACRIFICE_SELF_ID = "summy-reliquary.sacrifice_self";
-	/** 2.3：誓约饰品的四种特效伤害。 */
+	/** 2.3：誓约饰品的特效伤害（神圣裁决拆成默认施法、增伤施法和被动附伤三种）。 */
 	private static final String SACRED_VERDICT_ID = "summy-reliquary.sacred_verdict";
+	private static final String SACRED_VERDICT_EMPOWERED_ID =
+			"summy-reliquary.sacred_verdict_empowered";
+	private static final String SACRED_VERDICT_BONUS_ID = "summy-reliquary.sacred_verdict_bonus";
 	private static final String DIVINE_INTERVENTION_REFLECT_ID =
 			"summy-reliquary.divine_intervention_reflect";
 	private static final String BLOOD_DEBT_ID = "summy-reliquary.blood_debt";
@@ -346,15 +349,20 @@ public final class HolyLightEffect {
 		return HOLY_LIGHT_ID.equals(id) || HOLY_LIGHT_BURST_ID.equals(id) || GOLDEN_RAZOR_ID.equals(id)
 				|| REVELATION_ID.equals(id) || PACT_SHATTER_ID.equals(id) || HELLFIRE_ID.equals(id)
 				|| DEMON_FLAME_ID.equals(id) || ABYSS_AURA_ID.equals(id)
-				|| SACRED_VERDICT_ID.equals(id) || DIVINE_INTERVENTION_REFLECT_ID.equals(id)
+				|| isSacredVerdictId(id) || DIVINE_INTERVENTION_REFLECT_ID.equals(id)
 				|| BLOOD_DEBT_ID.equals(id) || HEX_TRANSFER_ID.equals(id);
 	}
 
 	/** 2.3：誓约新增的四类伤害，供旧效果显式排除。 */
 	public static boolean isCovenantEffect(DamageSource source) {
 		String id = typeId(source);
-		return SACRED_VERDICT_ID.equals(id) || DIVINE_INTERVENTION_REFLECT_ID.equals(id)
+		return isSacredVerdictId(id) || DIVINE_INTERVENTION_REFLECT_ID.equals(id)
 				|| BLOOD_DEBT_ID.equals(id) || HEX_TRANSFER_ID.equals(id);
+	}
+
+	/** 三种神圣裁决伤害：施法、施法增伤版、被动百分比附伤。 */
+	public static boolean isSacredVerdictDamage(DamageSource source) {
+		return isSacredVerdictId(typeId(source));
 	}
 
 	/**
@@ -368,7 +376,7 @@ public final class HolyLightEffect {
 		String id = typeId(source);
 		return HOLY_LIGHT_BURST_ID.equals(id) || GOLDEN_RAZOR_ID.equals(id) || REVELATION_ID.equals(id)
 				|| GODHEAD_AURA_ID.equals(id) || SACRIFICE_ID.equals(id) || DEMON_FLAME_ID.equals(id)
-				|| ABYSS_AURA_ID.equals(id);
+				|| ABYSS_AURA_ID.equals(id) || SACRED_VERDICT_EMPOWERED_ID.equals(id);
 	}
 
 	/**
@@ -419,6 +427,12 @@ public final class HolyLightEffect {
 	/** 金刀片是物理投射物，虽在“不吃增伤”名单内，仍属于可触发誓约判定的玩家攻击。 */
 	public static boolean isGoldenRazor(DamageSource source) {
 		return source != null && GOLDEN_RAZOR_ID.equals(typeId(source));
+	}
+
+	private static boolean isSacredVerdictId(String id) {
+		return SACRED_VERDICT_ID.equals(id)
+				|| SACRED_VERDICT_EMPOWERED_ID.equals(id)
+				|| SACRED_VERDICT_BONUS_ID.equals(id);
 	}
 
 	/**

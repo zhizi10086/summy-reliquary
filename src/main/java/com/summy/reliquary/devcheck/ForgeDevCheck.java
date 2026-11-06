@@ -4214,6 +4214,9 @@ public final class ForgeDevCheck {
 			float enabledAura = hurtAmount(player, target, "godhead_aura", 10.0F);
 			float enabledSacrifice = hurtAmount(player, target, "sacrifice", 10000.0F);
 			float holyLight = hurtAmount(player, target, "holy_light", 10.0F);
+			float verdictEmpowered = hurtAmount(player, target,
+					"sacred_verdict_empowered", 21.0F);
+			float verdictBonus = hurtAmount(player, target, "sacred_verdict_bonus", 21.0F);
 
 			// 思想三件套 + 发光目标：验证 SpiritAltarSet 与 ReliquaryEvents 共用同一放行口径。
 			CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
@@ -4255,13 +4258,17 @@ public final class ForgeDevCheck {
 					&& Math.abs(enabledAura - 15.0F) < 1.0E-4F
 					&& Math.abs(enabledSacrifice - 15000.0F) < 1.0E-2F
 					&& Math.abs(holyLight - 10.0F) < 1.0E-4F
+					&& Math.abs(verdictEmpowered - 31.5F) < 1.0E-3F
+					&& Math.abs(verdictBonus - 21.0F) < 1.0E-4F
 					&& Math.abs(conditional - 16.5F) < 1.0E-3F
 					&& wrathHits == 0 && armorStrips == 0;
 			log(String.format("定值真伤增伤（2.17）：关闭时 普通 %.2f / 光环 %.2f / 契约 %.1f；"
-							+ "开启时 普通 %.2f / 圣光爆发 %.2f / 光环 %.2f / 契约 %.1f / 纯圣光 %.2f / 条件 %.2f；"
+							+ "开启时 普通 %.2f / 圣光爆发 %.2f / 光环 %.2f / 契约 %.1f / 纯圣光 %.2f / "
+							+ "裁决施法 %.2f / 裁决附伤 %.2f / 条件 %.2f；"
 							+ "附带效果 自伤=%d / 脱甲=%d → 合计=%s（应 true）",
 					melee, aura, sacrifice, enabledMelee, burst, enabledAura, enabledSacrifice,
-					holyLight, conditional, wrathHits, armorStrips, ok));
+					holyLight, verdictEmpowered, verdictBonus, conditional,
+					wrathHits, armorStrips, ok));
 		} finally {
 			com.summy.reliquary.config.ReliquaryConfig.setExactDamageGetsMultiplierForDevCheck(original);
 			target.discard();
@@ -4460,10 +4467,43 @@ public final class ForgeDevCheck {
 					&& hasResource(client, "models/item/life_death_life.json")
 					&& hasResource(client, "textures/slot/covenant.png")
 					&& com.summy.reliquary.client.SummyReliquaryClient.isDeathFormPropertyRegistered();
+			boolean dataResources = hasServerResource(player.getServer(), SummyReliquary.NAMESPACE,
+					"damage_type/sacred_verdict_empowered.json")
+					&& hasServerResource(player.getServer(), SummyReliquary.NAMESPACE,
+							"damage_type/sacred_verdict_bonus.json");
 			DamageSource sacredSource = srSource(player, "sacred_verdict");
+			DamageSource empoweredSacredSource = srSource(player, "sacred_verdict_empowered");
+			DamageSource bonusSacredSource = srSource(player, "sacred_verdict_bonus");
+			boolean originalExactMultiplier = com.summy.reliquary.config.ReliquaryConfig
+					.exactDamageGetsMultiplier();
+			boolean empoweredGate;
+			try {
+				com.summy.reliquary.config.ReliquaryConfig
+						.setExactDamageGetsMultiplierForDevCheck(false);
+				boolean disabled = !com.summy.reliquary.effect.HolyLightEffect
+						.shouldApplyPlayerDamageBonuses(empoweredSacredSource);
+				com.summy.reliquary.config.ReliquaryConfig
+						.setExactDamageGetsMultiplierForDevCheck(true);
+				boolean enabled = com.summy.reliquary.effect.HolyLightEffect
+						.shouldApplyPlayerDamageBonuses(empoweredSacredSource);
+				empoweredGate = disabled && enabled;
+			} finally {
+				com.summy.reliquary.config.ReliquaryConfig
+						.setExactDamageGetsMultiplierForDevCheck(originalExactMultiplier);
+			}
 			boolean sourceClassification = com.summy.reliquary.effect.HolyLightEffect.isDivine(sacredSource)
 					&& !com.summy.reliquary.effect.HolyLightEffect.isExactDamage(sacredSource)
-					&& com.summy.reliquary.effect.HolyLightEffect.isTrueDamage(sacredSource);
+					&& com.summy.reliquary.effect.HolyLightEffect.isTrueDamage(sacredSource)
+					&& com.summy.reliquary.effect.HolyLightEffect.isDivine(bonusSacredSource)
+					&& !com.summy.reliquary.effect.HolyLightEffect.isExactDamage(bonusSacredSource)
+					&& com.summy.reliquary.effect.HolyLightEffect.isDivine(empoweredSacredSource)
+					&& com.summy.reliquary.effect.HolyLightEffect.isExactDamage(empoweredSacredSource)
+					&& empoweredGate;
+			String seVerdictTag = serverResourceText(player.getServer(), "summy_enchantment",
+					"tags/damage_type/no_deaths_blessing_outgoing.json");
+			boolean verdictSeTag = seVerdictTag.contains("summy-reliquary:sacred_verdict")
+					&& seVerdictTag.contains("summy-reliquary:sacred_verdict_bonus")
+					&& !seVerdictTag.contains("summy-reliquary:sacred_verdict_empowered");
 			boolean tooltipArguments = covenantTooltipArgumentsOk();
 
 			// 生死逆转：R 进入死形态、满血、图标同步位与固定移速/攻速。
@@ -4677,18 +4717,32 @@ public final class ForgeDevCheck {
 			player.setHealth(player.getMaxHealth());
 			player.setInvulnerable(false);
 			player.invulnerableTime = 0;
+			int returnCountBefore = countItem(player, SummyReliquary.LIFE_DEATH.get());
+			ItemStack removedForReturn = new ItemStack(SummyReliquary.LIFE_DEATH.get());
 			boolean removalArmed = com.summy.reliquary.effect.LifeDeath.activate(player);
-			com.summy.reliquary.effect.LifeDeath.onUnequip(player);
+			com.summy.reliquary.effect.LifeDeath.onUnequip(player, removedForReturn);
 			boolean removalKilled = removalArmed && player.isDeadOrDying()
-					&& com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownPending(player);
+					&& com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownPending(player)
+					&& com.summy.reliquary.effect.LifeDeath.hasReturnedItemPending(player);
+			ItemEntity simulatedReturnDrop = new ItemEntity(player.serverLevel(),
+					player.getX(), player.getY(), player.getZ(), removedForReturn.copy());
+			java.util.List<ItemEntity> simulatedDrops = new java.util.ArrayList<>();
+			simulatedDrops.add(simulatedReturnDrop);
+			com.summy.reliquary.effect.LifeDeath.protectReturnedDrop(player, simulatedDrops);
+			boolean returnedDropProtected = simulatedDrops.isEmpty();
+			simulatedReturnDrop.discard();
 			player.revive();
 			player.setHealth(player.getMaxHealth());
 			com.summy.reliquary.effect.LifeDeath.onRespawn(player);
+			int returnCountAfter = countItem(player, SummyReliquary.LIFE_DEATH.get());
 			long removalCooldown = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player)
 					- player.serverLevel().getGameTime();
 			boolean removalRespawn = !com.summy.reliquary.effect.PlayerFlags
 					.lifeDeathCooldownPending(player)
 					&& !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& !com.summy.reliquary.effect.LifeDeath.hasReturnedItemPending(player)
+					&& returnCountAfter == returnCountBefore + 1
+					&& returnedDropProtected
 					&& removalCooldown >= com.summy.reliquary.config.ReliquaryConfig
 							.lifeDeathCooldownTicks() - 1L;
 			boolean removalDeathOk = removalKilled && removalRespawn;
@@ -4712,8 +4766,8 @@ public final class ForgeDevCheck {
 					&& metAlpha == staticAlpha
 					&& warningLow == 46
 					&& warningHigh == 52
-					&& com.summy.reliquary.client.LifeDeathScreenOverlay.topSafeStart(64) == 24
-					&& com.summy.reliquary.client.LifeDeathScreenOverlay.topSafeStart(18) == 18;
+					&& com.summy.reliquary.client.LifeDeathScreenOverlay.sideBandStart(720) == 24
+					&& com.summy.reliquary.client.LifeDeathScreenOverlay.sideBandStart(18) == 18;
 			DamageSource failureSource = com.summy.reliquary.effect.LifeDeath
 					.revivalFailureSource(player);
 			String failureText = failureSource.getLocalizedDeathMessage(player).getString();
@@ -4772,28 +4826,33 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(true);
 			float verdictBefore = verdictTarget.getHealth();
 			DamageSource verdictSource = player.damageSources().playerAttack(player);
+			DamageSource verdictLandingSource = player.damageSources().playerAttack(player);
 			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
 					verdictTarget, verdictSource, 10.0F));
-			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
-					player, verdictTarget, verdictSource, true);
+			com.summy.reliquary.effect.SacredVerdict.confirmLanding(
+					new net.minecraftforge.event.entity.living.LivingDamageEvent(
+							verdictTarget, verdictLandingSource, 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float verdictBonus = verdictBefore - verdictTarget.getHealth();
 			com.summy.reliquary.effect.SacredVerdict.clearDebounceForTest();
 			verdictTarget.setHealth(100.0F);
 			verdictTarget.invulnerableTime = 0;
-			DamageSource duplicateVerdictSource = player.damageSources().playerAttack(player);
+			DamageSource duplicateVerdictSourceA = player.damageSources().playerAttack(player);
+			DamageSource duplicateVerdictSourceB = player.damageSources().playerAttack(player);
+			DamageSource duplicateLandingSourceA = player.damageSources().playerAttack(player);
+			DamageSource duplicateLandingSourceB = player.damageSources().playerAttack(player);
 			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
-					verdictTarget, duplicateVerdictSource, 10.0F));
+					verdictTarget, duplicateVerdictSourceA, 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
-					verdictTarget, duplicateVerdictSource, 10.0F));
+					verdictTarget, duplicateVerdictSourceB, 10.0F));
 			int duplicateCandidates = com.summy.reliquary.effect.SacredVerdict
 					.pendingCandidateCountForTest();
 			com.summy.reliquary.effect.SacredVerdict.confirmLanding(
 					new net.minecraftforge.event.entity.living.LivingDamageEvent(
-					verdictTarget, duplicateVerdictSource, 10.0F));
+							verdictTarget, duplicateLandingSourceA, 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.confirmLanding(
 					new net.minecraftforge.event.entity.living.LivingDamageEvent(
-					verdictTarget, duplicateVerdictSource, 10.0F));
+							verdictTarget, duplicateLandingSourceB, 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float duplicateVerdictBonus = 100.0F - verdictTarget.getHealth();
 
@@ -4801,10 +4860,12 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.SacredVerdict.clearDebounceForTest();
 			verdictTarget.setHealth(100.0F);
 			verdictTarget.invulnerableTime = 0;
+			DamageSource mergedVerdictSourceA = player.damageSources().playerAttack(player);
+			DamageSource mergedVerdictSourceB = player.damageSources().playerAttack(player);
 			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
-					player, verdictTarget, duplicateVerdictSource, true);
+					player, verdictTarget, mergedVerdictSourceA, true);
 			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
-					player, verdictTarget, duplicateVerdictSource, true);
+					player, verdictTarget, mergedVerdictSourceB, true);
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float mergedVerdictBonus = 100.0F - verdictTarget.getHealth();
 			verdictTarget.setHealth(100.0F);
@@ -4814,15 +4875,18 @@ public final class ForgeDevCheck {
 			DamageSource unchargedSource = player.damageSources().playerAttack(player);
 			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
 					verdictTarget, unchargedSource, 10.0F));
-			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
-					player, verdictTarget, unchargedSource, false);
+			com.summy.reliquary.effect.SacredVerdict.confirmLanding(
+					new net.minecraftforge.event.entity.living.LivingDamageEvent(
+							verdictTarget, player.damageSources().playerAttack(player), 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float unchargedBonus = beforeUncharged - verdictTarget.getHealth();
 			boolean debounceWindowOk = com.summy.reliquary.effect.SacredVerdict
 					.shouldDebounce(100L, 100L)
-					&& com.summy.reliquary.effect.SacredVerdict.shouldDebounce(101L, 100L)
-					&& !com.summy.reliquary.effect.SacredVerdict.shouldDebounce(102L, 100L)
-					&& !com.summy.reliquary.effect.SacredVerdict.shouldDebounce(90L, 100L);
+					&& com.summy.reliquary.effect.SacredVerdict.shouldDebounce(104L, 100L)
+					&& !com.summy.reliquary.effect.SacredVerdict.shouldDebounce(105L, 100L)
+					&& !com.summy.reliquary.effect.SacredVerdict.shouldDebounce(90L, 100L)
+					&& com.summy.reliquary.effect.SacredVerdict.shouldDebounceCast(119L, 100L)
+					&& !com.summy.reliquary.effect.SacredVerdict.shouldDebounceCast(120L, 100L);
 
 			// 同一 tick 重复 R：只允许一次爆炸视觉与一次 21 点伤害。
 			com.summy.reliquary.effect.SacredVerdict.clear();
@@ -4834,11 +4898,23 @@ public final class ForgeDevCheck {
 			castTarget.setHealth(100.0F);
 			player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES,
 					castTarget, net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES);
-			boolean firstCast = com.summy.reliquary.effect.SacredVerdict.activate(player);
-			boolean duplicateCast = com.summy.reliquary.effect.SacredVerdict.activate(player);
+			boolean exactBeforeCast = com.summy.reliquary.config.ReliquaryConfig
+					.exactDamageGetsMultiplier();
+			boolean firstCast;
+			boolean duplicateCast;
+			try {
+				com.summy.reliquary.config.ReliquaryConfig
+						.setExactDamageGetsMultiplierForDevCheck(false);
+				firstCast = com.summy.reliquary.effect.SacredVerdict.activate(player);
+				duplicateCast = com.summy.reliquary.effect.SacredVerdict.activate(player);
+			} finally {
+				com.summy.reliquary.config.ReliquaryConfig
+						.setExactDamageGetsMultiplierForDevCheck(exactBeforeCast);
+			}
 			float castDamage = 100.0F - castTarget.getHealth();
 			boolean duplicateCastBlocked = firstCast && !duplicateCast
-					&& Math.abs(castDamage - 21.0F) < 0.05F;
+					&& Math.abs(castDamage - 21.0F) < 0.05F
+					&& com.summy.reliquary.effect.SacredVerdict.suppressedCastCountForTest() == 1;
 			boolean barrierDensityOk = com.summy.reliquary.effect.DivineIntervention
 					.edgeParticleCount(0, 5.0D, 3.0D) == 0
 					&& com.summy.reliquary.effect.DivineIntervention
@@ -4852,7 +4928,19 @@ public final class ForgeDevCheck {
 					&& Math.abs(duplicateVerdictBonus - 5.0F) < 0.05F
 					&& Math.abs(mergedVerdictBonus - 5.0F) < 0.05F
 					&& Math.abs(unchargedBonus) < 1.0E-4F
-					&& debounceWindowOk && duplicateCastBlocked;
+					&& debounceWindowOk && duplicateCastBlocked
+					&& com.summy.reliquary.effect.SacredVerdict.BONUS_DAMAGE_TYPE
+							.equals("sacred_verdict_bonus")
+					&& com.summy.reliquary.effect.SacredVerdict.CAST_DAMAGE_TYPE
+							.equals(com.summy.reliquary.effect.SacredVerdict.castDamageType(false))
+					&& com.summy.reliquary.effect.SacredVerdict.EMPOWERED_CAST_DAMAGE_TYPE
+							.equals(com.summy.reliquary.effect.SacredVerdict.castDamageType(true))
+					&& Math.abs(com.summy.reliquary.effect.TrueDamageLimits
+							.resolveIntended(21.0F, 31.5F) - 31.5F) < 1.0E-4F
+					&& Math.abs(com.summy.reliquary.effect.TrueDamageLimits
+							.resolveIntended(21.0F, 10.0F) - 21.0F) < 1.0E-4F
+					&& com.summy.reliquary.effect.TrueDamageLimits.shouldTopUp(
+							true, 31.5F, 5.0F, false, true, false);
 			unequip(player, ReliquarySlots.COVENANT);
 
 			// 血债祭坛：10 点伤害只落地 5 点、延迟 ≤1 的段不生成；R 独立血债盾。
@@ -4909,13 +4997,15 @@ public final class ForgeDevCheck {
 					&& Math.abs(com.summy.reliquary.config.ReliquaryConfig
 							.bloodDebtMinDeferredDamage() - 1.0D) < 1.0E-6D
 					&& "16".equals(com.summy.reliquary.net.ReliquaryNetworking.protocolVersion());
-			boolean ok = registered && covenantSlots == 1 && resources && sourceClassification
+			boolean ok = registered && covenantSlots == 1 && resources && dataResources
+					&& sourceClassification && verdictSeTag
 					&& tooltipArguments
 					&& lifeAllOk && smoothProgress && killCountHud && reviveOk && bossRevive
 					&& expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds
 					&& screenOverlay && failureSourceOk && spearGateReset && oathPressEdge
 					&& interventionOk && barrierDensityOk && sacredOk && debtOk && hexOk && config;
-			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s、伤害归类=%s；"
+			log(String.format("誓约五件（2.3）：注册=%s、栏位=%d（应 1）、资源=%s/数据包=%s、伤害归类=%s/"
+							+ "SE 裁决排除标签=%s；"
 							+ "逐行提示参数=%s；"
 							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/移速修饰 %.2f → %s；"
 							+ "死转生=%s/物品标记清除=%s/客户端同步清除=%s/生命 %.1f/移速修饰 %.2f/攻速修饰 %.2f/冷却=%s → %s；"
@@ -4930,7 +5020,8 @@ public final class ForgeDevCheck {
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
 							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）→ %s；"
 							+ "配置与协议=%s；整体=%s（应 true）",
-					registered, covenantSlots, resources, sourceClassification, tooltipArguments,
+					registered, covenantSlots, resources, dataResources, sourceClassification,
+					verdictSeTag, tooltipArguments,
 					lifeActivated, deathForm, fullHealth, debuffsCleared, deathSpeed, deathMoveModifier, lifeOk,
 					revived, revivedTagCleared, revivedSyncCleared, revivedHealth,
 					revivedMoveModifier, revivedAttackModifier, reviveCooldown, reviveOk,
@@ -10279,6 +10370,35 @@ public final class ForgeDevCheck {
 		return client.getResourceManager()
 				.getResource(new net.minecraft.resources.ResourceLocation(SummyReliquary.NAMESPACE, path))
 				.isPresent();
+	}
+
+	/** 服务端数据包内是否有该文件（data/<namespace>/...）。 */
+	private static boolean hasServerResource(MinecraftServer server, String namespace, String path) {
+		return server != null && server.getResourceManager()
+				.getResource(new net.minecraft.resources.ResourceLocation(namespace, path))
+				.isPresent();
+	}
+
+	/** 合并读取服务端同一资源 id 的所有数据包内容，用于校验跨模组标签追加。 */
+	private static String serverResourceText(MinecraftServer server, String namespace, String path) {
+		if (server == null) {
+			return "";
+		}
+		net.minecraft.resources.ResourceLocation id =
+				new net.minecraft.resources.ResourceLocation(namespace, path);
+		StringBuilder builder = new StringBuilder();
+		for (net.minecraft.server.packs.resources.Resource resource
+				: server.getResourceManager().getResourceStack(id)) {
+			try (java.io.BufferedReader reader = resource.openAsReader()) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					builder.append(line);
+				}
+			} catch (Exception ignored) {
+				// 某一份读不动时继续读取其它数据包；内容不足会由断言报出。
+			}
+		}
+		return builder.toString();
 	}
 
 	/** 1.7.6：读取资源包内某个文件的文本（找不到 / 读不动就返回空串） */

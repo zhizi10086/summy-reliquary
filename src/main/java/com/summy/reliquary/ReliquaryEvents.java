@@ -432,9 +432,11 @@ public final class ReliquaryEvents {
 	@SubscribeEvent
 	public static void onLivingDrops(net.minecraftforge.event.entity.living.LivingDropsEvent event) {
 		if (event.getEntity().level().isClientSide()
-				|| !(event.getEntity() instanceof ServerPlayer)) {
+				|| !(event.getEntity() instanceof ServerPlayer player)) {
 			return;
 		}
+		// 死形态摘除触发的处决：物品先暂存在玩家持久数据，重生后再放回背包首空位。
+		com.summy.reliquary.effect.LifeDeath.protectReturnedDrop(player, event.getDrops());
 		// 1.7.6 / 1.7.9：创世纪与四把仪式武器都是"死亡不掉落"（复活时补发，见 onPlayerClone）
 		event.getDrops().removeIf(drop -> drop.getItem().is(SummyReliquary.GENESIS.get())
 				|| drop.getItem().is(SummyReliquary.SACRIFICIAL_DAGGER.get())
@@ -895,6 +897,8 @@ public final class ReliquaryEvents {
 		com.summy.reliquary.effect.DivineIntervention.onIncomingHurt(event);
 		com.summy.reliquary.effect.SacredVerdict.recordOutgoing(event);
 		com.summy.reliquary.effect.HexSeal.onOutgoingHurt(event);
+		// 记录本次真伤经过全部出伤乘区后的金额，供 TrueDamageLimits 在第三方限伤后补差。
+		com.summy.reliquary.effect.TrueDamageLimits.capture(event);
 	}
 
 	/**
@@ -908,6 +912,8 @@ public final class ReliquaryEvents {
 	 */
 	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
 	public static void onLivingHurtClearTrueDamageIframes(LivingHurtEvent event) {
+		// LOWEST 再取一次最大值；其它模组若在前一阶段继续改金额，也能进入补差目标。
+		com.summy.reliquary.effect.TrueDamageLimits.capture(event);
 		if (event.getEntity().level().isClientSide() || event.isCanceled() || event.getAmount() <= 0.0F) {
 			return;
 		}

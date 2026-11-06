@@ -39,14 +39,30 @@ import java.util.UUID;
  */
 public final class SacredVerdict {
 	public static final String PROJECTILE_ELIGIBLE_TAG = "summy_reliquary_sacred_verdict_eligible";
+	public static final String CAST_DAMAGE_TYPE = "sacred_verdict";
+	public static final String EMPOWERED_CAST_DAMAGE_TYPE = "sacred_verdict_empowered";
+	public static final String BONUS_DAMAGE_TYPE = "sacred_verdict_bonus";
+
+	/** R 在实际冷却之外再加 1 秒请求锁，覆盖重复包、Connector 重入与相邻 tick 重放。 */
+	private static final long CAST_LOCK_TICKS = 20L;
+	/** 合法攻击间隔最低为 5 tick；同一语义命中的重复确认在 5 tick 内只结算一次。 */
+	private static final long BONUS_LOCK_TICKS = 5L;
+	/** Hurt 与 Damage 属于同一次受击，允许 Connector 跨 tick 派发。 */
+	private static final long CANDIDATE_MATCH_TICKS = 3L;
+	private static final long DUPLICATE_LOG_INTERVAL_TICKS = 100L;
+	private static final UUID NO_DIRECT_ENTITY = new UUID(0L, 0L);
+
 	private static final Map<UUID, Mark> MARKS = new HashMap<>();
 	private static final List<Candidate> CANDIDATES = new ArrayList<>();
 	private static final List<Confirmed> CONFIRMED = new ArrayList<>();
 	private static final Map<UUID, Long> LAST_CAST_TICK = new HashMap<>();
-	private static final Map<ActorTarget, Long> LAST_BONUS_TICK = new HashMap<>();
-	private static boolean applyingBonus;
+	private static final Map<HitKey, Long> LAST_BONUS_TICK = new HashMap<>();
+	private static final Map<String, Long> LAST_DUPLICATE_LOG = new HashMap<>();
+	private static final ThreadLocal<Integer> APPLYING_DEPTH = ThreadLocal.withInitial(() -> 0);
 	private static Boolean forcedProc;
 	private static Boolean forcedReady;
+	private static int suppressedCastCount;
+	private static int suppressedBonusCount;
 
 	private SacredVerdict() {
 	}
@@ -59,7 +75,7 @@ public final class SacredVerdict {
 
 	/** 普通命中：只记录候选，真正落地后由 {@link #confirmLanding} 确认。 */
 	public static void recordOutgoing(LivingHurtEvent event) {
-		if (applyingBonus || event.isCanceled() || event.getAmount() <= 0.0F
+		if (isApplyingDamage() || event.isCanceled() || event.getAmount() <= 0.0F
 				|| (HolyLightEffect.isDivine(event.getSource())
 						&& !HolyLightEffect.isGoldenRazor(event.getSource()))) {
 			return;
@@ -76,18 +92,22 @@ public final class SacredVerdict {
 			MARKS.remove(target.getUUID());
 			mark = null;
 		}
-		// Kilt / Connector 等环境可能对同一击重复派发 LivingHurtEvent。
-		// 同一 tick 的同攻击者、同目标、同 DamageSource 实例只登记一次。
-		for (Candidate existing : CANDIDATES) {
-			if (existing.tick() == now
-					&& existing.target().equals(target.getUUID())
-					&& existing.attacker().equals(attacker.getUUID())
-					&& existing.source() == event.getSource()) {
-				return;
+
+		HitKey key = hitKey(attacker, target, event.getSource());
+		boolean ready = attackReady(attacker, event.getSource());
+		boolean hadMark = mark != null;
+		for (int index = 0; index < CANDIDATES.size(); index++) {
+			Candidate existing = CANDIDATES.get(index);
+			if (!existing.key().equals(key)
+					|| !withinWindow(now, existing.tick(), CANDIDATE_MATCH_TICKS)) {
+				continue;
 			}
+			// 同一受击即使由不同 DamageSource 实例重复派发，也合并为同一个候选。
+			CANDIDATES.set(index, new Candidate(existing.tick(), key,
+					existing.ready() || ready, existing.hadMark() || hadMark));
+			return;
 		}
-		CANDIDATES.add(new Candidate(now, target.getUUID(), attacker.getUUID(), event.getSource(),
-				attackReady(attacker, event.getSource()), mark != null));
+		CANDIDATES.add(new Candidate(now, key, ready, hadMark));
 	}
 
 	/**
@@ -96,67 +116,82 @@ public final class SacredVerdict {
 	 */
 	public static void confirmLanding(LivingDamageEvent event) {
 		long now = event.getEntity().level().getGameTime();
+		HitKey key = hitKey(null, event.getEntity(), event.getSource());
 		for (int index = CANDIDATES.size() - 1; index >= 0; index--) {
 			Candidate candidate = CANDIDATES.get(index);
-			if (candidate.tick() != now || !candidate.target().equals(event.getEntity().getUUID())
-					|| candidate.source() != event.getSource()) {
+			if (!candidate.key().equals(key)
+					|| !withinWindow(now, candidate.tick(), CANDIDATE_MATCH_TICKS)) {
 				continue;
 			}
 			CANDIDATES.remove(index);
-			CONFIRMED.add(new Confirmed(candidate.attacker(), candidate.target(), candidate.tick(),
+			CONFIRMED.add(new Confirmed(candidate.tick(), now, candidate.key(),
 					candidate.ready(), candidate.hadMark()));
-			// 一个 LivingDamageEvent 只确认一次，剩余同组候选在 tickServer 开头统一丢弃。
+			// 一个 LivingDamageEvent 只确认一次；同击的后续重复事件没有候选可确认。
 			break;
 		}
 	}
 
-	/** Server tick END：结算已确认的附伤与新标记，并清掉未落地的候选。 */
+	/** Server tick END：结算已确认的附伤与新标记，并清理过期候选。 */
 	public static void tickServer(MinecraftServer server) {
 		long serverNow = server.overworld().getGameTime();
-		LAST_CAST_TICK.entrySet().removeIf(entry -> serverNow - entry.getValue() > 1L);
-		LAST_BONUS_TICK.entrySet().removeIf(entry -> serverNow - entry.getValue() > 1L);
-		if (CANDIDATES.isEmpty() && CONFIRMED.isEmpty()) {
+		LAST_CAST_TICK.entrySet().removeIf(entry ->
+				!withinWindow(serverNow, entry.getValue(), CAST_LOCK_TICKS));
+		LAST_BONUS_TICK.entrySet().removeIf(entry ->
+				!withinWindow(serverNow, entry.getValue(), BONUS_LOCK_TICKS));
+		LAST_DUPLICATE_LOG.entrySet().removeIf(entry ->
+				!withinWindow(serverNow, entry.getValue(), DUPLICATE_LOG_INTERVAL_TICKS));
+		CANDIDATES.removeIf(candidate ->
+				!withinWindow(serverNow, candidate.tick(), CANDIDATE_MATCH_TICKS));
+		CONFIRMED.removeIf(confirmed ->
+				confirmed.confirmedTick() > serverNow
+						|| serverNow - confirmed.confirmedTick() >= CANDIDATE_MATCH_TICKS);
+		if (CONFIRMED.isEmpty()) {
 			return;
 		}
-		CANDIDATES.clear();
-		Map<BonusKey, Confirmed> merged = new LinkedHashMap<>();
+
+		Map<BatchKey, Confirmed> merged = new LinkedHashMap<>();
 		for (Confirmed confirmed : CONFIRMED) {
-			BonusKey key = new BonusKey(confirmed.attacker(), confirmed.target(), confirmed.tick());
-			Confirmed existing = merged.get(key);
-			if (existing == null || (!existing.hadMark() && confirmed.hadMark())) {
-				merged.put(key, confirmed);
+			BatchKey batchKey = new BatchKey(confirmed.key(), confirmed.confirmedTick());
+			Confirmed existing = merged.get(batchKey);
+			if (existing == null) {
+				merged.put(batchKey, confirmed);
+			} else {
+				merged.put(batchKey, new Confirmed(
+						Math.min(existing.recordTick(), confirmed.recordTick()),
+						confirmed.confirmedTick(), confirmed.key(),
+						existing.ready() || confirmed.ready(),
+						existing.hadMark() || confirmed.hadMark()));
 			}
 		}
 		List<Confirmed> batch = new ArrayList<>(merged.values());
 		CONFIRMED.clear();
 		for (Confirmed confirmed : batch) {
-			ServerPlayer attacker = server.getPlayerList().getPlayer(confirmed.attacker());
+			ServerPlayer attacker = server.getPlayerList().getPlayer(confirmed.key().attacker());
 			if (attacker == null || !wears(attacker)) {
 				continue;
 			}
-			Entity found = attacker.serverLevel().getEntity(confirmed.target());
+			Entity found = attacker.serverLevel().getEntity(confirmed.key().target());
 			if (!(found instanceof LivingEntity target) || !target.isAlive()) {
 				continue;
 			}
 			long now = attacker.serverLevel().getGameTime();
 			boolean bonusEligible = confirmed.hadMark() && confirmed.ready();
-			ActorTarget actorTarget = new ActorTarget(confirmed.attacker(), confirmed.target());
-			if (bonusEligible && shouldDebounce(now, LAST_BONUS_TICK.get(actorTarget))) {
-				// 相邻 tick 的重复确认静默丢弃，连新标记概率也不再重掷。
+			if (bonusEligible && withinWindow(now, LAST_BONUS_TICK.get(confirmed.key()),
+					BONUS_LOCK_TICKS)) {
+				// 同一次命中的重复确认静默丢弃，连新标记概率也不再重掷。
+				suppressedBonusCount++;
+				logDuplicateBonus(attacker, target, confirmed.key(), now,
+						LAST_BONUS_TICK.get(confirmed.key()));
 				continue;
 			}
 			if (bonusEligible) {
-				LAST_BONUS_TICK.put(actorTarget, now);
+				LAST_BONUS_TICK.put(confirmed.key(), now);
 				float bonus = (float) (target.getMaxHealth()
 						* ReliquaryConfig.sacredVerdictBonusDamagePercent() / 100.0D);
 				if (bonus > 0.0F) {
-					applyingBonus = true;
-					try {
-						target.invulnerableTime = 0;
-						TrueDamageLimits.hurt(target, source(attacker.serverLevel(), attacker), bonus);
-					} finally {
-						applyingBonus = false;
-					}
+					target.invulnerableTime = 0;
+					withApplyingDamage(() -> TrueDamageLimits.hurt(target,
+							source(attacker.serverLevel(), attacker, BONUS_DAMAGE_TYPE), bonus));
 				}
 			}
 			boolean proc = forcedProc != null ? forcedProc
@@ -195,7 +230,7 @@ public final class SacredVerdict {
 
 	/** R：命中方块或实体后释放半径爆炸，并给范围内敌人施加裁决。 */
 	public static boolean activate(ServerPlayer player) {
-		if (!wears(player)) {
+		if (!wears(player) || isApplyingDamage()) {
 			return false;
 		}
 		HitResult hit = raycast(player, ReliquaryConfig.sacredVerdictCastRange());
@@ -211,20 +246,34 @@ public final class SacredVerdict {
 		double radius = ReliquaryConfig.sacredVerdictCastRadius();
 		float damage = ReliquaryConfig.sacredVerdictCastDamage();
 		long now = level.getGameTime();
-		if (shouldDebounce(now, LAST_CAST_TICK.get(player.getUUID()))) {
-			// 同一 R 请求或相邻 tick 的重复包只允许展开一次爆炸。
+		Long lastCast = LAST_CAST_TICK.get(player.getUUID());
+		if (withinWindow(now, lastCast, CAST_LOCK_TICKS)) {
+			// 同一 R 请求、重复包及执行中重入只允许展开一次爆炸。
+			suppressedCastCount++;
+			logDuplicateCast(player, now, lastCast);
 			return false;
 		}
 		LAST_CAST_TICK.put(player.getUUID(), now);
-		for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class,
+		String castType = castDamageType(ReliquaryConfig.exactDamageGetsMultiplier());
+		List<LivingEntity> targets = new ArrayList<>(level.getEntitiesOfClass(LivingEntity.class,
 				new AABB(center, center).inflate(radius),
-				entity -> Godhead.isAuraTarget(player, entity))) {
-			target.invulnerableTime = 0;
-			TrueDamageLimits.hurt(target, source(level, player), damage);
-			if (target.isAlive()) {
-				applyMark(target, now + ReliquaryConfig.sacredVerdictCastMarkTicks());
-			}
+				entity -> Godhead.isAuraTarget(player, entity)));
+		// 实体射线目标也稳定参与爆炸，避免 Connector 返回实体命中点却遗漏 AABB 成员。
+		if (hit instanceof EntityHitResult entityHit
+				&& entityHit.getEntity() instanceof LivingEntity living
+				&& Godhead.isAuraTarget(player, living)
+				&& !targets.contains(living)) {
+			targets.add(living);
 		}
+		withApplyingDamage(() -> {
+			for (LivingEntity target : targets) {
+				target.invulnerableTime = 0;
+				TrueDamageLimits.hurt(target, source(level, player, castType), damage);
+				if (target.isAlive()) {
+					applyMark(target, now + ReliquaryConfig.sacredVerdictCastMarkTicks());
+				}
+			}
+		});
 		for (int index = 0; index < 96; index++) {
 			double angle = Math.PI * 2.0D * index / 96.0D;
 			double distance = radius * (index % 3 + 1) / 3.0D;
@@ -255,9 +304,12 @@ public final class SacredVerdict {
 		CONFIRMED.clear();
 		LAST_CAST_TICK.clear();
 		LAST_BONUS_TICK.clear();
-		applyingBonus = false;
+		LAST_DUPLICATE_LOG.clear();
+		APPLYING_DEPTH.remove();
 		forcedProc = null;
 		forcedReady = null;
+		suppressedCastCount = 0;
+		suppressedBonusCount = 0;
 	}
 
 	public static void setForcedProcForTest(Boolean value) {
@@ -273,15 +325,36 @@ public final class SacredVerdict {
 		return CANDIDATES.size();
 	}
 
-	/** 自检用：清空短窗幂等记录，不影响已有裁决标记。 */
+	/** 自检用：清空施法 / 附伤幂等记录，不影响已有裁决标记。 */
 	public static void clearDebounceForTest() {
 		LAST_CAST_TICK.clear();
 		LAST_BONUS_TICK.clear();
+		LAST_DUPLICATE_LOG.clear();
+		suppressedCastCount = 0;
+		suppressedBonusCount = 0;
 	}
 
-	/** 同一施法 / 附伤在相邻 2 tick 内重复时返回 true。 */
+	/** 同一语义附伤在 5 tick 内重复时返回 true。 */
 	public static boolean shouldDebounce(long now, Long lastTick) {
-		return lastTick != null && now >= lastTick && now - lastTick <= 1L;
+		return withinWindow(now, lastTick, BONUS_LOCK_TICKS);
+	}
+
+	/** 同一玩家 R 请求在 20 tick 内重复时返回 true。 */
+	public static boolean shouldDebounceCast(long now, Long lastTick) {
+		return withinWindow(now, lastTick, CAST_LOCK_TICKS);
+	}
+
+	/** R 爆炸按现有定值真伤开关选择是否进入全伤害乘区。 */
+	public static String castDamageType(boolean empowered) {
+		return empowered ? EMPOWERED_CAST_DAMAGE_TYPE : CAST_DAMAGE_TYPE;
+	}
+
+	public static int suppressedCastCountForTest() {
+		return suppressedCastCount;
+	}
+
+	public static int suppressedBonusCountForTest() {
+		return suppressedBonusCount;
 	}
 
 	public static void applyMarkForTest(LivingEntity target, int ticks) {
@@ -291,8 +364,9 @@ public final class SacredVerdict {
 	public static void confirmForTest(ServerPlayer attacker, LivingEntity target, DamageSource source,
 			boolean ready) {
 		boolean hadMark = marked(target);
-		CONFIRMED.add(new Confirmed(attacker.getUUID(), target.getUUID(),
-				target.level().getGameTime(), ready, hadMark));
+		HitKey key = hitKey(attacker, target, source);
+		long now = target.level().getGameTime();
+		CONFIRMED.add(new Confirmed(now, now, key, ready, hadMark));
 	}
 
 	private static boolean attackReady(ServerPlayer attacker, DamageSource source) {
@@ -332,28 +406,93 @@ public final class SacredVerdict {
 		return block;
 	}
 
-	private static DamageSource source(ServerLevel level, ServerPlayer player) {
+	private static DamageSource source(ServerLevel level, ServerPlayer player, String typePath) {
 		var registry = level.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE);
 		ResourceKey<DamageType> key = ResourceKey.create(Registries.DAMAGE_TYPE,
-				SummyReliquary.id("sacred_verdict"));
+				SummyReliquary.id(typePath));
 		var holder = registry.getHolder(key).orElse(null);
+		// 数据包缺失时回退到旧裁决类型；补包不完整时仍保持“不增伤”的保守口径。
+		if (holder == null && !CAST_DAMAGE_TYPE.equals(typePath)) {
+			key = ResourceKey.create(Registries.DAMAGE_TYPE, SummyReliquary.id(CAST_DAMAGE_TYPE));
+			holder = registry.getHolder(key).orElse(null);
+		}
 		return holder == null ? level.damageSources().magic()
 				: new DamageSource(holder, player, player);
+	}
+
+	private static HitKey hitKey(ServerPlayer attackerFallback, LivingEntity target, DamageSource source) {
+		Entity attacker = attackerFallback != null ? attackerFallback : source.getEntity();
+		Entity direct = source.getDirectEntity();
+		return new HitKey(attacker == null ? NO_DIRECT_ENTITY : attacker.getUUID(),
+				target.getUUID(), HolyLightEffect.typeId(source),
+				direct == null ? NO_DIRECT_ENTITY : direct.getUUID());
+	}
+
+	private static boolean withinWindow(long now, Long previous, long ticks) {
+		return previous != null && now >= previous && now - previous < ticks;
+	}
+
+	private static boolean isApplyingDamage() {
+		return APPLYING_DEPTH.get() > 0;
+	}
+
+	private static void withApplyingDamage(Runnable action) {
+		APPLYING_DEPTH.set(APPLYING_DEPTH.get() + 1);
+		try {
+			action.run();
+		} finally {
+			int depth = APPLYING_DEPTH.get() - 1;
+			if (depth <= 0) {
+				APPLYING_DEPTH.remove();
+			} else {
+				APPLYING_DEPTH.set(depth);
+			}
+		}
+	}
+
+	private static void logDuplicateCast(ServerPlayer player, long now, Long lastTick) {
+		String key = "cast:" + player.getUUID();
+		if (!shouldLogDuplicate(key, now)) {
+			return;
+		}
+		SummyReliquary.LOGGER.info("神圣裁决重复施法已拦截：玩家={}、tick={}、上次={}",
+				player.getName().getString(), now, lastTick);
+	}
+
+	private static void logDuplicateBonus(ServerPlayer attacker, LivingEntity target, HitKey key,
+			long now, Long lastTick) {
+		String logKey = "bonus:" + key;
+		if (!shouldLogDuplicate(logKey, now)) {
+			return;
+		}
+		SummyReliquary.LOGGER.info(
+				"神圣裁决重复附伤已拦截：攻击者={}、目标={}、类型={}、直接实体={}、tick={}、上次={}",
+				attacker.getName().getString(), target.getName().getString(), key.damageType(),
+				key.directEntity(), now, lastTick);
+	}
+
+	private static boolean shouldLogDuplicate(String key, long now) {
+		Long last = LAST_DUPLICATE_LOG.get(key);
+		if (withinWindow(now, last, DUPLICATE_LOG_INTERVAL_TICKS)) {
+			return false;
+		}
+		LAST_DUPLICATE_LOG.put(key, now);
+		return true;
 	}
 
 	private record Mark(long until) {
 	}
 
-	private record Candidate(long tick, UUID target, UUID attacker, DamageSource source, boolean ready,
+	private record Candidate(long tick, HitKey key, boolean ready, boolean hadMark) {
+	}
+
+	private record Confirmed(long recordTick, long confirmedTick, HitKey key, boolean ready,
 			boolean hadMark) {
 	}
 
-	private record Confirmed(UUID attacker, UUID target, long tick, boolean ready, boolean hadMark) {
+	private record BatchKey(HitKey key, long confirmedTick) {
 	}
 
-	private record BonusKey(UUID attacker, UUID target, long tick) {
-	}
-
-	private record ActorTarget(UUID attacker, UUID target) {
+	private record HitKey(UUID attacker, UUID target, String damageType, UUID directEntity) {
 	}
 }

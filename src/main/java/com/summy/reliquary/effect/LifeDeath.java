@@ -19,12 +19,16 @@ import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.Holder;
 import top.theillusivec4.curios.api.CuriosApi;
 
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -35,6 +39,8 @@ import java.util.UUID;
 public final class LifeDeath {
 	/** 物品栈上的显示缓存；只负责图标与提示，玩法状态仍以玩家 NBT 为准。 */
 	public static final String DISPLAY_TAG = "summy_reliquary_death_form";
+	/** 死形态卸下时给实际掉落栈打的临时标记；死亡掉落阶段据此截获。 */
+	public static final String RETURN_TAG = "summy_reliquary_life_death_return";
 	private static final TagKey<EntityType<?>> FORGE_BOSSES =
 			TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation("forge", "bosses"));
 	private static final TagKey<EntityType<?>> COMMON_BOSSES =
@@ -275,6 +281,7 @@ public final class LifeDeath {
 	 * <p>死亡瞬间只写待处理标记，避免死亡界面停留时间提前消耗冷却。
 	 */
 	public static void onRespawn(ServerPlayer player) {
+		restoreReturnedItem(player);
 		if (!PlayerFlags.lifeDeathCooldownPending(player)) {
 			updateEquippedDisplay(player, false);
 			updateHud(player, player.serverLevel().getGameTime());
@@ -312,6 +319,7 @@ public final class LifeDeath {
 				PlayerFlags.setLifeDeathCooldownPending(player, false);
 				PlayerFlags.setLifeDeathCooldownUntil(player,
 						now + ReliquaryConfig.lifeDeathCooldownTicks());
+				discardReturnedItem(player);
 				RevelationTracker.sync(player);
 			}
 			return;
@@ -323,11 +331,79 @@ public final class LifeDeath {
 	}
 
 	/**
+	 * 真实卸下死形态饰品时先暂存物品，再触发的处决造成死亡时由 Clone 还原。
+	 */
+	public static void onUnequip(ServerPlayer player, ItemStack removedStack) {
+		if (PlayerFlags.isDeathForm(player) && removedStack != null && !removedStack.isEmpty()) {
+			ItemStack stored = removedStack.copy();
+			removeTag(stored, DISPLAY_TAG);
+			stored.getOrCreateTag().putBoolean(RETURN_TAG, true);
+			PlayerFlags.setLifeDeathReturnItem(player, stored);
+			removedStack.getOrCreateTag().putBoolean(RETURN_TAG, true);
+		}
+		onUnequip(player);
+		if (!player.isDeadOrDying() && player.isAlive()) {
+			removeTag(removedStack, DISPLAY_TAG);
+			removeTag(removedStack, RETURN_TAG);
+			discardReturnedItem(player);
+		}
+	}
+
+	/** 死亡掉落阶段截获带本轮标记的生死逆转，避免与 Clone 归还同时产生两份。 */
+	public static void protectReturnedDrop(ServerPlayer player, Collection<ItemEntity> drops) {
+		if (!PlayerFlags.hasLifeDeathReturnItem(player)) {
+			return;
+		}
+		boolean removed = false;
+		for (Iterator<ItemEntity> iterator = drops.iterator(); iterator.hasNext(); ) {
+			ItemEntity drop = iterator.next();
+			ItemStack stack = drop.getItem();
+			if (stack.is(SummyReliquary.LIFE_DEATH.get()) && hasReturnTag(stack)) {
+				iterator.remove();
+				removed = true;
+			}
+		}
+		// Curios 个别版本会传入副本而非槽位实体栈；仅在这种情况下兜底截获第一件。
+		if (!removed) {
+			for (Iterator<ItemEntity> iterator = drops.iterator(); iterator.hasNext(); ) {
+				ItemEntity drop = iterator.next();
+				if (drop.getItem().is(SummyReliquary.LIFE_DEATH.get())) {
+					iterator.remove();
+					break;
+				}
+			}
+		}
+	}
+
+	/** 重生 / 登录时归还未自动佩戴的生死逆转；背包已满时安全落在脚边。 */
+	public static void restoreReturnedItem(ServerPlayer player) {
+		ItemStack stored = PlayerFlags.lifeDeathReturnItem(player);
+		if (stored.isEmpty()) {
+			return;
+		}
+		PlayerFlags.clearLifeDeathReturnItem(player);
+		// keepInventory 或其它死亡保留机制已经把原栈带回时，只清标记，不再复制一份。
+		if (clearInventoryReturnMarker(player)) {
+			return;
+		}
+		removeTag(stored, DISPLAY_TAG);
+		removeTag(stored, RETURN_TAG);
+		if (!player.getInventory().add(stored)) {
+			player.drop(stored, false);
+		}
+	}
+
+	public static boolean hasReturnedItemPending(ServerPlayer player) {
+		return player != null && PlayerFlags.hasLifeDeathReturnItem(player);
+	}
+
+	/**
 	 * 登录 / 换维度 / 状态恢复时校准物品显示缓存。
 	 *
 	 * <p>过期或不再佩戴时清掉玩家死形态状态；仍在死形态则把标记补回物品栈。
 	 */
 	public static void syncDisplayState(ServerPlayer player) {
+		restoreReturnedItem(player);
 		if (PlayerFlags.lifeDeathCooldownPending(player)) {
 			onRespawn(player);
 			return;
@@ -362,6 +438,51 @@ public final class LifeDeath {
 		HUD_ENTRIES.clear();
 		GUARD_UNTIL.clear();
 		EXPIRING.clear();
+	}
+
+	private static boolean hasReturnTag(ItemStack stack) {
+		return stack.hasTag() && stack.getTag().getBoolean(RETURN_TAG);
+	}
+
+	private static void removeTag(ItemStack stack, String key) {
+		if (stack == null || !stack.hasTag()) {
+			return;
+		}
+		stack.getTag().remove(key);
+		if (stack.getTag().isEmpty()) {
+			stack.setTag(null);
+		}
+	}
+
+	private static boolean clearInventoryReturnMarker(ServerPlayer player) {
+		boolean found = false;
+		for (ItemStack stack : player.getInventory().items) {
+			found |= clearReturnMarker(stack);
+		}
+		for (ItemStack stack : player.getInventory().armor) {
+			found |= clearReturnMarker(stack);
+		}
+		for (ItemStack stack : player.getInventory().offhand) {
+			found |= clearReturnMarker(stack);
+		}
+		ItemStack carried = player.containerMenu.getCarried();
+		found |= clearReturnMarker(carried);
+		return found;
+	}
+
+	private static boolean clearReturnMarker(ItemStack stack) {
+		if (stack == null || stack.isEmpty() || !stack.is(SummyReliquary.LIFE_DEATH.get())
+				|| !hasReturnTag(stack)) {
+			return false;
+		}
+		removeTag(stack, DISPLAY_TAG);
+		removeTag(stack, RETURN_TAG);
+		return true;
+	}
+
+	private static void discardReturnedItem(ServerPlayer player) {
+		clearInventoryReturnMarker(player);
+		PlayerFlags.clearLifeDeathReturnItem(player);
 	}
 
 	/** 自检用：当前玩家是否显示倒计时 Boss 条。 */

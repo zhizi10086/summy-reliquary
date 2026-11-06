@@ -3,9 +3,13 @@ package com.summy.reliquary.effect;
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -21,6 +25,8 @@ public final class TrueDamageLimits {
 	private static final float MIN_SHORTFALL = 0.01F;
 	private static final long LOG_INTERVAL_TICKS = 100L;
 	private static final Map<UUID, Long> LAST_LOG = new HashMap<>();
+	private static final ThreadLocal<Deque<Capture>> CAPTURES =
+			ThreadLocal.withInitial(ArrayDeque::new);
 
 	private TrueDamageLimits() {
 	}
@@ -34,25 +40,72 @@ public final class TrueDamageLimits {
 		if (target == null || source == null || damage <= 0.0F) {
 			return false;
 		}
+		Capture capture = new Capture(target.getUUID(), HolyLightEffect.typeId(source),
+				directUuid(source), damage);
+		Deque<Capture> captures = CAPTURES.get();
+		captures.push(capture);
 		float healthBefore = target.getHealth();
 		float absorptionBefore = target.getAbsorptionAmount();
-		boolean landed = target.hurt(source, damage);
+		boolean landed;
+		try {
+			landed = target.hurt(source, damage);
+		} finally {
+			captures.pop();
+			if (captures.isEmpty()) {
+				CAPTURES.remove();
+			}
+		}
 		if (!landed) {
 			return false;
 		}
 
+		float effectiveIntended = resolveIntended(damage, capture.observedAmount());
 		float lostTotal = actualLost(healthBefore, target.getHealth(),
 				absorptionBefore, target.getAbsorptionAmount());
 		boolean isPlayer = target instanceof Player;
-		if (shouldTopUp(landed, damage, lostTotal, isPlayer,
+		if (shouldTopUp(landed, effectiveIntended, lostTotal, isPlayer,
 				ReliquaryConfig.trueDamageIgnoresDamageLimits(),
 				ReliquaryConfig.trueDamageLimitAffectsPlayers())) {
-			float supplemented = applyTopUp(target, source, damage - lostTotal);
+			float supplemented = applyTopUp(target, source, effectiveIntended - lostTotal);
 			if (supplemented > 0.0F) {
-				logTopUp(target, source, damage, lostTotal, supplemented);
+				logTopUp(target, source, damage, effectiveIntended, lostTotal, supplemented);
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * 记录当前真伤在 {@code LivingHurtEvent} 最终阶段的事件金额。
+	 *
+	 * <p>SR / SE 的增伤可能由事件监听器或其它模组注入在 {@code target.hurt()} 内部完成，
+	 * 因此调用前传入的配置金额不能直接作为补差目标。这里保留所有匹配事件中的最大值，
+	 * 让限伤破除以实际乘区后的应得金额为准。
+	 */
+	public static void capture(LivingHurtEvent event) {
+		if (event == null || event.isCanceled() || event.getAmount() <= 0.0F
+				|| event.getEntity().level().isClientSide()) {
+			return;
+		}
+		Deque<Capture> captures = CAPTURES.get();
+		if (captures.isEmpty()) {
+			CAPTURES.remove();
+			return;
+		}
+		DamageSource source = event.getSource();
+		String type = HolyLightEffect.typeId(source);
+		UUID direct = directUuid(source);
+		UUID target = event.getEntity().getUUID();
+		for (Capture capture : captures) {
+			if (capture.matches(target, type, direct)) {
+				capture.observe(event.getAmount());
+				return;
+			}
+		}
+	}
+
+	/** 自检用纯函数：乘区后金额不高于基础值时仍以基础值为准。 */
+	public static float resolveIntended(float baseDamage, float observedAmount) {
+		return Math.max(baseDamage, observedAmount);
 	}
 
 	/** 自检用纯函数：只判断是否应该补差，不修改实体。 */
@@ -102,15 +155,51 @@ public final class TrueDamageLimits {
 		return Math.max(0.0F, shortfall - remaining);
 	}
 
-	private static void logTopUp(LivingEntity target, DamageSource source, float intended,
-			float actual, float supplemented) {
+	private static UUID directUuid(DamageSource source) {
+		Entity direct = source == null ? null : source.getDirectEntity();
+		return direct == null ? new UUID(0L, 0L) : direct.getUUID();
+	}
+
+	private static void logTopUp(LivingEntity target, DamageSource source, float baseDamage,
+			float intended, float actual, float supplemented) {
 		long now = target.level().getGameTime();
 		Long last = LAST_LOG.get(target.getUUID());
 		if (last != null && now - last < LOG_INTERVAL_TICKS) {
 			return;
 		}
 		LAST_LOG.put(target.getUUID(), now);
-		SummyReliquary.LOGGER.info("真伤补差：目标 {}、应得 {}、实际 {}、补 {}（{}）",
-				target.getName().getString(), intended, actual, supplemented, HolyLightEffect.typeId(source));
+		SummyReliquary.LOGGER.info(
+				"真伤补差：目标 {}、基础 {}、乘区后应得 {}、实际 {}、补 {}（{}）",
+				target.getName().getString(), baseDamage, intended, actual, supplemented,
+				HolyLightEffect.typeId(source));
+	}
+
+	private static final class Capture {
+		private final UUID target;
+		private final String damageType;
+		private final UUID directEntity;
+		private final float baseDamage;
+		private float observedAmount;
+
+		private Capture(UUID target, String damageType, UUID directEntity, float baseDamage) {
+			this.target = target;
+			this.damageType = damageType;
+			this.directEntity = directEntity;
+			this.baseDamage = baseDamage;
+			this.observedAmount = baseDamage;
+		}
+
+		private boolean matches(UUID targetUuid, String type, UUID direct) {
+			return target.equals(targetUuid) && damageType.equals(type)
+					&& directEntity.equals(direct);
+		}
+
+		private void observe(float amount) {
+			observedAmount = Math.max(observedAmount, amount);
+		}
+
+		private float observedAmount() {
+			return Math.max(baseDamage, observedAmount);
+		}
 	}
 }

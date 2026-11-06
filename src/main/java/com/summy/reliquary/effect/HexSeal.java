@@ -238,7 +238,7 @@ public final class HexSeal {
 	}
 
 	private static boolean isSacredVerdict(DamageSource source) {
-		return source != null && "summy-reliquary.sacred_verdict".equals(HolyLightEffect.typeId(source));
+		return HolyLightEffect.isSacredVerdictDamage(source);
 	}
 
 	private static boolean isHexTransfer(DamageSource source) {
