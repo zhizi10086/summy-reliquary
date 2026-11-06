@@ -5268,6 +5268,19 @@ public final class ForgeDevCheck {
 			makeToughTestTarget(hexB);
 			hexA.setHealth(40.0F);
 			hexB.setHealth(40.0F);
+			com.summy.reliquary.effect.HexSeal.setForcedProcForTest(true);
+			com.summy.reliquary.effect.HexSeal.onOutgoingHurt(new LivingHurtEvent(hexA,
+					player.damageSources().playerAttack(player), 10.0F));
+			boolean hexMeleeApplied = com.summy.reliquary.effect.HexSeal.marked(hexA);
+			net.minecraft.world.entity.projectile.Arrow hexArrow =
+					new net.minecraft.world.entity.projectile.Arrow(player.serverLevel(), player);
+			com.summy.reliquary.effect.HexSeal.onOutgoingHurt(new LivingHurtEvent(hexB,
+					player.damageSources().arrow(hexArrow, player), 10.0F));
+			boolean hexRangedExcluded = !com.summy.reliquary.effect.HexSeal.marked(hexB);
+			boolean hexMeleeRangeOk = hexMeleeApplied && hexRangedExcluded;
+			hexArrow.discard();
+			com.summy.reliquary.effect.HexSeal.removeOwner(player);
+			com.summy.reliquary.effect.HexSeal.setForcedProcForTest(null);
 			com.summy.reliquary.effect.HexSeal.applyMarkForTest(hexA, player.getUUID(), 200);
 			com.summy.reliquary.effect.HexSeal.applyMarkForTest(hexB, player.getUUID(), 200);
 			net.minecraft.world.effect.MobEffectInstance hexMarker =
@@ -5309,7 +5322,7 @@ public final class ForgeDevCheck {
 					SummyReliquary.HEX_SEAL_EFFECT.get(), 200, 0, false, false, true));
 			com.summy.reliquary.effect.HexSeal.onDeath(hexA);
 			boolean hexDeathCleared = !hexA.hasEffect(SummyReliquary.HEX_SEAL_EFFECT.get());
-			boolean hexVisualOk = hexMarkerOk && hexMarkerRestored
+			boolean hexVisualOk = hexMeleeRangeOk && hexMarkerOk && hexMarkerRestored
 					&& playerSpreadExcluded && mobSpreadApplied
 					&& hexOwnerRemovalCleared && hexStaleMarkerCleared && hexDeathCleared;
 			unequip(player, ReliquarySlots.COVENANT);
@@ -5343,7 +5356,7 @@ public final class ForgeDevCheck {
 							+ "未满攻击强度附伤 %.2f（应 0）/状态图标定义=%s（共 %d 个）/锥形采样=%s → %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/"
 							+ "独立盾 %.1f（应 %.1f）/原版吸收 %.1f（应 0） → %s；"
-							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）/图标与清理=%s → %s；"
+							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）/近战范围、图标与清理=%s → %s；"
 							+ "配置与协议=%s；整体=%s（应 true）",
 					registered, covenantSlots, resources, dataResources, sourceClassification,
 					verdictSeTag, tooltipArguments,
@@ -5449,12 +5462,12 @@ public final class ForgeDevCheck {
 								com.summy.reliquary.config.ReliquaryConfig.bloodDebtDeferTicks() / 20.0D),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.bloodDebtMinDeferredDamage()))
-				&& covenantArgs(debt, 2)
-				&& covenantArgs(debt, 3,
+				&& covenantArgs(debt, 2,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.bloodDebtActiveAbsorbPercent()),
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.bloodDebtCapMaxHealthPercent()))
+				&& covenantArgs(debt, 3)
 				&& covenantArgs(debt, 4,
 						com.summy.reliquary.item.ReliquaryTooltips.number(
 								com.summy.reliquary.config.ReliquaryConfig.bloodDebtKillReduceSeconds()))

@@ -943,7 +943,7 @@
 | `item.summy-reliquary.divine_intervention.*` | 神圣干预 / 三行完整机制句 + 冷却行 / 屏障 | **2.3 新增，文本精修订正**：说明反伤基数、沿完整视线生成的屏障、尺寸/持续时间与投射物叠加增伤 |
 | `item.summy-reliquary.sacred_verdict.*` | 神圣裁决 / 三行完整机制句 + 冷却行 / 失败提示 | **2.3 新增，文本精修订正**：明确标记、固定比例真伤、完整攻击概括和 R 爆炸 |
 | `item.summy-reliquary.blood_debt_altar.*` | 血债祭坛 / 四行完整机制句 + 冷却行 / 失败提示 | **2.3 调整，文本精修订正**：说明延迟阈值、结算顺序、血债盾独立上限、近满时按空间扣血与击杀减债 |
-| `item.summy-reliquary.hex_seal.*` | 厄咒之印 / 四行完整机制句 + 冷却行 | **2.3 新增，文本精修订正**：说明被动/主动施加、受伤增幅与每 tick 最高伤害复制、非玩家死亡传播；伤害可来自任意来源，复制目标只限同一名玩家施加厄咒的其他目标 |
+| `item.summy-reliquary.hex_seal.*` | 厄咒之印 / 四行完整机制句 + 冷却行 | **2.3 最终文案**：被动明确为近战命中，保留 R 锥形施加、受伤增幅、每 tick 最高伤害传播与非玩家死亡传播 |
 | `effect.summy-reliquary.sacred_verdict` / `effect.summy-reliquary.hex_seal` | 神圣裁决 / 厄咒 | **2.3 补充**：纯视觉 MobEffect 名称；无属性，显示图标、倒计时和原版彩色状态粒子 |
 | `death.attack.summy-reliquary.sacred_verdict(.player)` 等四组 | 神圣裁决 / 神圣干预反噬 / 未偿血债 / 厄咒转移 | **2.3 新增**：四类伤害各自独立死亡文本 |
 | `item.summy-reliquary.pentagram.phrase` | 埋葬无尽灵魂 | **不是显示文本**，是"慢速呼吸"要强调的短语（中英各一套，供代码定位） |

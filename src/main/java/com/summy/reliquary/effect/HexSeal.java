@@ -83,7 +83,8 @@ public final class HexSeal {
 			return;
 		}
 		Entity entity = event.getSource().getEntity();
-		if (!(entity instanceof ServerPlayer attacker) || attacker == event.getEntity() || !wears(attacker)) {
+		if (!(entity instanceof ServerPlayer attacker) || attacker == event.getEntity()
+				|| event.getSource().getDirectEntity() != attacker || !wears(attacker)) {
 			return;
 		}
 		boolean proc = forcedProc != null ? forcedProc

@@ -147,7 +147,7 @@ public final class CovenantActions {
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtDeferTicks() / 20.0D),
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtMinDeferredDamage())
 				};
-				case 3 -> new Object[]{
+				case 2 -> new Object[]{
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtActiveAbsorbPercent()),
 						ReliquaryTooltipsNumber.of(ReliquaryConfig.bloodDebtCapMaxHealthPercent())
 				};
