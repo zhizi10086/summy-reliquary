@@ -99,6 +99,7 @@ public final class SacredVerdict {
 		}
 
 		HitKey key = hitKey(attacker, target, event.getSource());
+		String damageType = HolyLightEffect.typeId(event.getSource());
 		boolean ready = attackReady(attacker, event.getSource());
 		boolean hadMark = mark != null;
 		for (int index = 0; index < CANDIDATES.size(); index++) {
@@ -109,10 +110,11 @@ public final class SacredVerdict {
 			}
 			// 同一受击即使由不同 DamageSource 实例重复派发，也合并为同一个候选。
 			CANDIDATES.set(index, new Candidate(existing.tick(), key,
+					mergeDamageTypes(existing.damageTypes(), damageType),
 					existing.ready() || ready, existing.hadMark() || hadMark));
 			return;
 		}
-		CANDIDATES.add(new Candidate(now, key, ready, hadMark));
+		CANDIDATES.add(new Candidate(now, key, List.of(damageType), ready, hadMark));
 	}
 
 	/**
@@ -130,7 +132,7 @@ public final class SacredVerdict {
 			}
 			CANDIDATES.remove(index);
 			CONFIRMED.add(new Confirmed(candidate.tick(), now, candidate.key(),
-					candidate.ready(), candidate.hadMark()));
+					candidate.damageTypes(), candidate.ready(), candidate.hadMark()));
 			// 一个 LivingDamageEvent 只确认一次；同击的后续重复事件没有候选可确认。
 			break;
 		}
@@ -166,6 +168,7 @@ public final class SacredVerdict {
 				merged.put(batchKey, new Confirmed(
 						Math.min(existing.recordTick(), confirmed.recordTick()),
 						confirmed.confirmedTick(), confirmed.key(),
+						mergeDamageTypes(existing.damageTypes(), confirmed.damageTypes()),
 						existing.ready() || confirmed.ready(),
 						existing.hadMark() || confirmed.hadMark()));
 			}
@@ -187,7 +190,7 @@ public final class SacredVerdict {
 					BONUS_LOCK_TICKS)) {
 				// 同一次命中的重复确认静默丢弃，连新标记概率也不再重掷。
 				suppressedBonusCount++;
-				logDuplicateBonus(attacker, target, confirmed.key(), now,
+				logDuplicateBonus(attacker, target, confirmed.damageTypes(), confirmed.key(), now,
 						LAST_BONUS_TICK.get(confirmed.key()));
 				continue;
 			}
@@ -208,8 +211,8 @@ public final class SacredVerdict {
 					} finally {
 						SacredVerdictTrace.finish();
 					}
-					logBonusSettlement(bonusTrace, attacker, target, confirmed.key(),
-							bonus, observation.lost(target), landed, now);
+					logBonusSettlement(bonusTrace, attacker, target, confirmed.damageTypes(),
+							confirmed.key(), bonus, observation.lost(target), landed, now);
 				}
 			}
 			boolean proc = forcedProc != null ? forcedProc
@@ -410,7 +413,8 @@ public final class SacredVerdict {
 		boolean hadMark = marked(target);
 		HitKey key = hitKey(attacker, target, source);
 		long now = target.level().getGameTime();
-		CONFIRMED.add(new Confirmed(now, now, key, ready, hadMark));
+		CONFIRMED.add(new Confirmed(now, now, key,
+				List.of(HolyLightEffect.typeId(source)), ready, hadMark));
 	}
 
 	private static boolean attackReady(ServerPlayer attacker, DamageSource source) {
@@ -468,8 +472,30 @@ public final class SacredVerdict {
 		Entity attacker = attackerFallback != null ? attackerFallback : source.getEntity();
 		Entity direct = source.getDirectEntity();
 		return new HitKey(attacker == null ? NO_DIRECT_ENTITY : attacker.getUUID(),
-				target.getUUID(), HolyLightEffect.typeId(source),
-				direct == null ? NO_DIRECT_ENTITY : direct.getUUID());
+				target.getUUID(), direct == null ? NO_DIRECT_ENTITY : direct.getUUID());
+	}
+
+	/** 伤害类型只用于日志；语义去重键不包含它。 */
+	private static List<String> mergeDamageTypes(List<String> existing, String incoming) {
+		if (existing.contains(incoming)) {
+			return existing;
+		}
+		List<String> merged = new ArrayList<>(existing);
+		merged.add(incoming);
+		return List.copyOf(merged);
+	}
+
+	private static List<String> mergeDamageTypes(List<String> first, List<String> second) {
+		if (first.containsAll(second)) {
+			return first;
+		}
+		List<String> merged = new ArrayList<>(first);
+		for (String damageType : second) {
+			if (!merged.contains(damageType)) {
+				merged.add(damageType);
+			}
+		}
+		return List.copyOf(merged);
 	}
 
 	private static boolean withinWindow(long now, Long previous, long ticks) {
@@ -510,12 +536,14 @@ public final class SacredVerdict {
 	}
 
 	private static void logBonusSettlement(long traceId, ServerPlayer attacker, LivingEntity target,
-			HitKey key, float baseDamage, float actualLoss, boolean landed, long tick) {
+			List<String> damageTypes, HitKey key, float baseDamage, float actualLoss, boolean landed,
+			long tick) {
 		SummyReliquary.LOGGER.info(
-				"神圣裁决附伤结算：序号={}、攻击者={}、目标={}、类型={}、基础={}、实际={}、"
-						+ "落地={}、命中键={}、tick={}",
+				"神圣裁决附伤结算：序号={}、攻击者={}、目标={}、触发类型={}、输出类型={}、基础={}、"
+						+ "实际={}、落地={}、命中键={}、tick={}",
 				traceId, attacker.getName().getString(), target.getName().getString(),
-				BONUS_DAMAGE_TYPE, baseDamage, actualLoss, landed, key, tick);
+				String.join(" + ", damageTypes), BONUS_DAMAGE_TYPE,
+				baseDamage, actualLoss, landed, key, tick);
 	}
 
 	private static void logDuplicateCast(ServerPlayer player, long now, Long lastTick,
@@ -529,15 +557,16 @@ public final class SacredVerdict {
 				player.getName().getString(), reason, now, lastTick, lastTraceId);
 	}
 
-	private static void logDuplicateBonus(ServerPlayer attacker, LivingEntity target, HitKey key,
-			long now, Long lastTick) {
+	private static void logDuplicateBonus(ServerPlayer attacker, LivingEntity target,
+			List<String> damageTypes, HitKey key, long now, Long lastTick) {
 		String logKey = "bonus:" + key;
 		if (!shouldLogDuplicate(logKey, now)) {
 			return;
 		}
 		SummyReliquary.LOGGER.info(
-				"神圣裁决重复附伤已拦截：攻击者={}、目标={}、类型={}、直接实体={}、tick={}、上次={}",
-				attacker.getName().getString(), target.getName().getString(), key.damageType(),
+				"神圣裁决重复附伤已拦截：攻击者={}、目标={}、触发类型={}、直接实体={}、tick={}、上次={}",
+				attacker.getName().getString(), target.getName().getString(),
+				String.join(" + ", damageTypes),
 				key.directEntity(), now, lastTick);
 	}
 
@@ -553,17 +582,18 @@ public final class SacredVerdict {
 	private record Mark(long until) {
 	}
 
-	private record Candidate(long tick, HitKey key, boolean ready, boolean hadMark) {
+	private record Candidate(long tick, HitKey key, List<String> damageTypes, boolean ready,
+			boolean hadMark) {
 	}
 
-	private record Confirmed(long recordTick, long confirmedTick, HitKey key, boolean ready,
-			boolean hadMark) {
+	private record Confirmed(long recordTick, long confirmedTick, HitKey key,
+			List<String> damageTypes, boolean ready, boolean hadMark) {
 	}
 
 	private record BatchKey(HitKey key, long confirmedTick) {
 	}
 
-	private record HitKey(UUID attacker, UUID target, String damageType, UUID directEntity) {
+	private record HitKey(UUID attacker, UUID target, UUID directEntity) {
 	}
 
 	private record DamageObservation(float healthBefore, float absorptionBefore) {

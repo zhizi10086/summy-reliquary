@@ -4583,12 +4583,30 @@ public final class ForgeDevCheck {
 			Zombie reviveKill = spawnTestZombie(player, 3.0D);
 			cleanup.add(reviveKill);
 			com.summy.reliquary.effect.LifeDeath.onKill(player, reviveKill);
-			boolean killCountHud = com.summy.reliquary.effect.LifeDeath.hudTitle(player)
-					.contains("击杀 1/");
+			int weightAfterFirstKill = com.summy.reliquary.effect.PlayerFlags
+					.deathFormKillWeight(player);
+			com.summy.reliquary.effect.LifeDeath.onKill(player, reviveKill);
+			boolean duplicateKillIgnored = com.summy.reliquary.effect.PlayerFlags
+					.deathFormKillWeight(player) == weightAfterFirstKill;
 			for (int kill = 1; kill < com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired();
 					kill++) {
-				com.summy.reliquary.effect.LifeDeath.onKill(player, reviveKill);
+				Zombie anotherKill = new Zombie(player.serverLevel());
+				anotherKill.moveTo(player.getX() + kill + 1.0D, player.getY(), player.getZ());
+				cleanup.add(anotherKill);
+				com.summy.reliquary.effect.LifeDeath.onKill(player, anotherKill);
 			}
+			int requiredKillWeight = com.summy.reliquary.config.ReliquaryConfig
+					.lifeDeathReviveKillRequired();
+			boolean reachedAwaitingTimer = com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& com.summy.reliquary.effect.PlayerFlags.deathFormKillWeight(player)
+							== requiredKillWeight
+					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player)
+							.contains("击杀 " + requiredKillWeight + "/" + requiredKillWeight);
+			long reachedNow = player.serverLevel().getGameTime();
+			int reachedDuration = com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormTicks();
+			com.summy.reliquary.effect.PlayerFlags.setDeathFormClockForTest(
+					player, reachedNow - reachedDuration - 1L);
+			com.summy.reliquary.effect.LifeDeath.tickPlayer(player);
 			boolean revived = !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player);
 			float revivedHealth = player.getHealth();
 			boolean revivedTagCleared = !com.summy.reliquary.effect.LifeDeath.displayDeathForm(
@@ -4612,7 +4630,8 @@ public final class ForgeDevCheck {
 							== net.minecraft.world.BossEvent.BossBarColor.BLUE
 					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("复活冷却")
 					&& com.summy.reliquary.effect.LifeDeath.hudProgress(player) > 0.99F;
-			boolean reviveOk = revived && revivedTagCleared && revivedSyncCleared
+			boolean reviveOk = duplicateKillIgnored && reachedAwaitingTimer
+					&& revived && revivedTagCleared && revivedSyncCleared
 					&& revivedModelLife
 					&& redStopped
 					&& Math.abs(revivedHealth - player.getMaxHealth()) < 1.0E-4F
@@ -4630,7 +4649,18 @@ public final class ForgeDevCheck {
 				cleanup.add(boss);
 				com.summy.reliquary.effect.LifeDeath.onKill(player, boss);
 			}
-			boolean bossRevive = boss != null
+			boolean bossReachedAwaitingTimer = boss != null
+					&& com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
+					&& com.summy.reliquary.effect.PlayerFlags.deathFormKillWeight(player)
+							>= com.summy.reliquary.config.ReliquaryConfig.lifeDeathReviveKillRequired();
+			if (bossReachedAwaitingTimer) {
+				long bossNow = player.serverLevel().getGameTime();
+				int bossDuration = com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormTicks();
+				com.summy.reliquary.effect.PlayerFlags.setDeathFormClockForTest(
+						player, bossNow - bossDuration - 1L);
+				com.summy.reliquary.effect.LifeDeath.tickPlayer(player);
+			}
+			boolean bossRevive = bossReachedAwaitingTimer
 					&& !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
 					&& !com.summy.reliquary.effect.LifeDeath.displayDeathForm(
 							covenantStack(player), player);
@@ -4717,32 +4747,33 @@ public final class ForgeDevCheck {
 			player.setHealth(player.getMaxHealth());
 			player.setInvulnerable(false);
 			player.invulnerableTime = 0;
-			int returnCountBefore = countItem(player, SummyReliquary.LIFE_DEATH.get());
-			ItemStack removedForReturn = new ItemStack(SummyReliquary.LIFE_DEATH.get());
+			int removalCountBefore = countItem(player, SummyReliquary.LIFE_DEATH.get());
 			boolean removalArmed = com.summy.reliquary.effect.LifeDeath.activate(player);
-			com.summy.reliquary.effect.LifeDeath.onUnequip(player, removedForReturn);
+			ItemStack removalStack = covenantStack(player);
+			removalStack.getOrCreateTag().putBoolean("summy_reliquary_life_death_return", true);
+			player.getPersistentData().getCompound("summy_reliquary").put(
+					"life_death_return_item",
+					new ItemStack(SummyReliquary.LIFE_DEATH.get()).save(new net.minecraft.nbt.CompoundTag()));
+			com.summy.reliquary.effect.LifeDeath.onUnequip(player);
 			boolean removalKilled = removalArmed && player.isDeadOrDying()
 					&& com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownPending(player)
-					&& com.summy.reliquary.effect.LifeDeath.hasReturnedItemPending(player);
-			ItemEntity simulatedReturnDrop = new ItemEntity(player.serverLevel(),
-					player.getX(), player.getY(), player.getZ(), removedForReturn.copy());
-			java.util.List<ItemEntity> simulatedDrops = new java.util.ArrayList<>();
-			simulatedDrops.add(simulatedReturnDrop);
-			com.summy.reliquary.effect.LifeDeath.protectReturnedDrop(player, simulatedDrops);
-			boolean returnedDropProtected = simulatedDrops.isEmpty();
-			simulatedReturnDrop.discard();
+					&& !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player);
 			player.revive();
 			player.setHealth(player.getMaxHealth());
 			com.summy.reliquary.effect.LifeDeath.onRespawn(player);
-			int returnCountAfter = countItem(player, SummyReliquary.LIFE_DEATH.get());
+			int removalCountAfter = countItem(player, SummyReliquary.LIFE_DEATH.get());
 			long removalCooldown = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player)
 					- player.serverLevel().getGameTime();
+			boolean legacyItemTagCleared = !covenantStack(player).hasTag()
+					|| !covenantStack(player).getTag()
+							.getBoolean("summy_reliquary_life_death_return");
+			boolean legacyPendingKeyCleared = !player.getPersistentData()
+					.getCompound("summy_reliquary").contains("life_death_return_item");
 			boolean removalRespawn = !com.summy.reliquary.effect.PlayerFlags
 					.lifeDeathCooldownPending(player)
 					&& !com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
-					&& !com.summy.reliquary.effect.LifeDeath.hasReturnedItemPending(player)
-					&& returnCountAfter == returnCountBefore + 1
-					&& returnedDropProtected
+					&& removalCountAfter == removalCountBefore
+					&& legacyItemTagCleared && legacyPendingKeyCleared
 					&& removalCooldown >= com.summy.reliquary.config.ReliquaryConfig
 							.lifeDeathCooldownTicks() - 1L;
 			boolean removalDeathOk = removalKilled && removalRespawn;
@@ -4837,9 +4868,9 @@ public final class ForgeDevCheck {
 			verdictTarget.setHealth(100.0F);
 			verdictTarget.invulnerableTime = 0;
 			DamageSource duplicateVerdictSourceA = player.damageSources().playerAttack(player);
-			DamageSource duplicateVerdictSourceB = player.damageSources().playerAttack(player);
+			DamageSource duplicateVerdictSourceB = player.damageSources().indirectMagic(player, player);
 			DamageSource duplicateLandingSourceA = player.damageSources().playerAttack(player);
-			DamageSource duplicateLandingSourceB = player.damageSources().playerAttack(player);
+			DamageSource duplicateLandingSourceB = player.damageSources().indirectMagic(player, player);
 			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
 					verdictTarget, duplicateVerdictSourceA, 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
@@ -4860,13 +4891,33 @@ public final class ForgeDevCheck {
 			verdictTarget.setHealth(100.0F);
 			verdictTarget.invulnerableTime = 0;
 			DamageSource mergedVerdictSourceA = player.damageSources().playerAttack(player);
-			DamageSource mergedVerdictSourceB = player.damageSources().playerAttack(player);
+			DamageSource mergedVerdictSourceB = player.damageSources().indirectMagic(player, player);
 			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
 					player, verdictTarget, mergedVerdictSourceA, true);
 			com.summy.reliquary.effect.SacredVerdict.confirmForTest(
 					player, verdictTarget, mergedVerdictSourceB, true);
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float mergedVerdictBonus = 100.0F - verdictTarget.getHealth();
+
+			// 同一攻击者的不同投射物仍按直接实体 UUID 分开，不能因去掉伤害类型而误合并。
+			com.summy.reliquary.effect.SacredVerdict.clear();
+			com.summy.reliquary.effect.SacredVerdict.applyMarkForTest(verdictTarget, 200);
+			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(true);
+			net.minecraft.world.entity.projectile.Arrow verdictArrowA =
+					new net.minecraft.world.entity.projectile.Arrow(player.serverLevel(), player);
+			net.minecraft.world.entity.projectile.Arrow verdictArrowB =
+					new net.minecraft.world.entity.projectile.Arrow(player.serverLevel(), player);
+			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
+					verdictTarget, player.damageSources().arrow(verdictArrowA, player), 10.0F));
+			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
+					verdictTarget, player.damageSources().arrow(verdictArrowB, player), 10.0F));
+			boolean differentDirectEntities = com.summy.reliquary.effect.SacredVerdict
+					.pendingCandidateCountForTest() == 2;
+			verdictArrowA.discard();
+			verdictArrowB.discard();
+
+			com.summy.reliquary.effect.SacredVerdict.clear();
+			com.summy.reliquary.effect.SacredVerdict.applyMarkForTest(verdictTarget, 200);
 			verdictTarget.setHealth(100.0F);
 			verdictTarget.invulnerableTime = 0;
 			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(false);
@@ -4926,6 +4977,7 @@ public final class ForgeDevCheck {
 					&& duplicateCandidates == 1
 					&& Math.abs(duplicateVerdictBonus - 5.0F) < 0.05F
 					&& Math.abs(mergedVerdictBonus - 5.0F) < 0.05F
+					&& differentDirectEntities
 					&& Math.abs(unchargedBonus) < 1.0E-4F
 					&& debounceWindowOk && duplicateCastBlocked
 					&& com.summy.reliquary.effect.SacredVerdict.BONUS_DAMAGE_TYPE
@@ -4999,7 +5051,7 @@ public final class ForgeDevCheck {
 			boolean ok = registered && covenantSlots == 1 && resources && dataResources
 					&& sourceClassification && verdictSeTag
 					&& tooltipArguments
-					&& lifeAllOk && smoothProgress && killCountHud && reviveOk && bossRevive
+					&& lifeAllOk && smoothProgress && reachedAwaitingTimer && reviveOk && bossRevive
 					&& expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds
 					&& screenOverlay && failureSourceOk && spearGateReset && oathPressEdge
 					&& interventionOk && barrierDensityOk && sacredOk && debtOk && hexOk && config;
@@ -5008,13 +5060,13 @@ public final class ForgeDevCheck {
 							+ "逐行提示参数=%s；"
 							+ "生死逆转 R=%s/死形态=%s/满血=%s/清负面=%s/死形态倍率 %.2f/移速修饰 %.2f → %s；"
 							+ "死转生=%s/物品标记清除=%s/客户端同步清除=%s/生命 %.1f/移速修饰 %.2f/攻速修饰 %.2f/冷却=%s → %s；"
-							+ "BOSS 单杀复活=%s；到期仅跳过自身并由神性救下=%s/冷却 %d tick/冷却 HUD=%s → %s；"
+							+ "BOSS 单杀达标并等待归零复活=%s；到期仅跳过自身并由神性救下=%s/冷却 %d tick/冷却 HUD=%s → %s；"
 							+ "直接死亡待结算/重生冷却=%s；过期恢复清理=%s；摘除即死/重生冷却=%s；"
-							+ "进度平滑=%s/首杀文字=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
+							+ "进度平滑=%s/达标待倒计时=%s/重复击杀忽略=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
 							+ "专属死亡源=%s（免伤标签=%s/文本=「%s」）/按下沿=%s/长矛门禁回绕=%s；"
 							+ "神圣干预反伤 %.1f（应 10）/屏障=%s/描边密度=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/重复候选 %d（应 1）/重复附伤 %.2f（应 5）/"
-							+ "批次合并附伤 %.2f（应 5）/重复施法=%s/爆炸伤害 %.2f（应 21）/"
+							+ "批次合并附伤 %.2f（应 5）/不同直接实体候选=%s/重复施法=%s/爆炸伤害 %.2f（应 21）/"
 							+ "未满攻击强度附伤 %.2f（应 0）→ %s；"
 							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/换盾 %.1f → %s；"
 							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）→ %s；"
@@ -5026,13 +5078,13 @@ public final class ForgeDevCheck {
 					revivedMoveModifier, revivedAttackModifier, reviveCooldown, reviveOk,
 					bossRevive, expirySelfSkipped && expirySavedByGodhead, expiryCooldown,
 					expiryCooldownHud, expiryOk, directDeathRespawnOk, expiredCleared, removalDeathOk,
-					smoothProgress, killCountHud,
+					smoothProgress, reachedAwaitingTimer, duplicateKillIgnored,
 					staticAlpha, metAlpha, warningLow, warningHigh, screenOverlay,
 					failureSourceOk, failureInvulnerabilityTag, failureText,
 					oathPressEdge, spearGateReset,
 					reflected, barrier, barrierDensityOk, interventionOk,
 					verdictBonus, duplicateCandidates, duplicateVerdictBonus, mergedVerdictBonus,
-					duplicateCastBlocked, castDamage, unchargedBonus, sacredOk,
+					differentDirectEntities, duplicateCastBlocked, castDamage, unchargedBonus, sacredOk,
 					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
 					shield, debtOk, hexEvent.getAmount(), pendingTransfers, transferred, hexOk, config, ok));
 		} finally {

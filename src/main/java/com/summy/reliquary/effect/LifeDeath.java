@@ -19,13 +19,10 @@ import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.Holder;
 import top.theillusivec4.curios.api.CuriosApi;
 
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -34,13 +31,13 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 生死逆转：生形态拦截致死伤害并进入死形态，死形态累计击杀权重后满血复活。
+ * 生死逆转：生形态拦截致死伤害并进入死形态，累计权重达标后等待倒计时归零再满血复活。
  */
 public final class LifeDeath {
 	/** 物品栈上的显示缓存；只负责图标与提示，玩法状态仍以玩家 NBT 为准。 */
 	public static final String DISPLAY_TAG = "summy_reliquary_death_form";
-	/** 死形态卸下时给实际掉落栈打的临时标记；死亡掉落阶段据此截获。 */
-	public static final String RETURN_TAG = "summy_reliquary_life_death_return";
+	/** 旧版卸装补发链留下的物品标记；只做清理，不再参与任何归还逻辑。 */
+	private static final String LEGACY_RETURN_TAG = "summy_reliquary_life_death_return";
 	private static final TagKey<EntityType<?>> FORGE_BOSSES =
 			TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation("forge", "bosses"));
 	private static final TagKey<EntityType<?>> COMMON_BOSSES =
@@ -53,6 +50,8 @@ public final class LifeDeath {
 	private static final Map<UUID, Long> GUARD_UNTIL = new HashMap<>();
 	/** 正在执行死形态到期处决的玩家；只跳过生死逆转自身，不跳其它免死。 */
 	private static final Set<UUID> EXPIRING = new HashSet<>();
+	/** 同一玩家、同一被击杀实体、同一 tick 的死亡事件只计一次权重。 */
+	private static final Set<KillStamp> RECENT_KILLS = new HashSet<>();
 	/** 每名玩家独立的倒计时 Boss 条。 */
 	private static final Map<UUID, HudEntry> HUD_ENTRIES = new HashMap<>();
 
@@ -70,6 +69,9 @@ public final class LifeDeath {
 		private HudEntry(ServerBossEvent bar) {
 			this.bar = bar;
 		}
+	}
+
+	private record KillStamp(UUID player, UUID killed, long tick) {
 	}
 
 	private LifeDeath() {
@@ -190,6 +192,7 @@ public final class LifeDeath {
 		long startedAt = PlayerFlags.deathFormStartedAt(player);
 		int duration = PlayerFlags.deathFormDuration(player);
 		long now = player.serverLevel().getGameTime();
+		RECENT_KILLS.removeIf(stamp -> stamp.tick() < now - 20L);
 		if (startedAt <= 0L || duration <= 0) {
 			// 状态已经清掉，但物品上可能残留上一帧的显示缓存。
 			updateEquippedDisplay(player, false);
@@ -203,6 +206,12 @@ public final class LifeDeath {
 			if (now % 20L == 0L) {
 				RevelationTracker.sync(player);
 			}
+			return;
+		}
+		if (PlayerFlags.deathFormKillWeight(player)
+				>= ReliquaryConfig.lifeDeathReviveKillRequired()) {
+			GUARD_UNTIL.remove(player.getUUID());
+			revive(player);
 			return;
 		}
 		// 先屏蔽自身拦截，再清死形态并执行处决。其它免死仍按现有优先链正常工作。
@@ -251,10 +260,17 @@ public final class LifeDeath {
 		if (!wears(killer) || !PlayerFlags.isDeathForm(killer) || killer == killed) {
 			return;
 		}
+		long now = killer.serverLevel().getGameTime();
+		RECENT_KILLS.removeIf(stamp -> stamp.tick() < now - 20L);
+		KillStamp stamp = new KillStamp(killer.getUUID(), killed.getUUID(), now);
+		if (!RECENT_KILLS.add(stamp)) {
+			return;
+		}
 		int weight = killWeight(killed, killer);
-		int total = PlayerFlags.deathFormKillWeight(killer) + weight;
 		int required = ReliquaryConfig.lifeDeathReviveKillRequired();
-		boolean revives = total >= required;
+		int previous = PlayerFlags.deathFormKillWeight(killer);
+		int total = Math.min(required, previous + weight);
+		boolean newlyReached = previous < required && total >= required;
 		ResourceLocation typeId = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES
 				.getKey(killed.getType());
 		SummyReliquary.LOGGER.info(
@@ -262,15 +278,12 @@ public final class LifeDeath {
 						+ "结果={}、tick={}",
 				killer.getName().getString(), killed.getName().getString(),
 				typeId == null ? killed.getType().toString() : typeId.toString(),
-				weight, total, required, revives ? "达标复活" : "继续",
-				killer.serverLevel().getGameTime());
-		if (revives) {
-			revive(killer);
-		} else {
-			PlayerFlags.setDeathFormKillWeight(killer, total);
-			RevelationTracker.sync(killer);
-			updateHud(killer, killer.serverLevel().getGameTime());
-		}
+				weight, total, required,
+				previous >= required ? "已达标待倒计时" : newlyReached ? "达标待倒计时" : "继续",
+				now);
+		PlayerFlags.setDeathFormKillWeight(killer, total);
+		RevelationTracker.sync(killer);
+		updateHud(killer, now);
 	}
 
 	public static void onPlayerDeath(ServerPlayer player) {
@@ -292,7 +305,7 @@ public final class LifeDeath {
 	 * <p>死亡瞬间只写待处理标记，避免死亡界面停留时间提前消耗冷却。
 	 */
 	public static void onRespawn(ServerPlayer player) {
-		restoreReturnedItem(player);
+		clearLegacyReturnState(player);
 		if (!PlayerFlags.lifeDeathCooldownPending(player)) {
 			updateEquippedDisplay(player, false);
 			updateHud(player, player.serverLevel().getGameTime());
@@ -330,7 +343,6 @@ public final class LifeDeath {
 				PlayerFlags.setLifeDeathCooldownPending(player, false);
 				PlayerFlags.setLifeDeathCooldownUntil(player,
 						now + ReliquaryConfig.lifeDeathCooldownTicks());
-				discardReturnedItem(player);
 				RevelationTracker.sync(player);
 			}
 			return;
@@ -342,79 +354,12 @@ public final class LifeDeath {
 	}
 
 	/**
-	 * 真实卸下死形态饰品时先暂存物品，再触发的处决造成死亡时由 Clone 还原。
-	 */
-	public static void onUnequip(ServerPlayer player, ItemStack removedStack) {
-		if (PlayerFlags.isDeathForm(player) && removedStack != null && !removedStack.isEmpty()) {
-			ItemStack stored = removedStack.copy();
-			removeTag(stored, DISPLAY_TAG);
-			stored.getOrCreateTag().putBoolean(RETURN_TAG, true);
-			PlayerFlags.setLifeDeathReturnItem(player, stored);
-			removedStack.getOrCreateTag().putBoolean(RETURN_TAG, true);
-		}
-		onUnequip(player);
-		if (!player.isDeadOrDying() && player.isAlive()) {
-			removeTag(removedStack, DISPLAY_TAG);
-			removeTag(removedStack, RETURN_TAG);
-			discardReturnedItem(player);
-		}
-	}
-
-	/** 死亡掉落阶段截获带本轮标记的生死逆转，避免与 Clone 归还同时产生两份。 */
-	public static void protectReturnedDrop(ServerPlayer player, Collection<ItemEntity> drops) {
-		if (!PlayerFlags.hasLifeDeathReturnItem(player)) {
-			return;
-		}
-		boolean removed = false;
-		for (Iterator<ItemEntity> iterator = drops.iterator(); iterator.hasNext(); ) {
-			ItemEntity drop = iterator.next();
-			ItemStack stack = drop.getItem();
-			if (stack.is(SummyReliquary.LIFE_DEATH.get()) && hasReturnTag(stack)) {
-				iterator.remove();
-				removed = true;
-			}
-		}
-		// Curios 个别版本会传入副本而非槽位实体栈；仅在这种情况下兜底截获第一件。
-		if (!removed) {
-			for (Iterator<ItemEntity> iterator = drops.iterator(); iterator.hasNext(); ) {
-				ItemEntity drop = iterator.next();
-				if (drop.getItem().is(SummyReliquary.LIFE_DEATH.get())) {
-					iterator.remove();
-					break;
-				}
-			}
-		}
-	}
-
-	/** 重生 / 登录时归还未自动佩戴的生死逆转；背包已满时安全落在脚边。 */
-	public static void restoreReturnedItem(ServerPlayer player) {
-		ItemStack stored = PlayerFlags.lifeDeathReturnItem(player);
-		if (stored.isEmpty()) {
-			return;
-		}
-		PlayerFlags.clearLifeDeathReturnItem(player);
-		// keepInventory 或其它死亡保留机制已经把原栈带回时，只清标记，不再复制一份。
-		if (clearInventoryReturnMarker(player)) {
-			return;
-		}
-		removeTag(stored, DISPLAY_TAG);
-		removeTag(stored, RETURN_TAG);
-		if (!player.getInventory().add(stored)) {
-			player.drop(stored, false);
-		}
-	}
-
-	public static boolean hasReturnedItemPending(ServerPlayer player) {
-		return player != null && PlayerFlags.hasLifeDeathReturnItem(player);
-	}
-
-	/**
 	 * 登录 / 换维度 / 状态恢复时校准物品显示缓存。
 	 *
 	 * <p>过期或不再佩戴时清掉玩家死形态状态；仍在死形态则把标记补回物品栈。
 	 */
 	public static void syncDisplayState(ServerPlayer player) {
-		restoreReturnedItem(player);
+		clearLegacyReturnState(player);
 		if (PlayerFlags.lifeDeathCooldownPending(player)) {
 			onRespawn(player);
 			return;
@@ -438,6 +383,7 @@ public final class LifeDeath {
 		if (player != null) {
 			GUARD_UNTIL.remove(player.getUUID());
 			EXPIRING.remove(player.getUUID());
+			RECENT_KILLS.removeIf(stamp -> stamp.player().equals(player.getUUID()));
 			removeHud(player);
 		}
 	}
@@ -449,10 +395,7 @@ public final class LifeDeath {
 		HUD_ENTRIES.clear();
 		GUARD_UNTIL.clear();
 		EXPIRING.clear();
-	}
-
-	private static boolean hasReturnTag(ItemStack stack) {
-		return stack.hasTag() && stack.getTag().getBoolean(RETURN_TAG);
+		RECENT_KILLS.clear();
 	}
 
 	private static void removeTag(ItemStack stack, String key) {
@@ -465,35 +408,26 @@ public final class LifeDeath {
 		}
 	}
 
-	private static boolean clearInventoryReturnMarker(ServerPlayer player) {
-		boolean found = false;
+	/** 清理旧版卸装补发遗留状态；已经复制出的实体物品只清标记，不主动删除。 */
+	private static void clearLegacyReturnState(ServerPlayer player) {
+		PlayerFlags.clearLegacyLifeDeathReturnItem(player);
 		for (ItemStack stack : player.getInventory().items) {
-			found |= clearReturnMarker(stack);
+			clearLegacyReturnMarker(stack);
 		}
 		for (ItemStack stack : player.getInventory().armor) {
-			found |= clearReturnMarker(stack);
+			clearLegacyReturnMarker(stack);
 		}
 		for (ItemStack stack : player.getInventory().offhand) {
-			found |= clearReturnMarker(stack);
+			clearLegacyReturnMarker(stack);
 		}
-		ItemStack carried = player.containerMenu.getCarried();
-		found |= clearReturnMarker(carried);
-		return found;
+		clearLegacyReturnMarker(player.containerMenu.getCarried());
 	}
 
-	private static boolean clearReturnMarker(ItemStack stack) {
-		if (stack == null || stack.isEmpty() || !stack.is(SummyReliquary.LIFE_DEATH.get())
-				|| !hasReturnTag(stack)) {
-			return false;
+	private static void clearLegacyReturnMarker(ItemStack stack) {
+		if (stack == null || stack.isEmpty() || !stack.is(SummyReliquary.LIFE_DEATH.get())) {
+			return;
 		}
-		removeTag(stack, DISPLAY_TAG);
-		removeTag(stack, RETURN_TAG);
-		return true;
-	}
-
-	private static void discardReturnedItem(ServerPlayer player) {
-		clearInventoryReturnMarker(player);
-		PlayerFlags.clearLifeDeathReturnItem(player);
+		removeTag(stack, LEGACY_RETURN_TAG);
 	}
 
 	/** 自检用：当前玩家是否显示倒计时 Boss 条。 */
@@ -559,7 +493,7 @@ public final class LifeDeath {
 		RevelationTracker.sync(player);
 		updateHud(player, now);
 		SummyReliquary.LOGGER.info(
-				"生死逆转达标复活：玩家={}、生命 {}→{}、tick={}、冷却截止={}、死形态=false",
+				"生死逆转倒计时结束复活：玩家={}、生命 {}→{}、tick={}、冷却截止={}、死形态=false",
 				player.getName().getString(), healthBefore, player.getHealth(), now, cooldownUntil);
 	}
 
@@ -683,6 +617,9 @@ public final class LifeDeath {
 				updated.getOrCreateTag().putBoolean(DISPLAY_TAG, true);
 			} else if (updated.hasTag()) {
 				updated.getTag().remove(DISPLAY_TAG);
+			}
+			if (updated.hasTag()) {
+				updated.getTag().remove(LEGACY_RETURN_TAG);
 				if (updated.getTag().isEmpty()) {
 					updated.setTag(null);
 				}

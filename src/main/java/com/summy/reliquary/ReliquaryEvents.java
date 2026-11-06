@@ -435,8 +435,6 @@ public final class ReliquaryEvents {
 				|| !(event.getEntity() instanceof ServerPlayer player)) {
 			return;
 		}
-		// 死形态摘除触发的处决：物品先暂存在玩家持久数据，重生后再放回背包首空位。
-		com.summy.reliquary.effect.LifeDeath.protectReturnedDrop(player, event.getDrops());
 		// 1.7.6 / 1.7.9：创世纪与四把仪式武器都是"死亡不掉落"（复活时补发，见 onPlayerClone）
 		event.getDrops().removeIf(drop -> drop.getItem().is(SummyReliquary.GENESIS.get())
 				|| drop.getItem().is(SummyReliquary.SACRIFICIAL_DAGGER.get())

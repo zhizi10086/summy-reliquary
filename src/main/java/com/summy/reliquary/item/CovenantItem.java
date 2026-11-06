@@ -101,7 +101,7 @@ public class CovenantItem extends Item implements ICurioItem {
 				com.summy.reliquary.effect.AttributeManager.apply(player);
 				return;
 			}
-			CovenantActions.onUnequip(player, kind, stack);
+			CovenantActions.onUnequip(player, kind);
 			com.summy.reliquary.effect.AttributeManager.apply(player);
 		}
 	}

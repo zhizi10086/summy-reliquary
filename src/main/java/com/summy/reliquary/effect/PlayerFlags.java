@@ -5,7 +5,6 @@ import com.summy.reliquary.sin.SinManager;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -129,8 +128,8 @@ public final class PlayerFlags {
 	private static final String LIFE_DEATH_COOLDOWN_UNTIL = "life_death_cooldown_until";
 	/** 生死逆转：死形态死亡后，等待重生时开始冷却 */
 	private static final String LIFE_DEATH_COOLDOWN_PENDING = "life_death_cooldown_pending";
-	/** 生死逆转：死形态真实卸下后暂存、等待重生归还的物品栈 */
-	private static final String LIFE_DEATH_RETURN_ITEM = "life_death_return_item";
+	/** 旧版生死逆转卸装补发遗留键；只用于启动时安全清理。 */
+	private static final String LEGACY_LIFE_DEATH_RETURN_ITEM = "life_death_return_item";
 	/** 血债祭坛：独立血债盾点数 */
 	private static final String BLOOD_DEBT_SHIELD = "blood_debt_shield";
 	/** 当日已获得的邪恶度总量（受 daily_cap 限制） */
@@ -625,6 +624,11 @@ public final class PlayerFlags {
 		root.putInt(DEATH_FORM_KILL_WEIGHT, 0);
 	}
 
+	/** 自检用：只调整死形态倒计时起点，保留已累计的击杀权重。 */
+	public static void setDeathFormClockForTest(ServerPlayer player, long startedAt) {
+		mutableRoot(player).putLong(DEATH_FORM_STARTED_AT, startedAt);
+	}
+
 	public static int deathFormKillWeight(LivingEntity entity) {
 		return entity == null ? 0 : root(entity).getInt(DEATH_FORM_KILL_WEIGHT);
 	}
@@ -654,32 +658,8 @@ public final class PlayerFlags {
 		}
 	}
 
-	public static boolean hasLifeDeathReturnItem(LivingEntity entity) {
-		if (entity == null) {
-			return false;
-		}
-		CompoundTag root = root(entity);
-		return root.contains(LIFE_DEATH_RETURN_ITEM, CompoundTag.TAG_COMPOUND);
-	}
-
-	public static ItemStack lifeDeathReturnItem(LivingEntity entity) {
-		if (!hasLifeDeathReturnItem(entity)) {
-			return ItemStack.EMPTY;
-		}
-		return ItemStack.of(root(entity).getCompound(LIFE_DEATH_RETURN_ITEM).copy());
-	}
-
-	public static void setLifeDeathReturnItem(ServerPlayer player, ItemStack stack) {
-		CompoundTag root = mutableRoot(player);
-		if (stack == null || stack.isEmpty()) {
-			root.remove(LIFE_DEATH_RETURN_ITEM);
-			return;
-		}
-		root.put(LIFE_DEATH_RETURN_ITEM, stack.save(new CompoundTag()));
-	}
-
-	public static void clearLifeDeathReturnItem(ServerPlayer player) {
-		mutableRoot(player).remove(LIFE_DEATH_RETURN_ITEM);
+	public static void clearLegacyLifeDeathReturnItem(ServerPlayer player) {
+		mutableRoot(player).remove(LEGACY_LIFE_DEATH_RETURN_ITEM);
 	}
 
 	public static double bloodDebtShield(LivingEntity entity) {
