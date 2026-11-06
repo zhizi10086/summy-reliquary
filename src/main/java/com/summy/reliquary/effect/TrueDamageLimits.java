@@ -55,18 +55,22 @@ public final class TrueDamageLimits {
 				CAPTURES.remove();
 			}
 		}
+		float lostTotal = actualLost(healthBefore, target.getHealth(),
+				absorptionBefore, target.getAbsorptionAmount());
+		SacredVerdictTrace.recordHurtResult(target, landed, lostTotal);
 		if (!landed) {
 			return false;
 		}
 
 		float effectiveIntended = resolveIntended(damage, capture.observedAmount());
-		float lostTotal = actualLost(healthBefore, target.getHealth(),
-				absorptionBefore, target.getAbsorptionAmount());
+		SacredVerdictTrace.recordIntended(effectiveIntended, lostTotal);
 		boolean isPlayer = target instanceof Player;
 		if (shouldTopUp(landed, effectiveIntended, lostTotal, isPlayer,
 				ReliquaryConfig.trueDamageIgnoresDamageLimits(),
 				ReliquaryConfig.trueDamageLimitAffectsPlayers())) {
+			SacredVerdictTrace.recordTopUpStart(target);
 			float supplemented = applyTopUp(target, source, effectiveIntended - lostTotal);
+			SacredVerdictTrace.recordTopUpEnd(target, supplemented);
 			if (supplemented > 0.0F) {
 				logTopUp(target, source, damage, effectiveIntended, lostTotal, supplemented);
 			}

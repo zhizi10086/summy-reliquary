@@ -739,6 +739,21 @@ public final class ReliquaryEvents {
 	}
 
 	/** 战斗结算：套装加成、投射物免疫、伯列恒之星加伤 */
+	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
+	public static void onLivingHurtTraceSacredVerdict(LivingHurtEvent event) {
+		if (!event.getEntity().level().isClientSide()) {
+			com.summy.reliquary.effect.SacredVerdictTrace.onHurt(event);
+		}
+	}
+
+	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
+	public static void onLivingDamageTraceSacredVerdict(
+			net.minecraftforge.event.entity.living.LivingDamageEvent event) {
+		if (!event.getEntity().level().isClientSide()) {
+			com.summy.reliquary.effect.SacredVerdictTrace.onDamage(event);
+		}
+	}
+
 	@SubscribeEvent
 	public static void onLivingHurt(LivingHurtEvent event) {
 		if (event.getEntity().level().isClientSide()) {

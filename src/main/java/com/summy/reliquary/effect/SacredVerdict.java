@@ -199,8 +199,15 @@ public final class SacredVerdict {
 					target.invulnerableTime = 0;
 					long bonusTrace = NEXT_BONUS_TRACE_ID.incrementAndGet();
 					DamageObservation observation = new DamageObservation(target);
-					boolean landed = withApplyingDamage(() -> TrueDamageLimits.hurt(target,
-							source(attacker.serverLevel(), attacker, BONUS_DAMAGE_TYPE), bonus));
+					SacredVerdictTrace.begin("附伤", bonusTrace, attacker, target,
+							BONUS_DAMAGE_TYPE, bonus);
+					boolean landed;
+					try {
+						landed = withApplyingDamage(() -> TrueDamageLimits.hurt(target,
+								source(attacker.serverLevel(), attacker, BONUS_DAMAGE_TYPE), bonus));
+					} finally {
+						SacredVerdictTrace.finish();
+					}
 					logBonusSettlement(bonusTrace, attacker, target, confirmed.key(),
 							bonus, observation.lost(target), landed, now);
 				}
@@ -291,8 +298,14 @@ public final class SacredVerdict {
 			for (LivingEntity target : targets) {
 				target.invulnerableTime = 0;
 				DamageObservation observation = new DamageObservation(target);
-				boolean landed = TrueDamageLimits.hurt(target,
-						source(level, player, castType), damage);
+				SacredVerdictTrace.begin("施法", castTrace, player, target, castType, damage);
+				boolean landed;
+				try {
+					landed = TrueDamageLimits.hurt(target,
+							source(level, player, castType), damage);
+				} finally {
+					SacredVerdictTrace.finish();
+				}
 				logCastSettlement(castTrace, player, target, castType,
 						damage, observation.lost(target), landed, now);
 				if (target.isAlive()) {
