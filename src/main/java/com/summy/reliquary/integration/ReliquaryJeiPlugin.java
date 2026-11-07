@@ -108,14 +108,16 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 	}
 
 	private static void registerHumbleingBundleInfo(IRecipeRegistration registration) {
-		int chance = com.summy.reliquary.config.ReliquaryConfig
+		int extraChance = com.summy.reliquary.config.ReliquaryConfig
+				.humbleingBundleExtraLootChancePercent();
+		int naturalChance = com.summy.reliquary.config.ReliquaryConfig
 				.humbleingBundleNaturalLootChancePercent();
 		registration.addItemStackInfo(new ItemStack(SummyReliquary.HUMBLEING_BUNDLE.get()),
-				text("humbleing_bundle.acquire", chance),
-				text("humbleing_bundle.pass"),
-				text("humbleing_bundle.kill"),
-				text("humbleing_bundle.event"),
-				text("humbleing_bundle.container"));
+				text("humbleing_bundle.effect", extraChance),
+				text("humbleing_bundle.reward"),
+				text("humbleing_bundle.acquire", naturalChance),
+				text("humbleing_bundle.excluded"),
+				text("humbleing_bundle.compat"));
 	}
 
 	private static Component text(String key, Object... arguments) {

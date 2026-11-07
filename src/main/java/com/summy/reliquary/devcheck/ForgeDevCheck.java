@@ -5716,26 +5716,34 @@ public final class ForgeDevCheck {
 				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.2")
 				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.3")
 				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.4")
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.effect\": "
+						+ "\"佩戴后，击杀生物或开启野生战利品箱时，有%s%%几率额外生成一次奖励。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.reward\": "
+						+ "\"击杀会额外生成一次掉落和经验；开箱会额外生成一次箱内物品。箱满时，额外物品掉在箱子旁。\"")
 				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.acquire\": "
-						+ "\"野生战利品箱的每个开箱阶段都有%s%%几率直接获得本物品。\"")
-				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.pass\": "
-						+ "\"原始与额外阶段独立判定，无保底且无需佩戴；同一物理箱最多获得两件。\"")
-				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.kill\": "
-						+ "\"击杀奖励会用新种子重掷生物战利品表，并复制最终经验。\"")
-				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.event\": "
-						+ "\"其他模组直接加入死亡掉落事件的物品会复制一次；装备与特殊死亡掉落除外。\"")
-				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.container\": "
-						+ "\"双箱两半分别重掷，但每个物理箱最多两个阶段；满箱时，额外物品掉在容器旁。\"")
+						+ "\"每个野生箱最多结算两次，每次都有%s%%几率直接获得慈善捆绑包；无需佩戴，也没有保底。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.excluded\": "
+						+ "\"创造模式击杀、玩家放置或已经打开的箱子不会生效。装备栏和特殊死亡掉落不会额外生成。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.compat\": "
+						+ "\"其他模组正常加入的怪物掉落会额外复制一份。\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.effect\": "
+						+ "\"While worn, killing a mob or opening a wild loot chest has a %s%% chance to generate one additional reward.\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.reward\": "
+						+ "\"Kills generate one extra set of drops and experience; chests generate one extra set of contents. Overflow drops beside a full chest.\"")
 				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.acquire\": "
-						+ "\"Each opening pass on a wild loot chest has a %s%% chance to grant this item directly.\"")
-				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.pass\": "
-						+ "\"The original and bonus passes roll independently, have no pity, and do not require wearing the item; one physical chest can grant at most two.\"")
-				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.kill\": "
-						+ "\"Kill rewards reroll the mob loot table with a new seed and duplicate the final experience.\"")
-				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.event\": "
-						+ "\"Items added directly to the death drops event by other mods are copied once; equipment and special death drops are excluded.\"")
-				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.container\": "
-						+ "\"Both halves of a double chest are rerolled, but each physical chest has at most two passes; overflow from a full container drops beside it.\"");
+						+ "\"Each wild chest can resolve at most twice, and each pass has a %s%% chance to grant this item directly; wearing it is not required and there is no pity.\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.excluded\": "
+						+ "\"Creative-mode kills, placed chests, and already opened chests do not trigger. Equipment slots and special death drops are not copied.\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.compat\": "
+						+ "\"Items normally added to mob drops by other mods are copied once.\"")
+				&& !zhLang.contains("jei.summy-reliquary.humbleing_bundle.pass")
+				&& !zhLang.contains("jei.summy-reliquary.humbleing_bundle.kill")
+				&& !zhLang.contains("jei.summy-reliquary.humbleing_bundle.event")
+				&& !zhLang.contains("jei.summy-reliquary.humbleing_bundle.container")
+				&& !enLang.contains("jei.summy-reliquary.humbleing_bundle.pass")
+				&& !enLang.contains("jei.summy-reliquary.humbleing_bundle.kill")
+				&& !enLang.contains("jei.summy-reliquary.humbleing_bundle.event")
+				&& !enLang.contains("jei.summy-reliquary.humbleing_bundle.container");
 		boolean covenantText =
 				zhLang.contains("\"jei.summy-reliquary.covenant.angel\": "
 						+ "\"天使路线会从尚未取得的「生死逆转」「神圣干预」「神圣裁决」中随机发放一件。\"")
