@@ -20,7 +20,7 @@
 | 模组 id / 命名空间 | `summy_reliquary` / `summy-reliquary` |
 | 目标环境 | Minecraft **1.20.1** + **Forge 47.4.10**（`gradle.properties` 固定 JDK 17） |
 | 前置 | **Curios** `5.14.1+1.20.1`（`mods.toml` 只有 forge + minecraft + curios） |
-| Fabric 侧 | 通过 **Kilt** 跑同一个 jar（历史可用组合：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；另需 Sodium + Indium；Kilt 不兼容 Async / Embeddium）。2026-11-07 已确认 Kilt 20.1.22 存在上游 `LivingDamageEvent` 金额写回失效，修复前仅作实验性兼容 |
+| Fabric 侧 | 通过 **Kilt** 跑同一个 jar（历史可用组合：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；另需 Sodium + Indium；Kilt 不兼容 Async / Embeddium）。2026-11-07 已确认 Kilt 20.1.22 存在上游 `LivingDamageEvent` 金额写回失效；SR 启动探针检测到后会回退旧吸收路径，但 Kilt 仍只作实验性兼容 |
 | 构建 | `gradlew clean build`（产物自动复制到 `../JAR/summy-reliquary/`） |
 | 当前版本 | `2.0.0-forge`（协议 `"19"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
 | 二创与致谢 | 本模组是基于《以撒的结合》（The Binding of Isaac）的**粉丝二创作品**：物品贴图与部分设定有相当数量直接取自或改编自该作，**不主张任何权利**、不用于商业用途；`LICENSE` 的 MIT **只覆盖原创代码与原创素材**。完整中英声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`；联系邮箱 **525277385@qq.com** |
@@ -39,7 +39,7 @@
 
 **2026-11-06 誓约获取**：五件改为野箱首获 + 取得后补铸。无天使 / 恶魔时仅按 `15%` 尝试生死逆转且不累计保底；天使路线从“生死逆转 / 神圣干预 / 神圣裁决”的缺失池抽取，恶魔路线从“生死逆转 / 血债祭坛 / 厄咒之印”的缺失池抽取，两线各自连续 10 箱失败后下一箱必得。生死逆转使用共享取得位，任一路线取得后同时退出两线池和后续中立掉落；双标记异常暂停发放。登录与周期扫描背包 / Curios 补记 `/give`、旧存档和创造模式已有物品。补铸配方在取得前由 JEI 隐藏、服务端退料，取得后仍受当前路线门禁约束。生死逆转参考表为 10 件、超出原版 3×3 的 9 格，落定为 4 回响碎片 + 3 灵魂沙 + 1 不死图腾 + 1 金块。协议升为 `"19"`，配置新增 `[covenant_acquisition]` 三项。
 
-**2026-11-07 全量验证与 Kilt 上游定位**：Forge 47.4.10 完整客户端自检输出 **614 行 `[DEVCHECK]`**、0 条失败断言并正常退出；`clean build` 成功，正式 jar 为 **558 项 / 两种 Zip 读取方式 0 异常**，JAR 不含 devcheck；专用服务端到 `Done` 后正常停止。最终正式 jar SHA256 = `671A8A09D2EB49892A17ADE654B9095D25475850B6A172EF3DECBEF2D789735C`。同轮用最小 Forge 探针确认 Kilt 20.1.22 的玩家系 `LivingDamageEvent` 金额写回失效：Kilt 3/3 次事件金额 `4.0 → 0.0` 但生命 `20.0 → 16.0`，Forge 47.4.23 对照 3/3 次生命保持 20.0；已提交 [KiltMC/Kilt#1049](https://github.com/KiltMC/Kilt/issues/1049)。Kilt 修复前不将 Fabric 兼容路径计入“全量已验证”。OpenGL 本轮使用 NVIDIA 617.42 / GL 4.6 正常完成客户端自检；历史 `nvoglv64.dll` 原生崩溃仍作为独立驱动问题跟踪。
+**2026-11-07 全量验证与 Kilt 上游定位**：Forge 47.4.10 完整客户端自检输出 **616 行 `[DEVCHECK]`**、0 条失败断言并正常退出；`clean build` 成功，正式 jar 为 **558 项 / 两种 Zip 读取方式 0 异常**，JAR 不含 devcheck；专用服务端到 `Done` 后正常停止。最终正式 jar SHA256 = `C741A2C3BDC00DB575B6FACF031515A21F32947EEA6F760123197B34973AAF16`。同轮用最小 Forge 探针确认 Kilt 20.1.22 的玩家系 `LivingDamageEvent` 金额写回失效：Kilt 3/3 次事件金额 `4.0 → 0.0` 但生命 `20.0 → 16.0`，Forge 47.4.23 对照 3/3 次生命保持 20.0；已提交 [KiltMC/Kilt#1049](https://github.com/KiltMC/Kilt/issues/1049)。随后 SR 增加启动写回探针：Forge 实测选择 `HEALTH_DAMAGE`，Kilt 20.1.22 实测选择 `LEGACY`，探针异常或未声明时也默认旧路径。Kilt 仍只作实验性兼容。OpenGL 本轮使用 NVIDIA 617.42 / GL 4.6 正常完成客户端自检；历史 `nvoglv64.dll` 原生崩溃仍作为独立驱动问题跟踪。
 
 **1.8.8**：长矛第一/第三人称完整动画（2.1）。① **Mixin 基础设施** —— 首次接入 MixinGradle 0.7.38 + Mixin 0.8.5 + MixinExtras 0.5.5（`jarJar` 打入产物），新增 `summy_reliquary.mixins.json`（`required: false` / `defaultRequire: 0`）；发布产物改取 `reobfJarJar`，正式包继续排除 devcheck。② **四个动画 Mixin** —— `LivingEntityMixin`（`getCurrentSwingDuration` = `clamp(round(20 / 攻速), 4, 40)`，与攻击冷却严格同步）、`ItemInHandRendererMixin`（抑制普通挥击位移 / 换手、替换 `applySwingOffset`、在 `getUseAnimation()` 前插入蓄力动画、蓄力时抑制装备偏移）、`HumanoidModelMixin`（`poseRightArm` / `poseLeftArm` / `setupAttackAnimation`）、`HeldItemFeatureRendererMixin`（第三人称手持物品前移 / 前突）。③ **曲线** —— `client/SpearAnimation` 纯函数复刻 `Backported-Spears` 的 `holdUpAnimation` 与戳刺三段曲线；自检新增 `checkSpearAnimationCurves`（攻速 1.0 / 2.0 / 4.0 / 100 / 0.1 → 20 / 10 / 5 / 4 / 40，蓄力 0→1，戳刺 0→1）。④ **边界** —— Mixin 仅限两把长矛动画；左键门禁 / 冷却 / 投掷结算 / GUI 模型全部不变。自检 **605 行全绿**；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议仍 `"14"`。
 
@@ -653,7 +653,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 - **2.0.0 誓约状态效果**：`textures/mob_effect/sacred_verdict.png` 与 `hex_seal.png` 分别原样复制对应物品贴图，作为两个纯视觉 MobEffect 的状态栏图标；效果本体启用原版状态粒子。
 - **2.3 誓约补铸配方**：新增 5 张普通 3×3 有序配方；生死逆转因 9 格上限采用 4 回响 + 3 灵魂沙 + 1 图腾 + 1 金块，其余四张按心之碎片 / 金块 / 回响、红石块 / 下界疣块、末影珍珠 / 灵魂沙 / 凋灵玫瑰 / 下界之星组合。配方总数 **36 → 41**。
 - **配方总数（1.7.10 实测）**：**34 张**（`data/summy-reliquary/recipes/*.json`）。
-- **当前计数（2.0.0 实测）**：注册物品 **57**、进度 **25**、配方 **41**、配置段 **34**（**332 键**，源码口径；创造页 **53**、伤害类型 **18**、网络包 **12**；2.3 新增六个配置段 52 键）。物品贴图 **58**、状态效果图标 **5**、栏位图标 **8**（全部已接入）；完整 `[DEVCHECK]` **612~614 行全绿**。
+- **当前计数（2.0.0 实测）**：注册物品 **57**、进度 **25**、配方 **41**、配置段 **34**（**332 键**，源码口径；创造页 **53**、伤害类型 **18**、网络包 **12**；2.3 新增六个配置段 52 键）。物品贴图 **58**、状态效果图标 **5**、栏位图标 **8**（全部已接入）；完整 `[DEVCHECK]` **613~616 行全绿**。
 - **二创与素材声明（1.7.10 收尾）**：物品贴图与部分设定**有相当数量直接取自或改编自《以撒的结合》**（本作素材不主张任何权利、不用于商业用途）；`LICENSE` 的 **MIT 只覆盖原创代码与原创素材**。完整中英致谢与免责声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`，联系邮箱 **525277385@qq.com**；`mods.toml` 的游戏内描述也加了一行二创说明。
 - **日志归档（1.7.10 收尾第三批）**：工程根只保留最新一份 `build-*.log` / `devcheck-*.log` / `server-*.log`；1.7.x 的历史日志归档在 `logs/archive/1.7.x/`，更早的已清理。整理入口：`scripts/clean-logs.ps1`（默认只打印计划，加 `-Apply` 执行）。
 - **文案约定**：**所有经文引用统一加 `——` 前缀**（如 `——《诗篇》32:11`）；提示文案里的数字按配置生成，"数值进配置、纯表现常量留在代码里"。
@@ -665,7 +665,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 1. **构建**：`gradlew clean build`（JDK 17，路径写在 `gradle.properties`），产物自动复制到 `../JAR/summy-reliquary/`；旧 jar 一律保留，部署时把实例里旧版改名 `.disabled`。
 > **609 行 `[DEVCHECK]`** 是 2.0.0 的完整自检（比 1.8.8 的 605 行多 4 行 = 2.13 / 2.10 / 2.11 / 2.9 各新增一组断言）。下面这段“当前 595 行”是 1.8.7 的历史记录，保留用于对照。
 
-2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。2.0.0 当前自检共输出 **612~614 行 `[DEVCHECK]`**（2026-11-07 实测 614），逐项断言行全部通过；`case 2277` 覆盖誓约五件的栏位 / 资源、生死逆转、反伤与屏障、裁决附伤、状态粒子、厄咒传播玩家排除、血债独立层/吸收顺序/静默生命目标匹配、厄咒最高单转移，以及无阵营 / 双路线 / 独立保底 / 共享取得位 / 补铸门禁与真实箱子来源过滤。历史值：1.8.8 为 605、1.8.7 为 595、1.8.6 为 594、1.8.5 为 585、1.8.4 为 574、1.8.3 为 574、1.8.2 为 569。覆盖：
+2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。2.0.0 当前自检共输出 **613~616 行 `[DEVCHECK]`**（2026-11-07 加入写回探针后实测 616），逐项断言行全部通过；`case 2277` 覆盖誓约五件的栏位 / 资源、生死逆转、反伤与屏障、裁决附伤、状态粒子、厄咒传播玩家排除、血债独立层/吸收顺序/静默生命目标匹配、厄咒最高单转移，以及无阵营 / 双路线 / 独立保底 / 共享取得位 / 补铸门禁与真实箱子来源过滤。历史值：1.8.8 为 605、1.8.7 为 595、1.8.6 为 594、1.8.5 为 585、1.8.4 为 574、1.8.3 为 574、1.8.2 为 569。覆盖：
    - 栏位校验矩阵 10×5、套装切换与提示去重/着色、魂心与吸收（含外部清零模拟、与生命护盾相加 46/36/2、卸下只收我方份额）
    - 发光（含视线）、伤害加成、启示计时与**静止 5 秒**转化、不可重复佩戴、七罪三态与碎片赎罪、赎罪配方门槛（JEI 可见性）
    - 战斗手感（无敌帧/攻速上限）、启示之光（105 点 / 几何 / 中途离开 / CD / 射程 21 / 粒子）
@@ -715,7 +715,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
    **1.6.6 追加两条**：① `[combat] log_damage_pools` 在旧配置里是 `false`，要排查"池子到底扣没扣"必须手动改成 `true`（新配置文件默认就是 true）；② `[occult_eye] fear_blindness` 已改名为 `fear_darkness`，新键默认 true，旧键仍参与判定（写 false 依旧关闭）。
 6. **网络协议 19**（1.7.2 起 12 新增创世纪动画包，1.8.2 起 13 新增神性回溯 / 恶魔形态包，1.8.5 起 14 新增神圣光环开关包，2.3 起 15 新增誓约 R 技能包；16 补齐死形态 HUD 字段，17 / 18 调整血债盾同步，19 加入誓约取得位图）；
    客户端与服务端必须同 jar，否则拒绝连接。
-7. **Kilt 组合要求**：历史组合为 Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；需 Sodium + Indium；Kilt 与 Async / Embeddium 不兼容。2026-11-07 已确认 Kilt 20.1.22 的上游 [LivingDamageEvent 金额写回问题](https://github.com/KiltMC/Kilt/issues/1049)，在修复前 Kilt 路径不纳入全量已验证范围，实际游玩优先使用 Forge。
+7. **Kilt 组合要求**：历史组合为 Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；需 Sodium + Indium；Kilt 与 Async / Embeddium 不兼容。2026-11-07 已确认 Kilt 20.1.22 的上游 [LivingDamageEvent 金额写回问题](https://github.com/KiltMC/Kilt/issues/1049)；SR 现在会在服务器启动时用合成玩家验证写回，Kilt 实测自动选择旧路径，避免池子扣减与生命损失同时发生。该兼容路径已验证启动日志，但 Kilt 仍不纳入全量游玩验证范围，实际游玩优先使用 Forge。
 8. **交互口径提醒**：神性死亡拦截无冷却（可能连续触发，属预期）；神性光环不击退，但**救恩领域仍会击退**（未改动）；训练人偶被我们打中会回满血（刻意设计）。
 9. **`affect_target_dummies` 只影响领域/光环是否打假人**；心之碎片掉落**永远排除假人**。
 10. **1.6.1 已经不再有借用素材**：物品图 / 栏位图 / 黑心 / 魂心全是自家画稿，可直接替换 PNG 换外观。

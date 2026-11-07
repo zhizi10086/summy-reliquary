@@ -1,13 +1,18 @@
 package com.summy.reliquary.effect;
 
+import com.mojang.authlib.GameProfile;
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.GameType;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -19,6 +24,8 @@ import java.util.UUID;
  * <ul>
  *     <li>Kilt-20.1.20 里 {@code LivingEntityInject} 的那处 {@code LivingDamageEvent} 注入被跳过
  *     （日志：{@code Shift.BY=2 ... exceeds the maximum allowed value: 0}）；</li>
+ *     <li>Kilt-20.1.22 会派发玩家系事件，但 {@code event.setAmount(...)} 不会影响最终生命扣除
+ *     （上游 #1049）；因此启动探针必须同时验证“事件到达”和“金额写回生效”；</li>
  *     <li>Kilt 对玩家会**触发两次 {@code LivingHurtEvent}**（{@code hurt} 开头一次、{@code actuallyHurt} 里一次），
  *     "命中前并入 + 事件后拆分"会被第二次触发撤销并入、或由过早点位的事件判定成"没被吸收"，
  *     于是池子永不扣、伤害全落原版护盾与红血。</li>
@@ -60,10 +67,18 @@ public final class DamagePools {
 	 */
 	private static final Map<UUID, Long> NEW_PATH_HITS = new HashMap<>();
 	/**
-	 * 能力探测：当前环境（Forge / Connector）是否真的会派发 {@code LivingDamageEvent}。
-	 * Kilt 上那处注入被跳过 → 永远探测不到 → 自动全程走旧路径（见 {@link Mode}）。
+	 * 能力探测：当前环境是否真的会派发玩家系 {@code LivingDamageEvent}，以及金额写回是否生效。
+	 * Kilt 20.1.22 会派发事件但忽略金额写回，因此两个结果必须分开记录（见 {@link Mode}）。
 	 */
 	private static boolean healthDamageEventWorks = false;
+	private static boolean healthDamageWritebackWorks = false;
+	private static ServerPlayer writebackProbePlayer;
+	private static int writebackProbeEvents;
+	private static float writebackProbeAmountBefore = -1.0F;
+	private static float writebackProbeAmountAfter = -1.0F;
+	/** 自检用：模拟平台探测结果；null 表示使用真实探针结果 */
+	private static Boolean writebackEventForTest;
+	private static Boolean writebackEffectiveForTest;
 	/** 是否运行在 Fabric 侧（Kilt / Connector）；1.6.6 起**只用于日志标签**，不再参与是否介入的判断 */
 	private static final boolean FABRIC_SIDE = classPresent("net.fabricmc.loader.api.FabricLoader");
 	/** 自检用：在 Forge 上强制按 Fabric 侧处理（复现 Kilt 的行为） */
@@ -77,7 +92,7 @@ public final class DamagePools {
 		AUTO,
 		/** 新路径：`LivingDamageEvent` 里按真实血伤扣池（吸附值一个点都不动） */
 		HEALTH_DAMAGE,
-		/** 旧路径：并入原版吸收值 + 事后对账（Kilt 等收不到 LivingDamageEvent 的环境） */
+		/** 旧路径：并入原版吸收值 + 事后对账（事件缺失或写回无效的环境） */
 		LEGACY
 	}
 
@@ -101,19 +116,98 @@ public final class DamagePools {
 
 	/** 自检 / 日志用：当前是否已探测到 `LivingDamageEvent` 可用 */
 	public static boolean healthDamageEventWorks() {
-		return healthDamageEventWorks;
+		return writebackEventForTest != null ? writebackEventForTest : healthDamageEventWorks;
+	}
+
+	/** 自检 / 日志用：事件金额写回是否真实生效 */
+	public static boolean healthDamageWritebackWorks() {
+		return writebackEffectiveForTest != null ? writebackEffectiveForTest : healthDamageWritebackWorks;
+	}
+
+	/** 自检用：注入事件派发 / 写回结果；传 null 回到真实探针结果 */
+	public static void setWritebackProbeForTest(Boolean eventWorks, Boolean writebackWorks) {
+		writebackEventForTest = eventWorks;
+		writebackEffectiveForTest = writebackWorks;
 	}
 
 	/** 服务器停止：复位能力探测（换了服务器 / 加载器之后必须重新探测） */
 	public static void resetCapabilityProbe() {
 		healthDamageEventWorks = false;
+		healthDamageWritebackWorks = false;
+		writebackProbePlayer = null;
+		writebackProbeEvents = 0;
+		writebackProbeAmountBefore = -1.0F;
+		writebackProbeAmountAfter = -1.0F;
+		writebackEventForTest = null;
+		writebackEffectiveForTest = null;
 		NEW_PATH_HITS.clear();
 	}
 
 	/** 本环境该走哪条路径 */
 	public static boolean useHealthDamagePath() {
 		return modeForTest == Mode.HEALTH_DAMAGE
-				|| (modeForTest == Mode.AUTO && healthDamageEventWorks);
+				|| (modeForTest == Mode.AUTO && healthDamageEventWorks()
+						&& healthDamageWritebackWorks());
+	}
+
+	/**
+	 * 服务器启动后做一次真实写回探针：合成玩家不进入世界、没有装备与连接，
+	 * 用 genericKill 进入伤害管线，监听器把 4.0 写为 0.0，再核对生命是否真的不变。
+	 */
+	public static void probeWritebackSupport(MinecraftServer server) {
+		resetCapabilityProbe();
+		ServerPlayer probe = null;
+		float healthBefore = -1.0F;
+		float healthAfter = -1.0F;
+		boolean accepted = false;
+		try {
+			ServerLevel level = server.overworld();
+			GameProfile profile = new GameProfile(
+					UUID.nameUUIDFromBytes("summy_reliquary_writeback_probe".getBytes(StandardCharsets.UTF_8)),
+					"summy_writeback_probe");
+			probe = new ServerPlayer(server, level, profile);
+			probe.setPos(0.0D, 100.0D, 0.0D);
+			probe.setInvulnerable(false);
+			probe.gameMode.changeGameModeForPlayer(GameType.SURVIVAL);
+			probe.getAbilities().invulnerable = false;
+			probe.setHealth(20.0F);
+			probe.setAbsorptionAmount(0.0F);
+			probe.invulnerableTime = 0;
+			probe.setDeltaMovement(0.0D, 0.0D, 0.0D);
+			writebackProbePlayer = probe;
+			writebackProbeEvents = 0;
+			writebackProbeAmountBefore = -1.0F;
+			writebackProbeAmountAfter = -1.0F;
+			healthBefore = probe.getHealth();
+			accepted = probe.hurt(level.damageSources().genericKill(), 4.0F);
+			healthAfter = probe.getHealth();
+			healthDamageEventWorks = writebackProbeEvents > 0;
+			healthDamageWritebackWorks = accepted
+					&& writebackProbeEvents == 1
+					&& Math.abs(writebackProbeAmountBefore - 4.0F) <= 1.0E-4F
+					&& Math.abs(writebackProbeAmountAfter) <= 1.0E-4F
+					&& Math.abs(healthBefore - healthAfter) <= 1.0E-4F;
+		} catch (Throwable throwable) {
+			healthDamageEventWorks = false;
+			healthDamageWritebackWorks = false;
+			SummyReliquary.LOGGER.warn(
+					"[Summy Reliquary] 伤害池：LivingDamageEvent 写回探针失败，按 LEGACY 路径处理",
+					throwable);
+		} finally {
+			writebackProbePlayer = null;
+		}
+		if (healthDamageEventWorks && healthDamageWritebackWorks) {
+			SummyReliquary.LOGGER.info(
+					"[Summy Reliquary] 伤害池启动探针：事件={}、次数={}、金额 {} → {}、生命 {} → {}，路径=HEALTH_DAMAGE",
+					true, writebackProbeEvents, writebackProbeAmountBefore, writebackProbeAmountAfter,
+					healthBefore, healthAfter);
+		} else {
+			SummyReliquary.LOGGER.warn(
+					"[Summy Reliquary] 伤害池启动探针：事件={}、次数={}、金额 {} → {}、生命 {} → {}，路径=LEGACY"
+							+ "（写回无效或探针不可用）",
+					healthDamageEventWorks, writebackProbeEvents, writebackProbeAmountBefore,
+					writebackProbeAmountAfter, healthBefore, healthAfter);
+		}
 	}
 
 	/**
@@ -131,8 +225,8 @@ public final class DamagePools {
 		if (player.isInvulnerable() || player.isInvulnerableTo(event.getSource())) {
 			return false;
 		}
-		// 1.8.5 第二轮：能收到 LivingDamageEvent 的环境（Forge / Connector）改走"后置扣池" —— 本击
-		// 完全不在吸收值上做手脚（详见类注释"新路径"）；Kilt 收不到那个事件，自动落回下面的旧路径。
+		// 1.8.5 第二轮：启动探针确认事件到达且金额写回有效的环境改走"后置扣池" —— 本击
+		// 完全不在吸收值上做手脚（详见类注释"新路径"）；Kilt 20.1.22 写回无效，自动落回下面的旧路径。
 		if (useHealthDamagePath()) {
 			return prepareHealthDamagePath(player, event);
 		}
@@ -285,12 +379,12 @@ public final class DamagePools {
 	 * 那次减法会被原版钳到 0，**不会额外扣任何东西**（已核字节码）。
 	 */
 	public static void applyToHealthDamage(LivingDamageEvent event) {
-		// 能力探测：能收到这个事件，就说明当前环境没有跳过 LivingDamageEvent（Connector 走的是 Forge 管线）
-		if (!healthDamageEventWorks) {
-			healthDamageEventWorks = true;
-			SummyReliquary.LOGGER.info(
-					"[Summy Reliquary] 伤害池：本环境会派发 LivingDamageEvent → 池子份额改走「后置扣血」口径"
-							+ "（不再并入吸收值，与 Summy Enchantment 的生命护盾互不干扰）");
+		if (writebackProbePlayer != null && event.getEntity() == writebackProbePlayer) {
+			writebackProbeEvents++;
+			writebackProbeAmountBefore = event.getAmount();
+			event.setAmount(0.0F);
+			writebackProbeAmountAfter = event.getAmount();
+			return;
 		}
 		if (!(event.getEntity() instanceof ServerPlayer player)) {
 			return;
@@ -413,7 +507,7 @@ public final class DamagePools {
 		Long stamp = NEW_PATH_HITS.get(player.getUUID());
 		if (stamp != null && stamp < now(player)) {
 			NEW_PATH_HITS.remove(player.getUUID());
-			if (modeForTest == Mode.AUTO && healthDamageEventWorks) {
+			if (modeForTest == Mode.AUTO && healthDamageEventWorks()) {
 				healthDamageEventWorks = false;
 				SummyReliquary.LOGGER.warn(
 						"[Summy Reliquary] 伤害池：本环境没有收到 LivingDamageEvent（注入被跳过），"

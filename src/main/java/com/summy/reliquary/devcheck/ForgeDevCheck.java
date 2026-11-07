@@ -442,6 +442,8 @@ public final class ForgeDevCheck {
 				case 2263 -> checkShieldClamp(player);
 				// 1.8.5 补修：击杀回复的饥饿上限只在"暴食未赎罪"时是 18
 				case 2264 -> checkGluttonyKillFeed(player);
+				// 2026-11-07：LivingDamageEvent 事件到达但金额写回无效时自动回退旧路径
+				case 2265 -> checkDamagePoolWritebackProbe();
 				// 1.8.5 第二轮：池子份额改走 LivingDamageEvent（吸收值全程不动，与 SE 生命护盾互不干扰）
 				case 2266 -> checkPoolHealthDamagePath(player);
 				// 1.8.5 第二轮：神性「神圣光环」的玩家开关（右键物品切换）
@@ -16385,6 +16387,33 @@ public final class ForgeDevCheck {
 				+ healthAfterSecond + "（应 " + healthBefore + "）、吸收 " + absorptionAfterSecond
 				+ "（应 0）→ 整体=" + (firstOk && secondOk) + "（应 true）");
 		resetDemonPactState(player);
+	}
+
+	/** Kilt 20.1.22：事件可派发但金额写回无效时，AUTO 必须回退旧路径。 */
+	private static void checkDamagePoolWritebackProbe() {
+		boolean realEvent = com.summy.reliquary.effect.DamagePools.healthDamageEventWorks();
+		boolean realWriteback = com.summy.reliquary.effect.DamagePools.healthDamageWritebackWorks();
+		com.summy.reliquary.effect.DamagePools.setModeForTest(
+				com.summy.reliquary.effect.DamagePools.Mode.AUTO);
+		boolean realAutoPath = com.summy.reliquary.effect.DamagePools.useHealthDamagePath();
+		com.summy.reliquary.effect.DamagePools.setWritebackProbeForTest(true, false);
+		boolean brokenWritebackFallsBack =
+				!com.summy.reliquary.effect.DamagePools.useHealthDamagePath();
+		com.summy.reliquary.effect.DamagePools.setWritebackProbeForTest(false, false);
+		boolean missingEventFallsBack = !com.summy.reliquary.effect.DamagePools.useHealthDamagePath();
+		com.summy.reliquary.effect.DamagePools.setWritebackProbeForTest(true, true);
+		boolean effectiveWritebackUsesNewPath =
+				com.summy.reliquary.effect.DamagePools.useHealthDamagePath();
+		com.summy.reliquary.effect.DamagePools.setWritebackProbeForTest(null, null);
+		com.summy.reliquary.effect.DamagePools.setModeForTest(null);
+		boolean ok = realEvent && realWriteback && realAutoPath && brokenWritebackFallsBack
+				&& missingEventFallsBack && effectiveWritebackUsesNewPath;
+		log("LivingDamage 写回探针（Kilt #1049 回退）：真实启动 事件=" + realEvent
+				+ "（应 true）、写回=" + realWriteback + "（应 true）、AUTO 新路径="
+				+ realAutoPath + "（应 true）；模拟有事件无写回→旧路径="
+				+ brokenWritebackFallsBack + "（应 true）、无事件→旧路径="
+				+ missingEventFallsBack + "（应 true）、有效写回→新路径="
+				+ effectiveWritebackUsesNewPath + "（应 true）→ 整体=" + ok + "（应 true）");
 	}
 
 	/**

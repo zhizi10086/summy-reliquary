@@ -31,6 +31,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
@@ -58,6 +59,12 @@ public final class ReliquaryEvents {
 			new java.util.HashMap<>();
 
 	private ReliquaryEvents() {
+	}
+
+	/** 服务器启动完成后探测 LivingDamageEvent 金额写回是否真实生效。 */
+	@SubscribeEvent
+	public static void onServerStarted(ServerStartedEvent event) {
+		com.summy.reliquary.effect.DamagePools.probeWritebackSupport(event.getServer());
 	}
 
 	/** 每个服务端 tick：维护邦邦女仆状态并锁定白饭佩戴者的饥饿值 */
@@ -1051,8 +1058,8 @@ public final class ReliquaryEvents {
 	 * （下一次命中前 / 玩家 tick 末尾）退还并还原吸收值。必须排在 LOWEST 的最后，所以写在
 	 * {@code onLivingHurtRecordHolyLight} 之后。
 	 *
-	 * <p>1.8.5 第二轮起：能收到 {@code LivingDamageEvent} 的环境（Forge / Connector）会改走
-	 * {@link #onLivingDamagePools} 的「后置扣池」——本方法那时只登记、不并入吸收值。
+	 * <p>1.8.5 第二轮起：启动探针确认事件和金额写回均有效的环境（Forge / 已修复的 Connector）
+	 * 会改走 {@link #onLivingDamagePools} 的「后置扣池」——本方法那时只登记、不并入吸收值。
 	 */
 	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
 	public static void onLivingHurtPreparePools(LivingHurtEvent event) {
@@ -1072,8 +1079,8 @@ public final class ReliquaryEvents {
 	 * 同时扣池，玩家少掉的血正好等于池子承担的量，而**吸收值一个点都不动** ——
 	 * 读吸收值做增量记账的模组（Summy Enchantment 的生命护盾）不再被"先并入、再退还"牵连。
 	 *
-	 * <p>同一个处理器顺带做**能力探测**：能收到这个事件就说明当前环境没有跳过它（Kilt 会跳过，
-	 * 于是自动回退旧路径）。
+	 * <p>能力探测由服务器启动时的一次性合成玩家探针完成；本处理器不根据“收到事件”直接切换路径，
+	 * 因为 Kilt 20.1.22 会派发事件但忽略金额写回。
 	 */
 	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
 	public static void onLivingDamagePools(net.minecraftforge.event.entity.living.LivingDamageEvent event) {
