@@ -4221,6 +4221,41 @@ public final class ForgeDevCheck {
 			float verdictEmpowered = hurtAmount(player, target,
 					"sacred_verdict_empowered", 21.0F);
 			float verdictBonus = hurtAmount(player, target, "sacred_verdict_bonus", 21.0F);
+			DamageSource fixedSeProbe = srSource(player, "sacred_verdict");
+			DamageSource seNativeProbe = srSource(player, "sacred_verdict_empowered");
+			com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.setDeathsBlessingProbeForTest(2.0F, false, false);
+			float fixedSeOnce = com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.applyDeathsBlessingToFixedDamage(10.0F, player, fixedSeProbe, true);
+			float fixedSeDisabled = com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.applyDeathsBlessingToFixedDamage(10.0F, player, fixedSeProbe, false);
+			float seNativeNotRepeated = com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.applyDeathsBlessingToFixedDamage(10.0F, player, seNativeProbe, true);
+			com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.setDeathsBlessingProbeForTest(null, true, false);
+			float fixedSeMissing = com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.applyDeathsBlessingToFixedDamage(10.0F, player, fixedSeProbe, true);
+			com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.setDeathsBlessingProbeForTest(null, false, true);
+			float fixedSeFailure = com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.applyDeathsBlessingToFixedDamage(10.0F, player, fixedSeProbe, true);
+			com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.setDeathsBlessingProbeForTest(0.0F, false, false);
+			float fixedSeInvalid = com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.applyDeathsBlessingToFixedDamage(10.0F, player, fixedSeProbe, true);
+			com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.setDeathsBlessingProbeForTest(null, false, false);
+			boolean seFixedDamageMatrix =
+					com.summy.reliquary.compat.EnchantmentReforgedCompat
+							.isDeathsBlessingExcluded(fixedSeProbe)
+					&& !com.summy.reliquary.compat.EnchantmentReforgedCompat
+							.isDeathsBlessingExcluded(seNativeProbe)
+					&& Math.abs(fixedSeOnce - 20.0F) < 1.0E-4F
+					&& Math.abs(fixedSeDisabled - 10.0F) < 1.0E-4F
+					&& Math.abs(seNativeNotRepeated - 10.0F) < 1.0E-4F
+					&& Math.abs(fixedSeMissing - 10.0F) < 1.0E-4F
+					&& Math.abs(fixedSeFailure - 10.0F) < 1.0E-4F
+					&& Math.abs(fixedSeInvalid - 10.0F) < 1.0E-4F;
 
 			// 思想三件套 + 发光目标：验证 SpiritAltarSet 与 ReliquaryEvents 共用同一放行口径。
 			CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
@@ -4265,6 +4300,7 @@ public final class ForgeDevCheck {
 					&& Math.abs(verdictEmpowered - 31.5F) < 1.0E-3F
 					&& Math.abs(verdictBonus - 21.0F) < 1.0E-4F
 					&& Math.abs(conditional - 16.5F) < 1.0E-3F
+					&& seFixedDamageMatrix
 					&& wrathHits == 0 && armorStrips == 0;
 			log(String.format("定值真伤增伤（2.17）：关闭时 普通 %.2f / 光环 %.2f / 契约 %.1f；"
 							+ "开启时 普通 %.2f / 圣光爆发 %.2f / 光环 %.2f / 契约 %.1f / 纯圣光 %.2f / "
@@ -4273,7 +4309,13 @@ public final class ForgeDevCheck {
 					melee, aura, sacrifice, enabledMelee, burst, enabledAura, enabledSacrifice,
 					holyLight, verdictEmpowered, verdictBonus, conditional,
 					wrathHits, armorStrips, ok));
+			log(String.format("定值真伤·SE 死神祝福矩阵：排除标签开关外=%.1f / 开关内只乘一次=%.1f / "
+							+ "未排除不重复=%.1f；缺失=%.1f / 异常=%.1f / 非法倍率=%.1f → 合计=%s（应 true）",
+					fixedSeDisabled, fixedSeOnce, seNativeNotRepeated, fixedSeMissing,
+					fixedSeFailure, fixedSeInvalid, seFixedDamageMatrix));
 		} finally {
+			com.summy.reliquary.compat.EnchantmentReforgedCompat
+					.setDeathsBlessingProbeForTest(null, false, false);
 			com.summy.reliquary.config.ReliquaryConfig.setExactDamageGetsMultiplierForDevCheck(original);
 			target.discard();
 			resetSinState(player);

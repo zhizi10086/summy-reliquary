@@ -891,6 +891,12 @@ public final class ReliquaryEvents {
 				// 圣心 + 神性：同一个「全伤害最终倍率」乘区（相加），并且不吃到本模组的神性伤害上
 				event.setAmount(virtueDamage
 						* finalDamageMultiplier(attacker, event.getSource(), regularDamageBonuses));
+				// SE 的排除标签会跳过死神祝福；ST 兼容层删除后由 SR 对这类定值真伤补一次。
+				if (exactDamageBonuses) {
+					event.setAmount(com.summy.reliquary.compat.EnchantmentReforgedCompat
+							.applyDeathsBlessingToFixedDamage(
+									event.getAmount(), attacker, event.getSource(), true));
+				}
 			}
 			// 恶魔契约（1.6.0）：吸血仍只认普通伤害，2.17 不把定值真伤转成吸血来源。
 			if (regularDamageBonuses && com.summy.reliquary.effect.DemonPact.lifestealActive(attacker)) {
