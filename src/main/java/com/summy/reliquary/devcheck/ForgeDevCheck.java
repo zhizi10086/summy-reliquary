@@ -5783,10 +5783,32 @@ public final class ForgeDevCheck {
 				&& serverResourceText(player.getServer(), "curios", "tags/items/charm.json")
 						.contains("summy-reliquary:humbleing_bundle");
 
-		Zombie victim = new Zombie(EntityType.ZOMBIE, level);
-		DamageSource source = level.damageSources().playerAttack(player);
+		// 事务中的玩家来自 LAST_DAMAGE_PLAYER；最终伤害源故意不再提供玩家，
+		// 复现 Goety 延迟死亡等第三方路径，验证事件阶段不再重新猜玩家。
+		net.minecraft.world.entity.animal.Cow victim =
+				new net.minecraft.world.entity.animal.Cow(EntityType.COW, level);
+		DamageSource source = level.damageSources().genericKill();
+		net.minecraft.resources.ResourceLocation victimTable = victim.getLootTable();
+		net.minecraft.world.level.storage.loot.LootParams victimParams =
+				new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+						.withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.THIS_ENTITY,
+								victim)
+						.withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN,
+								victim.position())
+						.withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.DAMAGE_SOURCE,
+								source)
+						.withOptionalParameter(
+								net.minecraft.world.level.storage.loot.parameters.LootContextParams.LAST_DAMAGE_PLAYER,
+								player)
+						.create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.ENTITY);
+		net.minecraft.world.level.storage.loot.LootContext victimContext =
+				new net.minecraft.world.level.storage.loot.LootContext.Builder(victimParams)
+						.withOptionalRandomSeed(2278L)
+						.withQueriedLootTableId(victimTable)
+						.create(victimTable);
 		com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
-		com.summy.reliquary.loot.HumbleingBundleLoot.markKillSuccessForTest(player, victim);
+		com.summy.reliquary.loot.HumbleingBundleLoot.markKillSuccessForTest(
+				player, victim, victimContext, victimTable);
 		java.util.List<ItemEntity> drops = new java.util.ArrayList<>();
 		drops.add(new ItemEntity(level, player.getX(), player.getY(), player.getZ(),
 				new ItemStack(Items.ROTTEN_FLESH, 2)));
@@ -5794,6 +5816,12 @@ public final class ForgeDevCheck {
 				new net.minecraftforge.event.entity.living.LivingDropsEvent(
 						victim, source, drops, 0, true);
 		com.summy.reliquary.loot.HumbleingBundleLoot.captureLivingDrops(dropsEvent);
+		boolean playerlessReroll = dropsEvent.getDrops().size() > 1;
+		net.minecraftforge.event.entity.living.LivingDropsEvent duplicateDropsEvent =
+				new net.minecraftforge.event.entity.living.LivingDropsEvent(
+						victim, source, new java.util.ArrayList<>(), 0, true);
+		com.summy.reliquary.loot.HumbleingBundleLoot.captureLivingDrops(duplicateDropsEvent);
+		boolean dropsOnce = duplicateDropsEvent.getDrops().isEmpty();
 		ItemStack addedStack = new ItemStack(Items.BONE, 3);
 		addedStack.getOrCreateTag().putString("devcheck_marker", "copied");
 		dropsEvent.getDrops().add(new ItemEntity(level, player.getX(), player.getY(),
@@ -5819,6 +5847,88 @@ public final class ForgeDevCheck {
 		xpEvent.setDroppedExperience(7);
 		com.summy.reliquary.loot.HumbleingBundleLoot.onExperienceDrop(xpEvent);
 		boolean copiedExperience = xpEvent.getDroppedExperience() == 14;
+		net.minecraftforge.event.entity.living.LivingExperienceDropEvent duplicateXpEvent =
+				new net.minecraftforge.event.entity.living.LivingExperienceDropEvent(
+						victim, player, 7);
+		com.summy.reliquary.loot.HumbleingBundleLoot.onExperienceDrop(duplicateXpEvent);
+		boolean experienceOnce = duplicateXpEvent.getDroppedExperience() == 7;
+		boolean victimTransactionOnce =
+				com.summy.reliquary.loot.HumbleingBundleLoot.killTransactionStateForTest(victim) == 15;
+
+		// 真实厄咒转移：A 的受伤产生 50% 转移，B 只剩 2 点生命并被 hex_transfer 击杀。
+		// 强制捆绑包成功，验证玩家归属、击杀事务、掉落和经验都由实际死亡事件驱动。
+		ItemStack oldCharm = ItemStack.EMPTY;
+		ICuriosItemHandler charmHandler = CuriosApi.getCuriosInventory(player).orElse(null);
+		if (charmHandler != null) {
+			var charmStacks = charmHandler.getStacksHandler(ReliquarySlots.CHARM).orElse(null);
+			if (charmStacks != null) {
+				oldCharm = charmStacks.getStacks().getStackInSlot(0).copy();
+			}
+		}
+		Zombie hexSource = null;
+		net.minecraft.world.entity.animal.Cow hexVictim = null;
+		boolean hexTransferKill = false;
+		boolean hexTransferCredit = false;
+		boolean hexTransferOnce = false;
+		boolean hexTransferNonRecursive = false;
+		try {
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+			equipAt(player, ReliquarySlots.CHARM, 0, SummyReliquary.HUMBLEING_BUNDLE.get());
+			com.summy.reliquary.loot.HumbleingBundleLoot.setForcedKillSuccessForTest(true);
+			hexSource = spawnTestZombie(player, 3.0D);
+			hexVictim = spawnTestMobAt(player, 4.0D, EntityType.COW);
+			if (hexSource != null && hexVictim != null) {
+				makeToughTestTarget(hexSource);
+				makeToughTestTarget(hexVictim);
+				hexSource.setNoAi(true);
+				hexVictim.setNoAi(true);
+				hexVictim.setHealth(2.0F);
+				com.summy.reliquary.effect.HexSeal.applyMarkForTest(
+						hexSource, player.getUUID(), 200);
+				com.summy.reliquary.effect.HexSeal.applyMarkForTest(
+						hexVictim, player.getUUID(), 200);
+				LivingHurtEvent sourceHurt = new LivingHurtEvent(hexSource,
+						level.damageSources().playerAttack(player), 10.0F);
+				com.summy.reliquary.effect.HexSeal.onIncomingHurt(sourceHurt);
+				com.summy.reliquary.effect.HexSeal.tickServer(player.getServer());
+
+				hexTransferKill = !hexVictim.isAlive() || hexVictim.getHealth() <= 0.0F;
+				hexTransferCredit = hexVictim.getKillCredit() == player;
+				int state = com.summy.reliquary.loot.HumbleingBundleLoot
+						.killTransactionStateForTest(hexVictim);
+				net.minecraftforge.event.entity.living.LivingExperienceDropEvent duplicateHexXp =
+						new net.minecraftforge.event.entity.living.LivingExperienceDropEvent(
+								hexVictim, player, 5);
+				com.summy.reliquary.loot.HumbleingBundleLoot.onExperienceDrop(duplicateHexXp);
+				net.minecraftforge.event.entity.living.LivingDropsEvent duplicateHexDrops =
+						new net.minecraftforge.event.entity.living.LivingDropsEvent(
+								hexVictim, srSource(player, "hex_transfer"),
+								new java.util.ArrayList<>(), 0, true);
+				com.summy.reliquary.loot.HumbleingBundleLoot.captureLivingDrops(duplicateHexDrops);
+				hexTransferOnce = state == 15
+						&& duplicateHexXp.getDroppedExperience() == 5
+						&& duplicateHexDrops.getDrops().isEmpty();
+				hexTransferNonRecursive =
+						com.summy.reliquary.effect.HexSeal.pendingTransferCountForTest() == 0;
+			}
+		} finally {
+			com.summy.reliquary.loot.HumbleingBundleLoot.setForcedKillSuccessForTest(null);
+			com.summy.reliquary.effect.HexSeal.removeOwner(player);
+			com.summy.reliquary.effect.HexSeal.clear();
+			if (hexSource != null) {
+				hexSource.discard();
+			}
+			if (hexVictim != null) {
+				hexVictim.discard();
+			}
+			if (oldCharm.isEmpty()) {
+				unequip(player, ReliquarySlots.CHARM);
+			} else if (charmHandler != null) {
+				charmHandler.setEquippedCurio(
+						ReliquarySlots.CHARM, 0, oldCharm);
+			}
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+		}
 
 		int oldOwned = com.summy.reliquary.effect.PlayerFlags.covenantOwned(player);
 		int oldAngelPity = com.summy.reliquary.effect.PlayerFlags.covenantPity(player, true);
@@ -5877,12 +5987,21 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
 		}
 
+		boolean transactionMatching = playerlessReroll && dropsOnce
+				&& experienceOnce && victimTransactionOnce;
+		boolean hexTransferBundle = hexTransferKill && hexTransferCredit
+				&& hexTransferOnce && hexTransferNonRecursive;
 		boolean ok = thresholds && slotGate && keepOnDeath && resources
-				&& copiedOnly && copiedExperience && sourceGate;
+				&& copiedOnly && copiedExperience && transactionMatching
+				&& hexTransferBundle && sourceGate;
 		log("慈善捆绑包：50/5 阈值=" + thresholds + "、护符门禁=" + slotGate
 				+ "、死亡保留=" + keepOnDeath + "、单行 Shift / JEI 边界 / 资源=" + resources
 				+ "、仅复制事件追加物=" + copiedOnly + "、最终经验 7→"
 				+ xpEvent.getDroppedExperience() + "=" + copiedExperience
+				+ "、无玩家最终伤害源仍重掷/两阶段各一次=" + transactionMatching
+				+ "、厄咒转移击杀（死亡/归属/单次/不递归）=" + hexTransferKill
+				+ "/" + hexTransferCredit + "/" + hexTransferOnce + "/" + hexTransferNonRecursive
+				+ "=" + hexTransferBundle
 				+ "、生死逆转需七罪之源（无罪锁定沿用）=" + sourceGate
 				+ " → " + ok + "（应 true）");
 		return ok;

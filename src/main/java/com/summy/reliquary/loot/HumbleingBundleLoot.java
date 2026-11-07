@@ -65,6 +65,7 @@ public final class HumbleingBundleLoot {
 	private static final Map<UUID, OpenWindow> OPEN_WINDOWS = new HashMap<>();
 	private static final Map<KillKey, KillTransaction> KILL_TRANSACTIONS = new HashMap<>();
 	private static final Map<LivingDropsEvent, DropSnapshot> DROP_SNAPSHOTS = new IdentityHashMap<>();
+	private static Boolean forcedKillSuccess;
 
 	private HumbleingBundleLoot() {
 	}
@@ -137,13 +138,13 @@ public final class HumbleingBundleLoot {
 			return;
 		}
 
-		KillKey key = new KillKey(victim.getUUID(), player.getUUID(), victim.getServer().getTickCount());
+		KillKey key = keyFor(victim);
 		if (KILL_TRANSACTIONS.containsKey(key)) {
 			return;
 		}
-		boolean success = chance(context.getRandom(),
-				ReliquaryConfig.humbleingBundleExtraLootChancePercent());
-		KILL_TRANSACTIONS.put(key, new KillTransaction(success,
+		boolean success = forcedKillSuccess != null ? forcedKillSuccess
+				: chance(context.getRandom(), ReliquaryConfig.humbleingBundleExtraLootChancePercent());
+		KILL_TRANSACTIONS.put(key, new KillTransaction(player.getUUID(), success,
 				success ? context : null, success ? tableId : null));
 		if (success) {
 			SummyReliquary.LOGGER.info(
@@ -168,6 +169,7 @@ public final class HumbleingBundleLoot {
 		KILL_TRANSACTIONS.clear();
 		DROP_SNAPSHOTS.clear();
 		REPLAY_DEPTH.remove();
+		forcedKillSuccess = null;
 	}
 
 	/** 自检入口：直接检查 50% / 5% 的整数阈值边界。 */
@@ -183,10 +185,41 @@ public final class HumbleingBundleLoot {
 
 	/** 自检入口：预置一次已成功的击杀事务，后续事件仍走正式监听器。 */
 	public static void markKillSuccessForTest(ServerPlayer player, LivingEntity victim) {
+		markKillSuccessForTest(player, victim, null, null);
+	}
+
+	/** 自检入口：使用真实战利品上下文预置事务，验证重掷与两阶段一次性消费。 */
+	public static void markKillSuccessForTest(ServerPlayer player, LivingEntity victim,
+			@Nullable LootContext context, @Nullable ResourceLocation table) {
 		if (Boolean.getBoolean("summy.devcheck")) {
-			KILL_TRANSACTIONS.put(new KillKey(victim.getUUID(), player.getUUID(),
-					victim.getServer().getTickCount()), new KillTransaction(true, null, null));
+			KILL_TRANSACTIONS.put(keyFor(victim),
+					new KillTransaction(player.getUUID(), true, context, table));
 		}
+	}
+
+	/** 自检入口：绕过 50% 随机，验证真实厄咒转移击杀的完整服务端链路。 */
+	public static void setForcedKillSuccessForTest(@Nullable Boolean value) {
+		if (Boolean.getBoolean("summy.devcheck")) {
+			forcedKillSuccess = value;
+		}
+	}
+
+	/**
+	 * 自检入口：返回当前目标本 tick 的事务状态。
+	 *
+	 * <p>位标记：1=事务存在、2=成功、4=掉落已消费、8=经验已消费。
+	 */
+	public static int killTransactionStateForTest(LivingEntity victim) {
+		if (!Boolean.getBoolean("summy.devcheck")) {
+			return 0;
+		}
+		KillTransaction transaction = KILL_TRANSACTIONS.get(keyFor(victim));
+		if (transaction == null) {
+			return 0;
+		}
+		return 1 | (transaction.success() ? 2 : 0)
+				| (transaction.dropsHandled ? 4 : 0)
+				| (transaction.experienceHandled ? 8 : 0);
 	}
 
 	private static void runBonusPass(UUID playerId, OpenWindow window) {
@@ -400,9 +433,15 @@ public final class HumbleingBundleLoot {
 		return BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
 	}
 
-	private static KillKey keyFor(LivingEntity victim, @Nullable ServerPlayer player) {
-		return player == null ? null
-				: new KillKey(victim.getUUID(), player.getUUID(), victim.getServer().getTickCount());
+	private static KillKey keyFor(LivingEntity victim) {
+		MinecraftServer server = victim.getServer();
+		return new KillKey(victim.getUUID(), server == null ? 0 : server.getTickCount());
+	}
+
+	@Nullable
+	private static ServerPlayer transactionPlayer(LivingEntity victim, KillTransaction transaction) {
+		MinecraftServer server = victim.getServer();
+		return server == null ? null : server.getPlayerList().getPlayer(transaction.playerId());
 	}
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
@@ -410,31 +449,43 @@ public final class HumbleingBundleLoot {
 		if (event.isCanceled()) {
 			return;
 		}
-		ServerPlayer player = event.getAttackingPlayer() instanceof ServerPlayer serverPlayer
+		ServerPlayer eventPlayer = event.getAttackingPlayer() instanceof ServerPlayer serverPlayer
 				? serverPlayer : null;
-		KillKey key = keyFor(event.getEntity(), player);
-		KillTransaction transaction = key == null ? null : KILL_TRANSACTIONS.get(key);
-		if (transaction == null || !transaction.success()) {
+		KillKey key = keyFor(event.getEntity());
+		KillTransaction transaction = KILL_TRANSACTIONS.get(key);
+		if (transaction == null || !transaction.success() || transaction.experienceHandled) {
 			return;
 		}
+		if (eventPlayer != null && !transaction.playerId().equals(eventPlayer.getUUID())) {
+			return;
+		}
+		transaction.experienceHandled = true;
+		ServerPlayer player = eventPlayer != null ? eventPlayer : transactionPlayer(event.getEntity(), transaction);
 		int dropped = event.getDroppedExperience();
 		int updated = dropped > Integer.MAX_VALUE - dropped ? Integer.MAX_VALUE : dropped * 2;
 		event.setDroppedExperience(updated);
 		SummyReliquary.LOGGER.info(
 				"[Summy Reliquary] 慈善捆绑包经验复制：玩家={}、目标={}、tick={}、经验={}→{}",
-				player.getName().getString(), entityId(event.getEntity()), key.tick(), dropped, updated);
+				player == null ? "未知" : player.getName().getString(),
+				entityId(event.getEntity()), key.tick(), dropped, updated);
 	}
 
 	@SubscribeEvent(priority = EventPriority.HIGHEST)
 	public static void captureLivingDrops(LivingDropsEvent event) {
-		KillKey key = keyFor(event.getEntity(), creditedPlayer(event.getSource()));
-		KillTransaction transaction = key == null ? null : KILL_TRANSACTIONS.get(key);
-		if (transaction == null || !transaction.success()) {
+		KillKey key = keyFor(event.getEntity());
+		KillTransaction transaction = KILL_TRANSACTIONS.get(key);
+		if (transaction == null || !transaction.success() || transaction.dropsHandled) {
 			return;
 		}
+		ServerPlayer eventPlayer = creditedPlayer(event.getSource());
+		if (eventPlayer != null && !transaction.playerId().equals(eventPlayer.getUUID())) {
+			return;
+		}
+		transaction.dropsHandled = true;
 		if (transaction.context() != null && transaction.table() != null) {
 			ObjectArrayList<ItemStack> rerolled = replay(transaction.context(), transaction.table());
-			ServerPlayer player = creditedPlayer(event.getSource());
+			ServerPlayer player = eventPlayer != null
+					? eventPlayer : transactionPlayer(event.getEntity(), transaction);
 			SummyReliquary.LOGGER.info(
 					"[Summy Reliquary] 慈善捆绑包击杀重掷：玩家={}、目标={}、表={}、tick={}、物品={}",
 					player == null ? "未知" : player.getName().getString(), entityId(event.getEntity()),
@@ -531,11 +582,40 @@ public final class HumbleingBundleLoot {
 		clearStateForTest();
 	}
 
-	private record KillKey(UUID victim, UUID player, int tick) {
+	private record KillKey(UUID victim, int tick) {
 	}
 
-	private record KillTransaction(boolean success, @Nullable LootContext context,
-			@Nullable ResourceLocation table) {
+	private static final class KillTransaction {
+		private final UUID playerId;
+		private final boolean success;
+		private final @Nullable LootContext context;
+		private final @Nullable ResourceLocation table;
+		private boolean dropsHandled;
+		private boolean experienceHandled;
+
+		private KillTransaction(UUID playerId, boolean success, @Nullable LootContext context,
+				@Nullable ResourceLocation table) {
+			this.playerId = playerId;
+			this.success = success;
+			this.context = context;
+			this.table = table;
+		}
+
+		private UUID playerId() {
+			return playerId;
+		}
+
+		private boolean success() {
+			return success;
+		}
+
+		private @Nullable LootContext context() {
+			return context;
+		}
+
+		private @Nullable ResourceLocation table() {
+			return table;
+		}
 	}
 
 	private record DropSnapshot(Set<ItemEntity> baseline) {
