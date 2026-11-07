@@ -5707,32 +5707,71 @@ public final class ForgeDevCheck {
 		String enLang = resourceText(client, SummyReliquary.NAMESPACE, "lang/en_us.json");
 		boolean bundleText =
 				zhLang.contains("\"item.summy-reliquary.humbleing_bundle.shift.1\": "
-						+ "\"击杀生物或开启宝箱时，有 %s%% 几率额外生成一次奖励\"")
+						+ "\"击杀生物或开启战利品箱时，有%s%%几率追加一次奖励。\"")
 				&& enLang.contains("\"item.summy-reliquary.humbleing_bundle.shift.1\": "
-						+ "\"Killing a mob or opening a chest has a %s%% chance to generate one additional reward\"")
+						+ "\"Killing a mob or opening a loot chest has a %s%% chance to grant an additional reward.\"")
 				&& !zhLang.contains("item.summy-reliquary.humbleing_bundle.shift.2")
 				&& !zhLang.contains("item.summy-reliquary.humbleing_bundle.shift.3")
 				&& !zhLang.contains("item.summy-reliquary.humbleing_bundle.shift.4")
 				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.2")
 				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.3")
 				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.4")
-				&& zhLang.contains("jei.summy-reliquary.humbleing_bundle.acquire")
-				&& zhLang.contains("jei.summy-reliquary.humbleing_bundle.pass")
-				&& zhLang.contains("jei.summy-reliquary.humbleing_bundle.kill")
-				&& zhLang.contains("jei.summy-reliquary.humbleing_bundle.event")
-				&& zhLang.contains("jei.summy-reliquary.humbleing_bundle.container")
-				&& enLang.contains("jei.summy-reliquary.humbleing_bundle.acquire")
-				&& enLang.contains("jei.summy-reliquary.humbleing_bundle.pass")
-				&& enLang.contains("jei.summy-reliquary.humbleing_bundle.kill")
-				&& enLang.contains("jei.summy-reliquary.humbleing_bundle.event")
-				&& enLang.contains("jei.summy-reliquary.humbleing_bundle.container");
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.acquire\": "
+						+ "\"野生战利品箱的每个开箱阶段都有%s%%几率直接获得本物品。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.pass\": "
+						+ "\"原始与额外阶段独立判定，无保底且无需佩戴；同一物理箱最多获得两件。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.kill\": "
+						+ "\"击杀奖励会用新种子重掷生物战利品表，并复制最终经验。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.event\": "
+						+ "\"其他模组直接加入死亡掉落事件的物品会复制一次；装备与特殊死亡掉落除外。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.container\": "
+						+ "\"双箱两半分别重掷，但每个物理箱最多两个阶段；满箱时，额外物品掉在容器旁。\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.acquire\": "
+						+ "\"Each opening pass on a wild loot chest has a %s%% chance to grant this item directly.\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.pass\": "
+						+ "\"The original and bonus passes roll independently, have no pity, and do not require wearing the item; one physical chest can grant at most two.\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.kill\": "
+						+ "\"Kill rewards reroll the mob loot table with a new seed and duplicate the final experience.\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.event\": "
+						+ "\"Items added directly to the death drops event by other mods are copied once; equipment and special death drops are excluded.\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.container\": "
+						+ "\"Both halves of a double chest are rerolled, but each physical chest has at most two passes; overflow from a full container drops beside it.\"");
+		boolean covenantText =
+				zhLang.contains("\"jei.summy-reliquary.covenant.angel\": "
+						+ "\"天使路线会从尚未取得的「生死逆转」「神圣干预」「神圣裁决」中随机发放一件。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.covenant.demon\": "
+						+ "\"恶魔路线会从尚未取得的「生死逆转」「血债祭坛」「厄咒之印」中随机发放一件。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.covenant.odds\": "
+						+ "\"每箱基础概率%s；连续%s次未获得后，下一箱必定获得缺失物品。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.covenant.no_pity\": "
+						+ "\"每箱基础概率%s；当前未启用保底。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.covenant.neutral\": "
+						+ "\"无阵营时仍可按基础概率获得「生死逆转」，但不累计保底。\"")
+				&& enLang.contains("\"jei.summy-reliquary.covenant.angel\": "
+						+ "\"The Angel route grants one missing item from Life and Death, Divine Intervention, and Sacred Verdict.\"")
+				&& enLang.contains("\"jei.summy-reliquary.covenant.demon\": "
+						+ "\"The Demon route grants one missing item from Life and Death, Blood Debt Altar, and Hex Seal.\"")
+				&& enLang.contains("\"jei.summy-reliquary.covenant.odds\": "
+						+ "\"Base chance per chest: %s. After %s consecutive failures, the next chest grants a missing item.\"")
+				&& enLang.contains("\"jei.summy-reliquary.covenant.no_pity\": "
+						+ "\"Base chance per chest: %s. Pity is disabled.\"")
+				&& enLang.contains("\"jei.summy-reliquary.covenant.neutral\": "
+						+ "\"Without a faction, Life and Death can still drop at the base chance, but these attempts do not build pity.\"")
+				&& !zhLang.contains("jei.summy-reliquary.covenant.chance")
+				&& !zhLang.contains("jei.summy-reliquary.covenant.pity")
+				&& !enLang.contains("jei.summy-reliquary.covenant.chance")
+				&& !enLang.contains("jei.summy-reliquary.covenant.pity");
 		boolean resources = hasResource(client, "models/item/humbleing_bundle.json")
 				&& icon[0] == 32 && icon[1] == 32 && icon[2] > 0
 				&& translated("item.summy-reliquary.humbleing_bundle")
 				&& translated("item.summy-reliquary.humbleing_bundle.shift.1")
 				&& bundleText
+				&& covenantText
 				&& hasServerResource(player.getServer(), SummyReliquary.NAMESPACE,
 						"loot_modifiers/humbleing_bundle.json")
+				&& serverResourceText(player.getServer(), "forge",
+						"loot_modifiers/global_loot_modifiers.json")
+						.contains("summy-reliquary:humbleing_bundle")
 				&& serverResourceText(player.getServer(), "curios", "tags/items/charm.json")
 						.contains("summy-reliquary:humbleing_bundle");
 

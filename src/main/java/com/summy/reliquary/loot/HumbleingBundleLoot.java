@@ -5,6 +5,7 @@ import com.summy.reliquary.config.ReliquaryConfig;
 import com.summy.reliquary.util.CurioHelper;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -94,11 +95,14 @@ public final class HumbleingBundleLoot {
 			return;
 		}
 
+		boolean firstPhysicalRoll = !window.naturalRolled && !window.bonusRolled;
+		boolean naturalGranted = false;
 		// 每个物理开箱只进行一次本体获取与一次 BONUS 概率判定，双箱第二半不会重复。
 		if (!window.naturalRolled) {
 			window.naturalRolled = true;
 			if (chance(context.getRandom(), ReliquaryConfig.humbleingBundleNaturalLootChancePercent())) {
 				generatedLoot.add(new ItemStack(SummyReliquary.HUMBLEING_BUNDLE.get()));
+				naturalGranted = true;
 			}
 		}
 		if (!window.bonusRolled) {
@@ -109,6 +113,12 @@ public final class HumbleingBundleLoot {
 				window.bonusScheduled = true;
 				player.server.execute(() -> runBonusPass(player.getUUID(), window));
 			}
+		}
+		if (firstPhysicalRoll && (naturalGranted || window.bonusScheduled)) {
+			SummyReliquary.LOGGER.info(
+					"[Summy Reliquary] 慈善捆绑包原始开箱：玩家={}、容器={}、表={}、tick={}、本体={}、额外={}",
+					player.getName().getString(), window.containerSummary(), window.tableSummary(),
+					context.getLevel().getServer().getTickCount(), naturalGranted, window.bonusScheduled);
 		}
 	}
 
@@ -135,6 +145,11 @@ public final class HumbleingBundleLoot {
 				ReliquaryConfig.humbleingBundleExtraLootChancePercent());
 		KILL_TRANSACTIONS.put(key, new KillTransaction(success,
 				success ? context : null, success ? tableId : null));
+		if (success) {
+			SummyReliquary.LOGGER.info(
+					"[Summy Reliquary] 慈善捆绑包击杀触发：玩家={}、目标={}、表={}、tick={}",
+					player.getName().getString(), entityId(victim), tableId, key.tick());
+		}
 	}
 
 	/** SR 誓约系统在 BONUS 阶段直接调用一次，不依赖第二次真实右键。 */
@@ -200,6 +215,9 @@ public final class HumbleingBundleLoot {
 
 		boolean grantBundle = naturalBundleRoll(level.getRandom());
 		boolean bundleAdded = false;
+		int affectedTables = 0;
+		int overflow = 0;
+		List<ItemStack> rerolledItems = new ArrayList<>();
 		for (TableTarget target : window.targets()) {
 			Container container = target.container(level);
 			if (container == null) {
@@ -209,14 +227,17 @@ public final class HumbleingBundleLoot {
 			if (context == null) {
 				continue;
 			}
+			affectedTables++;
 			ObjectArrayList<ItemStack> rolled = replay(context, target.table());
 			if (grantBundle && !bundleAdded) {
 				rolled.add(new ItemStack(SummyReliquary.HUMBLEING_BUNDLE.get()));
 				bundleAdded = true;
 			}
+			rerolledItems.addAll(rolled);
 			for (ItemStack stack : rolled) {
 				ItemStack remainder = insert(container, stack);
 				if (!remainder.isEmpty()) {
+					overflow += remainder.getCount();
 					Containers.dropItemStack(level, target.origin().x, target.origin().y, target.origin().z,
 							remainder);
 				}
@@ -224,9 +245,15 @@ public final class HumbleingBundleLoot {
 			container.setChanged();
 		}
 		if (grantBundle && !bundleAdded) {
+			ItemStack fallbackBundle = new ItemStack(SummyReliquary.HUMBLEING_BUNDLE.get());
 			Containers.dropItemStack(level, window.primaryOrigin().x, window.primaryOrigin().y,
-					window.primaryOrigin().z, new ItemStack(SummyReliquary.HUMBLEING_BUNDLE.get()));
+					window.primaryOrigin().z, fallbackBundle);
+			rerolledItems.add(fallbackBundle);
 		}
+		SummyReliquary.LOGGER.info(
+				"[Summy Reliquary] 慈善捆绑包额外开箱：玩家={}、容器={}、表={}、tick={}、表数={}、本体={}、重掷物品={}、溢出={}、誓约BONUS=已发布",
+				player.getName().getString(), window.containerSummary(), window.tableSummary(),
+				server.getTickCount(), affectedTables, grantBundle, itemSummary(rerolledItems), overflow);
 	}
 
 	private static ObjectArrayList<ItemStack> replay(LootContext source, ResourceLocation tableId) {
@@ -345,6 +372,34 @@ public final class HumbleingBundleLoot {
 		return percent > 0 && (percent >= 100 || random.nextInt(100) < percent);
 	}
 
+	/** 日志只输出物品 ID 与数量，避免记录完整 NBT。 */
+	private static String itemSummary(List<ItemStack> stacks) {
+		int total = 0;
+		int stacksWithItems = 0;
+		int shown = 0;
+		List<String> parts = new ArrayList<>();
+		for (ItemStack stack : stacks) {
+			if (stack.isEmpty()) {
+				continue;
+			}
+			total += stack.getCount();
+			stacksWithItems++;
+			if (shown < 8) {
+				parts.add(stack.getCount() + "x " + BuiltInRegistries.ITEM.getKey(stack.getItem()));
+				shown++;
+			}
+		}
+		if (stacksWithItems == 0) {
+			return "0件";
+		}
+		return total + "件[" + String.join(", ", parts)
+				+ (stacksWithItems > shown ? ", …" : "") + "]";
+	}
+
+	private static ResourceLocation entityId(LivingEntity entity) {
+		return BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+	}
+
 	private static KillKey keyFor(LivingEntity victim, @Nullable ServerPlayer player) {
 		return player == null ? null
 				: new KillKey(victim.getUUID(), player.getUUID(), victim.getServer().getTickCount());
@@ -355,15 +410,19 @@ public final class HumbleingBundleLoot {
 		if (event.isCanceled()) {
 			return;
 		}
-		KillKey key = keyFor(event.getEntity(), event.getAttackingPlayer() instanceof ServerPlayer player
-				? player : null);
+		ServerPlayer player = event.getAttackingPlayer() instanceof ServerPlayer serverPlayer
+				? serverPlayer : null;
+		KillKey key = keyFor(event.getEntity(), player);
 		KillTransaction transaction = key == null ? null : KILL_TRANSACTIONS.get(key);
 		if (transaction == null || !transaction.success()) {
 			return;
 		}
 		int dropped = event.getDroppedExperience();
-		event.setDroppedExperience(dropped > Integer.MAX_VALUE - dropped
-				? Integer.MAX_VALUE : dropped * 2);
+		int updated = dropped > Integer.MAX_VALUE - dropped ? Integer.MAX_VALUE : dropped * 2;
+		event.setDroppedExperience(updated);
+		SummyReliquary.LOGGER.info(
+				"[Summy Reliquary] 慈善捆绑包经验复制：玩家={}、目标={}、tick={}、经验={}→{}",
+				player.getName().getString(), entityId(event.getEntity()), key.tick(), dropped, updated);
 	}
 
 	@SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -374,7 +433,13 @@ public final class HumbleingBundleLoot {
 			return;
 		}
 		if (transaction.context() != null && transaction.table() != null) {
-			for (ItemStack stack : replay(transaction.context(), transaction.table())) {
+			ObjectArrayList<ItemStack> rerolled = replay(transaction.context(), transaction.table());
+			ServerPlayer player = creditedPlayer(event.getSource());
+			SummyReliquary.LOGGER.info(
+					"[Summy Reliquary] 慈善捆绑包击杀重掷：玩家={}、目标={}、表={}、tick={}、物品={}",
+					player == null ? "未知" : player.getName().getString(), entityId(event.getEntity()),
+					transaction.table(), key.tick(), itemSummary(rerolled));
+			for (ItemStack stack : rerolled) {
 				if (stack.isEmpty()) {
 					continue;
 				}
@@ -412,6 +477,12 @@ public final class HumbleingBundleLoot {
 			copies.add(copy);
 		}
 		event.getDrops().addAll(copies);
+		ServerPlayer player = creditedPlayer(event.getSource());
+		SummyReliquary.LOGGER.info(
+				"[Summy Reliquary] 慈善捆绑包外部掉落复制：玩家={}、目标={}、tick={}、物品={}",
+				player == null ? "未知" : player.getName().getString(), entityId(event.getEntity()),
+				event.getEntity().getServer().getTickCount(),
+				itemSummary(copies.stream().map(ItemEntity::getItem).toList()));
 	}
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
@@ -535,6 +606,23 @@ public final class HumbleingBundleLoot {
 				return Vec3.atCenterOf(blockTables.keySet().iterator().next());
 			}
 			return cartOrigin;
+		}
+
+		String containerSummary() {
+			if (!blockTables.isEmpty()) {
+				return dimension.location() + "@" + primaryOrigin();
+			}
+			return dimension.location() + "@minecart" + cartOrigin;
+		}
+
+		String tableSummary() {
+			if (blockTables.isEmpty()) {
+				return String.valueOf(cartTable);
+			}
+			return String.join(", ", blockTables.values().stream()
+					.map(ResourceLocation::toString)
+					.distinct()
+					.toList());
 		}
 
 		ResourceLocation primaryTable() {

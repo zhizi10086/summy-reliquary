@@ -98,10 +98,12 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 	private static void registerCovenantPool(IRecipeRegistration registration, List<ItemStack> items, String route) {
 		int chance = com.summy.reliquary.config.ReliquaryConfig.covenantLootChancePercent();
 		int pity = com.summy.reliquary.config.ReliquaryConfig.covenantPityChests();
+		Component odds = pity > 0
+				? text("covenant.odds", chance + "%", pity)
+				: text("covenant.no_pity", chance + "%");
 		registration.addItemStackInfo(items,
 				text("covenant." + route),
-				text("covenant.chance", chance + "%"),
-				pity > 0 ? text("covenant.pity", pity) : text("covenant.no_pity"),
+				odds,
 				text("covenant.neutral"));
 	}
 

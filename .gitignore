@@ -18,6 +18,7 @@ run/
 /build-*.log
 /devcheck-*.log
 /server-*.log
+/bundle-test-*.log
 /compilejava*.log
 /devcheck_*.txt
 /build_*.txt
