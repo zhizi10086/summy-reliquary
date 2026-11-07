@@ -113,11 +113,10 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 		int naturalChance = com.summy.reliquary.config.ReliquaryConfig
 				.humbleingBundleNaturalLootChancePercent();
 		registration.addItemStackInfo(new ItemStack(SummyReliquary.HUMBLEING_BUNDLE.get()),
+				text("humbleing_bundle.acquire", naturalChance),
 				text("humbleing_bundle.effect", extraChance),
 				text("humbleing_bundle.reward"),
-				text("humbleing_bundle.acquire", naturalChance),
-				text("humbleing_bundle.excluded"),
-				text("humbleing_bundle.compat"));
+				text("humbleing_bundle.limits"));
 	}
 
 	private static Component text(String key, Object... arguments) {

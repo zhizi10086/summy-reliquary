@@ -5716,30 +5716,30 @@ public final class ForgeDevCheck {
 				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.2")
 				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.3")
 				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.4")
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.acquire\": "
+						+ "\"打开野生战利品箱时有%s%%几率获得，无保底。\"")
 				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.effect\": "
 						+ "\"佩戴后，击杀生物或开启野生战利品箱时，有%s%%几率额外生成一次奖励。\"")
 				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.reward\": "
-						+ "\"击杀会额外生成一次掉落和经验；开箱会额外生成一次箱内物品。箱满时，额外物品掉在箱子旁。\"")
-				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.acquire\": "
-						+ "\"每个野生箱最多结算两次，每次都有%s%%几率直接获得慈善捆绑包；无需佩戴，也没有保底。\"")
-				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.excluded\": "
-						+ "\"创造模式击杀、玩家放置或已经打开的箱子不会生效。装备栏和特殊死亡掉落不会额外生成。\"")
-				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.compat\": "
-						+ "\"其他模组正常加入的怪物掉落会额外复制一份。\"")
+						+ "\"击杀会额外生成物品和经验；开箱会额外生成物品，箱满时掉在箱子旁。\"")
+				&& zhLang.contains("\"jei.summy-reliquary.humbleing_bundle.limits\": "
+						+ "\"对装备与特殊死亡掉落无效，对其他模组添加的掉落物有效。\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.acquire\": "
+						+ "\"Opening a wild loot chest has a %s%% chance to grant this item, with no pity.\"")
 				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.effect\": "
 						+ "\"While worn, killing a mob or opening a wild loot chest has a %s%% chance to generate one additional reward.\"")
 				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.reward\": "
-						+ "\"Kills generate one extra set of drops and experience; chests generate one extra set of contents. Overflow drops beside a full chest.\"")
-				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.acquire\": "
-						+ "\"Each wild chest can resolve at most twice, and each pass has a %s%% chance to grant this item directly; wearing it is not required and there is no pity.\"")
-				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.excluded\": "
-						+ "\"Creative-mode kills, placed chests, and already opened chests do not trigger. Equipment slots and special death drops are not copied.\"")
-				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.compat\": "
-						+ "\"Items normally added to mob drops by other mods are copied once.\"")
+						+ "\"Kills generate extra items and experience; chests generate extra items, with overflow dropping beside a full chest.\"")
+				&& enLang.contains("\"jei.summy-reliquary.humbleing_bundle.limits\": "
+						+ "\"This has no effect on equipment or special death drops, but does affect drops added by other mods.\"")
+				&& !zhLang.contains("jei.summy-reliquary.humbleing_bundle.excluded")
+				&& !zhLang.contains("jei.summy-reliquary.humbleing_bundle.compat")
 				&& !zhLang.contains("jei.summy-reliquary.humbleing_bundle.pass")
 				&& !zhLang.contains("jei.summy-reliquary.humbleing_bundle.kill")
 				&& !zhLang.contains("jei.summy-reliquary.humbleing_bundle.event")
 				&& !zhLang.contains("jei.summy-reliquary.humbleing_bundle.container")
+				&& !enLang.contains("jei.summy-reliquary.humbleing_bundle.excluded")
+				&& !enLang.contains("jei.summy-reliquary.humbleing_bundle.compat")
 				&& !enLang.contains("jei.summy-reliquary.humbleing_bundle.pass")
 				&& !enLang.contains("jei.summy-reliquary.humbleing_bundle.kill")
 				&& !enLang.contains("jei.summy-reliquary.humbleing_bundle.event")
