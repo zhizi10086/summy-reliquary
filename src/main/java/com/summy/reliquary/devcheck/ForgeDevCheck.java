@@ -4355,6 +4355,22 @@ public final class ForgeDevCheck {
 							true, 20.0F, 5.0F, true, true, true)
 					&& !com.summy.reliquary.effect.TrueDamageLimits.shouldTopUp(
 							true, 20.0F, 5.0F, false, false, false);
+			boolean fixedDamageMatrix =
+					!com.summy.reliquary.effect.HolyLightEffect.shouldApplyPlayerDamageBonuses(
+							true, true, true, false)
+					&& !com.summy.reliquary.effect.HolyLightEffect.shouldApplyPlayerDamageBonuses(
+							true, false, true, false)
+					&& com.summy.reliquary.effect.HolyLightEffect.shouldApplyPlayerDamageBonuses(
+							false, true, true, false)
+					&& !com.summy.reliquary.effect.HolyLightEffect.shouldApplyPlayerDamageBonuses(
+							false, false, true, true)
+					&& Math.abs(com.summy.reliquary.effect.TrueDamageLimits
+							.resolveIntended(20.0F, 30.0F, false) - 20.0F) < 1.0E-4F
+					&& Math.abs(com.summy.reliquary.effect.TrueDamageLimits
+							.resolveIntended(20.0F, 30.0F, true) - 30.0F) < 1.0E-4F;
+			boolean fixedDamageTagResource = hasServerResource(player.getServer(),
+					SummyReliquary.NAMESPACE,
+					"tags/damage_type/fixed_true_damage_no_bonus.json");
 
 			com.summy.reliquary.config.ReliquaryConfig.setTrueDamageIgnoresDamageLimitsForDevCheck(true);
 			com.summy.reliquary.config.ReliquaryConfig.setTrueDamageLimitAffectsPlayersForDevCheck(false);
@@ -4446,7 +4462,7 @@ public final class ForgeDevCheck {
 			}
 			float multiLoss = multiHealthBefore - multi.getHealth();
 
-			boolean ok = truthTable
+			boolean ok = truthTable && fixedDamageMatrix && fixedDamageTagResource
 					&& eventLanded && Math.abs(eventLoss - 12.0F) < 1.0E-4F
 					&& Math.abs(disabledLoss - 5.0F) < 1.0E-4F
 					&& Math.abs(entityLoss - 20.0F) < 1.0E-4F
@@ -4455,11 +4471,12 @@ public final class ForgeDevCheck {
 					&& Math.abs(absorbedTotal - 20.0F) < 1.0E-4F
 					&& Math.abs(zeroLoss - 8.0F) < 1.0E-4F
 					&& Math.abs(multiLoss - 12.0F) < 1.0E-4F;
-			log(String.format("真伤限伤破除（2.9）：真值表=%s、事件削额损失 %.1f（应 12）、开关关闭 %.1f（应 5）、"
+			log(String.format("真伤限伤破除（2.9）：真值表=%s、固定真伤黑名单=%s/%s、事件削额损失 %.1f（应 12）、开关关闭 %.1f（应 5）、"
 							+ "实体削额 %.1f（应 20）、阶段免疫 false/损失 %.1f（应 true/0）、致死源=%s、"
 							+ "吸收总损失 %.1f（应 20）、零伤害折算 %.1f（应 8）、同 tick 三笔 %.1f（应 12）"
 							+ " → 整体=%s（应 true）",
-					truthTable, eventLoss, disabledLoss, entityLoss, immuneLoss, deathSourceOk,
+					truthTable, fixedDamageMatrix, fixedDamageTagResource,
+					eventLoss, disabledLoss, entityLoss, immuneLoss, deathSourceOk,
 					absorbedTotal, zeroLoss, multiLoss, ok));
 		} finally {
 			trueDamageCapTargetId = previousCapTarget;

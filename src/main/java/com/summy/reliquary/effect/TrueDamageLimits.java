@@ -41,7 +41,8 @@ public final class TrueDamageLimits {
 			return false;
 		}
 		Capture capture = new Capture(target.getUUID(), HolyLightEffect.typeId(source),
-				directUuid(source), damage);
+				directUuid(source), damage,
+				!HolyLightEffect.isFixedDamageWithoutBonus(source));
 		Deque<Capture> captures = CAPTURES.get();
 		captures.push(capture);
 		float healthBefore = target.getHealth();
@@ -62,7 +63,7 @@ public final class TrueDamageLimits {
 			return false;
 		}
 
-		float effectiveIntended = resolveIntended(damage, capture.observedAmount());
+		float effectiveIntended = capture.intendedAmount();
 		SacredVerdictTrace.recordIntended(effectiveIntended, lostTotal);
 		boolean isPlayer = target instanceof Player;
 		if (shouldTopUp(landed, effectiveIntended, lostTotal, isPlayer,
@@ -109,7 +110,13 @@ public final class TrueDamageLimits {
 
 	/** 自检用纯函数：乘区后金额不高于基础值时仍以基础值为准。 */
 	public static float resolveIntended(float baseDamage, float observedAmount) {
-		return Math.max(baseDamage, observedAmount);
+		return resolveIntended(baseDamage, observedAmount, true);
+	}
+
+	/** 固定真伤黑名单只使用调用方基础值；其它伤害仍取基础值与观察值的较大者。 */
+	public static float resolveIntended(float baseDamage, float observedAmount,
+			boolean allowObservedBonus) {
+		return allowObservedBonus ? Math.max(baseDamage, observedAmount) : baseDamage;
 	}
 
 	/** 自检用纯函数：只判断是否应该补差，不修改实体。 */
@@ -183,13 +190,16 @@ public final class TrueDamageLimits {
 		private final String damageType;
 		private final UUID directEntity;
 		private final float baseDamage;
+		private final boolean allowObservedBonus;
 		private float observedAmount;
 
-		private Capture(UUID target, String damageType, UUID directEntity, float baseDamage) {
+		private Capture(UUID target, String damageType, UUID directEntity, float baseDamage,
+				boolean allowObservedBonus) {
 			this.target = target;
 			this.damageType = damageType;
 			this.directEntity = directEntity;
 			this.baseDamage = baseDamage;
+			this.allowObservedBonus = allowObservedBonus;
 			this.observedAmount = baseDamage;
 		}
 
@@ -202,8 +212,8 @@ public final class TrueDamageLimits {
 			observedAmount = Math.max(observedAmount, amount);
 		}
 
-		private float observedAmount() {
-			return Math.max(baseDamage, observedAmount);
+		private float intendedAmount() {
+			return resolveIntended(baseDamage, observedAmount, allowObservedBonus);
 		}
 	}
 }

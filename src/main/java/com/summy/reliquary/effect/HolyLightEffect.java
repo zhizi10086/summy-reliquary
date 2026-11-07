@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
@@ -94,6 +95,9 @@ public final class HolyLightEffect {
 			"summy-reliquary.divine_intervention_reflect";
 	private static final String BLOOD_DEBT_ID = "summy-reliquary.blood_debt";
 	private static final String HEX_TRANSFER_ID = "summy-reliquary.hex_transfer";
+	/** 扩展模组登记的固定真伤：可以破限伤，但永远不吃正面出伤乘区。 */
+	private static final TagKey<DamageType> FIXED_TRUE_DAMAGE_NO_BONUS = TagKey.create(
+			Registries.DAMAGE_TYPE, SummyReliquary.id("fixed_true_damage_no_bonus"));
 
 	/** 还没结算的攻击（同一 tick 内累积） */
 	private static final List<Attack> PENDING = new ArrayList<>();
@@ -365,6 +369,11 @@ public final class HolyLightEffect {
 		return isSacredVerdictId(typeId(source));
 	}
 
+	/** 该伤害是否由扩展模组登记为“只破限伤、不吃正面增伤”的固定真伤。 */
+	public static boolean isFixedDamageWithoutBonus(DamageSource source) {
+		return source != null && source.is(FIXED_TRUE_DAMAGE_NO_BONUS);
+	}
+
 	/**
 	 * 1.6.4：默认**金额必须分毫不差**的本模组真伤（启示之光 / 神性光环 / 献祭 / 恶魔之焰）。
 	 *
@@ -389,10 +398,21 @@ public final class HolyLightEffect {
 		if (source == null) {
 			return false;
 		}
-		if (isExactDamage(source) && ReliquaryConfig.exactDamageGetsMultiplier()) {
+		return shouldApplyPlayerDamageBonuses(
+				isFixedDamageWithoutBonus(source), isExactDamage(source),
+				ReliquaryConfig.exactDamageGetsMultiplier(), isDivine(source));
+	}
+
+	/** 自检用纯函数：固定真伤黑名单优先于 exact 开关，其次再走原有 isDivine 规则。 */
+	public static boolean shouldApplyPlayerDamageBonuses(boolean fixedNoBonus,
+			boolean exactDamage, boolean exactDamageEnabled, boolean divine) {
+		if (fixedNoBonus) {
+			return false;
+		}
+		if (exactDamage && exactDamageEnabled) {
 			return true;
 		}
-		return !isDivine(source);
+		return !divine;
 	}
 
 	/**

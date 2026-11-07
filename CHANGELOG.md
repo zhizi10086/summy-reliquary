@@ -16,6 +16,8 @@
 - 神圣裁决增伤版 `sacred_verdict_empowered` 不在排除标签中，由 SE 原生处理，SR 不再重复补；5% 被动附伤始终排除。
 - Cataclysm 实机复核：亚巴顿恶魔之焰每结算 `900` 点，焰魔从 `6712.32` 生命开始约 `0.7` 秒被击杀，突破单笔 20 点与累计桶限制。
 - SR 开关现在是唯一权威。ST `enable_fixed_damage_boosts` 在过渡期保持 `false`，并由 ST 删除整层固定伤害兼容实现。
+- 新增公共数据标签 `#summy-reliquary:fixed_true_damage_no_bonus`。标签内伤害优先跳过 SR 全部正面出伤乘区，`exact_damage_gets_multiplier` 不得覆盖；`TrueDamageLimits` 对这类伤害固定使用调用方传入金额作为补差目标，事件观察值只用于诊断。
+- 定值真伤自检新增黑名单优先级与固定/普通补差目标矩阵；标签文件进入服务端数据包断言。完整自检实测 618 行。
 
 **② 魂心 / 黑心护盾保护、路线校验与黑心破碎无敌（2.13）**
 

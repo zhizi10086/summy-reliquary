@@ -870,9 +870,13 @@ public final class ReliquaryEvents {
 		}
 
 		// 七罪：攻击者是本模组玩家时的增伤与暴怒自伤
-		boolean exactDamageBonuses = com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource())
+		boolean fixedDamageWithoutBonus = com.summy.reliquary.effect.HolyLightEffect
+				.isFixedDamageWithoutBonus(event.getSource());
+		boolean exactDamageBonuses = !fixedDamageWithoutBonus
+				&& com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource())
 				&& ReliquaryConfig.exactDamageGetsMultiplier();
-		boolean regularDamageBonuses = !com.summy.reliquary.effect.HolyLightEffect.isDivine(event.getSource())
+		boolean regularDamageBonuses = !fixedDamageWithoutBonus
+				&& !com.summy.reliquary.effect.HolyLightEffect.isDivine(event.getSource())
 				&& !com.summy.reliquary.effect.HolyLightEffect.isExactDamage(event.getSource());
 		if (event.getSource().getEntity() instanceof ServerPlayer attacker
 				&& attacker != event.getEntity() && !event.isCanceled()
