@@ -101,6 +101,21 @@ public final class CovenantAcquisition {
 		attempt(player, context.getRandom(), null);
 	}
 
+	/** BONUS 虚拟开箱入口：不再要求右键窗口，但每次调用只结算一个完整 pass。 */
+	public static void tryGrantForBonusPass(LootContext context) {
+		if (!ReliquaryConfig.enableCovenantAcquisition()) {
+			return;
+		}
+		ResourceLocation table = context.getQueriedLootTableId();
+		if (!isChestTable(table)
+				|| !(context.getParamOrNull(LootContextParams.THIS_ENTITY) instanceof ServerPlayer player)
+				|| player.isSpectator()) {
+			return;
+		}
+		reconcileOwned(player);
+		attempt(player, context.getRandom(), null);
+	}
+
 	/** 每 20 tick 扫描一次背包与 Curios，补记 /give、创造模式和旧存档已有的物品。 */
 	@SubscribeEvent
 	public static void onServerTick(TickEvent.ServerTickEvent event) {
@@ -167,7 +182,7 @@ public final class CovenantAcquisition {
 		int owned = PlayerFlags.covenantOwned(player);
 		int chance = ReliquaryConfig.covenantLootChancePercent();
 		if (!angel && !demon) {
-			if ((owned & LIFE_DEATH_BIT) != 0) {
+			if ((owned & LIFE_DEATH_BIT) != 0 || !canAcquireLifeDeath(player)) {
 				return;
 			}
 			int roll = roll(random, forcedRoll);
@@ -179,11 +194,16 @@ public final class CovenantAcquisition {
 		}
 
 		List<Entry> route = angel ? ANGEL_ITEMS : DEMON_ITEMS;
+		if (route.stream().allMatch(entry -> (owned & entry.bit()) != 0)) {
+			PlayerFlags.setCovenantPity(player, angel, 0);
+			return;
+		}
+		boolean lifeDeathAvailable = canAcquireLifeDeath(player);
 		List<Entry> missing = route.stream()
 				.filter(entry -> (owned & entry.bit()) == 0)
+				.filter(entry -> entry.bit() != LIFE_DEATH_BIT || lifeDeathAvailable)
 				.toList();
 		if (missing.isEmpty()) {
-			PlayerFlags.setCovenantPity(player, angel, 0);
 			return;
 		}
 
@@ -202,6 +222,11 @@ public final class CovenantAcquisition {
 		Entry entry = missing.get(selected);
 		grant(player, entry.item().get(), entry.bit());
 		PlayerFlags.setCovenantPity(player, angel, 0);
+	}
+
+	private static boolean canAcquireLifeDeath(ServerPlayer player) {
+		return !PlayerFlags.isSinRenounced(player)
+				&& CurioHelper.wears(player, SummyReliquary.SOURCE_OF_SINS.get());
 	}
 
 	private static int roll(RandomSource random, Integer forcedRoll) {
@@ -271,7 +296,7 @@ public final class CovenantAcquisition {
 		return count;
 	}
 
-	private static Map<BlockPos, ResourceLocation> blockContainerLootTables(ServerLevel level, BlockPos pos) {
+	static Map<BlockPos, ResourceLocation> blockContainerLootTables(ServerLevel level, BlockPos pos) {
 		Map<BlockPos, ResourceLocation> tables = new HashMap<>();
 		ResourceLocation table = readContainerLootTable(level.getBlockEntity(pos));
 		if (table != null) {
@@ -300,7 +325,7 @@ public final class CovenantAcquisition {
 		return ResourceLocation.tryParse(saved.getString(RandomizableContainerBlockEntity.LOOT_TABLE_TAG));
 	}
 
-	private static boolean isChestTable(ResourceLocation table) {
+	static boolean isChestTable(ResourceLocation table) {
 		return table != null && table.getPath().startsWith("chests/");
 	}
 

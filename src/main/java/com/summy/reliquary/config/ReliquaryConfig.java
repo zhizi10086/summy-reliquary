@@ -134,6 +134,9 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.BooleanValue ENABLE_COVENANT_ACQUISITION;
 	private static final ForgeConfigSpec.IntValue COVENANT_LOOT_CHANCE_PERCENT;
 	private static final ForgeConfigSpec.IntValue COVENANT_PITY_CHESTS;
+	private static final ForgeConfigSpec.BooleanValue ENABLE_HUMBLEING_BUNDLE;
+	private static final ForgeConfigSpec.IntValue HUMBLEING_BUNDLE_EXTRA_LOOT_CHANCE;
+	private static final ForgeConfigSpec.IntValue HUMBLEING_BUNDLE_NATURAL_LOOT_CHANCE;
 
 	// ===== 七罪效果（1.4.0） =====
 	private static final ForgeConfigSpec.BooleanValue ENABLE_SIN_EFFECTS;
@@ -743,6 +746,15 @@ public final class ReliquaryConfig {
 				.defineInRange("loot_chance_percent", 15, 0, 100);
 		COVENANT_PITY_CHESTS = builder.comment("天使 / 恶魔路线连续失败多少箱后必得；0 = 关闭保底")
 				.defineInRange("pity_chests", 10, 0, 1000);
+		builder.pop();
+
+		builder.comment("慈善捆绑包：击杀与开箱的额外战利品结算").push("humbleing_bundle");
+		ENABLE_HUMBLEING_BUNDLE = builder.comment("总开关")
+				.define("enable_humbleing_bundle", true);
+		HUMBLEING_BUNDLE_EXTRA_LOOT_CHANCE = builder.comment("击杀额外重掷与开箱额外结算的触发概率（百分比）")
+				.defineInRange("extra_loot_chance_percent", 50, 0, 100);
+		HUMBLEING_BUNDLE_NATURAL_LOOT_CHANCE = builder.comment("野生战利品容器自然产出本体的概率（百分比）")
+				.defineInRange("natural_loot_chance_percent", 5, 0, 100);
 		builder.pop();
 
 		builder.comment("七罪之源：每一项罪的具体效果数值（只有佩戴七罪之源时才会生效）").push("sins");
@@ -1727,6 +1739,18 @@ public final class ReliquaryConfig {
 
 	public static int covenantPityChests() {
 		return Math.max(0, intOr(COVENANT_PITY_CHESTS, 10));
+	}
+
+	public static boolean enableHumbleingBundle() {
+		return boolOr(ENABLE_HUMBLEING_BUNDLE, true);
+	}
+
+	public static int humbleingBundleExtraLootChancePercent() {
+		return Math.max(0, Math.min(100, intOr(HUMBLEING_BUNDLE_EXTRA_LOOT_CHANCE, 50)));
+	}
+
+	public static int humbleingBundleNaturalLootChancePercent() {
+		return Math.max(0, Math.min(100, intOr(HUMBLEING_BUNDLE_NATURAL_LOOT_CHANCE, 5)));
 	}
 
 	public static int bodySetDamageReductionPercent() {

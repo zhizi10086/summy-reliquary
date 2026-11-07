@@ -342,11 +342,19 @@ public class SummyReliquary {
 			ITEMS.register("hex_seal", () -> new com.summy.reliquary.item.CovenantItem(
 					new Item.Properties().stacksTo(1),
 					com.summy.reliquary.item.CovenantItem.Kind.HEX_SEAL));
+	/** 慈善捆绑包：护符栏饰品，额外重掷击杀与开箱战利品。 */
+	public static final RegistryObject<Item> HUMBLEING_BUNDLE =
+			ITEMS.register("humbleing_bundle", () -> new com.summy.reliquary.item.HumbleingBundleItem(
+					new Item.Properties().stacksTo(1)));
 
 	/** 誓约五件的野箱获取入口。 */
 	public static final RegistryObject<Codec<com.summy.reliquary.loot.CovenantLootModifier>>
 			COVENANT_LOOT_MODIFIER = LOOT_MODIFIER_CODECS.register("covenant_acquisition",
 					() -> com.summy.reliquary.loot.CovenantLootModifier.CODEC);
+	/** 慈善捆绑包的实体重掷、开箱 BONUS 与自然获取入口。 */
+	public static final RegistryObject<Codec<com.summy.reliquary.loot.HumbleingBundleLootModifier>>
+			HUMBLEING_BUNDLE_LOOT_MODIFIER = LOOT_MODIFIER_CODECS.register("humbleing_bundle",
+					() -> com.summy.reliquary.loot.HumbleingBundleLootModifier.CODEC);
 
 	/** 心之碎片（1.5.6）：带启示之光的生物死亡时的掉落材料（1.6.1 起用自家贴图） */
 	public static final RegistryObject<Item> HEART_SHARD =
@@ -462,6 +470,7 @@ public class SummyReliquary {
 						out.accept(GENESIS.get());
 						out.accept(FREELOADERS_RICE.get());
 						out.accept(BANG_BANG_HALO.get());
+						out.accept(HUMBLEING_BUNDLE.get());
 	}
 
 	/**

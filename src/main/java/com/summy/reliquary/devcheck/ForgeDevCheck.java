@@ -462,6 +462,7 @@ public final class ForgeDevCheck {
 				case 2275 -> checkBetrayal(player);
 				case 2276 -> checkTrueDamageLimits(player);
 				case 2277 -> checkCovenantItems(player);
+				case 2278 -> checkHumbleingBundle(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -5469,6 +5470,7 @@ public final class ForgeDevCheck {
 		int oldOwned = com.summy.reliquary.effect.PlayerFlags.covenantOwned(player);
 		int oldAngelPity = com.summy.reliquary.effect.PlayerFlags.covenantPity(player, true);
 		int oldDemonPity = com.summy.reliquary.effect.PlayerFlags.covenantPity(player, false);
+		boolean oldRenounced = com.summy.reliquary.effect.PlayerFlags.isSinRenounced(player);
 		ItemStack[] savedInventory = new ItemStack[player.getInventory().getContainerSize()];
 		for (int slot = 0; slot < savedInventory.length; slot++) {
 			savedInventory[slot] = player.getInventory().getItem(slot).copy();
@@ -5477,6 +5479,8 @@ public final class ForgeDevCheck {
 			player.getInventory().clearContent();
 			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
 			com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setSinRenounced(player, false);
+			equip(player, ReliquarySlots.SOUL_SEAL, SummyReliquary.SOURCE_OF_SINS.get());
 			com.summy.reliquary.loot.CovenantAcquisition.clearStateForTest(player);
 			com.summy.reliquary.loot.CovenantAcquisition.clearContainerWindowsForTest();
 			com.summy.reliquary.loot.CovenantAcquisition.setPityForTest(player, true, 7);
@@ -5664,11 +5668,153 @@ public final class ForgeDevCheck {
 			}
 			com.summy.reliquary.effect.PlayerFlags.setAngel(player, oldAngel);
 			com.summy.reliquary.effect.PlayerFlags.setDemon(player, oldDemon);
+			com.summy.reliquary.effect.PlayerFlags.setSinRenounced(player, oldRenounced);
 			com.summy.reliquary.effect.PlayerFlags.setCovenantOwned(player, oldOwned);
 			com.summy.reliquary.effect.PlayerFlags.setCovenantPity(player, true, oldAngelPity);
 			com.summy.reliquary.effect.PlayerFlags.setCovenantPity(player, false, oldDemonPity);
 			com.summy.reliquary.loot.CovenantAcquisition.clearContainerWindowsForTest();
 		}
+	}
+
+	/** 2.18：慈善捆绑包的注册、资源、概率边界与事件兼容自检。 */
+	private static boolean checkHumbleingBundle(ServerPlayer player) {
+		Minecraft client = Minecraft.getInstance();
+		ServerLevel level = player.serverLevel();
+		int extraChance = com.summy.reliquary.config.ReliquaryConfig
+				.humbleingBundleExtraLootChancePercent();
+		int naturalChance = com.summy.reliquary.config.ReliquaryConfig
+				.humbleingBundleNaturalLootChancePercent();
+		boolean thresholds = extraChance == 50 && naturalChance == 5
+				&& com.summy.reliquary.loot.HumbleingBundleLoot.chanceForTest(49, false)
+				&& !com.summy.reliquary.loot.HumbleingBundleLoot.chanceForTest(50, false)
+				&& com.summy.reliquary.loot.HumbleingBundleLoot.chanceForTest(4, true)
+				&& !com.summy.reliquary.loot.HumbleingBundleLoot.chanceForTest(5, true);
+
+		ItemStack bundle = new ItemStack(SummyReliquary.HUMBLEING_BUNDLE.get());
+		var curio = (top.theillusivec4.curios.api.type.capability.ICurioItem)
+				SummyReliquary.HUMBLEING_BUNDLE.get();
+		boolean slotGate = curio.canEquip(
+				new SlotContext(ReliquarySlots.CHARM, player, 0, false, true), bundle)
+				&& !curio.canEquip(
+						new SlotContext(ReliquarySlots.HALO, player, 0, false, true), bundle);
+		boolean keepOnDeath = curio.getDropRule(
+				new SlotContext(ReliquarySlots.CHARM, player, 0, false, true),
+				level.damageSources().generic(), 0, true, bundle)
+				== top.theillusivec4.curios.api.type.capability.ICurio.DropRule.ALWAYS_KEEP;
+
+		int[] icon = pngStats(client, "textures/item/humbleing_bundle.png");
+		boolean resources = hasResource(client, "models/item/humbleing_bundle.json")
+				&& icon[0] == 32 && icon[1] == 32 && icon[2] > 0
+				&& translated("item.summy-reliquary.humbleing_bundle")
+				&& translated("item.summy-reliquary.humbleing_bundle.shift.1")
+				&& hasServerResource(player.getServer(), SummyReliquary.NAMESPACE,
+						"loot_modifiers/humbleing_bundle.json")
+				&& serverResourceText(player.getServer(), "curios", "tags/items/charm.json")
+						.contains("summy-reliquary:humbleing_bundle");
+
+		Zombie victim = new Zombie(EntityType.ZOMBIE, level);
+		DamageSource source = level.damageSources().playerAttack(player);
+		com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+		com.summy.reliquary.loot.HumbleingBundleLoot.markKillSuccessForTest(player, victim);
+		java.util.List<ItemEntity> drops = new java.util.ArrayList<>();
+		drops.add(new ItemEntity(level, player.getX(), player.getY(), player.getZ(),
+				new ItemStack(Items.ROTTEN_FLESH, 2)));
+		net.minecraftforge.event.entity.living.LivingDropsEvent dropsEvent =
+				new net.minecraftforge.event.entity.living.LivingDropsEvent(
+						victim, source, drops, 0, true);
+		com.summy.reliquary.loot.HumbleingBundleLoot.captureLivingDrops(dropsEvent);
+		ItemStack addedStack = new ItemStack(Items.BONE, 3);
+		addedStack.getOrCreateTag().putString("devcheck_marker", "copied");
+		dropsEvent.getDrops().add(new ItemEntity(level, player.getX(), player.getY(),
+				player.getZ(), addedStack));
+		com.summy.reliquary.loot.HumbleingBundleLoot.copyEventAddedDrops(dropsEvent);
+		long copiedBones = dropsEvent.getDrops().stream()
+				.filter(drop -> drop.getItem().is(Items.BONE))
+				.count();
+		boolean retainedTag = dropsEvent.getDrops().stream()
+				.filter(drop -> drop.getItem().is(Items.BONE))
+				.anyMatch(drop -> "copied".equals(
+						drop.getItem().getTag() == null ? ""
+								: drop.getItem().getTag().getString("devcheck_marker")));
+		boolean copiedOnly = copiedBones == 2
+				&& dropsEvent.getDrops().stream()
+						.filter(drop -> drop.getItem().is(Items.ROTTEN_FLESH))
+						.count() == 1
+				&& retainedTag;
+
+		net.minecraftforge.event.entity.living.LivingExperienceDropEvent xpEvent =
+				new net.minecraftforge.event.entity.living.LivingExperienceDropEvent(
+						victim, player, 5);
+		xpEvent.setDroppedExperience(7);
+		com.summy.reliquary.loot.HumbleingBundleLoot.onExperienceDrop(xpEvent);
+		boolean copiedExperience = xpEvent.getDroppedExperience() == 14;
+
+		int oldOwned = com.summy.reliquary.effect.PlayerFlags.covenantOwned(player);
+		int oldAngelPity = com.summy.reliquary.effect.PlayerFlags.covenantPity(player, true);
+		int oldDemonPity = com.summy.reliquary.effect.PlayerFlags.covenantPity(player, false);
+		boolean oldRenounced = com.summy.reliquary.effect.PlayerFlags.isSinRenounced(player);
+		boolean oldAngel = com.summy.reliquary.effect.PlayerFlags.hasAngel(player);
+		boolean oldDemon = com.summy.reliquary.effect.PlayerFlags.isDemon(player);
+		ItemStack[] savedInventory = new ItemStack[player.getInventory().getContainerSize()];
+		for (int slot = 0; slot < savedInventory.length; slot++) {
+			savedInventory[slot] = player.getInventory().getItem(slot).copy();
+		}
+		ItemStack oldSoulSeal = ItemStack.EMPTY;
+		ICuriosItemHandler curiosHandler = CuriosApi.getCuriosInventory(player).orElse(null);
+		if (curiosHandler != null) {
+			var soulHandler = curiosHandler.getStacksHandler(ReliquarySlots.SOUL_SEAL).orElse(null);
+			if (soulHandler != null) {
+				oldSoulSeal = soulHandler.getStacks().getStackInSlot(0).copy();
+			}
+		}
+		boolean sourceGate;
+		try {
+			player.getInventory().clearContent();
+			unequip(player, ReliquarySlots.SOUL_SEAL);
+			unequip(player, ReliquarySlots.COVENANT);
+			com.summy.reliquary.loot.CovenantAcquisition.clearStateForTest(player);
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setSinRenounced(player, false);
+			boolean withoutSource = !com.summy.reliquary.loot.CovenantAcquisition
+					.attemptForTest(player, 0)
+					&& com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player) == 0;
+			equip(player, ReliquarySlots.SOUL_SEAL, SummyReliquary.SOURCE_OF_SINS.get());
+			boolean withSource = com.summy.reliquary.loot.CovenantAcquisition
+					.attemptForTest(player, 0)
+					&& (com.summy.reliquary.loot.CovenantAcquisition.ownedMaskForTest(player)
+							& com.summy.reliquary.loot.CovenantAcquisition.LIFE_DEATH_BIT) != 0;
+			sourceGate = withoutSource && withSource;
+		} finally {
+			player.getInventory().clearContent();
+			for (int slot = 0; slot < savedInventory.length; slot++) {
+				if (!savedInventory[slot].isEmpty()) {
+					player.getInventory().setItem(slot, savedInventory[slot]);
+				}
+			}
+			if (oldSoulSeal.isEmpty()) {
+				unequip(player, ReliquarySlots.SOUL_SEAL);
+			} else {
+				equip(player, ReliquarySlots.SOUL_SEAL, oldSoulSeal.getItem());
+			}
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, oldAngel);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, oldDemon);
+			com.summy.reliquary.effect.PlayerFlags.setSinRenounced(player, oldRenounced);
+			com.summy.reliquary.effect.PlayerFlags.setCovenantOwned(player, oldOwned);
+			com.summy.reliquary.effect.PlayerFlags.setCovenantPity(player, true, oldAngelPity);
+			com.summy.reliquary.effect.PlayerFlags.setCovenantPity(player, false, oldDemonPity);
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+		}
+
+		boolean ok = thresholds && slotGate && keepOnDeath && resources
+				&& copiedOnly && copiedExperience && sourceGate;
+		log("慈善捆绑包：50/5 阈值=" + thresholds + "、护符门禁=" + slotGate
+				+ "、死亡保留=" + keepOnDeath + "、资源=" + resources
+				+ "、仅复制事件追加物=" + copiedOnly + "、最终经验 7→"
+				+ xpEvent.getDroppedExperience() + "=" + copiedExperience
+				+ "、生死逆转需七罪之源（无罪锁定沿用）=" + sourceGate
+				+ " → " + ok + "（应 true）");
+		return ok;
 	}
 
 	/** 2.3：用真实箱子战利品上下文核对来源窗口，确保只认玩家首次打开的野生箱。 */
@@ -11154,14 +11300,14 @@ public final class ForgeDevCheck {
 		boolean tabExcludesIcons = display.stream().noneMatch(stack -> stack.is(SummyReliquary.ERROR_ICON.get())
 				|| stack.is(SummyReliquary.PURITY_ICON.get())
 				|| stack.is(SummyReliquary.DUALITY_STAT.get()) || stack.is(SummyReliquary.YOUR_SOUL.get()));
-		// 2.10 / 2.11 / 2.3：注册物品 50 → 52 → 57（修女服、背叛、誓约五件）
+		// 2.10 / 2.11 / 2.3 / 2.18：注册物品 50 → 52 → 57 → 58
 		// 隐藏图标物品仍是 5、纯图标物品仍是 4
-		boolean counts = registeredItems == 57 && iconItems == 5 && pureIconCount == 4 && tabExcludesIcons;
+		boolean counts = registeredItems == 58 && iconItems == 5 && pureIconCount == 4 && tabExcludesIcons;
 		log("图标物品（1.6.9）：duality_stat/your_soul 已注册=" + registered + "（应 true）、贴图=" + textures
 				+ "、模型=" + models + "（都应 true）、语言键（含 error/purity 补键）=" + lang
 				+ "（应 true）、没有配方=" + noRecipe + "（应 true）；仪式匕首素材（1.7.5）=" + daggerResources
 				+ "（应 true）、手持模型走 item/handheld=" + daggerHandheld + "（应 true）；注册物品数=" + registeredItems
-				+ "（应 57 = 1.7.10 的 50 + 修女服 + 背叛 + 誓约五件）、隐藏图标物品=" + iconItems
+				+ "（应 58 = 1.7.10 的 50 + 修女服 + 背叛 + 誓约五件 + 慈善捆绑包）、隐藏图标物品=" + iconItems
 				+ "（应 5，1.7.0 起其中三位一体已转正）、纯图标物品="
 				+ pureIconCount + "（应 4）、创造页不含纯图标物品=" + tabExcludesIcons
 				+ "（应 true，页面条目 " + display.size() + " 个 = 1.7.1 的 41 项，含恶魔王冠）→ 计数全对="
@@ -15892,8 +16038,8 @@ public final class ForgeDevCheck {
 				"sin_fragment_pride", "sin_fragment_gluttony", "sin_fragment_wrath", "sin_fragment_envy",
 				"sin_fragment_sloth", "sin_fragment_lust", "sin_fragment_greed", "redemption",
 				"act_of_contrition", "wooden_cross", "heart_shard", "six", "trinity", "genesis",
-				"freeloaders_rice", "bangbang_halo"};
-		boolean sizeOk = order.size() == expected.length && expected.length == 53;
+				"freeloaders_rice", "bangbang_halo", "humbleing_bundle"};
+		boolean sizeOk = order.size() == expected.length && expected.length == 54;
 		StringBuilder mismatch = new StringBuilder();
 		for (int index = 0; index < Math.min(order.size(), expected.length); index++) {
 			var id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(order.get(index));
@@ -15925,7 +16071,7 @@ public final class ForgeDevCheck {
 		boolean tabIconOk = !tabBuilt || (tab.getIconItem() != null
 				&& tab.getIconItem().is(SummyReliquary.DUALITY_STAT.get()));
 
-		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 53）、逐项与预期一致="
+		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 54）、逐项与预期一致="
 				+ orderOk + "（应 true" + (mismatch.length() == 0 ? "" : "，异常：" + mismatch.toString().trim())
 				+ "）、分块=武器 → 天使线 → 恶魔线 → 中立材料工具；mods.toml（logoFile=" + modInfo.getLogoFile()
 				+ "=" + logoOk + "、描述含「金刀片 / 24 个成就 / 七罪主题饰品合集」=" + descOk + "）="
