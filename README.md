@@ -420,6 +420,8 @@ Summy Reliquary 是一个以 **Curios** 为前置的七罪主题饰品与武器�
 | 0.18.4 | 20.1.16 | 0.92.7+1.20.1 | 1.13.x |
 | **0.19.5** | **20.1.20** | **0.92.12+1.20.1** | **1.14.1** |
 
+> **Kilt 20.1.22 已知上游问题（2026-11-07）**：玩家系 `LivingDamageEvent#setAmount(...)` 的金额写回不会影响最终生命扣除。最小 Forge 探针在 Kilt 20.1.22 + Fabric Loader 0.20.1 下连续 3 次看到事件金额 `4.0 → 0.0`、生命仍 `20.0 → 16.0`；Forge 47.4.23 对照连续 3 次均保持 20.0 生命。该问题会影响依赖 `LivingDamageEvent` 改写伤害的兼容路径，已提交 [KiltMC/Kilt#1049](https://github.com/KiltMC/Kilt/issues/1049)。修复前请优先使用 Forge；Kilt 路径仍属实验性兼容，不复称“全量已验证”。
+
 **1.3.x 起建议使用下面这组（0.19.5 + Kilt 20.1.20）**：实测在旧组合（Loader 0.18.4 + Kilt 20.1.16）
 下，装了 1.3.x 的客户端会卡在模型加载之后、Kilt 的 `FREEZE_DATA`（Forge 注册表冻结）之前 ——
 日志停在 `Unhandled error loading model: ……waxed_cut_copper` 之后不再输出，等多久都不会出现
@@ -746,7 +748,7 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
   本机访问 `maven.minecraftforge.net` 很慢，开着这一项每次构建要空等几分钟；关掉后不影响任何产物。
 - 运行：`gradlew runClient` / `gradlew runServer`
 - 自检脚本：`src/main/java/com/summy/reliquary/devcheck/ForgeDevCheck.java` 默认不生效；
-  用 `gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"` 会跑完全部检查（当前共输出 **612~614 行 `[DEVCHECK]`**、0 条失败断言；
+  用 `gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"` 会跑完全部检查（当前共输出 **612~614 行 `[DEVCHECK]`**、0 条失败断言；2026-11-07 实测 614 行并正常退出；
   行数浮动来自「光环 / 美德提示行」会读存档里的赎罪状态）。当前覆盖：
   - **栏位与套装**：10×5 栏位校验矩阵、套装切换与提示去重/着色、不可重复佩戴、栏位阶段表与缩格退回
   - **魂心 / 黑心 / 吸收**：独立池结算顺序、外部清零模拟、与护盾相加 46/36/2、卸下只收我方份额、碎裂击退与无敌

@@ -97,6 +97,9 @@
 
 - 版本 `2.0.0-forge`；注册物品 / 创造页 / 配方 / 进度为 **57 / 53 / 41 / 25**；协议升为 **`"19"`**；配置段 34 / 键 **332**；伤害类型 18。
 - 完整 `[DEVCHECK]` **612~614 行全绿**。
+- 2026-11-07 全量复验：Forge 47.4.10 客户端完成 **614 行 `[DEVCHECK]`** 并正常退出；`clean build`、Jar 资源检查和 ZipCheck 均通过（正式包 558 项、两种读取方式 0 异常），专用服务端到 `Done` 后正常停止。最终发布 jar SHA256 为 `671A8A09D2EB49892A17ADE654B9095D25475850B6A172EF3DECBEF2D789735C`。
+- 2026-11-07 Kilt 上游核验：以最小 Forge 探针复测 Kilt 20.1.22，3/3 次均在 `LivingDamageEvent` 金额由 4.0 写为 0.0 后仍扣除 4.0 生命；Forge 47.4.23 对照 3/3 次均不扣血。已提交 [KiltMC/Kilt#1049](https://github.com/KiltMC/Kilt/issues/1049)，Kilt 继续视为实验性运行环境，等待上游修复。
+- 修复文档脚本在 Windows PowerShell 5.1 下因 UTF-8 无 BOM 而误解析中文的问题：`scripts/doc-consistency.ps1` 与 `scripts/clean-logs.ps1` 仅补 UTF-8 BOM，脚本逻辑和检查口径不变。
 
 ## 1.8.8 变更
 
