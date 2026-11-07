@@ -53,17 +53,9 @@ public class HumbleingBundleItem extends Item implements ICurioItem {
 			return;
 		}
 
-		ReliquaryTooltips.statLine(tooltip, ReliquaryFaction.NEUTRAL,
+		ReliquaryTooltips.narrativeLine(tooltip,
 				"item.summy-reliquary.humbleing_bundle.shift.1",
 				ReliquaryConfig.humbleingBundleExtraLootChancePercent());
-		ReliquaryTooltips.statLine(tooltip, ReliquaryFaction.NEUTRAL,
-				"item.summy-reliquary.humbleing_bundle.shift.2",
-				ReliquaryConfig.humbleingBundleExtraLootChancePercent());
-		ReliquaryTooltips.narrativeLine(tooltip,
-				"item.summy-reliquary.humbleing_bundle.shift.3");
-		ReliquaryTooltips.statLine(tooltip, ReliquaryFaction.NEUTRAL,
-				"item.summy-reliquary.humbleing_bundle.shift.4",
-				ReliquaryConfig.humbleingBundleNaturalLootChancePercent());
 	}
 
 	@Override

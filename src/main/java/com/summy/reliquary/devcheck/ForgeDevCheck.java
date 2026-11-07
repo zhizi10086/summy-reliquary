@@ -5703,10 +5703,34 @@ public final class ForgeDevCheck {
 				== top.theillusivec4.curios.api.type.capability.ICurio.DropRule.ALWAYS_KEEP;
 
 		int[] icon = pngStats(client, "textures/item/humbleing_bundle.png");
+		String zhLang = resourceText(client, SummyReliquary.NAMESPACE, "lang/zh_cn.json");
+		String enLang = resourceText(client, SummyReliquary.NAMESPACE, "lang/en_us.json");
+		boolean bundleText =
+				zhLang.contains("\"item.summy-reliquary.humbleing_bundle.shift.1\": "
+						+ "\"击杀生物或开启宝箱时，有 %s%% 几率额外生成一次奖励\"")
+				&& enLang.contains("\"item.summy-reliquary.humbleing_bundle.shift.1\": "
+						+ "\"Killing a mob or opening a chest has a %s%% chance to generate one additional reward\"")
+				&& !zhLang.contains("item.summy-reliquary.humbleing_bundle.shift.2")
+				&& !zhLang.contains("item.summy-reliquary.humbleing_bundle.shift.3")
+				&& !zhLang.contains("item.summy-reliquary.humbleing_bundle.shift.4")
+				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.2")
+				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.3")
+				&& !enLang.contains("item.summy-reliquary.humbleing_bundle.shift.4")
+				&& zhLang.contains("jei.summy-reliquary.humbleing_bundle.acquire")
+				&& zhLang.contains("jei.summy-reliquary.humbleing_bundle.pass")
+				&& zhLang.contains("jei.summy-reliquary.humbleing_bundle.kill")
+				&& zhLang.contains("jei.summy-reliquary.humbleing_bundle.event")
+				&& zhLang.contains("jei.summy-reliquary.humbleing_bundle.container")
+				&& enLang.contains("jei.summy-reliquary.humbleing_bundle.acquire")
+				&& enLang.contains("jei.summy-reliquary.humbleing_bundle.pass")
+				&& enLang.contains("jei.summy-reliquary.humbleing_bundle.kill")
+				&& enLang.contains("jei.summy-reliquary.humbleing_bundle.event")
+				&& enLang.contains("jei.summy-reliquary.humbleing_bundle.container");
 		boolean resources = hasResource(client, "models/item/humbleing_bundle.json")
 				&& icon[0] == 32 && icon[1] == 32 && icon[2] > 0
 				&& translated("item.summy-reliquary.humbleing_bundle")
 				&& translated("item.summy-reliquary.humbleing_bundle.shift.1")
+				&& bundleText
 				&& hasServerResource(player.getServer(), SummyReliquary.NAMESPACE,
 						"loot_modifiers/humbleing_bundle.json")
 				&& serverResourceText(player.getServer(), "curios", "tags/items/charm.json")
@@ -5809,7 +5833,7 @@ public final class ForgeDevCheck {
 		boolean ok = thresholds && slotGate && keepOnDeath && resources
 				&& copiedOnly && copiedExperience && sourceGate;
 		log("慈善捆绑包：50/5 阈值=" + thresholds + "、护符门禁=" + slotGate
-				+ "、死亡保留=" + keepOnDeath + "、资源=" + resources
+				+ "、死亡保留=" + keepOnDeath + "、单行 Shift / JEI 边界 / 资源=" + resources
 				+ "、仅复制事件追加物=" + copiedOnly + "、最终经验 7→"
 				+ xpEvent.getDroppedExperience() + "=" + copiedExperience
 				+ "、生死逆转需七罪之源（无罪锁定沿用）=" + sourceGate

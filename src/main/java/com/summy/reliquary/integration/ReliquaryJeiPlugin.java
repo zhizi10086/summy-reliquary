@@ -53,6 +53,7 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 				new ItemStack(SummyReliquary.HEX_SEAL.get()));
 		registerCovenantPool(registration, angel, "angel");
 		registerCovenantPool(registration, demon, "demon");
+		registerHumbleingBundleInfo(registration);
 	}
 
 	@Override
@@ -102,6 +103,17 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 				text("covenant.chance", chance + "%"),
 				pity > 0 ? text("covenant.pity", pity) : text("covenant.no_pity"),
 				text("covenant.neutral"));
+	}
+
+	private static void registerHumbleingBundleInfo(IRecipeRegistration registration) {
+		int chance = com.summy.reliquary.config.ReliquaryConfig
+				.humbleingBundleNaturalLootChancePercent();
+		registration.addItemStackInfo(new ItemStack(SummyReliquary.HUMBLEING_BUNDLE.get()),
+				text("humbleing_bundle.acquire", chance),
+				text("humbleing_bundle.pass"),
+				text("humbleing_bundle.kill"),
+				text("humbleing_bundle.event"),
+				text("humbleing_bundle.container"));
 	}
 
 	private static Component text(String key, Object... arguments) {
