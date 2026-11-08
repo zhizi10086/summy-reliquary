@@ -2,6 +2,7 @@ package com.summy.reliquary.effect;
 
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.loot.CovenantAcquisition;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -166,6 +167,13 @@ public final class SpiritAltarRecipeGate {
 	public static Map<Item, List<ItemStack>> gateRefunds() {
 		Map<Item, List<ItemStack>> copy = new LinkedHashMap<>();
 		GATES.forEach((item, gate) -> copy.put(item, gate.refunds()));
+		return copy;
+	}
+
+	/** 自检与统一门禁索引用：配方 ID → 直接产物。 */
+	public static Map<ResourceLocation, Item> gatedRecipeItems() {
+		Map<ResourceLocation, Item> copy = new LinkedHashMap<>();
+		GATES.keySet().forEach(item -> copy.put(BuiltInRegistries.ITEM.getKey(item), item));
 		return copy;
 	}
 

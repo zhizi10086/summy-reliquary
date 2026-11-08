@@ -463,6 +463,7 @@ public final class ForgeDevCheck {
 				case 2276 -> checkTrueDamageLimits(player);
 				case 2277 -> checkCovenantItems(player);
 				case 2278 -> checkHumbleingBundle(player);
+				case 2279 -> checkGatedRecipeProtection(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -6380,6 +6381,147 @@ public final class ForgeDevCheck {
 				SummyReliquary.LIFE_DEATH.get(), SummyReliquary.id("death_form"));
 		return property != null && (property.call(stack, Minecraft.getInstance().level, player, 0) >= 0.5F)
 				== deathForm;
+	}
+
+	/** 2.0.0 补修：30 张门禁配方仅允许玩家手动合成，并同步保护 Twilight 拆解。 */
+	private static void checkGatedRecipeProtection(ServerPlayer player) {
+		net.minecraft.server.MinecraftServer server = player.getServer();
+		if (server == null) {
+			log("门禁配方保护：服务器不存在，无法检查");
+			return;
+		}
+		var recipeIds = com.summy.reliquary.integration.recipe.GatedRecipeRegistry.recipeIds();
+		var resultItems = com.summy.reliquary.integration.recipe.GatedRecipeRegistry.resultItems();
+		boolean countOk = recipeIds.size() == 30 && resultItems.size() == 30
+				&& com.summy.reliquary.effect.SpiritAltarRecipeGate.gatedRecipeItems().size() == 21
+				&& com.summy.reliquary.effect.EvilUnlock.gatedRecipes().size() == 8;
+
+		net.minecraft.tags.TagKey<net.minecraft.world.item.Item> srTag =
+				net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+						com.summy.reliquary.integration.recipe.GatedRecipeRegistry.OUTPUT_TAG_ID);
+		net.minecraft.tags.TagKey<net.minecraft.world.item.Item> bannedInput =
+				net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+						new net.minecraft.resources.ResourceLocation(
+								"twilightforest", "banned_uncraftables"));
+		net.minecraft.tags.TagKey<net.minecraft.world.item.Item> bannedIngredient =
+				net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+						new net.minecraft.resources.ResourceLocation(
+								"twilightforest", "banned_uncrafting_ingredients"));
+		boolean srTagOk = resultItems.stream()
+				.allMatch(item -> new ItemStack(item).is(srTag));
+		boolean twilightTagsOk = resultItems.stream()
+				.allMatch(item -> new ItemStack(item).is(bannedInput)
+						&& new ItemStack(item).is(bannedIngredient));
+
+		int blocked = 0;
+		int visible = 0;
+		int assembled = 0;
+		StringBuilder missing = new StringBuilder();
+		net.minecraft.world.inventory.CraftingMenu menu =
+				new net.minecraft.world.inventory.CraftingMenu(0, player.getInventory());
+		try {
+			for (var id : recipeIds) {
+				var recipe = server.getRecipeManager().byKey(id).orElse(null);
+				if (!(recipe instanceof net.minecraft.world.item.crafting.CraftingRecipe crafting)) {
+					missing.append(id).append(' ');
+					continue;
+				}
+				net.minecraft.world.inventory.TransientCraftingContainer grid =
+						new net.minecraft.world.inventory.TransientCraftingContainer(menu, 3, 3);
+				fillCraftingGrid(grid, crafting);
+
+				boolean automationHidden = server.getRecipeManager()
+						.getRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING,
+								grid, player.serverLevel())
+						.stream().noneMatch(candidate -> candidate.getId().equals(id));
+				boolean automationEmpty = crafting.assemble(
+						grid, player.serverLevel().registryAccess()).isEmpty();
+				if (automationHidden) {
+					blocked++;
+				}
+				if (automationEmpty) {
+					assembled++;
+				}
+
+				boolean manualVisible;
+				boolean manualAssembles;
+				try (var ignored =
+						com.summy.reliquary.integration.recipe.GatedRecipeContext
+								.enterManualCrafting(player)) {
+					manualVisible = server.getRecipeManager()
+							.getRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING,
+									grid, player.serverLevel())
+							.stream().anyMatch(candidate -> candidate.getId().equals(id));
+					ItemStack assembledStack = crafting.assemble(
+							grid, player.serverLevel().registryAccess());
+					manualAssembles = !assembledStack.isEmpty()
+							&& assembledStack.is(crafting.getResultItem(
+									player.serverLevel().registryAccess()).getItem());
+				}
+				if (manualVisible && manualAssembles) {
+					visible++;
+				}
+			}
+
+			boolean normalRecipeOk = false;
+			var woodenCross = server.getRecipeManager()
+					.byKey(SummyReliquary.id("wooden_cross")).orElse(null);
+			if (woodenCross instanceof net.minecraft.world.item.crafting.CraftingRecipe crafting) {
+				net.minecraft.world.inventory.TransientCraftingContainer grid =
+						new net.minecraft.world.inventory.TransientCraftingContainer(menu, 3, 3);
+				fillCraftingGrid(grid, crafting);
+				normalRecipeOk = server.getRecipeManager()
+						.getRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING,
+								grid, player.serverLevel())
+						.stream().anyMatch(candidate ->
+								candidate.getId().equals(SummyReliquary.id("wooden_cross")))
+						&& !crafting.assemble(grid, player.serverLevel().registryAccess()).isEmpty();
+			}
+
+			boolean allOk = countOk && srTagOk && twilightTagsOk
+					&& blocked == 30 && visible == 30 && assembled == 30 && normalRecipeOk;
+			log("门禁配方保护（2.0.0 补修）：登记=" + recipeIds.size() + " 张 / "
+					+ resultItems.size() + " 件（应 30 / 30）、SR 标签=" + srTagOk
+					+ "（应 true）、Twilight 禁止拆解/回收=" + twilightTagsOk + "（应 true）");
+			log("门禁配方保护：自动查找不可见=" + blocked + "、自动直接组装为空=" + assembled
+					+ "、手动上下文可见且可组装=" + visible + "（均应 30）、普通配方不受影响="
+					+ normalRecipeOk + "（应 true）→ " + allOk + "（应 true）");
+			if (missing.length() > 0) {
+				log("门禁配方保护：缺失配方 " + missing.toString().trim());
+			}
+		} finally {
+			com.summy.reliquary.integration.recipe.GatedRecipeContext.clear();
+		}
+	}
+
+	/** 按 shaped 的宽高或 shapeless 的顺序，把配方材料放入 3x3 测试网格。 */
+	private static void fillCraftingGrid(
+			net.minecraft.world.inventory.TransientCraftingContainer grid,
+			net.minecraft.world.item.crafting.CraftingRecipe recipe) {
+		var ingredients = recipe.getIngredients();
+		if (recipe instanceof net.minecraftforge.common.crafting.IShapedRecipe<?> shaped) {
+			int width = shaped.getRecipeWidth();
+			int height = shaped.getRecipeHeight();
+			for (int row = 0; row < height; row++) {
+				for (int column = 0; column < width; column++) {
+					int source = row * width + column;
+					if (source < ingredients.size()) {
+						grid.setItem(row * 3 + column, firstIngredient(ingredients.get(source)));
+					}
+				}
+			}
+			return;
+		}
+		int size = Math.min(9, ingredients.size());
+		for (int index = 0; index < size; index++) {
+			grid.setItem(index, firstIngredient(ingredients.get(index)));
+		}
+	}
+
+	private static ItemStack firstIngredient(
+			net.minecraft.world.item.crafting.Ingredient ingredient) {
+		ItemStack[] choices = ingredient.getItems();
+		return choices.length == 0 ? ItemStack.EMPTY : choices[0].copy();
 	}
 
 	/**

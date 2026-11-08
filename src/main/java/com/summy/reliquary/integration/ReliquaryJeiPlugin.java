@@ -5,6 +5,10 @@ import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.registration.IRecipeRegistration;
+import mezz.jei.api.recipe.IRecipeCategoriesLookup;
+import mezz.jei.api.recipe.IRecipeManager;
+import mezz.jei.api.recipe.RecipeType;
+import mezz.jei.api.recipe.category.IRecipeCategory;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -15,8 +19,11 @@ import net.minecraft.world.item.crafting.Recipe;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * JEI 集成（软依赖，只有装了 JEI 才会加载这个类）。
@@ -29,6 +36,11 @@ import java.util.Optional;
 @JeiPlugin
 public class ReliquaryJeiPlugin implements IModPlugin {
 	private IJeiRuntime runtime;
+	/** 当前由本模组隐藏的“分类类型 + 配方”绑定，用于差异恢复。 */
+	private final Set<HiddenBinding> hiddenBindings = new HashSet<>();
+
+	private record HiddenBinding(RecipeType<?> recipeType, Object recipe) {
+	}
 
 	@Override
 	public ResourceLocation getPluginUid() {
@@ -60,6 +72,7 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 	public void onRuntimeUnavailable() {
 		RecipeVisibility.clearApplier();
 		runtime = null;
+		hiddenBindings.clear();
 	}
 
 	/**
@@ -72,8 +85,7 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 		if (runtime == null || client.level == null) {
 			return false;
 		}
-		List<CraftingRecipe> hide = new ArrayList<>();
-		List<CraftingRecipe> unhide = new ArrayList<>();
+		Map<ResourceLocation, CraftingRecipe> recipes = new LinkedHashMap<>();
 		for (Map.Entry<ResourceLocation, Boolean> entry : wanted.entrySet()) {
 			Optional<? extends Recipe<?>> recipe = client.level.getRecipeManager().byKey(entry.getKey());
 			CraftingRecipe crafting = recipe
@@ -84,15 +96,63 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 				// 配方还没加载好：这一次整体放弃，让桥稍后重试
 				return false;
 			}
-			(entry.getValue() ? unhide : hide).add(crafting);
+			recipes.put(entry.getKey(), crafting);
 		}
-		if (!hide.isEmpty()) {
-			runtime.getRecipeManager().hideRecipes(RecipeTypes.CRAFTING, hide);
+
+		IRecipeManager recipeManager = runtime.getRecipeManager();
+		IRecipeCategoriesLookup lookup = recipeManager.createRecipeCategoryLookup();
+		List<IRecipeCategory<?>> categories = lookup.get().toList();
+		if (categories.isEmpty()) {
+			return false;
 		}
-		if (!unhide.isEmpty()) {
-			runtime.getRecipeManager().unhideRecipes(RecipeTypes.CRAFTING, unhide);
+
+		Set<HiddenBinding> desiredHidden = new HashSet<>();
+		boolean includesVanillaCrafting = false;
+		for (IRecipeCategory<?> category : categories) {
+			RecipeType<?> type = category.getRecipeType();
+			includesVanillaCrafting |= RecipeTypes.CRAFTING.equals(type);
+			collectHiddenBindings(desiredHidden, type, wanted, recipes);
 		}
+		// 分类查询在 JEI 初始化早期可能暂时不完整，原版工作台始终作为兜底。
+		if (!includesVanillaCrafting) {
+			collectHiddenBindings(desiredHidden, RecipeTypes.CRAFTING, wanted, recipes);
+		}
+
+		for (HiddenBinding binding : hiddenBindings) {
+			if (!desiredHidden.contains(binding)) {
+				setHidden(binding, false);
+			}
+		}
+		for (HiddenBinding binding : desiredHidden) {
+			if (!hiddenBindings.contains(binding)) {
+				setHidden(binding, true);
+			}
+		}
+		hiddenBindings.clear();
+		hiddenBindings.addAll(desiredHidden);
 		return true;
+	}
+
+	private static void collectHiddenBindings(Set<HiddenBinding> target, RecipeType<?> recipeType,
+			Map<ResourceLocation, Boolean> wanted, Map<ResourceLocation, CraftingRecipe> recipes) {
+		for (Map.Entry<ResourceLocation, CraftingRecipe> entry : recipes.entrySet()) {
+			CraftingRecipe recipe = entry.getValue();
+			if (!wanted.getOrDefault(entry.getKey(), true)
+					&& recipeType.getRecipeClass().isInstance(recipe)) {
+				target.add(new HiddenBinding(recipeType, recipe));
+			}
+		}
+	}
+
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	private void setHidden(HiddenBinding binding, boolean hidden) {
+		RecipeType type = binding.recipeType();
+		List recipes = List.of(binding.recipe());
+		if (hidden) {
+			runtime.getRecipeManager().hideRecipes(type, recipes);
+		} else {
+			runtime.getRecipeManager().unhideRecipes(type, recipes);
+		}
 	}
 
 	private static void registerCovenantPool(IRecipeRegistration registration, List<ItemStack> items, String route) {

@@ -5,7 +5,10 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "summy-reliquary.refmap.json",
   "mixins": [
-    "LivingEntityMixin"
+    "LivingEntityMixin",
+    "CraftingMenuMixin",
+    "RecipeManagerMixin",
+    "CraftingRecipeMixin"
   ],
   "client": [
     "HumanoidModelMixin",

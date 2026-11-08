@@ -3,6 +3,7 @@ package com.summy.reliquary.effect;
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.sin.SinManager;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -19,6 +20,8 @@ import java.util.List;
  * 客户端装 JEI 时由 {@code ReliquaryJeiPlugin} 按玩家隐藏这张配方。
  */
 public final class RedemptionRecipeGate {
+	private static final ResourceLocation RECIPE_ID = SummyReliquary.id("redemption");
+
 	/** 配方的 8 个材料（与 redemption.json 保持一致） */
 	private static final List<Item> INGREDIENTS = List.of(
 			SummyReliquary.SIN_FRAGMENT_PRIDE.get(),
@@ -31,6 +34,11 @@ public final class RedemptionRecipeGate {
 			Items.NETHER_STAR);
 
 	private RedemptionRecipeGate() {
+	}
+
+	/** 统一门禁索引用。 */
+	public static ResourceLocation recipeId() {
+		return RECIPE_ID;
 	}
 
 	/** 玩家取走合成产物时调用（服务端） */
