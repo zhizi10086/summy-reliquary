@@ -3,14 +3,15 @@
   "category": "misc",
   "pattern": [
     "PEP",
-    "SNS",
+    "HNS",
     "PEP"
   ],
   "key": {
     "P": { "item": "minecraft:phantom_membrane" },
     "E": { "item": "minecraft:ender_pearl" },
     "S": { "item": "minecraft:soul_sand" },
-    "N": { "item": "minecraft:netherite_scrap" }
+    "N": { "item": "minecraft:netherite_scrap" },
+    "H": { "item": "summy-reliquary:broken_heart" }
   },
   "result": { "item": "summy-reliquary:night_wraith", "count": 1 }
 }

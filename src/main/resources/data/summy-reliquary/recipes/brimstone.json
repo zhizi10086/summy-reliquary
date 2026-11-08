@@ -3,14 +3,15 @@
   "category": "misc",
   "pattern": [
     "BDB",
-    "SNS",
+    "HNS",
     "BDB"
   ],
   "key": {
     "B": { "item": "minecraft:blaze_rod" },
     "D": { "item": "minecraft:dragon_breath" },
     "S": { "item": "minecraft:soul_sand" },
-    "N": { "item": "minecraft:nether_star" }
+    "N": { "item": "minecraft:nether_star" },
+    "H": { "item": "summy-reliquary:broken_heart" }
   },
   "result": { "item": "summy-reliquary:brimstone", "count": 1 }
 }

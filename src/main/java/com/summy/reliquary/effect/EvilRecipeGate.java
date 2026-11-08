@@ -41,36 +41,41 @@ public final class EvilRecipeGate {
 		REFUNDS.put(SummyReliquary.NIGHT_WRAITH.get(), List.of(
 				new ItemStack(Items.PHANTOM_MEMBRANE, 4),
 				new ItemStack(Items.ENDER_PEARL, 2),
-				new ItemStack(Items.SOUL_SAND, 2),
-				new ItemStack(Items.NETHERITE_SCRAP)));
+				new ItemStack(Items.SOUL_SAND),
+				new ItemStack(Items.NETHERITE_SCRAP),
+				new ItemStack(SummyReliquary.BROKEN_HEART.get())));
 		REFUNDS.put(SummyReliquary.BRIMSTONE.get(), List.of(
 				new ItemStack(Items.BLAZE_ROD, 4),
 				new ItemStack(Items.DRAGON_BREATH, 2),
-				new ItemStack(Items.SOUL_SAND, 2),
-				new ItemStack(Items.NETHER_STAR)));
+				new ItemStack(Items.SOUL_SAND),
+				new ItemStack(Items.NETHER_STAR),
+				new ItemStack(SummyReliquary.BROKEN_HEART.get())));
 		REFUNDS.put(SummyReliquary.OCCULT_EYE.get(), List.of(
 				new ItemStack(Items.ENDER_EYE, 4),
-				new ItemStack(Items.ECHO_SHARD, 3),
+				new ItemStack(Items.ECHO_SHARD, 2),
 				new ItemStack(SummyReliquary.NIGHT_WRAITH.get()),
-				new ItemStack(Items.NETHERITE_SCRAP)));
+				new ItemStack(Items.NETHERITE_SCRAP),
+				new ItemStack(SummyReliquary.BROKEN_HEART.get())));
 		REFUNDS.put(SummyReliquary.ABYSS_LORD.get(), List.of(
 				new ItemStack(Items.WITHER_SKELETON_SKULL, 2),
 				new ItemStack(Items.NETHER_STAR, 2),
 				new ItemStack(Items.DRAGON_BREATH, 2),
 				new ItemStack(Items.GHAST_TEAR),
-				new ItemStack(Items.OBSIDIAN, 2)));
+				new ItemStack(SummyReliquary.BROKEN_HEART.get(), 2)));
 		// 1.7.6：暗仪刺刀（借 700 档）—— [ ][下界之星][ ] / [ ][献祭匕首][ ] / [黑曜石][下界合金锭][黑曜石]
 		REFUNDS.put(SummyReliquary.DARK_ARTS.get(), List.of(
 				new ItemStack(Items.NETHER_STAR),
 				new ItemStack(SummyReliquary.SACRIFICIAL_DAGGER.get()),
-				new ItemStack(Items.OBSIDIAN, 2),
-				new ItemStack(Items.NETHERITE_INGOT)));
+				new ItemStack(Items.OBSIDIAN),
+				new ItemStack(Items.NETHERITE_INGOT),
+				new ItemStack(SummyReliquary.BROKEN_HEART.get())));
 		REFUNDS.put(SummyReliquary.ABADDON.get(), List.of(
-				new ItemStack(Items.ECHO_SHARD, 4),
+				new ItemStack(Items.ECHO_SHARD, 2),
 				new ItemStack(Items.DRAGON_HEAD),
 				new ItemStack(Items.NETHER_STAR, 2),
 				new ItemStack(SummyReliquary.BRIMSTONE.get()),
-				new ItemStack(Items.DRAGON_BREATH)));
+				new ItemStack(Items.DRAGON_BREATH),
+				new ItemStack(SummyReliquary.BROKEN_HEART.get(), 2)));
 	}
 
 	private EvilRecipeGate() {

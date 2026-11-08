@@ -392,8 +392,6 @@ public final class ReliquaryEvents {
 			// 1.8.2：献祭的近战增伤不跨死亡保留
 			com.summy.reliquary.effect.Sacrifice.forget(victim);
 		}
-		// 心之碎片：带启示之光的生物死亡时按几率掉落（1.5.6）
-		com.summy.reliquary.effect.HeartShardDrop.onDeath(event.getEntity(), event.getSource().getEntity());
 		com.summy.reliquary.effect.SacredVerdict.onDeath(event.getEntity());
 		com.summy.reliquary.effect.HexSeal.onDeath(event.getEntity());
 		// 恶魔契约（1.6.0）：献祭完成判定 + 邪恶度积攒
@@ -444,11 +442,19 @@ public final class ReliquaryEvents {
 	 *
 	 * <p>复活补发在 {@link #onPlayerClone}：只要"原玩家身上有、新玩家身上没有"就补一个；
 	 * 因此主动丢弃（丢出 / 丢入虚空）之后再死不会补发 —— 那时原玩家身上本来就没有。
+	 * 非玩家目标则在此阶段结算心之碎片与碎心，确保实体战利品表已经建立捆绑包事务。
 	 */
 	@SubscribeEvent
 	public static void onLivingDrops(net.minecraftforge.event.entity.living.LivingDropsEvent event) {
-		if (event.getEntity().level().isClientSide()
-				|| !(event.getEntity() instanceof ServerPlayer player)) {
+		if (event.getEntity().level().isClientSide() || event.isCanceled()) {
+			return;
+		}
+		if (!(event.getEntity() instanceof ServerPlayer player)) {
+			// 稀有材料晚于实体战利品表结算，才能读取慈善捆绑包本 tick 的成功事务。
+			com.summy.reliquary.effect.HeartShardDrop.onDeath(
+					event.getEntity(), event.getSource().getEntity());
+			com.summy.reliquary.effect.BrokenHeartDrop.onDeath(
+					event.getEntity(), event.getSource().getEntity());
 			return;
 		}
 		// 1.7.6 / 1.7.9：创世纪与四把仪式武器都是"死亡不掉落"（复活时补发，见 onPlayerClone）
@@ -735,6 +741,8 @@ public final class ReliquaryEvents {
 			// 1.7.3：创世纪"死亡不掉落" —— 只按"原玩家身上有没有"判定补发
 			// （主动丢弃后原玩家身上本来就没有 → 不补发；掉入虚空同理）
 			if (event.isWasDeath()) {
+				com.summy.reliquary.effect.TimedMarkerState.clear(player);
+				com.summy.reliquary.effect.HellfireState.clear(player);
 				com.summy.reliquary.item.GenesisItem.restoreOnDeath(player,
 						com.summy.reliquary.item.GenesisItem.holdsGenesis(event.getOriginal()));
 				// 1.7.6：两把仪式匕首同样"死亡不掉落"
@@ -770,6 +778,30 @@ public final class ReliquaryEvents {
 			net.minecraftforge.event.entity.living.LivingDamageEvent event) {
 		if (!event.getEntity().level().isClientSide()) {
 			com.summy.reliquary.effect.SacredVerdictTrace.onDamage(event);
+		}
+	}
+
+	/** 在所有受击取消与改伤逻辑之后写入内部标记，保证致死事件能读取。 */
+	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+	public static void onLivingHurtApplyMarkers(LivingHurtEvent event) {
+		if (event.getEntity().level().isClientSide() || event.isCanceled()
+				|| event.getAmount() <= 0.0F) {
+			return;
+		}
+		if (com.summy.reliquary.effect.TimedMarkerState.isRevelationDamage(event.getSource())) {
+			com.summy.reliquary.effect.TimedMarkerState.markRevelation(event.getEntity());
+		}
+		if (com.summy.reliquary.effect.TimedMarkerState.isDemonicDamage(event.getSource())) {
+			com.summy.reliquary.effect.TimedMarkerState.markDemonicBrand(event.getEntity());
+		}
+	}
+
+	/** 狱火机制由实体 tick 驱动，不依赖视觉 MobEffect 是否被免疫或清除。 */
+	@SubscribeEvent
+	public static void onLivingTickHellfire(
+			net.minecraftforge.event.entity.living.LivingEvent.LivingTickEvent event) {
+		if (!event.getEntity().level().isClientSide()) {
+			com.summy.reliquary.effect.HellfireState.tick(event.getEntity());
 		}
 	}
 

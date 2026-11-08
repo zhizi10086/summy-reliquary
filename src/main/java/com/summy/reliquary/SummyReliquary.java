@@ -70,13 +70,20 @@ public class SummyReliquary {
 	/** 启示之光：所有启示伤害会给受击者挂上它，带它死亡的生物有机会掉「心之碎片」 */
 	public static final RegistryObject<net.minecraft.world.effect.MobEffect> REVELATION_LIGHT =
 			EFFECTS.register("revelation_light",
-					() -> new com.summy.reliquary.effect.RevelationLightEffect());
+					() -> new com.summy.reliquary.effect.VisualMarkerMobEffect(
+							net.minecraft.world.effect.MobEffectCategory.NEUTRAL, 0xFFE4B5));
+	public static final RegistryObject<net.minecraft.world.effect.MobEffect> DEMONIC_BRAND =
+			EFFECTS.register("demonic_brand",
+					() -> new com.summy.reliquary.effect.VisualMarkerMobEffect(
+							net.minecraft.world.effect.MobEffectCategory.HARMFUL, 0xC03030));
 	/** 恐惧（1.6.5）：玄秘魔眼给"被注视的那一具"挂上的减益载体（图标用魔眼贴图） */
 	public static final RegistryObject<net.minecraft.world.effect.MobEffect> FEAR =
 			EFFECTS.register("fear", () -> new com.summy.reliquary.effect.FearEffect());
 	/** 狱火（1.6.7）：深渊领主给受害者叠的减益（护甲 -10%/级、每秒 等级×1 点狱火伤害） */
 	public static final RegistryObject<net.minecraft.world.effect.MobEffect> HELLFIRE =
-			EFFECTS.register("hellfire", () -> new com.summy.reliquary.effect.HellfireEffect());
+			EFFECTS.register("hellfire",
+					() -> new com.summy.reliquary.effect.VisualMarkerMobEffect(
+							net.minecraft.world.effect.MobEffectCategory.HARMFUL, 0xFF6B00));
 	/** 神圣裁决：只显示目标身上的裁决状态与剩余时间。 */
 	public static final RegistryObject<net.minecraft.world.effect.MobEffect> SACRED_VERDICT_EFFECT =
 			EFFECTS.register("sacred_verdict",
@@ -360,6 +367,9 @@ public class SummyReliquary {
 	public static final RegistryObject<Item> HEART_SHARD =
 			ITEMS.register("heart_shard", () -> new com.summy.reliquary.item.HeartShardItem(
 					new Item.Properties().stacksTo(64)));
+	public static final RegistryObject<Item> BROKEN_HEART =
+			ITEMS.register("broken_heart", () -> new com.summy.reliquary.item.BrokenHeartItem(
+					new Item.Properties().stacksTo(64)));
 
 	/** 武器：献祭匕首（1.7.5）—— 4 伤害 / 2.4 攻速 / 耐久 666 / 附魔 22 / 铁锭修理；右键「遁入暗影」 */
 	public static final RegistryObject<Item> SACRIFICIAL_DAGGER =
@@ -440,6 +450,7 @@ public class SummyReliquary {
 						out.accept(VIRTUES.get());
 						out.accept(SATANIC_BIBLE.get());
 						out.accept(THE_MARK.get());
+						out.accept(BROKEN_HEART.get());
 						out.accept(THE_PACT.get());
 						out.accept(CEREMONIAL_ROBES.get());
 						out.accept(BRIMSTONE.get());

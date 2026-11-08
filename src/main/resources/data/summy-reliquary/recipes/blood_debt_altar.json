@@ -2,14 +2,14 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    "RWR",
+    "HWH",
     "WGW",
-    "RWR"
+    "HWH"
   ],
   "key": {
-    "R": { "item": "minecraft:redstone_block" },
     "W": { "item": "minecraft:nether_wart_block" },
-    "G": { "item": "minecraft:gold_block" }
+    "G": { "item": "minecraft:gold_block" },
+    "H": { "item": "summy-reliquary:broken_heart" }
   },
   "result": { "item": "summy-reliquary:blood_debt_altar", "count": 1 }
 }

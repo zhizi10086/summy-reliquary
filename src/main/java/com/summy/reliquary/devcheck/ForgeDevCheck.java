@@ -105,6 +105,8 @@ public final class ForgeDevCheck {
 	/** 2.9 自检：临时把指定目标的 LivingHurtEvent 金额钳到固定值 */
 	private static UUID trueDamageCapTargetId = null;
 	private static float trueDamageCapAmount = 5.0F;
+	/** 2.0 自检：临时拒绝启示之光与恶魔印记的视觉状态，内部标记仍应写入。 */
+	private static boolean suppressMarkerVisualsForTest = false;
 
 	/** 光环观感截图用的头部姿态：{偏航角, 俯仰角} */
 	private static final float[][] HALO_POSES = {
@@ -131,6 +133,20 @@ public final class ForgeDevCheck {
 			return;
 		}
 		event.setAmount(Math.min(event.getAmount(), trueDamageCapAmount));
+	}
+
+	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+	public static void suppressMarkerVisualsForDevCheck(
+			net.minecraftforge.event.entity.living.MobEffectEvent.Applicable event) {
+		if (!ENABLED || !suppressMarkerVisualsForTest) {
+			return;
+		}
+		var effect = event.getEffectInstance().getEffect();
+		if (effect == SummyReliquary.REVELATION_LIGHT.get()
+				|| effect == SummyReliquary.DEMONIC_BRAND.get()
+				|| effect == SummyReliquary.HELLFIRE.get()) {
+			event.setResult(net.minecraftforge.eventbus.api.Event.Result.DENY);
+		}
 	}
 
 	@SubscribeEvent
@@ -464,6 +480,7 @@ public final class ForgeDevCheck {
 				case 2277 -> checkCovenantItems(player);
 				case 2278 -> checkHumbleingBundle(player);
 				case 2279 -> checkGatedRecipeProtection(player);
+				case 2280 -> checkBrokenHeartAndInternalStates(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -2648,6 +2665,7 @@ public final class ForgeDevCheck {
 		// 所以用例开头必须显式把恶魔标记清干净，否则前序用例的残留会让整段静默跳过。
 		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
 		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setSinRenounced(player, false);
 		// 一次性裁决：先清空裁决，再走「佩戴且七罪全未激活」这条路径。
 		// 注意：成就是一次性的，重复跑同一个存档时不会再发 AdvancementEarnEvent，
 		// 所以这里断言的是**裁决状态**（dragon_verdict）而不是成就完成情况。
@@ -2666,8 +2684,16 @@ public final class ForgeDevCheck {
 		// ② 佩戴七罪之源且七罪全未激活 → 判为纯洁无瑕（并把七罪之源换成美德）
 		com.summy.reliquary.advancement.SinChallenges.resetVerdict(player);
 		resetSinState(player);
-		CuriosApi.getCuriosInventory(player).ifPresent(handler -> handler.setEquippedCurio(
-				ReliquarySlots.SOUL_SEAL, 0, new ItemStack(SummyReliquary.SOURCE_OF_SINS.get())));
+		com.summy.reliquary.effect.PlayerFlags.resetSinWearTracking(player);
+		// 上一条“无罪之人”分支会写入终身锁；本场景是独立测试，需恢复可佩戴前提。
+		com.summy.reliquary.effect.PlayerFlags.setSinRenounced(player, false);
+		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+			int slots = handler.getCurios().get(ReliquarySlots.SOUL_SEAL).getSlots();
+			if (slots < 1) {
+				handler.growSlotType(ReliquarySlots.SOUL_SEAL, 1 - slots);
+			}
+		});
+		equip(player, ReliquarySlots.SOUL_SEAL, SummyReliquary.SOURCE_OF_SINS.get());
 		com.summy.reliquary.advancement.SinChallenges.onDragonSlainBy(player);
 		int verdictFlawless = com.summy.reliquary.effect.PlayerFlags.dragonVerdict(player);
 		boolean pureDone = com.summy.reliquary.advancement.SinChallenges.advancementDone(player, "pure");
@@ -4542,17 +4568,22 @@ public final class ForgeDevCheck {
 			long covenantEffectCount = BuiltInRegistries.MOB_EFFECT.entrySet().stream()
 					.filter(entry -> SummyReliquary.NAMESPACE.equals(entry.getKey().location().getNamespace()))
 					.count();
-			boolean markerEffectDefinitions = covenantEffectCount == 5
+			boolean markerEffectDefinitions = covenantEffectCount == 6
 					&& SummyReliquary.SACRED_VERDICT_EFFECT.get().getCategory()
 							== net.minecraft.world.effect.MobEffectCategory.HARMFUL
 					&& SummyReliquary.SACRED_VERDICT_EFFECT.get().getColor() == 0xFFD700
 					&& SummyReliquary.HEX_SEAL_EFFECT.get().getCategory()
 							== net.minecraft.world.effect.MobEffectCategory.HARMFUL
 					&& SummyReliquary.HEX_SEAL_EFFECT.get().getColor() == 0x7B2CBF
+					&& SummyReliquary.DEMONIC_BRAND.get().getCategory()
+							== net.minecraft.world.effect.MobEffectCategory.HARMFUL
+					&& SummyReliquary.DEMONIC_BRAND.get().getColor() == 0xC03030
 					&& Component.translatable("effect.summy-reliquary.sacred_verdict")
 							.getString().equals("神圣裁决")
 					&& Component.translatable("effect.summy-reliquary.hex_seal")
-							.getString().equals("厄咒");
+							.getString().equals("厄咒")
+					&& Component.translatable("effect.summy-reliquary.demonic_brand")
+							.getString().equals("恶魔印记");
 			DamageSource sacredSource = srSource(player, "sacred_verdict");
 			DamageSource empoweredSacredSource = srSource(player, "sacred_verdict_empowered");
 			DamageSource bonusSacredSource = srSource(player, "sacred_verdict_bonus");
@@ -5679,10 +5710,10 @@ public final class ForgeDevCheck {
 					java.util.Map.of(Items.ECHO_SHARD, 4, SummyReliquary.HEART_SHARD.get(), 4,
 							Items.NETHER_STAR, 1));
 			boolean debtRecipe = covenantRecipe(player, "blood_debt_altar",
-					java.util.Map.of(Items.REDSTONE_BLOCK, 4, Items.NETHER_WART_BLOCK, 4,
-							Items.GOLD_BLOCK, 1));
+					java.util.Map.of(SummyReliquary.BROKEN_HEART.get(), 4,
+							Items.NETHER_WART_BLOCK, 4, Items.GOLD_BLOCK, 1));
 			boolean hexRecipe = covenantRecipe(player, "hex_seal",
-					java.util.Map.of(Items.ENDER_PEARL, 4, Items.SOUL_SAND, 2,
+					java.util.Map.of(SummyReliquary.BROKEN_HEART.get(), 4, Items.SOUL_SAND, 2,
 							Items.WITHER_ROSE, 2, Items.NETHER_STAR, 1));
 			boolean recipes = lifeRecipe && interventionRecipe && verdictRecipe
 					&& debtRecipe && hexRecipe;
@@ -6496,6 +6527,343 @@ public final class ForgeDevCheck {
 		} finally {
 			com.summy.reliquary.integration.recipe.GatedRecipeContext.clear();
 		}
+	}
+
+	/** 2.0：碎心、内部标记、狱火状态化、8 张配方与特殊材料捆绑包重掷。 */
+	private static void checkBrokenHeartAndInternalStates(ServerPlayer player) {
+		Minecraft client = Minecraft.getInstance();
+		MinecraftServer server = player.getServer();
+		if (server == null) {
+			log("碎心与内部状态：没有服务端，无法执行");
+			return;
+		}
+		java.util.List<LivingEntity> cleanup = new java.util.ArrayList<>();
+		boolean oldAngel = com.summy.reliquary.effect.PlayerFlags.hasAngel(player);
+		boolean oldDemon = com.summy.reliquary.effect.PlayerFlags.isDemon(player);
+		try {
+			com.summy.reliquary.effect.TimedMarkerState.clear(player);
+			com.summy.reliquary.effect.HellfireState.clear(player);
+			com.summy.reliquary.effect.HeartShardDrop.reset();
+			com.summy.reliquary.effect.BrokenHeartDrop.reset();
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+
+			int[] png = pngStats(client, "textures/item/broken_heart.png");
+			Component brokenHeartName = new ItemStack(SummyReliquary.BROKEN_HEART.get()).getHoverName();
+			boolean resources = SummyReliquary.BROKEN_HEART.isPresent()
+					&& SummyReliquary.DEMONIC_BRAND.isPresent()
+					&& new ItemStack(SummyReliquary.BROKEN_HEART.get()).getMaxStackSize() == 64
+					&& (containsColor(brokenHeartName, "#8B0000")
+							|| containsColor(brokenHeartName, "#C03030"))
+					&& png[0] == 32 && png[1] == 32
+					&& hasResource(client, "models/item/broken_heart.json")
+					&& hasResource(client, "textures/mob_effect/demonic_brand.png")
+					&& translated("item.summy-reliquary.broken_heart")
+					&& translated("item.summy-reliquary.broken_heart.desc.1")
+					&& translated("item.summy-reliquary.broken_heart.desc.2")
+					&& translated("effect.summy-reliquary.demonic_brand");
+
+			String night = serverResourceText(server, SummyReliquary.NAMESPACE,
+					"recipes/night_wraith.json").replaceAll("\\s+", "");
+			String brimstone = serverResourceText(server, SummyReliquary.NAMESPACE,
+					"recipes/brimstone.json").replaceAll("\\s+", "");
+			String occult = serverResourceText(server, SummyReliquary.NAMESPACE,
+					"recipes/occult_eye.json").replaceAll("\\s+", "");
+			String dark = serverResourceText(server, SummyReliquary.NAMESPACE,
+					"recipes/dark_arts.json").replaceAll("\\s+", "");
+			String abyss = serverResourceText(server, SummyReliquary.NAMESPACE,
+					"recipes/abyss_lord.json").replaceAll("\\s+", "");
+			String abaddon = serverResourceText(server, SummyReliquary.NAMESPACE,
+					"recipes/abaddon.json").replaceAll("\\s+", "");
+			String debt = serverResourceText(server, SummyReliquary.NAMESPACE,
+					"recipes/blood_debt_altar.json").replaceAll("\\s+", "");
+			String hex = serverResourceText(server, SummyReliquary.NAMESPACE,
+					"recipes/hex_seal.json").replaceAll("\\s+", "");
+			boolean patterns = night.contains("\"pattern\":[\"PEP\",\"HNS\",\"PEP\"]")
+					&& brimstone.contains("\"pattern\":[\"BDB\",\"HNS\",\"BDB\"]")
+					&& occult.contains("\"pattern\":[\"ERE\",\"HNR\",\"ESE\"]")
+					&& dark.contains("\"pattern\":[\"N\",\"D\",\"HBO\"]")
+					&& abyss.contains("\"pattern\":[\"SNS\",\"DGD\",\"HNH\"]")
+					&& abaddon.contains("\"pattern\":[\"HDE\",\"NBN\",\"ERH\"]")
+					&& debt.contains("\"pattern\":[\"HWH\",\"WGW\",\"HWH\"]")
+					&& hex.contains("\"pattern\":[\"HSH\",\"WNW\",\"HSH\"]");
+
+			var evilRefunds = com.summy.reliquary.effect.EvilRecipeGate.refunds();
+			var covenantRefunds = com.summy.reliquary.effect.SpiritAltarRecipeGate.gateRefunds();
+			boolean refunds = refundCounts(evilRefunds.get(SummyReliquary.NIGHT_WRAITH.get())).equals(java.util.Map.of(
+							Items.PHANTOM_MEMBRANE, 4, Items.ENDER_PEARL, 2, Items.SOUL_SAND, 1,
+							Items.NETHERITE_SCRAP, 1, SummyReliquary.BROKEN_HEART.get(), 1))
+					&& refundCounts(evilRefunds.get(SummyReliquary.BRIMSTONE.get())).equals(java.util.Map.of(
+							Items.BLAZE_ROD, 4, Items.DRAGON_BREATH, 2, Items.SOUL_SAND, 1,
+							Items.NETHER_STAR, 1, SummyReliquary.BROKEN_HEART.get(), 1))
+					&& refundCounts(evilRefunds.get(SummyReliquary.OCCULT_EYE.get())).equals(java.util.Map.of(
+							Items.ENDER_EYE, 4, Items.ECHO_SHARD, 2, SummyReliquary.NIGHT_WRAITH.get(), 1,
+							Items.NETHERITE_SCRAP, 1, SummyReliquary.BROKEN_HEART.get(), 1))
+					&& refundCounts(evilRefunds.get(SummyReliquary.DARK_ARTS.get())).equals(java.util.Map.of(
+							Items.NETHER_STAR, 1, SummyReliquary.SACRIFICIAL_DAGGER.get(), 1,
+							Items.OBSIDIAN, 1, Items.NETHERITE_INGOT, 1, SummyReliquary.BROKEN_HEART.get(), 1))
+					&& refundCounts(evilRefunds.get(SummyReliquary.ABYSS_LORD.get())).equals(java.util.Map.of(
+							Items.WITHER_SKELETON_SKULL, 2, Items.NETHER_STAR, 2,
+							Items.DRAGON_BREATH, 2, Items.GHAST_TEAR, 1, SummyReliquary.BROKEN_HEART.get(), 2))
+					&& refundCounts(evilRefunds.get(SummyReliquary.ABADDON.get())).equals(java.util.Map.of(
+							Items.ECHO_SHARD, 2, Items.DRAGON_HEAD, 1, Items.NETHER_STAR, 2,
+							SummyReliquary.BRIMSTONE.get(), 1, Items.DRAGON_BREATH, 1,
+							SummyReliquary.BROKEN_HEART.get(), 2))
+					&& refundCounts(covenantRefunds.get(SummyReliquary.BLOOD_DEBT_ALTAR.get())).equals(java.util.Map.of(
+							SummyReliquary.BROKEN_HEART.get(), 4, Items.NETHER_WART_BLOCK, 4,
+							Items.GOLD_BLOCK, 1))
+					&& refundCounts(covenantRefunds.get(SummyReliquary.HEX_SEAL.get())).equals(java.util.Map.of(
+							SummyReliquary.BROKEN_HEART.get(), 4, Items.SOUL_SAND, 2,
+							Items.WITHER_ROSE, 2, Items.NETHER_STAR, 1));
+
+			boolean config = com.summy.reliquary.config.ReliquaryConfig.enableDemonicBrandMark()
+					&& com.summy.reliquary.config.ReliquaryConfig.demonicBrandTicks() == 140
+					&& com.summy.reliquary.config.ReliquaryConfig.enableBrokenHeartDrop()
+					&& com.summy.reliquary.config.ReliquaryConfig.brokenHeartDropChance() == 0.5D
+					&& com.summy.reliquary.config.ReliquaryConfig.brokenHeartBossChance() == 5.0D
+					&& com.summy.reliquary.config.ReliquaryConfig.brokenHeartDragonChance() == 20.0D
+					&& com.summy.reliquary.config.ReliquaryConfig.logBrokenHeartDropChecks();
+
+			int registeredItems = (int) BuiltInRegistries.ITEM.keySet().stream()
+					.filter(id -> SummyReliquary.NAMESPACE.equals(id.getNamespace())).count();
+			int registeredEffects = (int) BuiltInRegistries.MOB_EFFECT.keySet().stream()
+					.filter(id -> SummyReliquary.NAMESPACE.equals(id.getNamespace())).count();
+			long registeredRecipes = server.getRecipeManager().getRecipes().stream()
+					.filter(recipe -> recipe.getId().getNamespace().equals(SummyReliquary.NAMESPACE)).count();
+			boolean counts = registeredItems == 59 && registeredEffects == 6
+					&& registeredRecipes == 41;
+
+			Zombie victim = spawnHolyLightTarget(player, 5.0D);
+			if (victim == null) {
+				throw new IllegalStateException("无法生成碎心测试目标");
+			}
+			cleanup.add(victim);
+			victim.setNoAi(true);
+
+			var registry = player.serverLevel().registryAccess()
+					.registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE);
+			java.util.function.Function<String, DamageSource> sourceOf = path ->
+					new DamageSource(registry.getHolderOrThrow(net.minecraft.resources.ResourceKey.create(
+							net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+							SummyReliquary.id(path))));
+
+			com.summy.reliquary.effect.TimedMarkerState.clear(victim);
+			suppressMarkerVisualsForTest = true;
+			MinecraftForge.EVENT_BUS.post(new LivingHurtEvent(victim,
+					sourceOf.apply("revelation_light"), 1.0F));
+			boolean revelationMarked = com.summy.reliquary.effect.TimedMarkerState.hasRevelation(victim)
+					&& !victim.hasEffect(SummyReliquary.REVELATION_LIGHT.get());
+			suppressMarkerVisualsForTest = false;
+			victim.removeEffect(SummyReliquary.REVELATION_LIGHT.get());
+			boolean revelationInternal = com.summy.reliquary.effect.TimedMarkerState.hasRevelation(victim);
+			com.summy.reliquary.effect.TimedMarkerState.setRemainingTicksForTest(victim, false, -1L);
+			boolean revelationExpired = !com.summy.reliquary.effect.TimedMarkerState.hasRevelation(victim);
+
+			boolean allDemonSources = true;
+			suppressMarkerVisualsForTest = true;
+			for (String path : List.of("demon_flame", "hellfire", "abyss_aura")) {
+				com.summy.reliquary.effect.TimedMarkerState.clear(victim);
+				MinecraftForge.EVENT_BUS.post(new LivingHurtEvent(victim, sourceOf.apply(path), 1.0F));
+				allDemonSources &= com.summy.reliquary.effect.TimedMarkerState.hasDemonicBrand(victim)
+						&& !victim.hasEffect(SummyReliquary.DEMONIC_BRAND.get());
+			}
+			suppressMarkerVisualsForTest = false;
+			victim.removeEffect(SummyReliquary.DEMONIC_BRAND.get());
+			boolean demonInternal = com.summy.reliquary.effect.TimedMarkerState.hasDemonicBrand(victim);
+			com.summy.reliquary.effect.TimedMarkerState.setRemainingTicksForTest(victim, true, -1L);
+			boolean demonExpired = !com.summy.reliquary.effect.TimedMarkerState.hasDemonicBrand(victim);
+			com.summy.reliquary.effect.TimedMarkerState.clear(victim);
+			MinecraftForge.EVENT_BUS.post(new LivingHurtEvent(victim,
+					victim.damageSources().generic(), 1.0F));
+			boolean ordinaryNoMark = !com.summy.reliquary.effect.TimedMarkerState.hasRevelation(victim)
+					&& !com.summy.reliquary.effect.TimedMarkerState.hasDemonicBrand(victim);
+
+			com.summy.reliquary.effect.HellfireState.clear(victim);
+			double baseArmor = victim.getAttributeValue(Attributes.ARMOR);
+			suppressMarkerVisualsForTest = true;
+			for (int index = 0; index < 5; index++) {
+				com.summy.reliquary.effect.AbyssLord.applyStack(victim, player);
+			}
+			boolean hellfireVisualSuppressed = !victim.hasEffect(SummyReliquary.HELLFIRE.get());
+			suppressMarkerVisualsForTest = false;
+			boolean hellfireInternal = com.summy.reliquary.effect.HellfireState.active(victim)
+					&& com.summy.reliquary.effect.HellfireState.level(victim) == 5
+					&& com.summy.reliquary.effect.HellfireState.hasArmorModifier(victim)
+					&& hellfireVisualSuppressed;
+			float hellfireBefore = victim.getHealth();
+			com.summy.reliquary.effect.HellfireState.setNextDamageForTest(victim,
+					player.serverLevel().getGameTime() - 1L);
+			com.summy.reliquary.effect.HellfireState.tick(victim);
+			float hellfireLoss = hellfireBefore - victim.getHealth();
+			boolean hellfireDamage = Math.abs(hellfireLoss
+					- com.summy.reliquary.config.ReliquaryConfig.hellfireDamagePerLevelPerSecond() * 5.0D)
+					< 1.0E-4F;
+			com.summy.reliquary.effect.TimedMarkerState.setRemainingTicksForTest(victim, true, -1L);
+			com.summy.reliquary.effect.HellfireState.setRemainingTicksForTest(victim, -1L);
+			com.summy.reliquary.effect.HellfireState.tick(victim);
+			boolean hellfireExpired = !com.summy.reliquary.effect.HellfireState.active(victim)
+					&& !com.summy.reliquary.effect.HellfireState.hasArmorModifier(victim);
+
+			com.summy.reliquary.effect.TimedMarkerState.clear(victim);
+			com.summy.reliquary.effect.TimedMarkerState.markRevelation(victim);
+			com.summy.reliquary.effect.TimedMarkerState.markDemonicBrand(victim);
+			com.summy.reliquary.effect.HeartShardDrop.setForcedRoll(true);
+			com.summy.reliquary.effect.HeartShardDrop.setForcedBonusRoll(true);
+			com.summy.reliquary.effect.BrokenHeartDrop.setForcedRoll(true);
+			com.summy.reliquary.effect.BrokenHeartDrop.setForcedBonusRoll(true);
+
+			// 无成功击杀事务时只掷基础一次，额外判定不得自己创造事务。
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+			com.summy.reliquary.effect.HeartShardDrop.onDeath(victim, player);
+			int noTransactionHeart = rareMaterialCount(player.serverLevel(), victim,
+					SummyReliquary.HEART_SHARD.get());
+			boolean noTransactionOnlyBase = noTransactionHeart == 1
+					&& "unavailable".equals(com.summy.reliquary.effect.HeartShardDrop.lastBonusOutcome());
+			discardRareMaterialDrops(player.serverLevel(), victim);
+
+			// 成功事务下覆盖：仅额外命中、仅基础命中、两者皆失手。
+			com.summy.reliquary.loot.HumbleingBundleLoot.markKillSuccessForTest(player, victim);
+			com.summy.reliquary.effect.HeartShardDrop.setForcedRoll(false);
+			com.summy.reliquary.effect.HeartShardDrop.setForcedBonusRoll(true);
+			com.summy.reliquary.effect.HeartShardDrop.onDeath(victim, player);
+			int bonusOnlyHeart = rareMaterialCount(player.serverLevel(), victim,
+					SummyReliquary.HEART_SHARD.get());
+			boolean bonusOnly = bonusOnlyHeart == 1
+					&& "miss".equals(com.summy.reliquary.effect.HeartShardDrop.lastOutcome())
+					&& "drop".equals(com.summy.reliquary.effect.HeartShardDrop.lastBonusOutcome());
+			discardRareMaterialDrops(player.serverLevel(), victim);
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+
+			com.summy.reliquary.loot.HumbleingBundleLoot.markKillSuccessForTest(player, victim);
+			com.summy.reliquary.effect.BrokenHeartDrop.setForcedRoll(true);
+			com.summy.reliquary.effect.BrokenHeartDrop.setForcedBonusRoll(false);
+			com.summy.reliquary.effect.BrokenHeartDrop.onDeath(victim, player);
+			int baseOnlyBroken = rareMaterialCount(player.serverLevel(), victim,
+					SummyReliquary.BROKEN_HEART.get());
+			boolean baseOnly = baseOnlyBroken == 1
+					&& "drop".equals(com.summy.reliquary.effect.BrokenHeartDrop.lastOutcome())
+					&& "miss".equals(com.summy.reliquary.effect.BrokenHeartDrop.lastBonusOutcome());
+			discardRareMaterialDrops(player.serverLevel(), victim);
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+
+			com.summy.reliquary.loot.HumbleingBundleLoot.markKillSuccessForTest(player, victim);
+			com.summy.reliquary.effect.HeartShardDrop.setForcedRoll(false);
+			com.summy.reliquary.effect.HeartShardDrop.setForcedBonusRoll(false);
+			com.summy.reliquary.effect.BrokenHeartDrop.setForcedRoll(false);
+			com.summy.reliquary.effect.BrokenHeartDrop.setForcedBonusRoll(false);
+			com.summy.reliquary.effect.HeartShardDrop.onDeath(victim, player);
+			com.summy.reliquary.effect.BrokenHeartDrop.onDeath(victim, player);
+			boolean bothMiss = rareMaterialCount(player.serverLevel(), victim,
+					SummyReliquary.HEART_SHARD.get()) == 0
+					&& rareMaterialCount(player.serverLevel(), victim,
+							SummyReliquary.BROKEN_HEART.get()) == 0
+					&& "miss".equals(com.summy.reliquary.effect.HeartShardDrop.lastBonusOutcome())
+					&& "miss".equals(com.summy.reliquary.effect.BrokenHeartDrop.lastBonusOutcome());
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+
+			com.summy.reliquary.effect.HeartShardDrop.setForcedRoll(true);
+			com.summy.reliquary.effect.HeartShardDrop.setForcedBonusRoll(true);
+			com.summy.reliquary.effect.BrokenHeartDrop.setForcedRoll(true);
+			com.summy.reliquary.effect.BrokenHeartDrop.setForcedBonusRoll(true);
+			com.summy.reliquary.loot.HumbleingBundleLoot.markKillSuccessForTest(player, victim);
+			com.summy.reliquary.effect.HeartShardDrop.onDeath(victim, player);
+			com.summy.reliquary.effect.BrokenHeartDrop.onDeath(victim, player);
+			int heartCount = rareMaterialCount(player.serverLevel(), victim,
+					SummyReliquary.HEART_SHARD.get());
+			int brokenCount = rareMaterialCount(player.serverLevel(), victim,
+					SummyReliquary.BROKEN_HEART.get());
+			boolean protectedDrops = player.serverLevel().getEntitiesOfClass(ItemEntity.class,
+					victim.getBoundingBox().inflate(5.0D)).stream()
+					.filter(item -> item.getItem().is(SummyReliquary.HEART_SHARD.get())
+							|| item.getItem().is(SummyReliquary.BROKEN_HEART.get()))
+					.allMatch(net.minecraft.world.entity.Entity::isInvulnerable);
+			boolean specialDoubleRoll = heartCount == 2 && brokenCount == 2 && protectedDrops
+					&& "drop".equals(com.summy.reliquary.effect.HeartShardDrop.lastBonusOutcome())
+					&& "drop".equals(com.summy.reliquary.effect.BrokenHeartDrop.lastBonusOutcome());
+			discardRareMaterialDrops(player.serverLevel(), victim);
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+
+			// 真实死亡链路：实体战利品表先建立捆绑包事务，再由 LivingDropsEvent 结算稀有材料。
+			Zombie killed = spawnHolyLightTarget(player, 5.0D);
+			if (killed == null) {
+				throw new IllegalStateException("无法生成真实击杀测试目标");
+			}
+			cleanup.add(killed);
+			killed.setNoAi(true);
+			discardRareMaterialDrops(player.serverLevel(), killed);
+			com.summy.reliquary.effect.TimedMarkerState.clear(killed);
+			com.summy.reliquary.effect.TimedMarkerState.markRevelation(killed);
+			com.summy.reliquary.effect.TimedMarkerState.markDemonicBrand(killed);
+			com.summy.reliquary.effect.HeartShardDrop.setForcedRoll(true);
+			com.summy.reliquary.effect.HeartShardDrop.setForcedBonusRoll(true);
+			com.summy.reliquary.effect.BrokenHeartDrop.setForcedRoll(true);
+			com.summy.reliquary.effect.BrokenHeartDrop.setForcedBonusRoll(true);
+			com.summy.reliquary.loot.HumbleingBundleLoot.setForcedKillSuccessForTest(true);
+			equip(player, ReliquarySlots.CHARM, SummyReliquary.HUMBLEING_BUNDLE.get());
+			killed.setHealth(1.0F);
+			killed.invulnerableTime = 0;
+			boolean realKillLanded = killed.hurt(player.damageSources().playerAttack(player), 20.0F);
+			int realKillHeart = rareMaterialCount(player.serverLevel(), killed,
+					SummyReliquary.HEART_SHARD.get());
+			int realKillBroken = rareMaterialCount(player.serverLevel(), killed,
+					SummyReliquary.BROKEN_HEART.get());
+			boolean realKillBundle = realKillLanded && realKillHeart == 2 && realKillBroken == 2
+					&& "drop".equals(com.summy.reliquary.effect.HeartShardDrop.lastBonusOutcome())
+					&& "drop".equals(com.summy.reliquary.effect.BrokenHeartDrop.lastBonusOutcome());
+			discardRareMaterialDrops(player.serverLevel(), killed);
+			CuriosApi.getCuriosInventory(player).ifPresent(handler ->
+					handler.setEquippedCurio(ReliquarySlots.CHARM, 0, ItemStack.EMPTY));
+			com.summy.reliquary.loot.HumbleingBundleLoot.setForcedKillSuccessForTest(null);
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+
+			boolean overall = resources && patterns && refunds && config && counts
+					&& revelationMarked && revelationInternal && revelationExpired && allDemonSources
+					&& demonInternal && demonExpired && ordinaryNoMark && hellfireInternal
+					&& hellfireDamage && hellfireExpired && noTransactionOnlyBase && bonusOnly
+					&& baseOnly && bothMiss && specialDoubleRoll && realKillBundle;
+			log("碎心与内部状态：资源=" + resources + "、配方图案/退料=" + patterns + "/" + refunds
+					+ "、配置/计数=" + config + "/" + counts + "（物品=" + registeredItems
+					+ "、效果=" + registeredEffects + "、配方=" + registeredRecipes + "）、启示内部标记="
+					+ (revelationMarked && revelationInternal && revelationExpired)
+					+ "、三类恶魔伤害=" + allDemonSources + "、恶魔内部标记="
+					+ (demonInternal && demonExpired) + "、普通伤害无标记=" + ordinaryNoMark
+					+ "、狱火内部削甲/伤害/过期=" + hellfireInternal + "/" + hellfireDamage + "/"
+					+ hellfireExpired + "、基础护甲=" + baseArmor
+					+ "、特殊判定组合=" + noTransactionOnlyBase + "/" + bonusOnly + "/" + baseOnly + "/" + bothMiss
+					+ "、捆绑包两次独立判定（心/碎心）= " + heartCount + "/" + brokenCount
+					+ "、真实击杀链路=" + realKillBundle + "（" + realKillHeart + "/" + realKillBroken + "）"
+					+ " → " + overall + "（应 true）");
+		} finally {
+			suppressMarkerVisualsForTest = false;
+			com.summy.reliquary.effect.HeartShardDrop.reset();
+			com.summy.reliquary.effect.BrokenHeartDrop.reset();
+			com.summy.reliquary.effect.HellfireState.clear(player);
+			com.summy.reliquary.effect.TimedMarkerState.clear(player);
+			com.summy.reliquary.loot.HumbleingBundleLoot.setForcedKillSuccessForTest(null);
+			com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
+			CuriosApi.getCuriosInventory(player).ifPresent(handler ->
+					handler.setEquippedCurio(ReliquarySlots.CHARM, 0, ItemStack.EMPTY));
+			for (LivingEntity entity : cleanup) {
+				com.summy.reliquary.effect.HellfireState.clear(entity);
+				com.summy.reliquary.effect.TimedMarkerState.clear(entity);
+				entity.discard();
+			}
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, oldAngel);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, oldDemon);
+		}
+	}
+
+	private static int rareMaterialCount(ServerLevel level, LivingEntity victim, Item item) {
+		return level.getEntitiesOfClass(ItemEntity.class, victim.getBoundingBox().inflate(5.0D)).stream()
+				.filter(entity -> entity.getItem().is(item))
+				.mapToInt(entity -> entity.getItem().getCount())
+				.sum();
+	}
+
+	private static void discardRareMaterialDrops(ServerLevel level, LivingEntity victim) {
+		level.getEntitiesOfClass(ItemEntity.class, victim.getBoundingBox().inflate(5.0D)).stream()
+				.filter(entity -> entity.getItem().is(SummyReliquary.HEART_SHARD.get())
+						|| entity.getItem().is(SummyReliquary.BROKEN_HEART.get()))
+				.forEach(net.minecraft.world.entity.Entity::discard);
 	}
 
 	/** 验证只有四张门禁无序配方使用 Create ignore serializer，两张普通配方保持原版。 */
@@ -7598,6 +7966,7 @@ public final class ForgeDevCheck {
 	private static void checkHeartShard(ServerPlayer player) {
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
 		com.summy.reliquary.effect.HeartShardDrop.reset();
+		com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
 		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
 			handler.setEquippedCurio(ReliquarySlots.BLESSING, 0, ItemStack.EMPTY);
 			handler.setEquippedCurio(ReliquarySlots.BLESSING, 1, ItemStack.EMPTY);
@@ -7608,8 +7977,10 @@ public final class ForgeDevCheck {
 		}
 		// ① 启示伤害 → 挂上 7 秒启示之光
 		com.summy.reliquary.effect.RevelationBeam.applyRevelationDamage(player.serverLevel(), player, zombie, 1.0F);
-		var effect = zombie.getEffect(SummyReliquary.REVELATION_LIGHT.get());
-		int duration = effect == null ? -1 : effect.getDuration();
+		long duration = com.summy.reliquary.effect.TimedMarkerState
+				.remainingTicksForTest(zombie, false);
+		zombie.removeEffect(SummyReliquary.REVELATION_LIGHT.get());
+		boolean internalSurvives = com.summy.reliquary.effect.TimedMarkerState.hasRevelation(zombie);
 		// 再打一次：时长刷新
 		zombie.setHealth(zombie.getMaxHealth());
 		com.summy.reliquary.effect.RevelationBeam.applyRevelationDamage(player.serverLevel(), player, zombie, 1.0F);
@@ -7621,6 +7992,7 @@ public final class ForgeDevCheck {
 			other.invulnerableTime = 0;
 			other.hurt(other.damageSources().magic(), 1.0F);
 		}
+		com.summy.reliquary.effect.HeartShardDrop.setForcedBonusRoll(false);
 		// ③ 掉落：强制命中 → 原地出现不可摧毁的心之碎片
 		com.summy.reliquary.effect.HeartShardDrop.setForcedRoll(true);
 		com.summy.reliquary.effect.HeartShardDrop.onDeath(zombie, player);
@@ -7632,14 +8004,15 @@ public final class ForgeDevCheck {
 				.filter(item -> item.getItem().is(SummyReliquary.HEART_SHARD.get()))
 				.anyMatch(net.minecraft.world.entity.Entity::isInvulnerable);
 		dropped.forEach(net.minecraft.world.entity.Entity::discard);
-		// ④ 击杀者戴圣心 → 不掉
+		// ④ 击杀者戴圣心 → 仍正常掉落
+		dropped.forEach(net.minecraft.world.entity.Entity::discard);
 		CuriosApi.getCuriosInventory(player).ifPresent(handler ->
 				handler.setEquippedCurio(ReliquarySlots.BLESSING, 0,
 						new ItemStack(SummyReliquary.SACRED_HEART.get())));
 		com.summy.reliquary.effect.HeartShardDrop.onDeath(zombie, player);
-		boolean heartBlocks = player.serverLevel().getEntitiesOfClass(ItemEntity.class,
+		boolean sacredHeartAllows = player.serverLevel().getEntitiesOfClass(ItemEntity.class,
 				zombie.getBoundingBox().inflate(4.0D)).stream()
-				.noneMatch(item -> item.getItem().is(SummyReliquary.HEART_SHARD.get()));
+				.anyMatch(item -> item.getItem().is(SummyReliquary.HEART_SHARD.get()));
 		// ⑤ 概率表
 		double normal = com.summy.reliquary.effect.HeartShardDrop.chanceFor(zombie);
 		double boss = com.summy.reliquary.effect.HeartShardDrop.chanceFor(
@@ -7650,13 +8023,16 @@ public final class ForgeDevCheck {
 		if (other != null) {
 			other.discard();
 		}
-		log("启示之光 buff：首次时长=" + duration + " tick（应 140）、刷新后=" + refreshedDuration
+		log("启示之光 buff：内部首次时长=" + duration + " tick（应 140）、移除视觉后内部仍有效="
+				+ internalSurvives + "（应 true）、刷新后=" + refreshedDuration
 				+ " tick（应 140）；圣光伤害不挂 buff="
-				+ (other != null && !other.hasEffect(SummyReliquary.REVELATION_LIGHT.get())) + "（应 true）");
+				+ (other != null && !com.summy.reliquary.effect.TimedMarkerState
+						.hasRevelation(other)) + "（应 true）");
 		log("心之碎片掉落：强制命中后原地出现=" + dropExists + "（应 true）、掉落物不可摧毁=" + invulnerable
-				+ "（应 true）；击杀者戴圣心后不再掉落=" + heartBlocks + "（应 true）；"
+				+ "（应 true）；击杀者戴圣心仍掉落=" + sacredHeartAllows + "（应 true）；"
 				+ "概率表 普通=" + normal + "（应 0.5）、监守者=" + boss + "（应 5.0）、末影龙=" + dragon
 				+ "（应 20.0）");
+		com.summy.reliquary.effect.TimedMarkerState.clear(zombie);
 		com.summy.reliquary.effect.HeartShardDrop.reset();
 	}
 
@@ -7981,6 +8357,7 @@ public final class ForgeDevCheck {
 	private static void checkHeartShardOutcomes(ServerPlayer player) {
 		boolean defaultLog = com.summy.reliquary.config.ReliquaryConfig.logDropChecks();
 		com.summy.reliquary.effect.HeartShardDrop.reset();
+		com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
 		clearBlessingSlots(player);
 		Zombie zombie = spawnHolyLightTarget(player, 6.0D);
 		if (zombie == null) {
@@ -7989,30 +8366,40 @@ public final class ForgeDevCheck {
 		// ① 没有启示之光 → no-buff（静默分支）
 		com.summy.reliquary.effect.HeartShardDrop.onDeath(zombie, player);
 		String noBuff = com.summy.reliquary.effect.HeartShardDrop.lastOutcome();
-		// ② 挂上启示之光 + 强制未中 → miss
-		zombie.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-				SummyReliquary.REVELATION_LIGHT.get(), 600));
+		// ② 写内部启示标记、移除视觉状态后仍能判定；强制未中 → miss
+		com.summy.reliquary.effect.TimedMarkerState.markRevelation(zombie);
+		zombie.removeEffect(SummyReliquary.REVELATION_LIGHT.get());
+		boolean internalMarker = com.summy.reliquary.effect.TimedMarkerState.hasRevelation(zombie);
 		com.summy.reliquary.effect.HeartShardDrop.setForcedRoll(false);
+		com.summy.reliquary.effect.HeartShardDrop.setForcedBonusRoll(false);
 		com.summy.reliquary.effect.HeartShardDrop.onDeath(zombie, player);
 		String miss = com.summy.reliquary.effect.HeartShardDrop.lastOutcome();
-		// ③ 击杀者戴圣心 → suppressed
+		// ③ 击杀者戴圣心 → 旧抑制已删除，强制命中仍应正常掉落。
 		CuriosApi.getCuriosInventory(player).ifPresent(handler -> handler.setEquippedCurio(
 				ReliquarySlots.BLESSING, 0, new ItemStack(SummyReliquary.SACRED_HEART.get())));
+		com.summy.reliquary.effect.HeartShardDrop.setForcedRoll(true);
+		com.summy.reliquary.effect.HeartShardDrop.setForcedBonusRoll(false);
 		com.summy.reliquary.effect.HeartShardDrop.onDeath(zombie, player);
-		String suppressed = com.summy.reliquary.effect.HeartShardDrop.lastOutcome();
+		String sacredHeartOutcome = com.summy.reliquary.effect.HeartShardDrop.lastOutcome();
+		int sacredHeartDrops = com.summy.reliquary.effect.HeartShardDrop.dropCount();
 		// ④ 强制命中 → drop
 		clearBlessingSlots(player);
 		com.summy.reliquary.effect.HeartShardDrop.setForcedRoll(true);
 		com.summy.reliquary.effect.HeartShardDrop.onDeath(zombie, player);
 		String drop = com.summy.reliquary.effect.HeartShardDrop.lastOutcome();
 		int drops = com.summy.reliquary.effect.HeartShardDrop.dropCount();
+		int withoutSacredHeartDrops = drops - sacredHeartDrops;
 		player.serverLevel().getEntitiesOfClass(ItemEntity.class, zombie.getBoundingBox().inflate(4.0D))
 				.forEach(net.minecraft.world.entity.Entity::discard);
 		zombie.discard();
 		com.summy.reliquary.effect.HeartShardDrop.reset();
 		log("心之碎片判定日志：开关默认=" + defaultLog + "（应 true）；无 buff=" + noBuff
-				+ "（应 no-buff）、强制未中=" + miss + "（应 miss）、戴圣心=" + suppressed
-				+ "（应 suppressed）、强制命中=" + drop + "（应 drop，掉落数 " + drops + "）");
+				+ "（应 no-brand）、内部标记移除视觉后仍有效=" + internalMarker
+				+ "、强制未中=" + miss + "（应 miss）、戴圣心=" + sacredHeartOutcome
+				+ "（应 drop，掉落数 " + sacredHeartDrops + "）、未佩戴对照增量="
+				+ withoutSacredHeartDrops + "（应 1）、强制命中=" + drop
+				+ "（应 drop，累计掉落数 " + drops + "）");
+		com.summy.reliquary.effect.TimedMarkerState.clear(zombie);
 	}
 
 	/** 把恶魔交易演示所需的前置一次性摆好（五芒星 + 那句 300 秒的话 + 强制"在峡谷"） */
@@ -8606,6 +8993,7 @@ public final class ForgeDevCheck {
 		// 未佩戴契约：不吸收（池子留着、红血照掉）
 		CuriosApi.getCuriosInventory(player).ifPresent(handler ->
 				handler.setEquippedCurio(ReliquarySlots.DEMON_PACT, 0, ItemStack.EMPTY));
+		com.summy.reliquary.effect.DemonPact.clearGuardForTest(player);
 		player.setHealth(player.getMaxHealth());
 		player.setAbsorptionAmount(0.0F);
 		com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 4.0D);
@@ -9855,11 +10243,12 @@ public final class ForgeDevCheck {
 		target.setNoAi(true);
 		target.setHealth(target.getMaxHealth());
 		target.removeAllEffects();
+		com.summy.reliquary.effect.HellfireState.clear(target);
 
 		// ① 没戴深渊领主：普通攻击不施加
 		target.invulnerableTime = 0;
 		player.attack(target);
-		boolean withoutLord = !target.hasEffect(SummyReliquary.HELLFIRE.get());
+		boolean withoutLord = !com.summy.reliquary.effect.HellfireState.active(target);
 		float baseArmor = (float) target.getAttributeValue(Attributes.ARMOR);
 
 		// ② 戴上深渊领主：普通伤害 → 1 级、持续 6 秒
@@ -9868,8 +10257,9 @@ public final class ForgeDevCheck {
 		target.invulnerableTime = 0;
 		player.attack(target);
 		var first = target.getEffect(SummyReliquary.HELLFIRE.get());
-		boolean firstLevel = first != null && first.getAmplifier() == 0;
-		int firstDuration = first == null ? -1 : first.getDuration();
+		boolean firstLevel = com.summy.reliquary.effect.HellfireState.level(target) == 1
+				&& first != null && first.getAmplifier() == 0;
+		long firstDuration = com.summy.reliquary.effect.HellfireState.remainingTicksForTest(target);
 		float armorLevel1 = (float) target.getAttributeValue(Attributes.ARMOR);
 
 		// ③ 再打一次 → 2 级；连打到上限 → 封顶 10 级
@@ -9879,20 +10269,25 @@ public final class ForgeDevCheck {
 			player.attack(target);
 		}
 		var capped = target.getEffect(SummyReliquary.HELLFIRE.get());
-		int cappedLevel = capped == null ? -1 : capped.getAmplifier() + 1;
+		int cappedLevel = com.summy.reliquary.effect.HellfireState.level(target);
 		float armorLevel10 = (float) target.getAttributeValue(Attributes.ARMOR);
 
-		// ④ 每秒伤害 = 等级 × 1（10 级 = 10 点），且穿钻石甲不减免（hellfire 无视护甲）
+		// ④ 移除纯视觉状态后，内部狱火仍按等级 × 1 造成每秒伤害
 		target.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.DIAMOND_HELMET));
 		target.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.DIAMOND_CHESTPLATE));
 		target.setItemSlot(EquipmentSlot.LEGS, new ItemStack(Items.DIAMOND_LEGGINGS));
 		target.setItemSlot(EquipmentSlot.FEET, new ItemStack(Items.DIAMOND_BOOTS));
+		target.removeEffect(SummyReliquary.HELLFIRE.get());
+		boolean internalSurvives = com.summy.reliquary.effect.HellfireState.active(target);
 		float before = target.getHealth();
-		SummyReliquary.HELLFIRE.get().applyEffectTick(target, cappedLevel - 1);
+		com.summy.reliquary.effect.HellfireState.setNextDamageForTest(target,
+				player.serverLevel().getGameTime() - 1L);
+		com.summy.reliquary.effect.HellfireState.tick(target);
 		float tickDamage = before - target.getHealth();
 
 		// ⑤ 定值真伤（启示之光）不施加狱火
 		target.removeAllEffects();
+		com.summy.reliquary.effect.HellfireState.clear(target);
 		var registry = player.serverLevel().registryAccess()
 				.registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE);
 		var exactSource = new net.minecraft.world.damagesource.DamageSource(registry.getHolderOrThrow(
@@ -9900,22 +10295,23 @@ public final class ForgeDevCheck {
 						SummyReliquary.id("revelation_light"))));
 		var exact = new net.minecraftforge.event.entity.living.LivingHurtEvent(target, exactSource, 5.0F);
 		MinecraftForge.EVENT_BUS.post(exact);
-		boolean exactSkipped = !target.hasEffect(SummyReliquary.HELLFIRE.get());
+		boolean exactSkipped = !com.summy.reliquary.effect.HellfireState.active(target);
 
 		// ⑥ 狱火自身（每秒伤害）也不会再叠层
 		target.removeAllEffects();
 		target.hurt(new net.minecraft.world.damagesource.DamageSource(registry.getHolderOrThrow(
 				net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE,
 						SummyReliquary.id("hellfire")))), 1.0F);
-		boolean selfSkipped = !target.hasEffect(SummyReliquary.HELLFIRE.get());
+		boolean selfSkipped = !com.summy.reliquary.effect.HellfireState.active(target);
 
 		target.discard();
 		log("狱火：未戴深渊领主不施加=" + withoutLord + "（应 true）；首击 1 级=" + firstLevel
-				+ "（应 true）、持续时间=" + firstDuration + "（应 "
+				+ "（应 true）、剩余内部时长=" + firstDuration + "（应约 "
 				+ com.summy.reliquary.config.ReliquaryConfig.hellfireTicks()
 				+ "）；连打后等级=" + cappedLevel + "（应 10 = 封顶）、护甲 " + baseArmor + " → 1 级 "
 				+ armorLevel1 + "（应 -10% → " + (baseArmor * 0.9F) + "）→ 10 级 " + armorLevel10
-				+ "（应 0）；10 级每秒伤害（穿钻石甲）=" + tickDamage + "（应 10）；定值真伤不施加=" + exactSkipped
+				+ "（应 0）；移除视觉后内部仍有效=" + internalSurvives
+				+ "、10 级每秒伤害（穿钻石甲）=" + tickDamage + "（应 10）；定值真伤不施加=" + exactSkipped
 				+ "（应 true）、狱火自身不叠层=" + selfSkipped + "（应 true）");
 		clearBlessingSlots(player);
 		resetDemonPactState(player);
@@ -11452,8 +11848,10 @@ public final class ForgeDevCheck {
 		int eyeBack = player.getInventory().countItem(Items.ENDER_EYE);
 		int echoBack = player.getInventory().countItem(Items.ECHO_SHARD);
 		int scrapBack = player.getInventory().countItem(Items.NETHERITE_SCRAP);
+		int brokenBack = player.getInventory().countItem(SummyReliquary.BROKEN_HEART.get());
 		int eyeLeft = player.getInventory().countItem(SummyReliquary.OCCULT_EYE.get());
-		boolean gateBlocks = eyeLeft == 0 && wraithBack == 1 && eyeBack == 4 && echoBack == 3 && scrapBack == 1;
+		boolean gateBlocks = eyeLeft == 0 && wraithBack == 1 && eyeBack == 4
+				&& echoBack == 2 && scrapBack == 1 && brokenBack == 1;
 
 		// ③ 继承夜之幽魂：移速 +20% 与创造飞行
 		com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
@@ -11754,14 +12152,14 @@ public final class ForgeDevCheck {
 		boolean tabExcludesIcons = display.stream().noneMatch(stack -> stack.is(SummyReliquary.ERROR_ICON.get())
 				|| stack.is(SummyReliquary.PURITY_ICON.get())
 				|| stack.is(SummyReliquary.DUALITY_STAT.get()) || stack.is(SummyReliquary.YOUR_SOUL.get()));
-		// 2.10 / 2.11 / 2.3 / 2.18：注册物品 50 → 52 → 57 → 58
+		// 2.10 / 2.11 / 2.3 / 2.18 / 2.0：注册物品 50 → 52 → 57 → 58 → 59
 		// 隐藏图标物品仍是 5、纯图标物品仍是 4
-		boolean counts = registeredItems == 58 && iconItems == 5 && pureIconCount == 4 && tabExcludesIcons;
+		boolean counts = registeredItems == 59 && iconItems == 5 && pureIconCount == 4 && tabExcludesIcons;
 		log("图标物品（1.6.9）：duality_stat/your_soul 已注册=" + registered + "（应 true）、贴图=" + textures
 				+ "、模型=" + models + "（都应 true）、语言键（含 error/purity 补键）=" + lang
 				+ "（应 true）、没有配方=" + noRecipe + "（应 true）；仪式匕首素材（1.7.5）=" + daggerResources
 				+ "（应 true）、手持模型走 item/handheld=" + daggerHandheld + "（应 true）；注册物品数=" + registeredItems
-				+ "（应 58 = 1.7.10 的 50 + 修女服 + 背叛 + 誓约五件 + 慈善捆绑包）、隐藏图标物品=" + iconItems
+				+ "（应 59 = 1.7.10 的 50 + 修女服 + 背叛 + 誓约五件 + 慈善捆绑包 + 碎心）、隐藏图标物品=" + iconItems
 				+ "（应 5，1.7.0 起其中三位一体已转正）、纯图标物品="
 				+ pureIconCount + "（应 4）、创造页不含纯图标物品=" + tabExcludesIcons
 				+ "（应 true，页面条目 " + display.size() + " 个 = 1.7.1 的 41 项，含恶魔王冠）→ 计数全对="
@@ -12091,15 +12489,21 @@ public final class ForgeDevCheck {
 				{"abyss_lord", "tagline.2"},
 				// 1.7.1：恶魔王冠
 				{"devil_crown", "tagline.1"},
-				{"devil_crown", "tagline.2"}
+				{"devil_crown", "tagline.2"},
+				{"broken_heart", "desc.1"}
 		};
 		StringBuilder bad = new StringBuilder();
 		boolean flavorOk = true;
 		for (String[] row : flavor) {
 			String key = "item.summy-reliquary." + row[0] + "." + row[1];
-			String text = Component.translatable(key).getString();
-			var line = tooltipLine(client, itemById(row[0]), text);
-			boolean ok = line != null && "#C03030".equals(colorOf(line));
+			String expected = Component.translatable(key).getString();
+			String tooltip = new ItemStack(itemById(row[0])).getTooltipLines(client.player,
+					net.minecraft.world.item.TooltipFlag.Default.NORMAL).stream()
+					.map(Component::getString)
+					.collect(java.util.stream.Collectors.joining("\n"));
+			boolean colorOk = "#C03030".equals(colorOf(
+					com.summy.reliquary.item.ReliquaryTooltips.demonFlavor(key)));
+			boolean ok = colorOk && tooltip.contains(expected);
 			flavorOk &= ok;
 			if (!ok) {
 				bad.append(row[0]).append('.').append(row[1]).append(' ');
@@ -12124,11 +12528,29 @@ public final class ForgeDevCheck {
 				+ quotes + "（应 true）、括注行仍是灰=" + narrative + "（应 true）");
 	}
 
+	private static boolean containsColor(Component component, String color) {
+		if (component == null) {
+			return false;
+		}
+		if (color.equals(colorOf(component))) {
+			return true;
+		}
+		for (Component sibling : component.getSiblings()) {
+			if (containsColor(sibling, color)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** 取某件物品提示里与给定文本相同的行（没有则 null） */
 	private static Component tooltipLine(Minecraft client, Item item, String text) {
 		for (Component line : new ItemStack(item).getTooltipLines(client.player,
 				net.minecraft.world.item.TooltipFlag.Default.NORMAL)) {
-			if (line.getString().equals(text)) {
+			String candidate = line.getString();
+			// 长风味行会按当前提示框宽度自动折行；首段颜色与原文一致即可判定。
+			if (candidate.equals(text)
+					|| (candidate.length() >= 6 && text.startsWith(candidate))) {
 				return line;
 			}
 		}
@@ -12541,14 +12963,19 @@ public final class ForgeDevCheck {
 				com.summy.reliquary.effect.AbyssLord.applyStack(burning, player);
 			}
 			burning.setHealth(burning.getMaxHealth());
-			SummyReliquary.HELLFIRE.get().applyEffectTick(burning, 9);
+			com.summy.reliquary.effect.HellfireState.setNextDamageForTest(burning,
+					player.serverLevel().getGameTime() - 1L);
+			com.summy.reliquary.effect.HellfireState.tick(burning);
 			var afterNoAbaddon = burning.getEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE);
 			noAbaddonResistance = afterNoAbaddon == null ? -1 : afterNoAbaddon.getAmplifier();
 			// 再戴上亚巴顿 → 下一次命中刷新联动时间戳，9 级不生效
 			equip(player, ReliquarySlots.REVELATION, SummyReliquary.ABADDON.get());
 			com.summy.reliquary.effect.AbyssLord.applyStack(burning, player);
+			com.summy.reliquary.effect.AbyssLord.removeOneStack(burning);
 			burning.setHealth(burning.getMaxHealth());
-			SummyReliquary.HELLFIRE.get().applyEffectTick(burning, 8);
+			com.summy.reliquary.effect.HellfireState.setNextDamageForTest(burning,
+					player.serverLevel().getGameTime() - 1L);
+			com.summy.reliquary.effect.HellfireState.tick(burning);
 			var atNine = burning.getEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE);
 			levelNineResistance = atNine == null ? -1 : atNine.getAmplifier();
 			// 补到 10 级 → 抗性 IV（amp 3）被压成 amp 1（抗性 II）
@@ -12556,7 +12983,9 @@ public final class ForgeDevCheck {
 				com.summy.reliquary.effect.AbyssLord.applyStack(burning, player);
 			}
 			burning.setHealth(burning.getMaxHealth());
-			SummyReliquary.HELLFIRE.get().applyEffectTick(burning, 9);
+			com.summy.reliquary.effect.HellfireState.setNextDamageForTest(burning,
+					player.serverLevel().getGameTime() - 1L);
+			com.summy.reliquary.effect.HellfireState.tick(burning);
 			var atTen = burning.getEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE);
 			levelTenResistance = atTen == null ? -1 : atTen.getAmplifier();
 			// 目标中途再灌一瓶抗性 IV → 下一次结算会再压回 amp 1
@@ -12564,7 +12993,9 @@ public final class ForgeDevCheck {
 			burning.addEffect(new net.minecraft.world.effect.MobEffectInstance(
 					net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 6000, 3));
 			burning.setHealth(burning.getMaxHealth());
-			SummyReliquary.HELLFIRE.get().applyEffectTick(burning, 9);
+			com.summy.reliquary.effect.HellfireState.setNextDamageForTest(burning,
+					player.serverLevel().getGameTime() - 1L);
+			com.summy.reliquary.effect.HellfireState.tick(burning);
 			var reDrink = burning.getEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE);
 			reDrinkResistance = reDrink == null ? -1 : reDrink.getAmplifier();
 			burning.discard();
@@ -12906,7 +13337,9 @@ public final class ForgeDevCheck {
 				|| item == SummyReliquary.DIVINE_INTERVENTION.get()
 				|| item == SummyReliquary.SACRED_VERDICT.get()
 				|| item == SummyReliquary.BLOOD_DEBT_ALTAR.get()
-				|| item == SummyReliquary.HEX_SEAL.get();
+				|| item == SummyReliquary.HEX_SEAL.get()
+				|| item == SummyReliquary.BROKEN_HEART.get()
+				|| item == SummyReliquary.HUMBLEING_BUNDLE.get();
 	}
 
 	/** 把配方材料展平成"物品 → 总数"（标签取第一个匹配项；本模组受管配方都用普通物品） */
@@ -14270,7 +14703,8 @@ public final class ForgeDevCheck {
 		boolean darkBlocked = !player.inventoryMenu.getCarried().is(SummyReliquary.DARK_ARTS.get());
 		boolean darkRefunded = countItem(player, Items.NETHER_STAR) == 1
 				&& countItem(player, SummyReliquary.SACRIFICIAL_DAGGER.get()) == 1
-				&& countItem(player, Items.OBSIDIAN) == 2
+				&& countItem(player, Items.OBSIDIAN) == 1
+				&& countItem(player, SummyReliquary.BROKEN_HEART.get()) == 1
 				&& countItem(player, Items.NETHERITE_INGOT) == 1;
 		player.inventoryMenu.setCarried(ItemStack.EMPTY);
 		player.getInventory().clearContent();
@@ -14310,7 +14744,7 @@ public final class ForgeDevCheck {
 				+ " 秒）开放=" + opened + "（应 true）、未开放强合被拦=" + blocked + "（应 true）、退料 碎片/铁锭/黑曜石=1/1/1="
 				+ refunded + "（应 true）、开放后放行=" + allowedWhenOpen + "（应 true）、拿回匕首即关闭="
 				+ closedAfterRegain + "（应 true）；暗仪刺刀未解锁被拦=" + darkBlocked + "（应 true）、退料"
-				+ " 星/匕首/黑曜石/合金锭=1/1/2/1=" + darkRefunded + "（应 true）、700 后放行=" + darkAllowed
+				+ " 星/匕首/黑曜石/合金锭/碎心=1/1/1/1/1=" + darkRefunded + "（应 true）、700 后放行=" + darkAllowed
 				+ "（应 true）；掉落物受保护=" + dropProtected + "（应 true）、死亡掉落里不含匕首=" + stripped
 				+ "（应 true）、复活补发（有→补 2 / 无→不补）=" + restoreOk + "（应 true）");
 
@@ -15772,6 +16206,9 @@ public final class ForgeDevCheck {
 				EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
 			player.setItemSlot(slot, ItemStack.EMPTY);
 		}
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+		com.summy.reliquary.effect.SlotSizing.syncNow(player);
 		equip(player, ReliquarySlots.SPIRIT_ALTAR, SummyReliquary.THE_SOUL.get());
 		player.setHealth(player.getMaxHealth());
 		player.setAbsorptionAmount(0.0F);
@@ -15817,6 +16254,7 @@ public final class ForgeDevCheck {
 				+ "（应 true）、红血掉=" + String.format("%.1f", blackLost) + "（应 0.0）、黑心剩="
 				+ String.format("%.1f", blackLeft) + "（应扣 4.0）=" + blackPoolOk + "（应 true）");
 		resetDemonPactState(player);
+		com.summy.reliquary.effect.DemonPact.clearGuardForTest(player);
 
 		// ④ 原版吸收也参与：仅有吸收 6 → 红血不掉、吸收 6→2
 		player.setHealth(player.getMaxHealth());
@@ -16485,7 +16923,7 @@ public final class ForgeDevCheck {
 				"the_body", "the_mind", "the_soul", "star_of_bethlehem", "final_revelation", "godhead",
 				"salvation", "holy_light", "holy_mantle", "sacred_heart", "habit",
 				"divine_intervention", "sacred_verdict", "the_halo", "pentagram",
-				"source_of_sins", "virtues", "satanic_bible", "the_mark", "the_pact", "ceremonial_robes",
+				"source_of_sins", "virtues", "satanic_bible", "the_mark", "broken_heart", "the_pact", "ceremonial_robes",
 				"brimstone", "abaddon", "vengeful_spirit", "night_wraith", "occult_eye", "abyss_lord", "betrayal",
 				"blood_debt_altar", "hex_seal", "devil_crown",
 				"life_death",
@@ -16493,7 +16931,7 @@ public final class ForgeDevCheck {
 				"sin_fragment_sloth", "sin_fragment_lust", "sin_fragment_greed", "redemption",
 				"act_of_contrition", "wooden_cross", "heart_shard", "six", "trinity", "genesis",
 				"freeloaders_rice", "bangbang_halo", "humbleing_bundle"};
-		boolean sizeOk = order.size() == expected.length && expected.length == 54;
+		boolean sizeOk = order.size() == expected.length && expected.length == 55;
 		StringBuilder mismatch = new StringBuilder();
 		for (int index = 0; index < Math.min(order.size(), expected.length); index++) {
 			var id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(order.get(index));
@@ -16525,7 +16963,7 @@ public final class ForgeDevCheck {
 		boolean tabIconOk = !tabBuilt || (tab.getIconItem() != null
 				&& tab.getIconItem().is(SummyReliquary.DUALITY_STAT.get()));
 
-		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 54）、逐项与预期一致="
+		log("创造页整理与品牌（1.7.10）：唯一顺序源共 " + order.size() + " 项（应 55）、逐项与预期一致="
 				+ orderOk + "（应 true" + (mismatch.length() == 0 ? "" : "，异常：" + mismatch.toString().trim())
 				+ "）、分块=武器 → 天使线 → 恶魔线 → 中立材料工具；mods.toml（logoFile=" + modInfo.getLogoFile()
 				+ "=" + logoOk + "、描述含「金刀片 / 24 个成就 / 七罪主题饰品合集」=" + descOk + "）="
@@ -16562,8 +17000,7 @@ public final class ForgeDevCheck {
 
 	/** 取目标身上狱火的等级（0 = 没有该效果） */
 	private static int hellfireLevel(LivingEntity target) {
-		var effect = target.getEffect(SummyReliquary.HELLFIRE.get());
-		return effect == null ? 0 : effect.getAmplifier() + 1;
+		return com.summy.reliquary.effect.HellfireState.level(target);
 	}
 
 	/** 给玩家塞满 6 件带诅咒的装备（满足契约"诅咒 > 5 条"的吸血门槛） */

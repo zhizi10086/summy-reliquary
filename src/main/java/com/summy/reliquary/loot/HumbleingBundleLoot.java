@@ -197,6 +197,21 @@ public final class HumbleingBundleLoot {
 		}
 	}
 
+	/**
+	 * 特殊稀有材料专用：只查询本 tick 已成功的击杀事务，不消费、不递归。
+	 *
+	 * <p>心之碎片与碎心在实体死亡掉落事件直接生成，不经过战利品表；它们据此决定
+	 * 是否追加一次独立掉率判定。
+	 */
+	@Nullable
+	public static ServerPlayer specialDropBonusPlayer(LivingEntity victim) {
+		KillTransaction transaction = KILL_TRANSACTIONS.get(keyFor(victim));
+		if (transaction == null || !transaction.success()) {
+			return null;
+		}
+		return transactionPlayer(victim, transaction);
+	}
+
 	/** 自检入口：绕过 50% 随机，验证真实厄咒转移击杀的完整服务端链路。 */
 	public static void setForcedKillSuccessForTest(@Nullable Boolean value) {
 		if (Boolean.getBoolean("summy.devcheck")) {

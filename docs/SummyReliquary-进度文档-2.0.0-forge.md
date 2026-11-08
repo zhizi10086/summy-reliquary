@@ -1,13 +1,13 @@
 # Summy Reliquary 进度文档（截至 2.0.0-forge）
 
-> 更新时间：2026-11-07（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-11-08（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
 > 本文档由当前代码与资源逐一核对后整理，内容与 `README.md` 一致（README 是随版本更新的主文档，本文档是更全的"总台账"）。
 
 ---
 
 ## 0. 一句话概览
 
-以 **Curios** 为前置的 Forge 1.20.1 饰品模组：**8 个本模组栏位（含动态「恶魔契约」与 2.3 的「誓约」）+ Curios 自带的「护符」「背饰」两栏 + 58 件已注册物品（1.7.5 起含武器，1.7.8 起含两把天使线长矛，1.7.10 起含金刀片，2.10 起含修女服、2.11 起含背叛、2.3 起含誓约五件、2.18 起含慈善捆绑包）+ 25 个进度 + 12 个网络包 + 35 个配置段 / 335 个键（源码口径；实例 config 因历史残留键 `frame_damage_ids` 会多 1）**。
+以 **Curios** 为前置的 Forge 1.20.1 饰品模组：**8 个本模组栏位（含动态「恶魔契约」与 2.3 的「誓约」）+ Curios 自带的「护符」「背饰」两栏 + 59 件已注册物品（1.7.5 起含武器，1.7.8 起含两把天使线长矛，1.7.10 起含金刀片，2.10 起含修女服、2.11 起含背叛、2.3 起含誓约五件、2.18 起含慈善捆绑包，2.0 起含碎心）+ 25 个进度 + 12 个网络包 + 36 个配置段 / 342 个键（源码口径；实例 config 因历史残留键 `frame_damage_ids` 会多 1）**。
 核心玩法链：**七罪之源 → 赎罪（碎片/配方）→ 美德 → 纯洁之人（天使标记）→ 灵台三件套 → 伯列恒之星 → 终末天启 / 神性**；
 另有一条**加护**支线（救恩 / 圣光 / 神圣斗篷 / 圣心）与**启示之光**体系（光柱 + 领域 + buff + 心之碎片）。
 
@@ -51,6 +51,8 @@
 **2026-11-08 门禁配方反自动化与 Twilight 拆解保护**：新增统一索引合并灵台 / 天使 / 誓言 / 防丢失 21 张、邪恶线 8 张与赎罪 1 张，共 30 张门禁配方。原版工作台和玩家 2×2 合成通过 `CraftingMenu#slotChangedCraftingGrid` 建立手动上下文；`RecipeManager` 对自动化查找默认剔除门禁配方，shaped / shapeless 直接 `assemble` 在无手动上下文时返回空，形成两层 fail-closed 防线。Create 机械合成因此即使玩家已解锁也不能代工，非门禁的 11 张 SR 配方不受影响。JEI 从只为原版 crafting 分类写隐藏状态改为遍历所有接受 `CraftingRecipe` 的分类，覆盖 Create 自动合成与 Twilight 拆解页。新增 `#summy-reliquary:gated_recipe_outputs`，并通过 `replace:false` 合并到 Twilight 的 `banned_uncraftables` / `banned_uncrafting_ingredients`。`case 2279` 逐张通过 30/30 自动阻止、30/30 手动放行、Twilight 标签 30/30 与普通配方隔离断言；完整客户端自检 **620 行**、0 失败；正式 JAR **590 项**、SHA256 `5A6D4A51A660CD0D9767F0B2A6C92D804533ED500F8360B9C8FA4717A61EB90D`，ZipCheck 双读 0 异常，专用服务端 `Done (2.062s)` 并经 RCON 正常停止。Ponder Time 使用该 JAR 成功进入存档；GUI 深度验收期间检测到用户侧输入后停止自动注入，未继续干扰窗口。物品 / 创造页 / 配方 / 进度、配置与协议均不变。
 
 **2026-11-08 Create 门禁无序配方补充**：仅将 `betrayal`、`redemption`、`salvation`、`the_mark` 四张门禁无序配方的序列化器切换为 `summy-reliquary:manual_only_shapeless`，原配方 ID、材料、产物、`minecraft:crafting` RecipeType、人工工作台与玩家门禁语义均不变。新增序列化器复用原版无序配方的 JSON 与网络格式，并登记到 Create 官方 `create:automation_ignore` 标签；Create 6.0.8 的 JEI “自动搅拌”分类和 `MechanicalMixerBlockEntity` 运行时都会读取该标签，从而避免包装成 `BasinRecipe` 后绕过既有 `CraftingRecipe` 类型守卫。`bangbang_halo`、`freeloaders_rice` 继续使用 `minecraft:crafting_shapeless`，不改变普通自动化兼容。`case 2279` 新增“全服恰好 4 张专用序列化器、2 张普通无序配方仍可自动匹配并组装、Create 标签解析为 true”的断言；完整客户端自检 **620 行**、0 失败并正常退出。正式 JAR **598 项**、SHA256 `39FD727129E5E0E1F1176507DE6B47D8279BA4A9BFD27BE986A81AB318E860DF`；新类与 Create 标签已入包、devcheck 0 项，ZipCheck 双读 0 异常，专用服务端 `Done (2.131s)` 并经 RCON 正常停止。协议、配置、注册物品、创造页、配方总数与进度计数均不变。
+
+**2026-11-08 碎心、内部恶魔状态与特殊掉落接入**：新增「碎心」及其纯视觉状态「恶魔印记」。启示之光、恶魔印记均以实体持久数据保存到期 game time，状态效果只提供图标和倒计时，目标免疫状态效果或 `/effect clear` 不会删除内部标记。`demon_flame`、`hellfire`、`abyss_aura` 命中会刷新 7 秒恶魔印记；带印死亡按普通 0.5% / 凋灵与监守者 5% / 末影龙 20% 掉落碎心。狱火改为 `HellfireState` 内部状态，由 living tick 驱动等级、护甲削减、每秒伤害、到期与亚巴顿抗性压制，视觉 `hellfire` MobEffect 不再承担机制；恐惧保持原 MobEffect 语义。删除“击杀者佩戴圣心时心之碎片不掉落”规则，慈善捆绑包成功击杀时心之碎片与碎心各独立追加一次掉率判定，两种材料单次死亡均可分别获得 0、1 或 2 个。碎心加入 8 张配方并与退料清单逐项一致：夜之幽魂/硫磺火/玄秘魔眼/暗仪刺刀各 1 个，深渊领主/亚巴顿各 2 个，血债祭坛/厄咒之印各 4 个。注册物品 / 创造页变为 **59 / 55**，配置为 **36 段 / 342 键**，状态效果 6 种，协议仍为 `"19"`；`case 2280` 覆盖内部标记、状态免疫、狱火状态化、配方/退料及捆绑包双判定。
 
 **1.8.8**：长矛第一/第三人称完整动画（2.1）。① **Mixin 基础设施** —— 首次接入 MixinGradle 0.7.38 + Mixin 0.8.5 + MixinExtras 0.5.5（`jarJar` 打入产物），新增 `summy_reliquary.mixins.json`（`required: false` / `defaultRequire: 0`）；发布产物改取 `reobfJarJar`，正式包继续排除 devcheck。② **四个动画 Mixin** —— `LivingEntityMixin`（`getCurrentSwingDuration` = `clamp(round(20 / 攻速), 4, 40)`，与攻击冷却严格同步）、`ItemInHandRendererMixin`（抑制普通挥击位移 / 换手、替换 `applySwingOffset`、在 `getUseAnimation()` 前插入蓄力动画、蓄力时抑制装备偏移）、`HumanoidModelMixin`（`poseRightArm` / `poseLeftArm` / `setupAttackAnimation`）、`HeldItemFeatureRendererMixin`（第三人称手持物品前移 / 前突）。③ **曲线** —— `client/SpearAnimation` 纯函数复刻 `Backported-Spears` 的 `holdUpAnimation` 与戳刺三段曲线；自检新增 `checkSpearAnimationCurves`（攻速 1.0 / 2.0 / 4.0 / 100 / 0.1 → 20 / 10 / 5 / 4 / 40，蓄力 0→1，戳刺 0→1）。④ **边界** —— Mixin 仅限两把长矛动画；左键门禁 / 冷却 / 投掷结算 / GUI 模型全部不变。自检 **605 行全绿**；注册物品 / 创造页 / 配方 / 进度不变（**50 / 46 / 34 / 24**）；协议仍 `"14"`。
 
@@ -120,9 +122,13 @@
 
 **1.7.0**：按《合成表.txt》**补齐全部缺失配方**（7 张碎片 + 圣光 / 神圣斗篷 / 神性 / 三位一体 / 仪式法袍 / 复仇之魂 / 夜之幽魂 / 硫磺火 / 深渊领主 / 亚巴顿），并**替换 4 张旧配方**（肉体 / 思想 / 灵魂的占位表、玄秘魔眼的「1×夜之幽魂 + 3×「6」」无序表）。门槛与既有同类一致（天使标记 / 已签约 / 邪恶度解锁，都是 JEI 隐藏 + 服务端收产物并**按该配方材料逐项退料**）；**三位一体**只实耗心之碎片（服务端退还三件套）并**进创造页**。**可获得性审计：40 件玩法物品全部可获得**（顺带闭掉"创世纪"与"赎罪"两条老死路），仅 4 件纯成就图标物品按设计无获取途径。配方总数 **29 张**；协议仍 11。
 
+**2026-11-08 稀有材料结算点补正**：`LivingDeathEvent` 早于实体战利品表，不能在那里读取慈善捆绑包的 `LivingDropsEvent` 事务。心之碎片与碎心改为在非玩家生物的 `LivingDropsEvent` 结算：先生成基础结果，再查询本 tick 已成功的捆绑包事务追加独立结果；真实击杀回归同时验证两种材料各 2 个。
+
+**2026-11-08 碎心交付验证**：完整客户端自检 **621 行 `[DEVCHECK]`**，`case 2280` 为 true，覆盖视觉状态免疫、内部标记、地狱火状态化、8 张配方、基础 / 额外组合矩阵和真实击杀链路。正式 JAR **604 项**、SHA256 `0A731AB68E1CC321107DC29B056323A19D106A556713A2AADA4580B1AA40A6D3`；旧 `HellfireEffect` / `RevelationLightEffect` 与 devcheck 均未入包，ZipCheck 双读 0 异常，专用服务端 `Done (2.295s)` 并经 RCON 正常停止。
+
 ---
 
-## 2. 内容总表（58 件已注册物品）
+## 2. 内容总表（59 件已注册物品）
 
 ### 2.1 饰品（进 Curios 栏位）
 
@@ -177,7 +183,8 @@
 | 痛悔短祷 | `act_of_contrition` | 一次性（每名玩家一次）；条件：**主世界** + 世界出生点或自己主世界重生点 **8 格内**（忽略 Y）+ 头顶**露天**；效果（暂定）：清负面 + 30 秒抗性提升 I + 钟声 + 圣光粒子；提示全走聊天框（成功两行、重复三行、三种位置失败各两行）；**同原因 5 秒节流**；「已用过」三行提示**终身只发一次**（`contrition_notified`）；Shift 祷文**按提示框宽度自动折行** |
 | 木十字架 | `wooden_cross` | 只作合成材料（痛悔短祷 / 圣心配方）；配方＝**5 根木棍摆成十字**（`" A " / "AAA" / " A "`） |
 | 「6」（six） | `six` | **1.6.0 新增**：签约没收灵台部件时的补偿物（每件 1 个；三件全没收则改补 1 个咒印）；**3×「6」无序合成 → 咒印**；无描述。**1.6.1 起用自家贴图**（不再借用石英） |
-| 心之碎片 | `heart_shard` | **掉落材料**（**1.6.1 起用自家贴图**）：带「启示之光」的非玩家、**非训练人偶**、且是敌对或有攻击目标的生物死亡时掉在**死亡位置** —— 普通 **0.5%** / 凋灵与监守者 **5%** / 末影龙 **20%**；**击杀者是玩家且戴圣心则完全不掉**；掉落物 **`setInvulnerable(true)`（防火/防爆/防雷/防刺，岩浆也烧不掉）** |
+| 心之碎片 | `heart_shard` | **掉落材料**（**1.6.1 起用自家贴图**）：带「启示之光」的非玩家、非训练人偶、且是敌对或有攻击目标的生物死亡时掉在死亡位置 —— 普通 0.5% / 凋灵与监守者 5% / 末影龙 20%；圣心不再抑制掉落；掉落物不可摧毁并受慈善捆绑包额外重掷 |
+| 碎心 | `broken_heart` | 恶魔线与心之碎片对位的高级材料：带「恶魔印记」的非玩家、非训练人偶、敌对或有攻击目标生物死亡时掉落，概率同为 0.5% / 5% / 20%；内部印记不受状态效果免疫影响，掉落物不可摧毁。用于 8 张恶魔配方，并受慈善捆绑包独立额外重掷 |
 | 献祭匕首 | `sacrificial_dagger` | **武器（1.7.5；1.7.6 补获取）**：4 伤害 / 2.4 攻速（攻击伤害 +3、攻速 −1.6）、耐久 **666**、附魔等级 **22**、**铁锭**修理、剑类、`#swords`、`item/handheld`；右键「**遁入暗影**」（判定 1 秒 / 斩击 1×，见 4.20）。**签约时自动发放**；连续 5 分钟没匕首 → 开放防丢失配方（碎片 + 铁锭 + 黑曜石）；掉落物防销毁 + **死亡不掉落** |
 | 暗仪刺刀 | `dark_arts` | **武器（1.7.5；1.7.6 补获取）**：6 伤害 / 2.0 攻速（攻击伤害 +5、攻速 −2.0）、耐久 **1666**、附魔等级 **25**、**下界合金碎片**修理、剑类、`#swords`、`item/handheld`；右键「**遁入暗影**」（判定 2 秒 / 斩击 2×）。**邪恶 700 解锁**后用配方合成（吃掉中心献祭匕首）；掉落物防销毁 + **死亡不掉落** |
 | 圣光短矛 | `holy_spear` | **武器（1.7.7 起；1.7.9 定稿）**：7 伤害 / 1.0 攻速（+6 / −3.0）、耐久 **1000**、附魔等级 **25**、**金锭**修理、剑类、`#swords`；名字**天使线**白金，全程 32×32 长杆（手持横握 + 举矛蓄力时矛头朝前的 `using` 模型）。**门槛＝天使标记**（未达标完全禁用：右键 / 攻击距离 / 10% 圣光 / 左键伤害全部失效）；**攻击距离 +0.5 格**、**攻击时 10% 独立召唤圣光**、**不能投掷**。获取：「七罪之源 → 美德」自动发放 + 丢失态防丢失配方。掉落物受保护、死亡不掉落 |
@@ -321,7 +328,7 @@
 - **神性光环**：8 格、每 20 tick、2 点圣光类型真实伤害、不击退；目标口径 = `Enemy` / `Mob#getTarget()==你` / **救恩名单里的玩家** / **训练人偶（开关默认开）**。
 - **启示之光 buff**（1.5.6）：所有 `revelation_light` 伤害给受击者挂/刷新 **7 秒**（可配置）；纯标记（图标 = 伯列恒之星贴图，无属性效果）。
 - **恐惧 buff**（1.6.5，`summy-reliquary:fear`，图标 = 玄秘魔眼贴图）：**玄秘魔眼**把"当前被自己注视的那一具"（`GazeLook` 射线，与「思想」共用同一实现）挂上/刷新 **6 秒**恐惧；效果每秒给目标挂 **黑暗 / 挖掘疲劳 III / 缓慢 VI / 虚弱 X**（amplifier 2 / 5 / 9，全部可配置）。**佩戴圣心的玩家免疫恐惧本身**（所以那四条减益都吃不到），但**照常被注视发光、照常吃 ×1.3 注视增伤**；注视目标还会被标记**发光**（簿记与「思想」共用同一份，转开视线当秒清除）；注视增伤在**命中瞬间**判定（`[occult_eye] fear_damage_multiplier`，默认 1.3），与目标身上有没有恐惧无关。
-- **心之碎片**：带 buff 的非玩家、非假人、敌对/有仇恨目标生物死亡时按 0.5% / 5%（凋灵、监守者）/ 20%（末影龙）掉落；击杀者戴圣心则不掉；掉落物不可摧毁。
+- **心之碎片**：带内部启示标记的非玩家、非假人、敌对 / 有仇恨目标生物死亡时按 0.5% / 5%（凋灵、监守者）/ 20%（末影龙）掉落；击杀者是否佩戴圣心不影响掉率，掉落物不可摧毁。
 - **训练人偶**（兼容 `dummmmmmy`）：`[combat] affect_target_dummies` 默认 **true**，救恩领域与神性光环都会打它；**1.5.7 起**被打中的假人结算后**血量回满 → 永远不会被我们打坏**（只显示伤害数字）；假人**永不掉落心之碎片**。
 
 ### 4.6 黄血（魂心）与吸收池
@@ -630,7 +637,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 
 - **伤害类型**：`summy-reliquary:revelation_light`（挂启示之光）、`summy-reliquary:holy_light`（并列入原版 `bypasses_armor` 标签 → 变种魔法口径）、`summy-reliquary:sacrifice`（1.6.0，献祭用，真实伤害口径）、`summy-reliquary:pact_shatter`（1.6.1，黑心碎裂用；同样在 `bypasses_armor` 标签里 → 变种魔法口径）、**`summy-reliquary:hellfire`（1.6.2，复仇之魂的狱火；同样在 `bypasses_armor` 标签里）**。
 - **死亡文本**：`death.attack.summy-reliquary.revelation_light`（+`.player`）、`death.attack.summy-reliquary.holy_light`（+`.player`）、`death.attack.summy-reliquary.sacrifice`（+`.player`，「被献祭了」）、`death.attack.summy-reliquary.pact_shatter`（+`.player`，「死于黑心爆发」/「死于 xxx 的黑心爆发」）、**`death.attack.summy-reliquary.hellfire`（+`.player`，「被狱火焚烧」/「被 xxx 的狱火焚烧」）**。
-- **状态效果（5）**：`summy-reliquary:revelation_light`（「启示之光」）、`fear`（「恐惧」）、`hellfire`（「狱火」）、`sacred_verdict`（「神圣裁决」纯视觉镜像）、`hex_seal`（「厄咒」纯视觉镜像）。誓约两个效果无属性与 tick 行为，显示 HUD 图标、倒计时和原版状态粒子；服务端标记仍是玩法权威，图标缺失时下一 tick 自动补回，实体重新载入时清理重启遗留的孤立图标。
+- **状态效果（6）**：`revelation_light`、`demonic_brand`、`hellfire` 均为纯视觉提示，实际到期或等级保存在实体持久数据；`fear` 仍是实际减益效果；`sacred_verdict` 与 `hex_seal` 是誓约纯视觉镜像。状态免疫可能让图标缺失，但不会阻断启示/恶魔掉落或狱火机制。
 - **命名规范（长期约定）**：物品贴图 `textures/item/<id>.png`、模型 `models/item/<id>.json`（`layer0` 指同名贴图）、栏位图标 `textures/slot/<栏位id>.png`、语言键 `item.summy-reliquary.<id>`；一律**小写 snake_case**。
 - **素材 → 落库路径（累计）**：`the body/mind/soul/halo`、`Star of Bethlehem → star_of_bethlehem`、`Revelation → final_revelation`、`trinity`、`error`、`purity`、`Vengeful Spirit → vengeful_spirit`、`The Pact → the_pact`、`The Mark → the_mark`、`Ceremonial Robes → ceremonial_robes`、`Pentagram → pentagram`、`Holy Light → holy_light`、`Holy Mantle → holy_mantle`、`Godhead → godhead`、`Sacred Heart → sacred_heart`；栏位图 `Spirit Altar → slot/spirit_altar`、`revelation.png → slot/revelation`、`blessing.png → slot/blessing`。
 - **素材状态（截至 2.0.0）**：**没有借用素材** —— 心之碎片与「6」用自家 `textures/item/*.png`，恶魔契约栏位用自家 `textures/slot/demon_pact.png`，黑心 HUD 是自家 9×9 画稿，魂心 HUD 用 `textures/gui/soul_heart/{full,half}.png`；2.0.0 的修女服与背叛也已用正式贴图替换原版占位。
@@ -663,9 +670,9 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 - **2.0.0 新增资源**：`textures/item/habit.png` 与 `textures/item/betrayal.png`（均 32×32、带透明通道）；两个既有 `item/generated` 模型改为引用同名贴图，物品贴图数 **50 → 52**。
 - **2.0.0 誓约主动饰品资源**：`divine_intervention` / `sacred_verdict` / `blood_debt_altar` / `hex_seal` 各 1 张 32×32 贴图与基础模型；`life_death` 使用 `flip_death` 基础图和 `flip_life` 死形态覆写图（`summy-reliquary:death_form = 1`），共新增 **6 张物品贴图 / 6 个模型**。另有 1 张 `textures/slot/covenant.png` 栏位图标；五件物品与誓约栏位现已注册。
 - **2.0.0 誓约状态效果**：`textures/mob_effect/sacred_verdict.png` 与 `hex_seal.png` 分别原样复制对应物品贴图，作为两个纯视觉 MobEffect 的状态栏图标；效果本体启用原版状态粒子。
-- **2.3 誓约补铸配方**：新增 5 张普通 3×3 有序配方；生死逆转因 9 格上限采用 4 回响 + 3 灵魂沙 + 1 图腾 + 1 金块，其余四张按心之碎片 / 金块 / 回响、红石块 / 下界疣块、末影珍珠 / 灵魂沙 / 凋灵玫瑰 / 下界之星组合。配方总数 **36 → 41**。
+- **2.3 誓约补铸配方**：5 张普通 3×3 有序配方：生死逆转 = 4 回响 + 3 灵魂沙 + 图腾 + 金块；神圣干预 = 4 心之碎片 + 2 金块 + 2 回响 + 盾牌；神圣裁决 = 4 回响 + 4 心之碎片 + 星；血债祭坛 = 4 碎心 + 4 下界疣块 + 金块；厄咒之印 = 4 碎心 + 2 灵魂沙 + 2 凋灵玫瑰 + 星。配方总数 **36 → 41**。
 - **配方总数（1.7.10 实测）**：**34 张**（`data/summy-reliquary/recipes/*.json`）。
-- **当前计数（2.0.0 实测）**：注册物品 **58**、进度 **25**、配方 **41**、配置段 **35**（**335 键**，源码口径；创造页 **54**、伤害类型 **18**、网络包 **12**）。物品贴图 **59**、状态效果图标 **5**、栏位图标 **8**（全部已接入）；完整 `[DEVCHECK]` **615~620 行全绿**（门禁配方保护实测 620）。
+- **当前计数（2.0.0 实测）**：注册物品 **59**、进度 **25**、配方 **41**、配置段 **36**（**342 键**，源码口径；创造页 **55**、伤害类型 **18**、网络包 **12**）。物品贴图 **60**、状态效果图标 **6**、栏位图标 **8**（全部已接入）；完整 `[DEVCHECK]` **615~622 行全绿**（碎心与内部状态实测 621）。
 - **二创与素材声明（1.7.10 收尾）**：物品贴图与部分设定**有相当数量直接取自或改编自《以撒的结合》**（本作素材不主张任何权利、不用于商业用途）；`LICENSE` 的 **MIT 只覆盖原创代码与原创素材**。完整中英致谢与免责声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`，联系邮箱 **525277385@qq.com**；`mods.toml` 的游戏内描述也加了一行二创说明。
 - **日志归档（1.7.10 收尾第三批）**：工程根只保留最新一份 `build-*.log` / `devcheck-*.log` / `server-*.log`；1.7.x 的历史日志归档在 `logs/archive/1.7.x/`，更早的已清理。整理入口：`scripts/clean-logs.ps1`（默认只打印计划，加 `-Apply` 执行）。
 - **文案约定**：**所有经文引用统一加 `——` 前缀**（如 `——《诗篇》32:11`）；提示文案里的数字按配置生成，"数值进配置、纯表现常量留在代码里"。
@@ -677,7 +684,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 1. **构建**：`gradlew clean build`（JDK 17，路径写在 `gradle.properties`），产物自动复制到 `../JAR/summy-reliquary/`；旧 jar 一律保留，部署时把实例里旧版改名 `.disabled`。
 > **609 行 `[DEVCHECK]`** 是 2.0.0 的完整自检（比 1.8.8 的 605 行多 4 行 = 2.13 / 2.10 / 2.11 / 2.9 各新增一组断言）。下面这段“当前 595 行”是 1.8.7 的历史记录，保留用于对照。
 
-2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。2.0.0 当前自检共输出 **615~620 行 `[DEVCHECK]`**（2026-11-08 门禁配方保护实测 620），逐项断言行全部通过；`case 2272` 覆盖定值真伤死神祝福矩阵，`case 2276` 覆盖固定真伤黑名单优先级与固定补差目标；`case 2277` 覆盖誓约五件的栏位 / 资源、生死逆转、反伤与屏障、裁决附伤、状态粒子、厄咒传播玩家排除、血债独立层/吸收顺序/静默生命目标匹配、厄咒最高单转移，以及无阵营 / 双路线 / 独立保底 / 共享取得位 / 补铸门禁与真实箱子来源过滤；`case 2278` 覆盖慈善捆绑包注册 / 资源 / 单行 Shift / JEI 边界、护符门禁、50/5 阈值、目标 + tick 事务匹配、无玩家最终伤害源、掉落/经验各消费一次、真实 `hex_transfer` 击杀、事件追加物复制、最终经验翻倍与生死逆转七罪之源前置；`case 2279` 覆盖 30 张门禁配方的自动查找阻止、直接组装阻止、手动上下文放行、普通配方隔离、SR/Twilight 物品标签一致性，以及 4 张专用 / 2 张普通无序序列化器与 Create `automation_ignore` 标签。历史值：1.8.8 为 605、1.8.7 为 595、1.8.6 为 594、1.8.5 为 585、1.8.4 为 574、1.8.3 为 574、1.8.2 为 569。覆盖：
+2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。2.0.0 当前自检共输出 **615~622 行 `[DEVCHECK]`**（2026-11-08 碎心与内部状态实测 621），逐项断言行全部通过；`case 2272` 覆盖定值真伤死神祝福矩阵，`case 2276` 覆盖固定真伤黑名单优先级与固定补差目标；`case 2277` 覆盖誓约五件的栏位 / 资源、生死逆转、反伤与屏障、裁决附伤、状态粒子、厄咒传播玩家排除、血债独立层/吸收顺序/静默生命目标匹配、厄咒最高单转移，以及无阵营 / 双路线 / 独立保底 / 共享取得位 / 补铸门禁与真实箱子来源过滤；`case 2278` 覆盖慈善捆绑包注册 / 资源 / 单行 Shift / JEI 边界、护符门禁、50/5 阈值、目标 + tick 事务匹配、无玩家最终伤害源、掉落/经验各消费一次、真实 `hex_transfer` 击杀、事件追加物复制、最终经验翻倍与生死逆转七罪之源前置；`case 2279` 覆盖 30 张门禁配方的自动查找阻止、直接组装阻止、手动上下文放行、普通配方隔离、SR/Twilight 物品标签一致性，以及 4 张专用 / 2 张普通无序序列化器与 Create `automation_ignore` 标签；`case 2280` 覆盖碎心、启示/恶魔内部标记、三类恶魔伤害、状态免疫、HellfireState、8 张配方、两轮组合矩阵、真实击杀链路与两种特殊材料的捆绑包独立重掷。历史值：1.8.8 为 605、1.8.7 为 595、1.8.6 为 594、1.8.5 为 585、1.8.4 为 574、1.8.3 为 574、1.8.2 为 569。覆盖：
    - 栏位校验矩阵 10×5、套装切换与提示去重/着色、魂心与吸收（含外部清零模拟、与生命护盾相加 46/36/2、卸下只收我方份额）
    - 发光（含视线）、伤害加成、启示计时与**静止 5 秒**转化、不可重复佩戴、七罪三态与碎片赎罪、赎罪配方门槛（JEI 可见性）
    - 战斗手感（无敌帧/攻速上限）、启示之光（105 点 / 几何 / 中途离开 / CD / 射程 21 / 粒子）
@@ -872,7 +879,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 | 1.5.8 | 五芒星装不进「护符」栏 | Curios 的 `charm` 栏是**自带栏位**（`data/curios/curios/slots/charm.json`，校验器 `curios:tag`），但本模组的数据包**整表定义**了玩家栏位，把 Curios 的默认栏位表覆盖掉了 | ①新增物品标签 `data/curios/tags/items/charm.json`；②把 `charm` 写进 `data/summy-reliquary/curios/entities/player.json` 的 `slots` |
 | 1.5.8 | 重登丢天使门槛饰品仍未定位（1.5.7 的"已在同格放行"没完全解决） | 需要区分「离场就丢 / 写盘读档丢 / 读档后数据没就绪被卸」 | 本版只加诊断：`canEquip` 被拒打印原因 + 调用栈前 8 帧（按原因+物品去重）；栏位快照在**登录早期 / 登录 / 离场 / 保存**四个时点各一条；待用户复现并回传 `latest.log` 后在 1.5.9 精确修复 |
 | 1.5.8 → 1.5.9 | 重登后 6 件天使门槛饰品被退回背包（只有门槛那几件，`the_halo`/`virtues` 留着） | 诊断日志给出了调用栈：`CurioInventoryCapability$CurioInventoryWrapper.readTag` → `DynamicStackHandler.isItemValid` → 我们的 `canEquip`；那一刻 `persistentData 含 summy_reliquary=false`（ForgeData 还没写进实体）→ 天使门槛判 false → Curios 判定不合法 → 退回背包。1.5.7 的"已在本格"放行在这里无效，因为读档时物品是**通过校验后**才入格的 | `PlayerFlags` 增加实体级"数据已就绪"登记（登录读档阶段还没有；`onPlayerTick` 每 tick 标记、登出清除），`canEquipInto` 在 `requiresAngel && !isDataReady` 时**直接放行**（并打一条去重 INFO），正常游戏内门槛不变 |
-| 1.5.9 | 心之碎片"掉了半天不掉" | 实测日志：玩家全程戴着**圣心**（19:43:45 起最大生命 38 → 48 = 圣心 +10 生效），而光柱伤害源 `new DamageSource(holder, caster, caster)` 把击杀者记为该玩家 → 命中「击杀者戴圣心则完全不掉」规则 | 规则按需求保留；新增 `log_drop_checks`：只在"带启示之光死亡"时打印 `训练人偶 / 非敌对且无仇恨目标 / 被抑制（击杀者戴圣心）/ 未中 / 掉落`，以后一眼可辨 |
+| 1.5.9 | 心之碎片"掉了半天不掉" | 实测日志：玩家全程戴着**圣心**（19:43:45 起最大生命 38 → 48 = 圣心 +10 生效），而光柱伤害源 `new DamageSource(holder, caster, caster)` 把击杀者记为该玩家 → 命中当时的「击杀者戴圣心则完全不掉」规则 | **该抑制规则已于 2.0.0 废止。** 当前只按内部启示标记与敌对 / 仇恨口径判定；`log_drop_checks` 记录基础判定、捆绑包额外判定、触发玩家、概率与最终数量 |
 | 1.5.10 | 签署契约后"天使标记没有变成恶魔标记" | `SinChallenges.selfHeal` **每秒**执行：`advancementDone("pure") && !hasAngel` → `setAngel(true)`；而签下契约的玩家必然已完成纯洁之人，于是最多 1 秒后天使标记被补回，且 `setAngel(true)` 按互斥**清掉了恶魔标记**（自检当初只在同一 tick 断言，所以没抓到） | 自愈补天使的分支加 `&& !PlayerFlags.isDemonSealed(player)`：曾签过契约就不再自动补天使，想回天使只能走痛悔短祷 |
 | 1.5.10 | 「签署 → 忏悔 → 再签署」做不到 | `demon_sealed` 同时挡掉了驻留对话（`isQualified`）与右键（`PentagramItem.use`），忏悔后既没对话也没法签 | 改为只有"**当前持恶魔标记**"才挡（`isQualified`/`use` 判据换成 `!isDemon`）；并让"签过契约的玩家永远不再触发任何对话"（`DemonDeal.tick` 早退），于是二轮天然静默、直接长按即可再签 |
 | 1.5.10 | 用 `UseAnim.NONE` 蓄力时手部没有变换 | 原版 `ItemInHandRenderer` 的"使用中"分支对 `NONE` 不做任何变换 | 用官方钩子 `IClientItemExtensions#applyForgeHandTransform` 接管：先复刻原版 `applyItemArmTransform` 常量，再按进度缩放（顺带实现"贴图拉伸"） |

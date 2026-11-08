@@ -280,6 +280,16 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.DoubleValue HEART_SHARD_DRAGON_CHANCE;
 	/** 心之碎片：是否打印"带启示之光死亡"的判定过程日志 */
 	private static final ForgeConfigSpec.BooleanValue LOG_DROP_CHECKS;
+	/** 恶魔印记内部标记总开关。 */
+	private static final ForgeConfigSpec.BooleanValue ENABLE_DEMONIC_BRAND_MARK;
+	/** 恶魔印记持续时间（秒）。 */
+	private static final ForgeConfigSpec.DoubleValue DEMONIC_BRAND_SECONDS;
+	/** 碎心掉落总开关。 */
+	private static final ForgeConfigSpec.BooleanValue ENABLE_BROKEN_HEART_DROP;
+	private static final ForgeConfigSpec.DoubleValue BROKEN_HEART_DROP_CHANCE;
+	private static final ForgeConfigSpec.DoubleValue BROKEN_HEART_BOSS_CHANCE;
+	private static final ForgeConfigSpec.DoubleValue BROKEN_HEART_DRAGON_CHANCE;
+	private static final ForgeConfigSpec.BooleanValue LOG_BROKEN_HEART_DROP_CHECKS;
 	/** 五芒星：近战伤害加成 */
 	private static final ForgeConfigSpec.DoubleValue PENTAGRAM_ATTACK_DAMAGE;
 	/** 五芒星：累计持有多少秒后触发那句聊天消息 */
@@ -1050,6 +1060,30 @@ public final class ReliquaryConfig {
 				.defineInRange("dragon_chance_percent", 20.0D, 0.0D, 100.0D);
 		LOG_DROP_CHECKS = builder
 				.comment("是否打印心之碎片的判定过程日志（只在「带着启示之光死亡」的生物上打印，不会刷屏）")
+				.define("log_drop_checks", true);
+		builder.pop();
+
+		builder.comment("恶魔印记与碎心掉落").push("demonic_brand");
+		ENABLE_DEMONIC_BRAND_MARK = builder
+				.comment("是否允许三类恶魔伤害写入内部恶魔印记并显示视觉状态")
+				.define("enable_mark", true);
+		DEMONIC_BRAND_SECONDS = builder
+				.comment("恶魔印记持续时间（秒），每次命中刷新")
+				.defineInRange("mark_seconds", 7.0D, 0.1D, 600.0D);
+		ENABLE_BROKEN_HEART_DROP = builder
+				.comment("是否允许带恶魔印记的生物死亡时掉落碎心")
+				.define("enable_broken_heart_drop", true);
+		BROKEN_HEART_DROP_CHANCE = builder
+				.comment("碎心：普通生物掉落概率（百分比）")
+				.defineInRange("drop_chance_percent", 0.5D, 0.0D, 100.0D);
+		BROKEN_HEART_BOSS_CHANCE = builder
+				.comment("碎心：凋灵 / 监守者掉落概率（百分比）")
+				.defineInRange("boss_chance_percent", 5.0D, 0.0D, 100.0D);
+		BROKEN_HEART_DRAGON_CHANCE = builder
+				.comment("碎心：末影龙掉落概率（百分比）")
+				.defineInRange("dragon_chance_percent", 20.0D, 0.0D, 100.0D);
+		LOG_BROKEN_HEART_DROP_CHECKS = builder
+				.comment("是否打印碎心判定过程日志（只在带恶魔印记死亡时打印）")
 				.define("log_drop_checks", true);
 		builder.pop();
 
@@ -2336,6 +2370,34 @@ public final class ReliquaryConfig {
 	/** 心之碎片：是否打印判定过程日志 */
 	public static boolean logDropChecks() {
 		return boolOr(LOG_DROP_CHECKS, true);
+	}
+
+	public static boolean enableDemonicBrandMark() {
+		return boolOr(ENABLE_DEMONIC_BRAND_MARK, true);
+	}
+
+	public static int demonicBrandTicks() {
+		return Math.max(1, (int) Math.round(doubleOr(DEMONIC_BRAND_SECONDS, 7.0D) * 20.0D));
+	}
+
+	public static boolean enableBrokenHeartDrop() {
+		return boolOr(ENABLE_BROKEN_HEART_DROP, true);
+	}
+
+	public static double brokenHeartDropChance() {
+		return doubleOr(BROKEN_HEART_DROP_CHANCE, 0.5D);
+	}
+
+	public static double brokenHeartBossChance() {
+		return doubleOr(BROKEN_HEART_BOSS_CHANCE, 5.0D);
+	}
+
+	public static double brokenHeartDragonChance() {
+		return doubleOr(BROKEN_HEART_DRAGON_CHANCE, 20.0D);
+	}
+
+	public static boolean logBrokenHeartDropChecks() {
+		return boolOr(LOG_BROKEN_HEART_DROP_CHECKS, true);
 	}
 
 	// ==================== 恶魔交易（1.5.9） ====================

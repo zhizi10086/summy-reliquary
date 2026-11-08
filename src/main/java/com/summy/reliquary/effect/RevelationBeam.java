@@ -586,13 +586,6 @@ public final class RevelationBeam {
 		if (!hurt) {
 			return false;
 		}
-		if (applyLightBuff && com.summy.reliquary.config.ReliquaryConfig.enableRevelationLightBuff()) {
-			// 1.5.6：启示伤害会给受击者挂/刷新「启示之光」（纯标记，7 秒可配置）
-			target.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-					com.summy.reliquary.SummyReliquary.REVELATION_LIGHT.get(),
-					com.summy.reliquary.config.ReliquaryConfig.revelationLightBuffTicks(),
-					0, false, true, true));
-		}
 		// 1.5.7：训练人偶只吃伤害数字，不允许被我们打坏（结算后回满血）
 		DummySupport.protectDummy(target);
 		return true;

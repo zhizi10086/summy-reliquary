@@ -4,13 +4,14 @@
   "pattern": [
     " N ",
     " D ",
-    "OBO"
+    "HBO"
   ],
   "key": {
     "N": { "item": "minecraft:nether_star" },
     "D": { "item": "summy-reliquary:sacrificial_dagger" },
     "O": { "item": "minecraft:obsidian" },
-    "B": { "item": "minecraft:netherite_ingot" }
+    "B": { "item": "minecraft:netherite_ingot" },
+    "H": { "item": "summy-reliquary:broken_heart" }
   },
   "result": { "item": "summy-reliquary:dark_arts", "count": 1 }
 }

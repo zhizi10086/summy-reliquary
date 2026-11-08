@@ -115,10 +115,10 @@ public final class SpiritAltarRecipeGate {
 				new ItemStack(Items.ECHO_SHARD, 4), new ItemStack(SummyReliquary.HEART_SHARD.get(), 4),
 				new ItemStack(Items.NETHER_STAR)));
 		register(SummyReliquary.BLOOD_DEBT_ALTAR.get(), Lock.COVENANT_DEMON, List.of(
-				new ItemStack(Items.REDSTONE_BLOCK, 4), new ItemStack(Items.NETHER_WART_BLOCK, 4),
-				new ItemStack(Items.GOLD_BLOCK)));
+				new ItemStack(SummyReliquary.BROKEN_HEART.get(), 4),
+				new ItemStack(Items.NETHER_WART_BLOCK, 4), new ItemStack(Items.GOLD_BLOCK)));
 		register(SummyReliquary.HEX_SEAL.get(), Lock.COVENANT_DEMON, List.of(
-				new ItemStack(Items.ENDER_PEARL, 4), new ItemStack(Items.SOUL_SAND, 2),
+				new ItemStack(SummyReliquary.BROKEN_HEART.get(), 4), new ItemStack(Items.SOUL_SAND, 2),
 				new ItemStack(Items.WITHER_ROSE, 2), new ItemStack(Items.NETHER_STAR)));
 		register(SummyReliquary.BETRAYAL.get(), Lock.DEMON_ALWAYS_HIDDEN, List.of(
 				new ItemStack(Items.IRON_INGOT, 3), new ItemStack(Items.ROTTEN_FLESH)));

@@ -4,14 +4,14 @@
   "pattern": [
     "SNS",
     "DGD",
-    "ONO"
+    "HNH"
   ],
   "key": {
     "S": { "item": "minecraft:wither_skeleton_skull" },
     "N": { "item": "minecraft:nether_star" },
     "D": { "item": "minecraft:dragon_breath" },
     "G": { "item": "minecraft:ghast_tear" },
-    "O": { "item": "minecraft:obsidian" }
+    "H": { "item": "summy-reliquary:broken_heart" }
   },
   "result": { "item": "summy-reliquary:abyss_lord", "count": 1 }
 }

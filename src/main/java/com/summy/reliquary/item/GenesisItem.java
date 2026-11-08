@@ -353,6 +353,8 @@ public class GenesisItem extends Item {
 		com.summy.reliquary.effect.DemonDeal.forget(player);
 		com.summy.reliquary.effect.RevelationBeam.forget(player);
 		com.summy.reliquary.effect.DemonPact.forget(player);
+		com.summy.reliquary.effect.TimedMarkerState.clear(player);
+		com.summy.reliquary.effect.HellfireState.clear(player);
 		// ⑦ 删除栏位与背包里本模组的全部物品
 		for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
 			if (isOurItem(player.getInventory().getItem(slot))) {
