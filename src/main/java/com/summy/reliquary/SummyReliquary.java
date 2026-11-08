@@ -493,6 +493,7 @@ public class SummyReliquary {
 		PARTICLES.register(modBus);
 		ENTITY_TYPES.register(modBus);
 		LOOT_MODIFIER_CODECS.register(modBus);
+		com.summy.reliquary.recipe.ReliquaryRecipeSerializers.SERIALIZERS.register(modBus);
 		// 自定义属性（魂心）
 		ReliquaryAttributes.ATTRIBUTES.register(modBus);
 

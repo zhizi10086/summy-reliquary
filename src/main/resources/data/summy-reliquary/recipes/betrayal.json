@@ -1,5 +1,5 @@
 {
-  "type": "minecraft:crafting_shapeless",
+  "type": "summy-reliquary:manual_only_shapeless",
   "category": "misc",
   "ingredients": [
     { "item": "minecraft:iron_ingot" },

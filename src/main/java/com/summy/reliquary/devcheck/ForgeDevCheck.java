@@ -6477,12 +6477,16 @@ public final class ForgeDevCheck {
 								candidate.getId().equals(SummyReliquary.id("wooden_cross")))
 						&& !crafting.assemble(grid, player.serverLevel().registryAccess()).isEmpty();
 			}
+			boolean manualOnlyShapelessOk = checkManualOnlyShapelessRecipes(
+					server, player, menu);
 
 			boolean allOk = countOk && srTagOk && twilightTagsOk
-					&& blocked == 30 && visible == 30 && assembled == 30 && normalRecipeOk;
+					&& blocked == 30 && visible == 30 && assembled == 30 && normalRecipeOk
+					&& manualOnlyShapelessOk;
 			log("门禁配方保护（2.0.0 补修）：登记=" + recipeIds.size() + " 张 / "
 					+ resultItems.size() + " 件（应 30 / 30）、SR 标签=" + srTagOk
-					+ "（应 true）、Twilight 禁止拆解/回收=" + twilightTagsOk + "（应 true）");
+					+ "（应 true）、Twilight 禁止拆解/回收=" + twilightTagsOk
+					+ "（应 true）、Create 无序配方忽略=" + manualOnlyShapelessOk + "（应 true）");
 			log("门禁配方保护：自动查找不可见=" + blocked + "、自动直接组装为空=" + assembled
 					+ "、手动上下文可见且可组装=" + visible + "（均应 30）、普通配方不受影响="
 					+ normalRecipeOk + "（应 true）→ " + allOk + "（应 true）");
@@ -6492,6 +6496,65 @@ public final class ForgeDevCheck {
 		} finally {
 			com.summy.reliquary.integration.recipe.GatedRecipeContext.clear();
 		}
+	}
+
+	/** 验证只有四张门禁无序配方使用 Create ignore serializer，两张普通配方保持原版。 */
+	private static boolean checkManualOnlyShapelessRecipes(
+			net.minecraft.server.MinecraftServer server, ServerPlayer player,
+			net.minecraft.world.inventory.CraftingMenu menu) {
+		var manualIds = java.util.Set.of(
+				SummyReliquary.id("betrayal"),
+				SummyReliquary.id("redemption"),
+				SummyReliquary.id("salvation"),
+				SummyReliquary.id("the_mark"));
+		var ordinaryIds = java.util.Set.of(
+				SummyReliquary.id("bangbang_halo"),
+				SummyReliquary.id("freeloaders_rice"));
+		var manualSerializer =
+				com.summy.reliquary.recipe.ReliquaryRecipeSerializers.MANUAL_ONLY_SHAPELESS.get();
+		var manualKey = net.minecraftforge.registries.ForgeRegistries.RECIPE_SERIALIZERS
+				.getKey(manualSerializer);
+		var standardKey = new net.minecraft.resources.ResourceLocation(
+				"minecraft", "crafting_shapeless");
+		var automationIgnore = net.minecraft.tags.TagKey.create(
+				net.minecraft.core.registries.Registries.RECIPE_SERIALIZER,
+				new net.minecraft.resources.ResourceLocation("create", "automation_ignore"));
+
+		boolean manualRecipesOk = manualIds.stream().allMatch(id -> {
+			var recipe = server.getRecipeManager().byKey(id).orElse(null);
+			return recipe != null
+					&& recipe.getType() == net.minecraft.world.item.crafting.RecipeType.CRAFTING
+					&& manualKey.equals(net.minecraftforge.registries.ForgeRegistries
+							.RECIPE_SERIALIZERS.getKey(recipe.getSerializer()));
+		});
+		int actualManualCount = (int) server.getRecipeManager().getRecipes().stream()
+				.filter(recipe -> manualSerializer == recipe.getSerializer())
+				.count();
+
+		boolean ordinaryRecipesOk = ordinaryIds.stream().allMatch(id -> {
+			var recipe = server.getRecipeManager().byKey(id).orElse(null);
+			if (!(recipe instanceof net.minecraft.world.item.crafting.CraftingRecipe crafting)
+					|| recipe.getType() != net.minecraft.world.item.crafting.RecipeType.CRAFTING
+					|| !standardKey.equals(net.minecraftforge.registries.ForgeRegistries
+							.RECIPE_SERIALIZERS.getKey(recipe.getSerializer()))) {
+				return false;
+			}
+			net.minecraft.world.inventory.TransientCraftingContainer grid =
+					new net.minecraft.world.inventory.TransientCraftingContainer(menu, 3, 3);
+			fillCraftingGrid(grid, crafting);
+			return server.getRecipeManager()
+					.getRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING,
+							grid, player.serverLevel())
+					.stream().anyMatch(candidate -> candidate.getId().equals(id))
+					&& !crafting.assemble(
+							grid, player.serverLevel().registryAccess()).isEmpty();
+		});
+
+		boolean tagged = net.minecraftforge.registries.ForgeRegistries.RECIPE_SERIALIZERS
+				.getHolder(manualSerializer)
+				.map(holder -> holder.is(automationIgnore))
+				.orElse(false);
+		return manualRecipesOk && actualManualCount == 4 && ordinaryRecipesOk && tagged;
 	}
 
 	/** 按 shaped 的宽高或 shapeless 的顺序，把配方材料放入 3x3 测试网格。 */

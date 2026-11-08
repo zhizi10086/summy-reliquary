@@ -115,6 +115,7 @@
 - 30 张玩家门禁配方新增强制手动合成边界：原版工作台与玩家 2×2 合成正常放行，Create 机械合成及无玩家上下文的未知自动化无法匹配或直接组装。新增可复用物品标签 `#summy-reliquary:gated_recipe_outputs`；JEI 在所有兼容分类中同步隐藏配方，Twilight Forest 拆解台禁止这 30 件物品作为输入或回收产物。保护始终启用，不新增配置键、物品、配方、网络字段或协议变更。正式 JAR **590 项**、SHA256 `5A6D4A51A660CD0D9767F0B2A6C92D804533ED500F8360B9C8FA4717A61EB90D`，ZipCheck 双读 0 异常，专用服务端 `Done (2.062s)` 并经 RCON 正常停止。
 - 完整客户端自检实测 **618 行 `[DEVCHECK]`**，`case 2278` 新增无玩家最终伤害源的事务匹配、两阶段各消费一次，以及真实 `hex_transfer` 转移击杀的掉落重掷、经验 `3→6`、玩家归属与不递归断言。
 - `case 2279` 逐张验证 30 张门禁配方的自动查找、直接组装、手动上下文和普通配方隔离，并校验 SR/Twilight 三组物品标签；完整自检实测 **620 行 `[DEVCHECK]`**、0 失败。
+- 补充修复 Create 将门禁无序配方包装为 `BasinRecipe` 后绕过 `CraftingRecipe` 类型守卫的问题：`betrayal`、`redemption`、`salvation`、`the_mark` 改用专用 `summy-reliquary:manual_only_shapeless` 序列化器，文件登记到 Create 官方 `create:automation_ignore` 标签，因此 JEI “自动搅拌”与动力搅拌机运行时都会跳过；原配方 ID、材料、产物、RecipeType 和人工门禁不变。`bangbang_halo`、`freeloaders_rice` 仍使用 `minecraft:crafting_shapeless`，自动化路径保持可用。`case 2279` 扩展为 4 张专用序列化器、2 张普通序列化器与 Create 标签一致性断言，完整自检仍为 **620 行**、0 失败。正式 JAR **598 项**、SHA256 `39FD727129E5E0E1F1176507DE6B47D8279BA4A9BFD27BE986A81AB318E860DF`；序列化器类与 Create 标签均入包、devcheck 0 项，ZipCheck 双读 0 异常，专用服务端 `Done (2.131s)` 并经 RCON 正常停止。
 
 **⑧ 交付**
 
