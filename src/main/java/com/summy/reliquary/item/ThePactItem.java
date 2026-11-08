@@ -88,15 +88,17 @@ public class ThePactItem extends Item implements ICurioItem {
 			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.the_pact.shift.attack_speed",
 					format(DemonPact.attackSpeedBonusPercent(self)));
 			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.the_pact.shift.curses",
-					String.valueOf(DemonPact.curseCount(self)));
+					String.valueOf(DemonPact.realCurseCount(self)),
+					String.valueOf(DemonPact.effectiveCurseCount(self)),
+					String.valueOf(ReliquaryConfig.pactMaxEffectiveCurses()));
 			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.the_pact.shift.health",
 					format(DemonPact.healthBonusPercent(self)));
 			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.the_pact.shift.speed",
 					format(DemonPact.speedBonusPercent(self)));
-			// 生命吸取：只有诅咒 > 阈值时才显示
+			// 生命吸取：只有真实诅咒达到阈值时才显示。
 			if (DemonPact.lifestealActive(self)) {
 				ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.the_pact.shift.lifesteal",
-						format(ReliquaryConfig.pactLifestealPercent()));
+						format(DemonPact.lifestealPercent(self)));
 			}
 			ReliquaryTooltips.statLine(tooltip, FACTION, "item.summy-reliquary.the_pact.shift.evil",
 					// 1.6.4：邪恶度显示一位小数（键与文案不变）

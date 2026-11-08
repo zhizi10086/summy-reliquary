@@ -1,6 +1,7 @@
 package com.summy.reliquary.devcheck;
 
 import com.summy.reliquary.SummyReliquary;
+import com.summy.reliquary.config.ReliquaryConfig;
 import com.summy.reliquary.item.CovenantItem;
 import com.summy.reliquary.attribute.ReliquaryAttributes;
 import com.summy.reliquary.client.SpearAnimation;
@@ -481,6 +482,7 @@ public final class ForgeDevCheck {
 				case 2278 -> checkHumbleingBundle(player);
 				case 2279 -> checkGatedRecipeProtection(player);
 				case 2280 -> checkBrokenHeartAndInternalStates(player);
+				case 2281 -> checkPactCurseGrowthAndJei(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -8783,6 +8785,367 @@ public final class ForgeDevCheck {
 				+ "（应 true = FAIL）、错误位置提示=" + wrongPlace + "（应 true）");
 	}
 
+	/** 2.0：恶魔契约真实/成长诅咒矩阵、吸血结算点与 11 个 JEI 信息页。 */
+	private static void checkPactCurseGrowthAndJei(ServerPlayer player) {
+		Minecraft client = Minecraft.getInstance();
+		MinecraftServer server = player.getServer();
+		if (server == null) {
+			log("恶魔契约诅咒成长：没有服务端，无法执行");
+			return;
+		}
+		java.util.List<LivingEntity> cleanup = new java.util.ArrayList<>();
+		int soulSlotsAtStart = -1;
+		try {
+			resetDemonPactState(player);
+			clearRobeAndSeal(player);
+			clearBlessingSlots(player);
+			clearSpiritAltar(player);
+			player.getInventory().clearContent();
+			player.removeAllEffects();
+			for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+					EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND}) {
+				player.setItemSlot(slot, ItemStack.EMPTY);
+			}
+
+			var handler = CuriosApi.getCuriosInventory(player).orElse(null);
+			if (handler == null) {
+				log("恶魔契约诅咒成长：Curios 容器不存在，无法执行");
+				return;
+			}
+			for (var stacksHandler : handler.getCurios().values()) {
+				for (int index = 0; index < stacksHandler.getSlots(); index++) {
+					stacksHandler.getStacks().setStackInSlot(index, ItemStack.EMPTY);
+				}
+				for (int index = 0; index < stacksHandler.getCosmeticStacks().getSlots(); index++) {
+					stacksHandler.getCosmeticStacks().setStackInSlot(index, ItemStack.EMPTY);
+				}
+			}
+			soulSlotsAtStart = handler.getCurios().containsKey(ReliquarySlots.SOUL_SEAL)
+					? handler.getCurios().get(ReliquarySlots.SOUL_SEAL).getSlots() : 0;
+			if (soulSlotsAtStart < 1) {
+				handler.growSlotType(ReliquarySlots.SOUL_SEAL, 1 - soulSlotsAtStart);
+			}
+
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+			com.summy.reliquary.effect.DemonPact.grant(player, false);
+			boolean contractWorn = com.summy.reliquary.effect.DemonPact.wears(player);
+
+			EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
+					EquipmentSlot.FEET, EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND};
+			net.minecraft.world.item.Item[] gear = {Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE,
+					Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS, Items.DIAMOND_SWORD, Items.SHIELD};
+			for (int index = 0; index < slots.length; index++) {
+				ItemStack stack = new ItemStack(gear[index]);
+				stack.enchant(net.minecraft.world.item.enchantment.Enchantments.VANISHING_CURSE, 1);
+				stack.enchant(net.minecraft.world.item.enchantment.Enchantments.BINDING_CURSE, 1);
+				player.setItemSlot(slots[index], stack);
+			}
+			ItemStack functionalCurio = new ItemStack(Items.GOLD_NUGGET);
+			functionalCurio.enchant(net.minecraft.world.item.enchantment.Enchantments.VANISHING_CURSE, 1);
+			functionalCurio.enchant(net.minecraft.world.item.enchantment.Enchantments.BINDING_CURSE, 1);
+			ItemStack cosmeticCurio = functionalCurio.copy();
+			ItemStack backpackCurio = functionalCurio.copy();
+			var charm = handler.getCurios().get(ReliquarySlots.CHARM);
+			if (charm != null) {
+				charm.getStacks().setStackInSlot(0, functionalCurio);
+				if (charm.getCosmeticStacks().getSlots() > 0) {
+					charm.getCosmeticStacks().setStackInSlot(0, cosmeticCurio);
+				}
+			}
+			player.getInventory().add(backpackCurio);
+
+			int realCurses = com.summy.reliquary.effect.DemonPact.realCurseCount(player);
+			boolean countMatrix = contractWorn && realCurses == 14
+					&& com.summy.reliquary.effect.DemonPact.curseCount(player) == 14;
+
+			handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 0,
+					new ItemStack(SummyReliquary.SOURCE_OF_SINS.get()));
+			resetSinState(player);
+			int noGrowth = com.summy.reliquary.effect.DemonPact.sinGrowthCount(player);
+			int noGrowthEffective = com.summy.reliquary.effect.DemonPact.effectiveCurseCount(player);
+
+			setSinMasksForTest(player, 0b1111111, 0);
+			int fullGrowth = com.summy.reliquary.effect.DemonPact.sinGrowthCount(player);
+			int fullEffective = com.summy.reliquary.effect.DemonPact.effectiveCurseCount(player);
+			double fullHealth = com.summy.reliquary.effect.DemonPact.healthBonusPercent(player);
+			double fullSpeed = com.summy.reliquary.effect.DemonPact.speedBonusPercent(player);
+			double fullLifesteal = com.summy.reliquary.effect.DemonPact.lifestealPercent(player);
+
+			setSinMasksForTest(player, 0b0111111, 0b1000000);
+			int redeemedGrowth = com.summy.reliquary.effect.DemonPact.sinGrowthCount(player);
+			boolean growthMatrix = noGrowth == 0 && noGrowthEffective == 14
+					&& fullGrowth == 7 && fullEffective == 20
+					&& close(fullHealth, 40.0D) && close(fullSpeed, 30.0D)
+					&& close(fullLifesteal, 12.0D) && redeemedGrowth == 6;
+
+			// 2 条真实诅咒 + 7 项七罪成长仍不能激活吸血；补到 3 条后才按有效诅咒成长。
+			for (EquipmentSlot slot : slots) {
+				player.setItemSlot(slot, ItemStack.EMPTY);
+			}
+			if (charm != null) {
+				charm.getStacks().setStackInSlot(0, ItemStack.EMPTY);
+			}
+			for (int index = 0; index < 2; index++) {
+				ItemStack stack = new ItemStack(index == 0 ? Items.DIAMOND_HELMET : Items.DIAMOND_CHESTPLATE);
+				stack.enchant(net.minecraft.world.item.enchantment.Enchantments.VANISHING_CURSE, 1);
+				player.setItemSlot(slots[index], stack);
+			}
+			setSinMasksForTest(player, 0b1111111, 0);
+			boolean twoRealLocked = com.summy.reliquary.effect.DemonPact.realCurseCount(player) == 2
+					&& com.summy.reliquary.effect.DemonPact.effectiveCurseCount(player) == 9
+					&& !com.summy.reliquary.effect.DemonPact.lifestealActive(player)
+					&& close(com.summy.reliquary.effect.DemonPact.healthBonusPercent(player), 18.0D);
+
+			ItemStack third = new ItemStack(Items.DIAMOND_LEGGINGS);
+			third.enchant(net.minecraft.world.item.enchantment.Enchantments.VANISHING_CURSE, 1);
+			player.setItemSlot(slots[2], third);
+			boolean threeRealUnlocked = com.summy.reliquary.effect.DemonPact.realCurseCount(player) == 3
+					&& com.summy.reliquary.effect.DemonPact.effectiveCurseCount(player) == 10
+					&& com.summy.reliquary.effect.DemonPact.lifestealActive(player)
+					&& close(com.summy.reliquary.effect.DemonPact.lifestealPercent(player), 9.5D);
+
+			// 撒旦圣经固定 7 项成长；异常同时佩戴时圣经优先，不与七罪之源叠加。
+			setSinMasksForTest(player, 0, 0);
+			handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 0,
+					new ItemStack(SummyReliquary.SATANIC_BIBLE.get()));
+			int bibleGrowth = com.summy.reliquary.effect.DemonPact.sinGrowthCount(player);
+			int soulSlotsNow = handler.getCurios().get(ReliquarySlots.SOUL_SEAL).getSlots();
+			if (soulSlotsNow < 2) {
+				handler.growSlotType(ReliquarySlots.SOUL_SEAL, 2 - soulSlotsNow);
+			}
+			handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 1,
+					new ItemStack(SummyReliquary.SOURCE_OF_SINS.get()));
+			setSinMasksForTest(player, 0b1111111, 0);
+			int bothGrowth = com.summy.reliquary.effect.DemonPact.sinGrowthCount(player);
+			int bothEffective = com.summy.reliquary.effect.DemonPact.effectiveCurseCount(player);
+
+			handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 0,
+					new ItemStack(SummyReliquary.VIRTUES.get()));
+			handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 1, ItemStack.EMPTY);
+			int virtuesGrowth = com.summy.reliquary.effect.DemonPact.sinGrowthCount(player);
+			boolean sourcePrecedence = bibleGrowth == 7 && bothGrowth == 7
+					&& bothEffective == 10 && virtuesGrowth == 0;
+
+			boolean config = ReliquaryConfig.pactMaxEffectiveCurses() == 20
+					&& close(ReliquaryConfig.pactSpeedCapPercent(), 30.0D)
+					&& ReliquaryConfig.pactLifestealCurseThreshold() == 3
+					&& close(ReliquaryConfig.pactLifestealPercent(), 6.0D)
+					&& close(ReliquaryConfig.pactLifestealPerExtraCursePercent(), 0.5D)
+					&& close(ReliquaryConfig.pactLifestealCapPercent(), 12.0D);
+
+			// 死形态倍率必须在吸血之前生效；吸血仍按减伤前事件金额计算。
+			handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 0,
+					new ItemStack(SummyReliquary.SATANIC_BIBLE.get()));
+			resetSinState(player);
+			var covenant = handler.getCurios().get(ReliquarySlots.COVENANT);
+			if (covenant != null && covenant.getSlots() < 1) {
+				handler.growSlotType(ReliquarySlots.COVENANT, 1 - covenant.getSlots());
+			}
+			equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.LIFE_DEATH.get());
+			// 饰品替换可能触发槽位修正；在最终读值前重新落三件真实诅咒装备。
+			for (int index = 0; index < 3; index++) {
+				ItemStack curseProbe = new ItemStack(index == 0 ? Items.DIAMOND_HELMET
+						: index == 1 ? Items.DIAMOND_CHESTPLATE : Items.DIAMOND_LEGGINGS);
+				curseProbe.enchant(net.minecraft.world.item.enchantment.Enchantments.VANISHING_CURSE, 1);
+				player.setItemSlot(slots[index], curseProbe);
+			}
+			long now = player.serverLevel().getGameTime();
+			int deathTicks = ReliquaryConfig.lifeDeathDeathFormTicks();
+			// 让死形态只剩 1 tick 到期，既保持激活状态，又让伤害倍率到达上限。
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(
+					player, now - Math.max(0, deathTicks - 1), deathTicks);
+			boolean deathFormWorn = com.summy.reliquary.effect.LifeDeath.wears(player);
+			boolean pactActiveAtEvent = com.summy.reliquary.effect.DemonPact.active(player);
+			int realCursesAtEvent = com.summy.reliquary.effect.DemonPact.realCurseCount(player);
+			boolean lifestealActiveAtEvent = com.summy.reliquary.effect.DemonPact.lifestealActive(player);
+			float deathMultiplier = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
+			player.setAbsorptionAmount(0.0F);
+			player.setHealth(Math.min(5.0F, player.getMaxHealth()));
+			Zombie target = spawnTestZombie(player, 3.0D, 0.0D);
+			if (target == null) {
+				throw new IllegalStateException("无法生成契约吸血测试目标");
+			}
+			cleanup.add(target);
+			float healthBefore = player.getHealth();
+			LivingHurtEvent pactHurt = new LivingHurtEvent(
+					target, player.damageSources().playerAttack(player), 10.0F);
+			com.summy.reliquary.ReliquaryEvents.onLivingHurt(pactHurt);
+			float healed = player.getHealth() - healthBefore;
+			float expectedHeal = pactHurt.getAmount()
+					* (float) (com.summy.reliquary.effect.DemonPact.lifestealPercent(player) / 100.0D);
+			boolean eventPoint = deathFormWorn && pactActiveAtEvent && realCursesAtEvent >= 3
+					&& lifestealActiveAtEvent
+					&& deathMultiplier >= 1.99F
+					&& close(healed, expectedHeal, 0.02D)
+					&& close(com.summy.reliquary.effect.DemonPact.lifestealPercent(player), 9.5D);
+
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, 0L, 0);
+			var damageRegistry = player.serverLevel().registryAccess()
+					.registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE);
+			DamageSource exactSource = new DamageSource(
+					damageRegistry.getHolderOrThrow(net.minecraft.resources.ResourceKey.create(
+							net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+							SummyReliquary.id("sacrifice"))),
+					player, player);
+			float exactBefore = player.getHealth();
+			com.summy.reliquary.ReliquaryEvents.onLivingHurt(new LivingHurtEvent(target, exactSource, 10.0F));
+			boolean exactExcluded = close(player.getHealth(), exactBefore, 0.001D);
+
+			float canceledBefore = player.getHealth();
+			LivingHurtEvent canceled = new LivingHurtEvent(
+					target, player.damageSources().playerAttack(player), 10.0F);
+			canceled.setCanceled(true);
+			com.summy.reliquary.ReliquaryEvents.onLivingHurt(canceled);
+			boolean canceledExcluded = close(player.getHealth(), canceledBefore, 0.001D);
+
+			var groups = com.summy.reliquary.integration.JeiInfoPageGroups.all();
+			String[] pages = {"sin_system", "satanic_bible", "pentagram", "act_of_contrition",
+					"genesis", "golden_razor", "the_pact", "six_and_mark", "salvation",
+					"holy_light", "heart_materials"};
+			int[] expectedPages = {5, 5, 5, 5, 5, 3, 5, 5, 4, 4, 5};
+			String zhLang = resourceText(client, SummyReliquary.NAMESPACE, "lang/zh_cn.json");
+			String enLang = resourceText(client, SummyReliquary.NAMESPACE, "lang/en_us.json");
+			int mappedItems = groups.values().stream().mapToInt(java.util.List::size).sum();
+			boolean mapping = groups.size() == 11 && mappedItems == 22
+					&& java.util.Arrays.stream(pages).allMatch(groups::containsKey);
+			int checkedLines = 0;
+			int placeholderMismatch = 0;
+			StringBuilder technical = new StringBuilder();
+			for (int pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+				for (int line = 1; line <= expectedPages[pageIndex]; line++) {
+					String key = "jei.summy-reliquary." + pages[pageIndex] + "." + line;
+					String zh = translationValue(zhLang, key);
+					String en = translationValue(enLang, key);
+					if (zh == null || en == null || zh.isBlank() || en.isBlank()
+							|| placeholderCount(zh, "%s") != placeholderCount(en, "%s")) {
+						placeholderMismatch++;
+					} else {
+						String plain = (zh + " " + en).toLowerCase(java.util.Locale.ROOT);
+						for (String forbidden : new String[]{"livinghurtevent", "lootcontext", "nbt", "uuid", "tick"}) {
+							if (plain.contains(forbidden)) {
+								technical.append(forbidden).append(' ');
+							}
+						}
+					}
+					checkedLines++;
+				}
+			}
+			String zhPact = translationValue(zhLang, "item.summy-reliquary.the_pact.shift.curses");
+			String enPact = translationValue(enLang, "item.summy-reliquary.the_pact.shift.curses");
+			boolean shiftText = placeholderCount(zhPact, "%s") == 3
+					&& placeholderCount(enPact, "%s") == 3;
+			boolean jei = mapping && checkedLines == 51 && placeholderMismatch == 0
+					&& technical.length() == 0 && shiftText;
+
+			boolean allOk = countMatrix && growthMatrix && twoRealLocked
+					&& threeRealUnlocked && sourcePrecedence && config && eventPoint
+					&& exactExcluded && canceledExcluded && jei;
+			log("恶魔契约诅咒成长：六装备+功能栏真实诅咒=" + realCurses + "（应 14）、"
+					+ "2真实+7成长不激活=" + twoRealLocked + "、3真实后有效=10/吸血="
+					+ String.format(java.util.Locale.ROOT, "%.1f%%", com.summy.reliquary.effect.DemonPact
+							.lifestealPercent(player)) + "（应 true / 9.5%%）");
+			log("恶魔契约上限与成长：七罪成长=" + fullGrowth + "（应 7）、有效=" + fullEffective
+					+ "（应 20）、生命=" + String.format(java.util.Locale.ROOT, "%.1f%%", fullHealth)
+					+ "（应 40%%）、速度=" + String.format(java.util.Locale.ROOT, "%.1f%%", fullSpeed)
+					+ "（应 30%%）、吸血=" + String.format(java.util.Locale.ROOT, "%.1f%%", fullLifesteal)
+					+ "（应 12%%）、已赎罪不计=" + redeemedGrowth + "（应 6）");
+			log("恶魔契约圣经优先级：单独圣经=" + bibleGrowth + "、圣经+七罪=" + bothGrowth
+					+ "（均应 7）、仅美德=" + virtuesGrowth + "（应 0）");
+			log("恶魔契约吸血时点：死形态倍率=" + String.format(java.util.Locale.ROOT, "%.2f", deathMultiplier)
+					+ "（应 2.00）、装备=" + deathFormWorn + "、契约=" + pactActiveAtEvent
+					+ "、真实诅咒=" + realCursesAtEvent + "（应 >=3）、吸血门槛="
+					+ lifestealActiveAtEvent + "、事件金额="
+					+ String.format(java.util.Locale.ROOT, "%.2f", pactHurt.getAmount())
+					+ "、回血=" + String.format(java.util.Locale.ROOT, "%.2f", healed)
+					+ "（应 " + String.format(java.util.Locale.ROOT, "%.2f", expectedHeal) + "）、"
+					+ "定值真伤排除=" + exactExcluded + "、取消事件排除=" + canceledExcluded);
+			log("契约 JEI 信息页：页面=" + groups.size() + "（应 11）、绑定物品=" + mappedItems
+					+ "（应 22）、检查行=" + checkedLines + "（应 51）、占位符不一致="
+					+ placeholderMismatch + "（应 0）、技术词="
+					+ (technical.length() == 0 ? "无" : technical.toString().trim())
+					+ "、契约 Shift 三参数=" + shiftText);
+			log("恶魔契约与 JEI 汇总=" + allOk + "（应 true）");
+		} catch (Throwable throwable) {
+			log("恶魔契约诅咒成长：执行失败 " + throwable);
+			throwable.printStackTrace();
+		} finally {
+			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, 0L, 0);
+			for (LivingEntity entity : cleanup) {
+				entity.discard();
+			}
+			player.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+			player.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+			player.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
+			player.setItemSlot(EquipmentSlot.CHEST, ItemStack.EMPTY);
+			player.setItemSlot(EquipmentSlot.LEGS, ItemStack.EMPTY);
+			player.setItemSlot(EquipmentSlot.FEET, ItemStack.EMPTY);
+			player.getInventory().clearContent();
+			int soulSlotsBaseline = soulSlotsAtStart;
+			CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+				for (var stacksHandler : handler.getCurios().values()) {
+					for (int index = 0; index < stacksHandler.getSlots(); index++) {
+						stacksHandler.getStacks().setStackInSlot(index, ItemStack.EMPTY);
+					}
+					for (int index = 0; index < stacksHandler.getCosmeticStacks().getSlots(); index++) {
+						stacksHandler.getCosmeticStacks().setStackInSlot(index, ItemStack.EMPTY);
+					}
+				}
+				var soulSeal = handler.getCurios().get(ReliquarySlots.SOUL_SEAL);
+				if (soulSlotsBaseline >= 0 && soulSeal != null
+						&& soulSeal.getSlots() > soulSlotsBaseline) {
+					handler.shrinkSlotType(ReliquarySlots.SOUL_SEAL,
+							soulSeal.getSlots() - soulSlotsBaseline);
+				}
+			});
+			resetDemonPactState(player);
+			resetSinState(player);
+			com.summy.reliquary.effect.AttributeManager.apply(player);
+		}
+	}
+
+	private static String translationValue(String json, String key) {
+		String needle = "\"" + key + "\": \"";
+		int start = json.indexOf(needle);
+		if (start < 0) {
+			return null;
+		}
+		start += needle.length();
+		int end = start;
+		while (end < json.length()) {
+			char ch = json.charAt(end);
+			if (ch == '\\') {
+				end += 2;
+				continue;
+			}
+			if (ch == '"') {
+				return json.substring(start, end);
+			}
+			end++;
+		}
+		return null;
+	}
+
+	private static int placeholderCount(String text, String token) {
+		if (text == null) {
+			return -1;
+		}
+		int count = 0;
+		int index = 0;
+		while ((index = text.indexOf(token, index)) >= 0) {
+			count++;
+			index += token.length();
+		}
+		return count;
+	}
+
+	private static boolean close(double left, double right) {
+		return close(left, right, 1.0E-6D);
+	}
+
+	private static boolean close(double left, double right, double tolerance) {
+		return Math.abs(left - right) <= tolerance;
+	}
+
 	// ==================== 1.6.0：恶魔契约 / 献祭 / 黑心 / 邪恶度 ====================
 
 	/** 清掉契约相关的全部状态，便于逐段断言 */
@@ -17003,7 +17366,7 @@ public final class ForgeDevCheck {
 		return com.summy.reliquary.effect.HellfireState.level(target);
 	}
 
-	/** 给玩家塞满 6 件带诅咒的装备（满足契约"诅咒 > 5 条"的吸血门槛） */
+	/** 给玩家塞满 6 件带诅咒的装备（满足契约“真实诅咒 >= 3 条”的吸血门槛）。 */
 	private static void equipSixCurses(ServerPlayer player) {
 		EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
 				EquipmentSlot.FEET, EquipmentSlot.OFFHAND, EquipmentSlot.MAINHAND};
@@ -17056,7 +17419,7 @@ public final class ForgeDevCheck {
 		double evilAfter = com.summy.reliquary.effect.PlayerFlags.evil(player);
 		boolean evilGrows = evilAfter > evilBefore;
 		victim.discard();
-		log("武器联动·契约（1.7.10）：诅咒 > 5 条时吸血激活=" + lifestealGate + "（应 true）、斩击（playerAttack 源）"
+		log("武器联动·契约：真实诅咒 >= 3 条时吸血激活=" + lifestealGate + "（应 true）、斩击（playerAttack 源）"
 				+ "回血=" + String.format("%.2f", healed) + "（应 > 0）=" + lifestealWorks + "（应 true）；"
 				+ "斩击击杀 → 邪恶度 " + String.format("%.1f", evilBefore) + " → "
 				+ String.format("%.1f", evilAfter) + "（应上升）=" + evilGrows + "（应 true）");

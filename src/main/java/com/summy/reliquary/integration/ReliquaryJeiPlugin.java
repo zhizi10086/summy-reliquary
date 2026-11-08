@@ -66,6 +66,7 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 		registerCovenantPool(registration, angel, "angel");
 		registerCovenantPool(registration, demon, "demon");
 		registerHumbleingBundleInfo(registration);
+		registerSystemInfoPages(registration);
 	}
 
 	@Override
@@ -177,6 +178,153 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 				text("humbleing_bundle.effect", extraChance),
 				text("humbleing_bundle.reward"),
 				text("humbleing_bundle.limits"));
+	}
+
+	private static void registerSystemInfoPages(IRecipeRegistration registration) {
+		registerSinSystemInfo(registration);
+		registerSatanicBibleInfo(registration);
+		registerPentagramInfo(registration);
+		registerActOfContritionInfo(registration);
+		registerGenesisInfo(registration);
+		registerGoldenRazorInfo(registration);
+		registerThePactInfo(registration);
+		registerSixAndMarkInfo(registration);
+		registerSalvationInfo(registration);
+		registerHolyLightInfo(registration);
+		registerHeartMaterialsInfo(registration);
+	}
+
+	private static void registerSinSystemInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("sin_system"),
+				text("sin_system.1"),
+				text("sin_system.2"),
+				text("sin_system.3"),
+				text("sin_system.4"),
+				text("sin_system.5"));
+	}
+
+	private static void registerSatanicBibleInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("satanic_bible"),
+				text("satanic_bible.1"),
+				text("satanic_bible.2"),
+				text("satanic_bible.3",
+						format(com.summy.reliquary.config.ReliquaryConfig.satanicBibleBlackHearts()),
+						com.summy.reliquary.config.ReliquaryConfig.satanicRefillSeconds()),
+				text("satanic_bible.4",
+						format(com.summy.reliquary.config.ReliquaryConfig.satanicShatterRadius()),
+						format(com.summy.reliquary.config.ReliquaryConfig.satanicShatterDamage())),
+				text("satanic_bible.5"));
+	}
+
+	private static void registerPentagramInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("pentagram"),
+				text("pentagram.1",
+						format(com.summy.reliquary.config.ReliquaryConfig.pentagramAttackDamage())),
+				text("pentagram.2",
+						com.summy.reliquary.config.ReliquaryConfig.pentagramMessageSeconds()),
+				text("pentagram.3"),
+				text("pentagram.4"),
+				text("pentagram.5"));
+	}
+
+	private static void registerActOfContritionInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("act_of_contrition"),
+				text("act_of_contrition.1"),
+				text("act_of_contrition.2"),
+				text("act_of_contrition.3"),
+				text("act_of_contrition.4"),
+				text("act_of_contrition.5"));
+	}
+
+	private static void registerGenesisInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("genesis"),
+				text("genesis.1"),
+				text("genesis.2"),
+				text("genesis.3"),
+				text("genesis.4"),
+				text("genesis.5"));
+	}
+
+	private static void registerGoldenRazorInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("golden_razor"),
+				text("golden_razor.1",
+						format(com.summy.reliquary.config.ReliquaryConfig.razorCooldownTicks() / 20.0D)),
+				text("golden_razor.2",
+						format(com.summy.reliquary.config.ReliquaryConfig.razorDamage())),
+				text("golden_razor.3"));
+	}
+
+	private static void registerThePactInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("the_pact"),
+				text("the_pact.1"),
+				text("the_pact.2"),
+				text("the_pact.3",
+						format(com.summy.reliquary.config.ReliquaryConfig.pactHealthPerCursePercent()),
+						format(com.summy.reliquary.config.ReliquaryConfig.pactSpeedPerCursePercent()),
+						format(com.summy.reliquary.config.ReliquaryConfig.pactSpeedCapPercent())),
+				text("the_pact.4"),
+				text("the_pact.5",
+						com.summy.reliquary.config.ReliquaryConfig.pactLifestealCurseThreshold(),
+						format(com.summy.reliquary.config.ReliquaryConfig.pactLifestealPercent()),
+						format(com.summy.reliquary.config.ReliquaryConfig
+								.pactLifestealPerExtraCursePercent()),
+						format(com.summy.reliquary.config.ReliquaryConfig.pactLifestealCapPercent())));
+	}
+
+	private static void registerSixAndMarkInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("six_and_mark"),
+				text("six_and_mark.1"),
+				text("six_and_mark.2"),
+				text("six_and_mark.3"),
+				text("six_and_mark.4",
+						com.summy.reliquary.effect.EvilUnlock.THE_MARK.threshold()),
+				text("six_and_mark.5"));
+	}
+
+	private static void registerSalvationInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("salvation"),
+				text("salvation.1",
+						format(com.summy.reliquary.config.ReliquaryConfig.salvationRadius())),
+				text("salvation.2",
+						format(com.summy.reliquary.config.ReliquaryConfig.salvationLockSeconds()),
+						com.summy.reliquary.config.ReliquaryConfig.salvationDamage(),
+						format(com.summy.reliquary.config.ReliquaryConfig.salvationCooldownSeconds())),
+				text("salvation.3"),
+				text("salvation.4"));
+	}
+
+	private static void registerHolyLightInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("holy_light"),
+				text("holy_light.1",
+						com.summy.reliquary.config.ReliquaryConfig.holyLightChancePercent(),
+						com.summy.reliquary.config.ReliquaryConfig.holyLightChancePercentGodhead()),
+				text("holy_light.2",
+						com.summy.reliquary.config.ReliquaryConfig.holyLightDamagePercent()),
+				text("holy_light.3"),
+				text("holy_light.4"));
+	}
+
+	private static void registerHeartMaterialsInfo(IRecipeRegistration registration) {
+		registration.addItemStackInfo(pageItems("heart_materials"),
+				text("heart_materials.1"),
+				text("heart_materials.2"),
+				text("heart_materials.3",
+						format(com.summy.reliquary.config.ReliquaryConfig.heartShardDropChance()),
+						format(com.summy.reliquary.config.ReliquaryConfig.heartShardBossChance()),
+						format(com.summy.reliquary.config.ReliquaryConfig.heartShardDragonChance())),
+				text("heart_materials.4"),
+				text("heart_materials.5"));
+	}
+
+	private static String format(double value) {
+		return Math.abs(value - Math.rint(value)) < 1.0E-6D
+				? String.valueOf((long) Math.rint(value))
+				: String.valueOf(Math.round(value * 10.0D) / 10.0D);
+	}
+
+	private static List<ItemStack> pageItems(String key) {
+		return JeiInfoPageGroups.all().getOrDefault(key, List.of())
+				.stream().map(ItemStack::new).toList();
 	}
 
 	private static Component text(String key, Object... arguments) {

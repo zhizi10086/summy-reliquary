@@ -934,11 +934,6 @@ public final class ReliquaryEvents {
 									event.getAmount(), attacker, event.getSource(), true));
 				}
 			}
-			// 恶魔契约（1.6.0）：吸血仍只认普通伤害，2.17 不把定值真伤转成吸血来源。
-			if (regularDamageBonuses && com.summy.reliquary.effect.DemonPact.lifestealActive(attacker)) {
-				attacker.heal(event.getAmount()
-						* (float) (ReliquaryConfig.pactLifestealPercent() / 100.0D));
-			}
 		}
 		// 生死逆转：死形态倍率自成一乘区，放在所有既有出伤乘区之后单独相乘。
 		if (!event.isCanceled() && regularDamageBonuses
@@ -946,6 +941,14 @@ public final class ReliquaryEvents {
 				&& deathFormAttacker != event.getEntity()) {
 			event.setAmount(event.getAmount()
 					* com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(deathFormAttacker));
+		}
+		// 恶魔契约：普通伤害按“SR 全部出伤倍率之后、目标承伤修正之前”的事件金额吸血。
+		if (!event.isCanceled() && regularDamageBonuses
+				&& event.getSource().getEntity() instanceof ServerPlayer pactAttacker
+				&& pactAttacker != event.getEntity()
+				&& com.summy.reliquary.effect.DemonPact.lifestealActive(pactAttacker)) {
+			pactAttacker.heal(event.getAmount()
+					* (float) (com.summy.reliquary.effect.DemonPact.lifestealPercent(pactAttacker) / 100.0D));
 		}
 		// 七罪：受害者是本模组玩家时的受伤增加与色欲受击脱甲
 		// 1.8.2：献祭的自伤不触发傲慢放大与色欲脱甲

@@ -322,10 +322,18 @@ public final class ReliquaryConfig {
 	private static final ForgeConfigSpec.DoubleValue PACT_HEALTH_PER_CURSE_PERCENT;
 	/** 恶魔契约：每条诅咒的速度加成（%） */
 	private static final ForgeConfigSpec.DoubleValue PACT_SPEED_PER_CURSE_PERCENT;
+	/** 恶魔契约：参与生命 / 速度 / 吸血成长的最高有效诅咒条数 */
+	private static final ForgeConfigSpec.IntValue PACT_MAX_EFFECTIVE_CURSES;
+	/** 恶魔契约：移动速度加成上限（%） */
+	private static final ForgeConfigSpec.DoubleValue PACT_SPEED_CAP_PERCENT;
 	/** 恶魔契约：生命吸取所需的诅咒条数阈值 */
 	private static final ForgeConfigSpec.IntValue PACT_LIFESTEAL_CURSE_THRESHOLD;
-	/** 恶魔契约：生命吸取比例（%） */
+	/** 恶魔契约：达到生命吸取门槛时的基础比例（%） */
 	private static final ForgeConfigSpec.DoubleValue PACT_LIFESTEAL_PERCENT;
+	/** 恶魔契约：每超过门槛 1 项有效诅咒增加的吸血比例（%） */
+	private static final ForgeConfigSpec.DoubleValue PACT_LIFESTEAL_PER_EXTRA_CURSE_PERCENT;
+	/** 恶魔契约：生命吸取比例上限（%） */
+	private static final ForgeConfigSpec.DoubleValue PACT_LIFESTEAL_CAP_PERCENT;
 	/** 仪式法袍：总开关 */
 	private static final ForgeConfigSpec.BooleanValue ENABLE_ROBE;
 	/** 仪式法袍：黑心上限加成（心数） */
@@ -1123,10 +1131,19 @@ public final class ReliquaryConfig {
 				.defineInRange("health_per_curse_percent", 2.0D, 0.0D, 1000.0D);
 		PACT_SPEED_PER_CURSE_PERCENT = builder.comment("每一条生效诅咒提供的移动速度加成（百分比）")
 				.defineInRange("speed_per_curse_percent", 2.0D, 0.0D, 1000.0D);
-		PACT_LIFESTEAL_CURSE_THRESHOLD = builder.comment("生命吸取需要诅咒条数**大于**该值（默认 5）")
-				.defineInRange("lifesteal_curse_threshold", 5, 0, 100);
-		PACT_LIFESTEAL_PERCENT = builder.comment("生命吸取比例（百分比，按本次出伤值回血）")
+		PACT_MAX_EFFECTIVE_CURSES = builder.comment("参与生命 / 速度 / 吸血成长的最高有效诅咒条数（默认 20）")
+				.defineInRange("max_effective_curses", 20, 1, 100);
+		PACT_SPEED_CAP_PERCENT = builder.comment("移动速度加成上限（百分比，默认 30）")
+				.defineInRange("speed_cap_percent", 30.0D, 0.0D, 100.0D);
+		PACT_LIFESTEAL_CURSE_THRESHOLD = builder.comment("生命吸取需要至少多少条真实诅咒（默认 3）")
+				.defineInRange("lifesteal_curse_threshold", 3, 0, 100);
+		PACT_LIFESTEAL_PERCENT = builder.comment("达到真实诅咒门槛时的基础生命吸取比例（百分比）")
 				.defineInRange("lifesteal_percent", 6.0D, 0.0D, 1000.0D);
+		PACT_LIFESTEAL_PER_EXTRA_CURSE_PERCENT = builder
+				.comment("每超过门槛 1 项有效诅咒增加的吸血比例（百分比，默认 0.5）")
+				.defineInRange("lifesteal_per_extra_curse_percent", 0.5D, 0.0D, 10.0D);
+		PACT_LIFESTEAL_CAP_PERCENT = builder.comment("生命吸取比例上限（百分比，默认 12）")
+				.defineInRange("lifesteal_cap_percent", 12.0D, 0.0D, 100.0D);
 		EVIL_MAX = builder.comment("邪恶度上限")
 				.defineInRange("evil_max", 1000, 1, 1000000);
 		EVIL_PER_POINT_PERCENT = builder
@@ -2480,12 +2497,28 @@ public final class ReliquaryConfig {
 		return doubleOr(PACT_SPEED_PER_CURSE_PERCENT, 2.0D);
 	}
 
+	public static int pactMaxEffectiveCurses() {
+		return intOr(PACT_MAX_EFFECTIVE_CURSES, 20);
+	}
+
+	public static double pactSpeedCapPercent() {
+		return doubleOr(PACT_SPEED_CAP_PERCENT, 30.0D);
+	}
+
 	public static int pactLifestealCurseThreshold() {
-		return intOr(PACT_LIFESTEAL_CURSE_THRESHOLD, 5);
+		return intOr(PACT_LIFESTEAL_CURSE_THRESHOLD, 3);
 	}
 
 	public static double pactLifestealPercent() {
 		return doubleOr(PACT_LIFESTEAL_PERCENT, 6.0D);
+	}
+
+	public static double pactLifestealPerExtraCursePercent() {
+		return doubleOr(PACT_LIFESTEAL_PER_EXTRA_CURSE_PERCENT, 0.5D);
+	}
+
+	public static double pactLifestealCapPercent() {
+		return doubleOr(PACT_LIFESTEAL_CAP_PERCENT, 12.0D);
 	}
 
 	// ===== 仪式法袍 / 撒旦圣经（1.6.1） =====

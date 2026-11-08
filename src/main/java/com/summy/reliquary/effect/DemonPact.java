@@ -220,29 +220,81 @@ public final class DemonPact {
 	}
 
 	/**
-	 * 生效诅咒条数：4 件盔甲 + 主手 + 副手，统计 {@code Enchantment#isCurse()} 的条数。
+	 * 真实诅咒条数：4 件盔甲 + 主手 + 副手 + Curios 功能栏。
 	 *
-	 * <p>用 `Enchantment#isCurse()` 而不是物品标签（1.20.1 没有诅咒标签），这样**原版的消失诅咒 /
-	 * 绑定诅咒**与其它模组（如 summy-enchantment）自定的诅咒附魔都会被算进来。
+	 * <p>每项 {@code Enchantment#isCurse()} 附魔计 1 条，不按等级重复计算；背包和外观栏不计。
+	 * 保留 {@link #curseCount(LivingEntity)} 作为兼容入口。
 	 */
-	public static int curseCount(LivingEntity entity) {
+	public static int realCurseCount(LivingEntity entity) {
 		if (entity == null) {
 			return 0;
 		}
 		int count = 0;
 		for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST,
 				EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND}) {
-			ItemStack stack = entity.getItemBySlot(slot);
-			if (stack.isEmpty()) {
-				continue;
-			}
-			for (var entry : EnchantmentHelper.getEnchantments(stack).entrySet()) {
-				if (entry.getKey().isCurse()) {
-					count++;
+			count += curseEntriesOn(entity.getItemBySlot(slot));
+		}
+		var handler = CuriosApi.getCuriosInventory(entity).orElse(null);
+		if (handler != null) {
+			// getCurios() 只包含功能栏；getCosmeticStacks() 单独存在，因此外观栏天然排除。
+			for (var stacksHandler : handler.getCurios().values()) {
+				for (int index = 0; index < stacksHandler.getSlots(); index++) {
+					count += curseEntriesOn(stacksHandler.getStacks().getStackInSlot(index));
 				}
 			}
 		}
 		return count;
+	}
+
+	/** 旧调用入口：语义等同于真实诅咒条数。 */
+	public static int curseCount(LivingEntity entity) {
+		return realCurseCount(entity);
+	}
+
+	private static int curseEntriesOn(ItemStack stack) {
+		if (stack.isEmpty()) {
+			return 0;
+		}
+		int count = 0;
+		for (var entry : EnchantmentHelper.getEnchantments(stack).entrySet()) {
+			if (entry.getKey().isCurse()) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	/**
+	 * 七罪成长：撒旦圣经固定 7 项；否则七罪之源中每项“已激活且未赎罪”计 1 项。
+	 *
+	 * <p>七罪只参与有效诅咒成长，不能单独激活生命吸取。
+	 */
+	public static int sinGrowthCount(LivingEntity entity) {
+		if (!active(entity)) {
+			return 0;
+		}
+		if (wearsSatanicBible(entity)) {
+			return 7;
+		}
+		if (!CurioHelper.wears(entity, SummyReliquary.SOURCE_OF_SINS.get())) {
+			return 0;
+		}
+		int count = 0;
+		for (com.summy.reliquary.sin.Sin sin : com.summy.reliquary.sin.Sin.values()) {
+			if (SinManager.state(entity, sin) == SinManager.SinState.ACTIVATED) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	/** 实际参与数值成长的有效诅咒条数。 */
+	public static int effectiveCurseCount(LivingEntity entity) {
+		if (!active(entity)) {
+			return 0;
+		}
+		int raw = realCurseCount(entity) + sinGrowthCount(entity);
+		return Math.min(ReliquaryConfig.pactMaxEffectiveCurses(), raw);
 	}
 
 	/** 邪恶度带来的攻击加成（%）：奇数点给攻击（ceil） */
@@ -273,17 +325,36 @@ public final class DemonPact {
 
 	/** 按诅咒条数换算的生命加成（%） */
 	public static double healthBonusPercent(LivingEntity entity) {
-		return active(entity) ? ReliquaryConfig.pactHealthPerCursePercent() * curseCount(entity) : 0.0D;
+		return active(entity)
+				? ReliquaryConfig.pactHealthPerCursePercent() * effectiveCurseCount(entity)
+				: 0.0D;
 	}
 
 	/** 按诅咒条数换算的移动速度加成（%） */
 	public static double speedBonusPercent(LivingEntity entity) {
-		return active(entity) ? ReliquaryConfig.pactSpeedPerCursePercent() * curseCount(entity) : 0.0D;
+		if (!active(entity)) {
+			return 0.0D;
+		}
+		double raw = ReliquaryConfig.pactSpeedPerCursePercent() * effectiveCurseCount(entity);
+		return Math.max(0.0D, Math.min(ReliquaryConfig.pactSpeedCapPercent(), raw));
 	}
 
-	/** 是否满足生命吸取条件（诅咒条数 > 阈值） */
+	/** 是否满足生命吸取条件（真实诅咒条数 >= 阈值）。 */
 	public static boolean lifestealActive(LivingEntity entity) {
-		return active(entity) && curseCount(entity) > ReliquaryConfig.pactLifestealCurseThreshold();
+		return active(entity)
+				&& realCurseCount(entity) >= ReliquaryConfig.pactLifestealCurseThreshold();
+	}
+
+	/** 当前实际生命吸取比例（%）：门槛后随有效诅咒成长，并受独立上限约束。 */
+	public static double lifestealPercent(LivingEntity entity) {
+		if (!lifestealActive(entity)) {
+			return 0.0D;
+		}
+		int threshold = ReliquaryConfig.pactLifestealCurseThreshold();
+		double growth = Math.max(0, effectiveCurseCount(entity) - threshold)
+				* ReliquaryConfig.pactLifestealPerExtraCursePercent();
+		double raw = ReliquaryConfig.pactLifestealPercent() + growth;
+		return Math.max(0.0D, Math.min(ReliquaryConfig.pactLifestealCapPercent(), raw));
 	}
 
 	// ==================== 动态栏位 / 契约生命周期 ====================
