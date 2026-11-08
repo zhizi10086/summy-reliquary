@@ -314,6 +314,7 @@ public final class ReliquaryEvents {
 		if (event.getLevel().isClientSide()) {
 			return;
 		}
+		com.summy.reliquary.effect.DivineIntervention.onProjectileJoin(event);
 		if (!(event.getEntity() instanceof net.minecraft.world.entity.projectile.AbstractArrow arrow)) {
 			return;
 		}
@@ -324,6 +325,14 @@ public final class ReliquaryEvents {
 			arrow.getPersistentData().putBoolean(NO_HOMING_TAG, true);
 		}
 		com.summy.reliquary.effect.SacredVerdict.onProjectileJoin(event);
+	}
+
+	/** 投射物离开世界：立即从神圣干预索引删除。 */
+	@SubscribeEvent
+	public static void onProjectileLeave(net.minecraftforge.event.entity.EntityLeaveLevelEvent event) {
+		if (!event.getLevel().isClientSide()) {
+			com.summy.reliquary.effect.DivineIntervention.onProjectileLeave(event);
+		}
 	}
 
 	/** 神圣干预屏障拦截爆炸射线：盾后的方块与实体从受影响列表中移除。 */

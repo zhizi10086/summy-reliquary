@@ -294,7 +294,7 @@
   "item.summy-reliquary.ceremonial_robes.shift.3": "邪恶每日衰减|降至 %s",
   "item.summy-reliquary.demon.required": "你尚未与它达成交易",
   "item.summy-reliquary.demon.not_ready": "你的契约还不够深",
-  "item.summy-reliquary.demon.route_required": "你当前不在恶魔阵营",
+  "item.summy-reliquary.demon.departed": "你背离了你的契约",
   "item.summy-reliquary.vengeful_spirit.tagline.1": "无尽冤魂中微不足道的一缕",
   "item.summy-reliquary.vengeful_spirit.tagline.2": "它只想焚尽一切",
   "item.summy-reliquary.vengeful_spirit.shift.1": "狱火伤害|半径 %s 格内的敌人每秒受到 %s 点",

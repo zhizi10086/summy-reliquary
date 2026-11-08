@@ -5030,6 +5030,11 @@ public final class ForgeDevCheck {
 			Vec3 expectedCenter = new Vec3(player.getX(), player.getY() + player.getBbHeight() / 2.0D,
 					player.getZ()).add(expectedNormal.scale(com.summy.reliquary.config.ReliquaryConfig
 							.divineInterventionBarrierDistance()));
+			int seedScansBefore = com.summy.reliquary.effect.DivineIntervention
+					.projectileSeedScanCountForTest();
+			com.summy.reliquary.effect.DivineIntervention.tickServer(player.getServer());
+			boolean noBarrierSkipsSeedScan = com.summy.reliquary.effect.DivineIntervention
+					.projectileSeedScanCountForTest() == seedScansBefore;
 			boolean barrier = com.summy.reliquary.effect.DivineIntervention.activate(player)
 					&& com.summy.reliquary.effect.DivineIntervention.barrierCount() == 1
 					&& com.summy.reliquary.effect.DivineIntervention.barrierNormalForTest(player)
@@ -5037,7 +5042,65 @@ public final class ForgeDevCheck {
 					&& com.summy.reliquary.effect.DivineIntervention.barrierCenterForTest(player)
 							.distanceToSqr(expectedCenter) < 1.0E-6D
 					&& basisOrthonormal && angledPlaneHit && outsidePlaneMiss;
-			boolean interventionOk = Math.abs(reflected - 10.0F) < 0.25F && barrier;
+			int seedScansAfterFirst = com.summy.reliquary.effect.DivineIntervention
+					.projectileSeedScanCountForTest();
+			boolean firstSeedOnly = seedScansAfterFirst == seedScansBefore + 1;
+			boolean reactivated = com.summy.reliquary.effect.DivineIntervention.activate(player)
+					&& com.summy.reliquary.effect.DivineIntervention.projectileSeedScanCountForTest()
+							== seedScansAfterFirst;
+
+			ServerLevel projectileLevel = player.serverLevel();
+			Vec3 previousProjectilePos = expectedCenter.subtract(expectedNormal.scale(12.0D));
+			Vec3 currentProjectilePos = expectedCenter.add(expectedNormal.scale(12.0D));
+			net.minecraft.world.entity.projectile.Arrow hostileFastArrow =
+					new net.minecraft.world.entity.projectile.Arrow(projectileLevel,
+							currentProjectilePos.x, currentProjectilePos.y, currentProjectilePos.z);
+			hostileFastArrow.setPos(currentProjectilePos);
+			hostileFastArrow.xo = previousProjectilePos.x;
+			hostileFastArrow.yo = previousProjectilePos.y;
+			hostileFastArrow.zo = previousProjectilePos.z;
+			hostileFastArrow.setDeltaMovement(Vec3.ZERO);
+			hostileFastArrow.setNoGravity(true);
+			projectileLevel.addFreshEntity(hostileFastArrow);
+
+			net.minecraft.world.entity.projectile.Arrow friendlyFastArrow =
+					new net.minecraft.world.entity.projectile.Arrow(projectileLevel, player);
+			friendlyFastArrow.setPos(currentProjectilePos);
+			friendlyFastArrow.xo = previousProjectilePos.x;
+			friendlyFastArrow.yo = previousProjectilePos.y;
+			friendlyFastArrow.zo = previousProjectilePos.z;
+			friendlyFastArrow.setDeltaMovement(Vec3.ZERO);
+			friendlyFastArrow.setNoGravity(true);
+			projectileLevel.addFreshEntity(friendlyFastArrow);
+			int indexedBeforeTick = com.summy.reliquary.effect.DivineIntervention
+					.indexedProjectileCountForTest(projectileLevel);
+			com.summy.reliquary.effect.DivineIntervention.tickServer(player.getServer());
+			boolean fastHostileBlocked = !hostileFastArrow.isAlive();
+			boolean fastFriendlyBoosted = friendlyFastArrow.isAlive()
+					&& friendlyFastArrow.getPersistentData().getInt(
+							com.summy.reliquary.effect.DivineIntervention.PROJECTILE_BOOST_TAG) == 1;
+			int indexedAfterHit = com.summy.reliquary.effect.DivineIntervention
+					.indexedProjectileCountForTest(projectileLevel);
+			com.summy.reliquary.effect.DivineIntervention.onProjectileLeave(
+					new net.minecraftforge.event.entity.EntityLeaveLevelEvent(
+							friendlyFastArrow, projectileLevel));
+			boolean leaveRemoved = com.summy.reliquary.effect.DivineIntervention
+					.indexedProjectileCountForTest(projectileLevel) == indexedAfterHit - 1;
+			int reconcileBefore = com.summy.reliquary.effect.DivineIntervention
+					.projectileReconcileScanCountForTest();
+			com.summy.reliquary.effect.DivineIntervention
+					.reconcileProjectileIndexForTest(projectileLevel);
+			boolean reconcileRuns = com.summy.reliquary.effect.DivineIntervention
+					.projectileReconcileScanCountForTest() == reconcileBefore + 1;
+			friendlyFastArrow.discard();
+			com.summy.reliquary.effect.DivineIntervention.forget(player);
+			boolean indexReleased = com.summy.reliquary.effect.DivineIntervention
+					.indexedProjectileCountForTest(projectileLevel) == 0;
+			boolean projectileIndexOk = noBarrierSkipsSeedScan && firstSeedOnly && reactivated
+					&& indexedBeforeTick >= 2 && fastHostileBlocked && fastFriendlyBoosted
+					&& leaveRemoved && reconcileRuns && indexReleased;
+			boolean interventionOk = Math.abs(reflected - 10.0F) < 0.25F
+					&& barrier && projectileIndexOk;
 			unequip(player, ReliquarySlots.COVENANT);
 
 			// 神圣裁决：目标最大生命 100 → 固定 5 点；攻击强度未满时不追加。
@@ -5499,7 +5562,7 @@ public final class ForgeDevCheck {
 							+ "直接死亡待结算/重生冷却=%s；过期恢复清理=%s；摘除即死/重生冷却=%s；"
 							+ "进度平滑=%s/达标待倒计时=%s/重复击杀忽略=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
 							+ "专属死亡源=%s（免伤标签=%s/文本=「%s」）/按下沿=%s/长矛门禁回绕=%s；"
-							+ "神圣干预反伤 %.1f（应 10）/屏障=%s/描边密度=%s → %s；"
+							+ "神圣干预反伤 %.1f（应 10）/屏障=%s/描边密度=%s/高速投射物索引=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/重复候选 %d（应 1）/重复附伤 %.2f（应 5）/"
 							+ "批次合并附伤 %.2f（应 5）/不同直接实体候选=%s/重复施法=%s/爆炸伤害 %.2f（应 21）/"
 							+ "未满攻击强度附伤 %.2f（应 0）/状态图标定义=%s（共 %d 个）/锥形采样=%s → %s；"
@@ -5521,7 +5584,7 @@ public final class ForgeDevCheck {
 					staticAlpha, metAlpha, warningLow, warningHigh, screenOverlay,
 					failureSourceOk, failureInvulnerabilityTag, failureText,
 					oathPressEdge, spearGateReset,
-					reflected, barrier, barrierDensityOk, interventionOk,
+					reflected, barrier, barrierDensityOk, projectileIndexOk, interventionOk,
 					verdictBonus, duplicateCandidates, duplicateVerdictBonus, mergedVerdictBonus,
 					differentDirectEntities, duplicateCastBlocked, castDamage, unchargedBonus,
 					markerEffectDefinitions, covenantEffectCount, coneParticleGeometry, sacredOk,
@@ -9159,6 +9222,7 @@ public final class ForgeDevCheck {
 	private static void checkDemonRouteAndHellfireKnockback(ServerPlayer player) {
 		java.util.List<LivingEntity> cleanup = new java.util.ArrayList<>();
 		try {
+			Minecraft client = Minecraft.getInstance();
 			prepareBarePlayer(player);
 			resetDemonPactState(player);
 			player.getInventory().clearContent();
@@ -9202,22 +9266,69 @@ public final class ForgeDevCheck {
 			boolean vengefulNoKnockback =
 					target.getDeltaMovement().distanceToSqr(vengefulVelocity) < 1.0E-12D;
 
-			boolean routeHintTranslated = !Component.translatable(
-					"item.summy-reliquary.demon.route_required").getString().isBlank();
+			com.summy.reliquary.effect.HexSeal.clear();
+			Zombie hexSource = spawnTestZombie(player, 3.0D, 0.0D);
+			net.minecraft.world.entity.animal.Cow hexTarget =
+					spawnTestMobAt(player, 4.0D, EntityType.COW);
+			if (hexSource == null || hexTarget == null) {
+				throw new IllegalStateException("无法生成厄咒转移无击退测试目标");
+			}
+			cleanup.add(hexSource);
+			cleanup.add(hexTarget);
+			makeToughTestTarget(hexSource);
+			makeToughTestTarget(hexTarget);
+			hexSource.setNoAi(true);
+			hexTarget.setNoAi(true);
+			hexTarget.setHealth(100.0F);
+			com.summy.reliquary.effect.HexSeal.applyMarkForTest(
+					hexSource, player.getUUID(), 200);
+			com.summy.reliquary.effect.HexSeal.applyMarkForTest(
+					hexTarget, player.getUUID(), 200);
+			Vec3 hexVelocity = new Vec3(0.21D, -0.13D, 0.34D);
+			hexTarget.setDeltaMovement(hexVelocity);
+			float hexHealthBefore = hexTarget.getHealth();
+			LivingHurtEvent hexSourceHurt = new LivingHurtEvent(
+					hexSource, player.damageSources().playerAttack(player), 10.0F);
+			com.summy.reliquary.effect.HexSeal.onIncomingHurt(hexSourceHurt);
+			com.summy.reliquary.effect.HexSeal.tickServer(player.getServer());
+			boolean hexDamaged = hexTarget.getHealth() < hexHealthBefore - 1.0E-4F;
+			boolean hexNoKnockback =
+					hexTarget.getDeltaMovement().distanceToSqr(hexVelocity) < 1.0E-12D;
+
+			String zhLang = resourceText(client, SummyReliquary.NAMESPACE, "lang/zh_cn.json");
+			String enLang = resourceText(client, SummyReliquary.NAMESPACE, "lang/en_us.json");
+			boolean routeTexts = "你尚未与它达成交易".equals(translationValue(
+							zhLang, "item.summy-reliquary.demon.required"))
+					&& "你背离了你的契约".equals(translationValue(
+							zhLang, "item.summy-reliquary.demon.departed"))
+					&& "You have not made a deal with it yet".equals(translationValue(
+							enLang, "item.summy-reliquary.demon.required"))
+					&& "You have turned away from your contract".equals(translationValue(
+							enLang, "item.summy-reliquary.demon.departed"))
+					&& translationValue(zhLang,
+							"item.summy-reliquary.demon.route_required") == null
+					&& translationValue(enLang,
+							"item.summy-reliquary.demon.route_required") == null;
 			setCurrentRouteForTest(player, false, true, false);
 			boolean angelLocked = ReliquaryTooltips.demonRouteLocked(player)
 					&& !canEquipDemonRouteItems(player)
-					&& routeHintTranslated;
+					&& "item.summy-reliquary.demon.required".equals(
+							ReliquaryTooltips.demonRouteHintKey(player))
+					&& routeTexts;
 			setCurrentRouteForTest(player, false, false, false);
 			boolean neutralLocked = ReliquaryTooltips.demonRouteLocked(player)
-					&& !canEquipDemonRouteItems(player);
+					&& !canEquipDemonRouteItems(player)
+					&& "item.summy-reliquary.demon.required".equals(
+							ReliquaryTooltips.demonRouteHintKey(player));
 			setCurrentRouteForTest(player, false, true, true);
 			boolean sealedAngelLocked = ReliquaryTooltips.demonRouteLocked(player)
-					&& !canEquipDemonRouteItems(player);
+					&& !canEquipDemonRouteItems(player)
+					&& "item.summy-reliquary.demon.departed".equals(
+							ReliquaryTooltips.demonRouteHintKey(player));
 			setCurrentRouteForTest(player, true, false, true);
 			boolean demonUnlocked = !ReliquaryTooltips.demonRouteLocked(player)
 					&& canEquipDemonRouteItems(player)
-					&& routeHintTranslated;
+					&& routeTexts;
 
 			var halo = handler.getCurios().get(ReliquarySlots.HALO);
 			boolean crownMoved = false;
@@ -9237,18 +9348,21 @@ public final class ForgeDevCheck {
 			}
 
 			boolean allOk = stateDamaged && stateNoKnockback && vengefulDamaged
-					&& vengefulNoKnockback && angelLocked && neutralLocked
+					&& vengefulNoKnockback && hexDamaged && hexNoKnockback
+					&& angelLocked && neutralLocked
 					&& sealedAngelLocked && demonUnlocked && crownMoved && crownKept;
 			require("demon-route-hellfire", allOk);
-			log("狱火无击退 / 恶魔路线门禁：周期狱火伤害=" + stateDamaged
+			log("狱火 / 厄咒无击退与恶魔路线门禁：周期狱火伤害=" + stateDamaged
 					+ "、速度不变=" + stateNoKnockback
 					+ "；复仇之魂伤害=" + vengefulDamaged
 					+ "、速度不变=" + vengefulNoKnockback
+					+ "；厄咒转移伤害=" + hexDamaged
+					+ "、速度不变=" + hexNoKnockback
 					+ "；天使锁定=" + angelLocked
 					+ "、中立锁定=" + neutralLocked
 					+ "、前恶魔天使仍锁定=" + sealedAngelLocked
 					+ "、当前恶魔放行=" + demonUnlocked
-					+ "、路线提示双语键=" + routeHintTranslated
+					+ "、路线提示双语键=" + routeTexts
 					+ "、王冠卸回=" + crownMoved
 					+ "、物品保留=" + crownKept
 					+ " → " + allOk + "（应 true）");
@@ -9271,6 +9385,7 @@ public final class ForgeDevCheck {
 			resetDemonPactState(player);
 			com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, false);
 			com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+			com.summy.reliquary.effect.HexSeal.clear();
 			com.summy.reliquary.effect.AttributeManager.apply(player);
 		}
 	}

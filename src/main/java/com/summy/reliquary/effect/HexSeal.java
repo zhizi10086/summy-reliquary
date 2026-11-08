@@ -223,7 +223,8 @@ public final class HexSeal {
 				applyingTransfer = true;
 				try {
 					target.invulnerableTime = 0;
-					TrueDamageLimits.hurt(target, transferSource(ownerLevel, owner), (float) transfer.amount());
+					TrueDamageLimits.hurtWithoutKnockback(
+							target, transferSource(ownerLevel, owner), (float) transfer.amount());
 				} finally {
 					applyingTransfer = false;
 				}

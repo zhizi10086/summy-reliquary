@@ -218,8 +218,15 @@ public final class ReliquaryTooltips {
 
 	/** 当前非恶魔路线时追加的灰色提示行。 */
 	public static void appendDemonRouteHint(List<Component> tooltip) {
-		tooltip.add(Component.translatable("item.summy-reliquary.demon.route_required")
+		tooltip.add(Component.translatable(demonRouteHintKey(localPlayer()))
 				.withStyle(ChatFormatting.GRAY));
+	}
+
+	/** 非恶魔路线提示：从未签约沿用旧文本；签约后背离使用独立文本。 */
+	public static String demonRouteHintKey(LivingEntity entity) {
+		return com.summy.reliquary.effect.PlayerFlags.isDemonSealed(entity)
+				? "item.summy-reliquary.demon.departed"
+				: "item.summy-reliquary.demon.required";
 	}
 
 	/**

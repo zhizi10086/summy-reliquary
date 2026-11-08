@@ -15,15 +15,18 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Explosion;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.level.ExplosionEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -33,8 +36,12 @@ public final class DivineIntervention {
 	public static final String PROJECTILE_BOOST_TAG = "summy_reliquary_divine_intervention_boosts";
 	/** 旧配置可能仍是 8；只要描边未显式关闭，就按每格约 1.5 点保证屏障轮廓可见。 */
 	private static final double MIN_EDGE_PARTICLES_PER_BLOCK = 1.5D;
+	private static final int PROJECTILE_RECONCILE_TICKS = 20;
 	private static final List<Barrier> BARRIERS = new ArrayList<>();
-	private static final Map<UUID, Vec3> LAST_PROJECTILE_POS = new HashMap<>();
+	/** 只为有屏障的维度维护投射物 UUID，避免每 tick 扫描普通实体。 */
+	private static final Map<ServerLevel, ProjectileIndex> PROJECTILE_INDEXES = new HashMap<>();
+	private static int projectileSeedScans;
+	private static int projectileReconcileScans;
 
 	private DivineIntervention() {
 	}
@@ -62,6 +69,8 @@ public final class DivineIntervention {
 		BARRIERS.add(new Barrier(player.serverLevel(), player.getUUID(), center, normal, right, up,
 				halfWidth, height / 2.0D, player.serverLevel().getGameTime()
 						+ ReliquaryConfig.divineInterventionBarrierTicks()));
+		ensureProjectileIndex(player.serverLevel());
+		releaseUnusedProjectileIndexes();
 		return true;
 	}
 
@@ -104,34 +113,74 @@ public final class DivineIntervention {
 	public static void tickServer(MinecraftServer server) {
 		long now = server.overworld().getGameTime();
 		BARRIERS.removeIf(barrier -> barrier.endTick() < now);
+		releaseUnusedProjectileIndexes();
+		if (BARRIERS.isEmpty()) {
+			return;
+		}
+		Map<ServerLevel, List<Barrier>> barriersByLevel = new HashMap<>();
 		for (Barrier barrier : BARRIERS) {
+			barriersByLevel.computeIfAbsent(barrier.level(), ignored -> new ArrayList<>()).add(barrier);
 			drawEdges(barrier);
-			AABB area = barrier.bounds().inflate(8.0D);
-			for (Projectile projectile : barrier.level().getEntitiesOfClass(Projectile.class, area)) {
-				Vec3 previous = LAST_PROJECTILE_POS.put(projectile.getUUID(),
-						new Vec3(projectile.xo, projectile.yo, projectile.zo));
-				if (previous == null) {
+		}
+		for (Map.Entry<ServerLevel, List<Barrier>> entry : barriersByLevel.entrySet()) {
+			ServerLevel level = entry.getKey();
+			List<Barrier> barriers = entry.getValue();
+			ProjectileIndex index = ensureProjectileIndex(level);
+			if (now - index.lastReconcileTick >= PROJECTILE_RECONCILE_TICKS) {
+				reconcileProjectiles(level, index);
+			}
+			for (UUID projectileId : List.copyOf(index.projectileIds)) {
+				Entity entity = level.getEntity(projectileId);
+				if (!(entity instanceof Projectile projectile) || !projectile.isAlive()) {
+					index.projectileIds.remove(projectileId);
 					continue;
 				}
+				Vec3 previous = new Vec3(projectile.xo, projectile.yo, projectile.zo);
 				Vec3 current = projectile.position();
-				if (!crosses(barrier, previous, current)) {
-					continue;
-				}
-				Entity owner = projectile.getOwner();
-				if (owner instanceof net.minecraft.world.entity.player.Player) {
-					var data = projectile.getPersistentData();
-					data.putInt(PROJECTILE_BOOST_TAG, data.getInt(PROJECTILE_BOOST_TAG) + 1);
-					barrier.level().sendParticles(ParticleTypes.END_ROD, current.x, current.y, current.z,
-							12, 0.18D, 0.18D, 0.18D, 0.02D);
-				} else {
-					projectile.discard();
-					barrier.level().sendParticles(ParticleTypes.END_ROD, current.x, current.y, current.z,
-							20, 0.25D, 0.25D, 0.25D, 0.04D);
+				for (Barrier barrier : barriers) {
+					if (!crosses(barrier, previous, current)) {
+						continue;
+					}
+					Entity owner = projectile.getOwner();
+					if (owner instanceof net.minecraft.world.entity.player.Player) {
+						var data = projectile.getPersistentData();
+						data.putInt(PROJECTILE_BOOST_TAG, data.getInt(PROJECTILE_BOOST_TAG) + 1);
+						level.sendParticles(ParticleTypes.END_ROD, current.x, current.y, current.z,
+								12, 0.18D, 0.18D, 0.18D, 0.02D);
+					} else {
+						projectile.discard();
+						index.projectileIds.remove(projectileId);
+						level.sendParticles(ParticleTypes.END_ROD, current.x, current.y, current.z,
+								20, 0.25D, 0.25D, 0.25D, 0.04D);
+						break;
+					}
 				}
 			}
 		}
-		LAST_PROJECTILE_POS.keySet().removeIf(id -> BARRIERS.stream()
-				.noneMatch(barrier -> barrier.level().getEntity(id) != null));
+	}
+
+	/** 投射物加入世界：只有该维度已有屏障索引时才登记。 */
+	public static void onProjectileJoin(EntityJoinLevelEvent event) {
+		if (event.getLevel().isClientSide() || !(event.getLevel() instanceof ServerLevel level)
+				|| !(event.getEntity() instanceof Projectile projectile)) {
+			return;
+		}
+		ProjectileIndex index = PROJECTILE_INDEXES.get(level);
+		if (index != null) {
+			index.projectileIds.add(projectile.getUUID());
+		}
+	}
+
+	/** 投射物离开世界：立即从索引删除，避免等待低频对账。 */
+	public static void onProjectileLeave(EntityLeaveLevelEvent event) {
+		if (event.getLevel().isClientSide() || !(event.getLevel() instanceof ServerLevel level)
+				|| !(event.getEntity() instanceof Projectile projectile)) {
+			return;
+		}
+		ProjectileIndex index = PROJECTILE_INDEXES.get(level);
+		if (index != null) {
+			index.projectileIds.remove(projectile.getUUID());
+		}
 	}
 
 	/** 爆炸中心到方块 / 实体中心的射线被任一屏障截断时，该目标不再受影响。 */
@@ -149,13 +198,69 @@ public final class DivineIntervention {
 	public static void forget(ServerPlayer player) {
 		if (player != null) {
 			BARRIERS.removeIf(barrier -> barrier.owner().equals(player.getUUID()));
-			LAST_PROJECTILE_POS.remove(player.getUUID());
+			releaseUnusedProjectileIndexes();
 		}
 	}
 
 	public static void clear() {
 		BARRIERS.clear();
-		LAST_PROJECTILE_POS.clear();
+		PROJECTILE_INDEXES.clear();
+		projectileSeedScans = 0;
+		projectileReconcileScans = 0;
+	}
+
+	private static ProjectileIndex ensureProjectileIndex(ServerLevel level) {
+		ProjectileIndex existing = PROJECTILE_INDEXES.get(level);
+		if (existing != null) {
+			return existing;
+		}
+		ProjectileIndex index = new ProjectileIndex(level.getGameTime());
+		PROJECTILE_INDEXES.put(level, index);
+		projectileSeedScans++;
+		for (Entity entity : level.getAllEntities()) {
+			if (entity instanceof Projectile projectile && projectile.isAlive()) {
+				index.projectileIds.add(projectile.getUUID());
+			}
+		}
+		return index;
+	}
+
+	private static void reconcileProjectiles(ServerLevel level, ProjectileIndex index) {
+		projectileReconcileScans++;
+		index.lastReconcileTick = level.getGameTime();
+		Set<UUID> found = new HashSet<>();
+		for (Entity entity : level.getAllEntities()) {
+			if (entity instanceof Projectile projectile && projectile.isAlive()) {
+				found.add(projectile.getUUID());
+			}
+		}
+		index.projectileIds.retainAll(found);
+		index.projectileIds.addAll(found);
+	}
+
+	private static void releaseUnusedProjectileIndexes() {
+		PROJECTILE_INDEXES.keySet().removeIf(level -> BARRIERS.stream()
+				.noneMatch(barrier -> barrier.level() == level));
+	}
+
+	public static int indexedProjectileCountForTest(ServerLevel level) {
+		ProjectileIndex index = PROJECTILE_INDEXES.get(level);
+		return index == null ? 0 : index.projectileIds.size();
+	}
+
+	public static int projectileSeedScanCountForTest() {
+		return projectileSeedScans;
+	}
+
+	public static int projectileReconcileScanCountForTest() {
+		return projectileReconcileScans;
+	}
+
+	public static void reconcileProjectileIndexForTest(ServerLevel level) {
+		ProjectileIndex index = PROJECTILE_INDEXES.get(level);
+		if (index != null) {
+			reconcileProjectiles(level, index);
+		}
 	}
 
 	public static int barrierCount() {
@@ -306,16 +411,14 @@ public final class DivineIntervention {
 
 	private record Barrier(ServerLevel level, UUID owner, Vec3 center, Vec3 normal, Vec3 right, Vec3 up,
 			double halfWidth, double halfHeight, long endTick) {
-		private AABB bounds() {
-			double width = halfWidth;
-			double height = halfHeight;
-			return new AABB(
-					center.x - Math.abs(right.x) * width - Math.abs(up.x) * height,
-					center.y - Math.abs(right.y) * width - Math.abs(up.y) * height,
-					center.z - Math.abs(right.z) * width - Math.abs(up.z) * height,
-					center.x + Math.abs(right.x) * width + Math.abs(up.x) * height,
-					center.y + Math.abs(right.y) * width + Math.abs(up.y) * height,
-					center.z + Math.abs(right.z) * width + Math.abs(up.z) * height);
+	}
+
+	private static final class ProjectileIndex {
+		private final Set<UUID> projectileIds = new HashSet<>();
+		private long lastReconcileTick;
+
+		private ProjectileIndex(long lastReconcileTick) {
+			this.lastReconcileTick = lastReconcileTick;
 		}
 	}
 }
