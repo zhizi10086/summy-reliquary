@@ -43,8 +43,11 @@ import top.theillusivec4.curios.api.CuriosApi;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -121,6 +124,10 @@ public final class DemonPact {
 	private static final Map<UUID, Integer> BLACK_HEART_REFILL = new HashMap<>();
 	/** 2.13：黑心池破裂后的无敌截止 gameTime */
 	private static final Map<UUID, Long> GUARD_UNTIL = new HashMap<>();
+	/** 本次登录是否已经输出过契约吸血成功诊断 */
+	private static final Set<UUID> LIFESTEAL_LOGGED = new HashSet<>();
+	/** 自检用：累计输出过多少条首次吸血诊断 */
+	private static int lifestealLogCount = 0;
 
 	private DemonPact() {
 	}
@@ -355,6 +362,43 @@ public final class DemonPact {
 				* ReliquaryConfig.pactLifestealPerExtraCursePercent();
 		double raw = ReliquaryConfig.pactLifestealPercent() + growth;
 		return Math.max(0.0D, Math.min(ReliquaryConfig.pactLifestealCapPercent(), raw));
+	}
+
+	/**
+	 * 结算一次契约吸血，并在每次登录首次真实回血时输出诊断。
+	 *
+	 * <p>满血、治疗被完全压制或目标无效时都会保持静默，也不会消费本登录的日志机会。
+	 */
+	public static float applyLifesteal(ServerPlayer attacker, LivingEntity target, float eventAmount) {
+		if (attacker == null || target == null || attacker == target || eventAmount <= 0.0F
+				|| !lifestealActive(attacker)) {
+			return 0.0F;
+		}
+		double percent = lifestealPercent(attacker);
+		float requested = eventAmount * (float) (percent / 100.0D);
+		float before = attacker.getHealth();
+		attacker.heal(requested);
+		float actual = Math.max(0.0F, attacker.getHealth() - before);
+		if (actual <= 1.0E-4F || !LIFESTEAL_LOGGED.add(attacker.getUUID())) {
+			return actual;
+		}
+		lifestealLogCount++;
+		SummyReliquary.LOGGER.info(
+				"[Summy Reliquary] 契约吸血：玩家={}、目标={}、事件伤害={}、比例={}%、生命 {} → {}、"
+						+ "请求回血={}、实际回血={}",
+				attacker.getName().getString(),
+				target.getName().getString(),
+				formatCombatNumber(eventAmount),
+				formatCombatNumber(percent),
+				formatCombatNumber(before),
+				formatCombatNumber(attacker.getHealth()),
+				formatCombatNumber(requested),
+				formatCombatNumber(actual));
+		return actual;
+	}
+
+	private static String formatCombatNumber(double value) {
+		return String.format(Locale.ROOT, "%.2f", value);
 	}
 
 	// ==================== 动态栏位 / 契约生命周期 ====================
@@ -1326,6 +1370,30 @@ public final class DemonPact {
 		}
 	}
 
+	/** 玩家登录：开启本次登录的首次吸血诊断机会。 */
+	public static void onLoggedIn(ServerPlayer player) {
+		if (player != null) {
+			LIFESTEAL_LOGGED.remove(player.getUUID());
+		}
+	}
+
+	/** 玩家退出：释放登录期诊断状态；死亡重建不会调用此入口。 */
+	public static void onLoggedOut(ServerPlayer player) {
+		if (player != null) {
+			LIFESTEAL_LOGGED.remove(player.getUUID());
+		}
+	}
+
+	/** 自检用：已经输出的首次吸血诊断总数。 */
+	public static int lifestealLogCountForTest() {
+		return lifestealLogCount;
+	}
+
+	/** 自检用：本登录是否已经输出过首次吸血诊断。 */
+	public static boolean lifestealLogConsumedForTest(ServerPlayer player) {
+		return player != null && LIFESTEAL_LOGGED.contains(player.getUUID());
+	}
+
 	/** 自检用：黑心补满计时还剩多少秒（没在计时返回 -1） */
 	public static int blackHeartRefillRemainingForTest(ServerPlayer player) {
 		return BLACK_HEART_REFILL.getOrDefault(player.getUUID(), -1);
@@ -1337,6 +1405,8 @@ public final class DemonPact {
 		applyingShatter = false;
 		BLACK_HEART_REFILL.clear();
 		GUARD_UNTIL.clear();
+		LIFESTEAL_LOGGED.clear();
+		lifestealLogCount = 0;
 	}
 
 	/** 自检用：清掉黑心破裂无敌（不影响池子与计时） */

@@ -51,6 +51,8 @@ import top.theillusivec4.curios.api.SlotContext;
 import top.theillusivec4.curios.api.type.capability.ICuriosItemHandler;
 
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -108,6 +110,8 @@ public final class ForgeDevCheck {
 	private static float trueDamageCapAmount = 5.0F;
 	/** 2.0 自检：临时拒绝启示之光与恶魔印记的视觉状态，内部标记仍应写入。 */
 	private static boolean suppressMarkerVisualsForTest = false;
+	/** 本轮自检失败的独立断言，结束时用于阻止“失败但正常退出”。 */
+	private static final Set<String> failedChecks = new HashSet<>();
 
 	/** 光环观感截图用的头部姿态：{偏航角, 俯仰角} */
 	private static final float[][] HALO_POSES = {
@@ -670,8 +674,15 @@ public final class ForgeDevCheck {
 		// 尾巴留够时间：1.5.2 的服务端用例排到 2005 tick，客户端 tick 计数会略微领先服务端
 		// 1.8.2：用例号已排到 2248，原来 1500 的余量只剩约 30 tick，稍慢一点就会被提前掐断 → 放宽到 2500
 		if (clientTick > POSE_START_TICK + HALO_POSES.length * POSE_INTERVAL + 2500) {
-			log("===== 自检结束 =====");
+			if (failedChecks.isEmpty()) {
+				log("===== 自检结束（失败断言=0） =====");
+			} else {
+				log("===== 自检结束（失败断言=" + failedChecks.size() + "：" + failedChecks + "） =====");
+			}
 			client.stop();
+			if (!failedChecks.isEmpty()) {
+				System.exit(1);
+			}
 		}
 	}
 
@@ -1072,6 +1083,13 @@ public final class ForgeDevCheck {
 
 	private static void log(String message) {
 		System.out.println("[DEVCHECK] " + message);
+	}
+
+	/** 记录本轮新增的硬断言；失败时会阻止 devcheck 以成功状态退出。 */
+	private static void require(String name, boolean ok) {
+		if (!ok && failedChecks.add(name)) {
+			log("[DEVCHECK][FAIL] " + name);
+		}
 	}
 
 	// ==================== 1.1.0 新增内容的自检 ====================
@@ -8960,12 +8978,20 @@ public final class ForgeDevCheck {
 			boolean lifestealActiveAtEvent = com.summy.reliquary.effect.DemonPact.lifestealActive(player);
 			float deathMultiplier = com.summy.reliquary.effect.LifeDeath.outgoingMultiplier(player);
 			player.setAbsorptionAmount(0.0F);
-			player.setHealth(Math.min(5.0F, player.getMaxHealth()));
 			Zombie target = spawnTestZombie(player, 3.0D, 0.0D);
 			if (target == null) {
 				throw new IllegalStateException("无法生成契约吸血测试目标");
 			}
 			cleanup.add(target);
+			com.summy.reliquary.effect.DemonPact.onLoggedIn(player);
+			int lifestealLogsBefore = com.summy.reliquary.effect.DemonPact.lifestealLogCountForTest();
+			player.setHealth(player.getMaxHealth());
+			com.summy.reliquary.ReliquaryEvents.onLivingHurt(new LivingHurtEvent(
+					target, player.damageSources().playerAttack(player), 10.0F));
+			boolean fullHealthNoLog = com.summy.reliquary.effect.DemonPact
+					.lifestealLogCountForTest() == lifestealLogsBefore
+					&& !com.summy.reliquary.effect.DemonPact.lifestealLogConsumedForTest(player);
+			player.setHealth(Math.min(5.0F, player.getMaxHealth()));
 			float healthBefore = player.getHealth();
 			LivingHurtEvent pactHurt = new LivingHurtEvent(
 					target, player.damageSources().playerAttack(player), 10.0F);
@@ -8973,11 +8999,20 @@ public final class ForgeDevCheck {
 			float healed = player.getHealth() - healthBefore;
 			float expectedHeal = pactHurt.getAmount()
 					* (float) (com.summy.reliquary.effect.DemonPact.lifestealPercent(player) / 100.0D);
+			boolean firstLifestealLog = com.summy.reliquary.effect.DemonPact
+					.lifestealLogCountForTest() == lifestealLogsBefore + 1
+					&& com.summy.reliquary.effect.DemonPact.lifestealLogConsumedForTest(player);
+			player.setHealth(Math.min(5.0F, player.getMaxHealth()));
+			com.summy.reliquary.ReliquaryEvents.onLivingHurt(new LivingHurtEvent(
+					target, player.damageSources().playerAttack(player), 10.0F));
+			boolean secondLifestealSilent = com.summy.reliquary.effect.DemonPact
+					.lifestealLogCountForTest() == lifestealLogsBefore + 1;
 			boolean eventPoint = deathFormWorn && pactActiveAtEvent && realCursesAtEvent >= 3
 					&& lifestealActiveAtEvent
 					&& deathMultiplier >= 1.99F
 					&& close(healed, expectedHeal, 0.02D)
-					&& close(com.summy.reliquary.effect.DemonPact.lifestealPercent(player), 9.5D);
+					&& close(com.summy.reliquary.effect.DemonPact.lifestealPercent(player), 9.5D)
+					&& fullHealthNoLog && firstLifestealLog && secondLifestealSilent;
 
 			com.summy.reliquary.effect.PlayerFlags.setDeathForm(player, 0L, 0);
 			var damageRegistry = player.serverLevel().registryAccess()
@@ -9010,7 +9045,9 @@ public final class ForgeDevCheck {
 					&& java.util.Arrays.stream(pages).allMatch(groups::containsKey);
 			int checkedLines = 0;
 			int placeholderMismatch = 0;
+			int numericSpacingMismatch = 0;
 			StringBuilder technical = new StringBuilder();
+			StringBuilder numericSpacingKeys = new StringBuilder();
 			for (int pageIndex = 0; pageIndex < pages.length; pageIndex++) {
 				for (int line = 1; line <= expectedPages[pageIndex]; line++) {
 					String key = "jei.summy-reliquary." + pages[pageIndex] + "." + line;
@@ -9026,6 +9063,10 @@ public final class ForgeDevCheck {
 								technical.append(forbidden).append(' ');
 							}
 						}
+						if (hasChineseNumberBreakSpace(zh)) {
+							numericSpacingMismatch++;
+							numericSpacingKeys.append(key).append(' ');
+						}
 					}
 					checkedLines++;
 				}
@@ -9035,11 +9076,12 @@ public final class ForgeDevCheck {
 			boolean shiftText = placeholderCount(zhPact, "%s") == 3
 					&& placeholderCount(enPact, "%s") == 3;
 			boolean jei = mapping && checkedLines == 51 && placeholderMismatch == 0
-					&& technical.length() == 0 && shiftText;
+					&& numericSpacingMismatch == 0 && technical.length() == 0 && shiftText;
 
 			boolean allOk = countMatrix && growthMatrix && twoRealLocked
 					&& threeRealUnlocked && sourcePrecedence && config && eventPoint
 					&& exactExcluded && canceledExcluded && jei;
+			require("pact-jei", allOk);
 			log("恶魔契约诅咒成长：六装备+功能栏真实诅咒=" + realCurses + "（应 14）、"
 					+ "2真实+7成长不激活=" + twoRealLocked + "、3真实后有效=10/吸血="
 					+ String.format(java.util.Locale.ROOT, "%.1f%%", com.summy.reliquary.effect.DemonPact
@@ -9058,10 +9100,15 @@ public final class ForgeDevCheck {
 					+ String.format(java.util.Locale.ROOT, "%.2f", pactHurt.getAmount())
 					+ "、回血=" + String.format(java.util.Locale.ROOT, "%.2f", healed)
 					+ "（应 " + String.format(java.util.Locale.ROOT, "%.2f", expectedHeal) + "）、"
-					+ "定值真伤排除=" + exactExcluded + "、取消事件排除=" + canceledExcluded);
+					+ "满血不记录=" + fullHealthNoLog + "、首次记录=" + firstLifestealLog
+					+ "、后续静默=" + secondLifestealSilent
+					+ "、定值真伤排除=" + exactExcluded + "、取消事件排除=" + canceledExcluded);
 			log("契约 JEI 信息页：页面=" + groups.size() + "（应 11）、绑定物品=" + mappedItems
 					+ "（应 22）、检查行=" + checkedLines + "（应 51）、占位符不一致="
-					+ placeholderMismatch + "（应 0）、技术词="
+					+ placeholderMismatch + "（应 0）、数字断行空格="
+					+ numericSpacingMismatch + "（应 0"
+					+ (numericSpacingKeys.length() == 0 ? "" : "：" + numericSpacingKeys.toString().trim())
+					+ "）、技术词="
 					+ (technical.length() == 0 ? "无" : technical.toString().trim())
 					+ "、契约 Shift 三参数=" + shiftText);
 			log("恶魔契约与 JEI 汇总=" + allOk + "（应 true）");
@@ -9136,6 +9183,15 @@ public final class ForgeDevCheck {
 			index += token.length();
 		}
 		return count;
+	}
+
+	/** 中文信息页不允许数字 / 占位符与量词、单位、百分号或标点之间出现普通可断行空格。 */
+	private static boolean hasChineseNumberBreakSpace(String text) {
+		if (text == null) {
+			return false;
+		}
+		return text.matches(".*(?:%s|\\d+(?:\\.\\d+)?%?)\\s+(?:[\\p{IsHan}，。；：、「」]|%|\\+).*")
+				|| text.matches(".*(?:[\\p{IsHan}，。；：、「」]|%|\\+)\\s+(?:%s|\\d).*");
 	}
 
 	private static boolean close(double left, double right) {
@@ -10298,6 +10354,24 @@ public final class ForgeDevCheck {
 	 */
 	private static void checkIframeWindows(ServerPlayer player) {
 		var previousGameMode = player.gameMode.getGameModeForPlayer();
+		// 连恶魔标记也先复位；否则火焰伤害会在 SR 的恶魔火焰免疫步骤被取消。
+		resetDemonPactState(player);
+		player.getInventory().clearContent();
+		CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+			for (var stacksHandler : handler.getCurios().values()) {
+				for (int index = 0; index < stacksHandler.getSlots(); index++) {
+					stacksHandler.getStacks().setStackInSlot(index, ItemStack.EMPTY);
+				}
+				for (int index = 0; index < stacksHandler.getCosmeticStacks().getSlots(); index++) {
+					stacksHandler.getCosmeticStacks().setStackInSlot(index, ItemStack.EMPTY);
+				}
+			}
+		});
+		// 先清空黑心碎裂、魂心、神性、亚巴顿与免死留下的保护；否则伤害会在
+		// CombatTuning.applyWindow 之前就被取消，字段保持 0。
+		prepareBarePlayer(player);
+		player.getAbilities().invulnerable = false;
+		player.onUpdateAbilities();
 		player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
 		player.setInvulnerable(false);
 		player.setAbsorptionAmount(0.0F);
@@ -10323,6 +10397,32 @@ public final class ForgeDevCheck {
 
 		int genericWindow = com.summy.reliquary.config.ReliquaryConfig.invulnerabilityTicks();
 		int frameWindow = com.summy.reliquary.config.ReliquaryConfig.invulnerabilityTicksFrameDamage();
+
+		// ⓪ 绕过复杂伤害管线，直接验证窗口改写函数本身。
+		com.summy.reliquary.effect.CombatTuning.onLoggedIn(player);
+		int windowLogsBefore = com.summy.reliquary.effect.CombatTuning.windowLogCountForTest();
+		player.invulnerableTime = 20;
+		var directGeneric = player.damageSources().generic();
+		com.summy.reliquary.effect.CombatTuning.applyWindow(
+				new LivingHurtEvent(player, directGeneric, 1.0F));
+		int directGenericField = player.invulnerableTime;
+		player.invulnerableTime = 20;
+		var directFrame = player.damageSources().inFire();
+		com.summy.reliquary.effect.CombatTuning.applyWindow(
+				new LivingHurtEvent(player, directFrame, 1.0F));
+		int directFrameField = player.invulnerableTime;
+		player.invulnerableTime = 20;
+		com.summy.reliquary.effect.CombatTuning.applyWindow(
+				new LivingHurtEvent(player, directGeneric, 1.0F));
+		int windowLogsAfterRepeat = com.summy.reliquary.effect.CombatTuning.windowLogCountForTest();
+		boolean directWindowOk = genericWindow == 5 && frameWindow == 10
+				&& directGenericField == genericWindow + 10
+				&& directFrameField == frameWindow + 10
+				&& windowLogsAfterRepeat == windowLogsBefore + 2
+				&& com.summy.reliquary.effect.CombatTuning.windowLoggedForTest(
+						player, directGeneric, genericWindow)
+				&& com.summy.reliquary.effect.CombatTuning.windowLoggedForTest(
+						player, directFrame, frameWindow);
 
 		// ① 一般伤害：字段应被改写成 窗口 + 10
 		player.invulnerableTime = 0;
@@ -10370,13 +10470,28 @@ public final class ForgeDevCheck {
 				&& !com.summy.reliquary.effect.CombatTuning.isFrameDamage(sources.generic())
 				&& !com.summy.reliquary.effect.CombatTuning.isFrameDamage(sources.magic());
 		boolean extraIdsEmpty = com.summy.reliquary.config.ReliquaryConfig.frameDamageIds().isEmpty();
+		boolean iframeOk = directWindowOk
+				&& genericField == genericWindow + 10
+				&& frameField == frameWindow + 10
+				&& genericLandings == 6
+				&& frameLandings == 3
+				&& close(mainDealt, 2.0D, 1.0E-4D)
+				&& close(extraDealt, 3.0D, 1.0E-4D)
+				&& close(diffDealt, 3.0D, 1.0E-4D)
+				&& frameSet
+				&& extraIdsEmpty;
 
-		log(String.format("无敌帧（1.6.3 原版逻辑 + 两档窗口）：一般字段=%d（应 %d = %d+10）、帧伤字段=%d"
+		log(String.format("无敌帧（1.6.3 原版逻辑 + 两档窗口）：直测字段=%d/%d（应 %d/%d）、"
+						+ "一次性窗口日志=%d（应 2）、一般字段=%d（应 %d = %d+10）、帧伤字段=%d"
 						+ "（应 %d = %d+10）、30 tick 内落地 一般=%d 次（应 6 = 每 5 tick）、帧伤=%d 次（应 3 = 每 10 tick）、"
 						+ "SE 主击=%.1f / 追加段=%.1f（都应落地：2.0 / 3.0）、窗口内更大一击只结算差值=%.1f（应 3.0）、"
-						+ "帧伤集合识别=%s（应 true）、frame_damage_ids 默认空=%s（应 true）",
+						+ "帧伤集合识别=%s（应 true）、frame_damage_ids 默认空=%s（应 true）→ iframeOk=%s（应 true）",
+				directGenericField, directFrameField, genericWindow + 10, frameWindow + 10,
+				windowLogsAfterRepeat - windowLogsBefore,
 				genericField, genericWindow + 10, genericWindow, frameField, frameWindow + 10, frameWindow,
-				genericLandings, frameLandings, mainDealt, extraDealt, diffDealt, frameSet, extraIdsEmpty));
+				genericLandings, frameLandings, mainDealt, extraDealt, diffDealt, frameSet, extraIdsEmpty,
+				iframeOk));
+		require("iframe-window", iframeOk);
 
 		player.invulnerableTime = 0;
 		player.setHealth(player.getMaxHealth());

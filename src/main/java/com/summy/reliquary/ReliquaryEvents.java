@@ -556,11 +556,13 @@ public final class ReliquaryEvents {
 			com.summy.reliquary.effect.BloodDebtAltar.forget(player);
 			com.summy.reliquary.effect.HexSeal.removeOwner(player);
 			com.summy.reliquary.effect.CombatTuning.forget(player);
+			com.summy.reliquary.effect.CombatTuning.onLoggedOut(player);
 			// 1.6.4：还原可能残留的"临时并入吸收值"，并清掉挂起记录
 			com.summy.reliquary.effect.DamagePools.forget(player);
 			com.summy.reliquary.effect.Abaddon.forget(player);
 			com.summy.reliquary.effect.Godhead.forget(player);
 			com.summy.reliquary.effect.Sacrifice.forget(player);
+			com.summy.reliquary.effect.DemonPact.onLoggedOut(player);
 			RevelationAscension.forget(player);
 			RevelationBeam.forget(player);
 			AttributeManager.forget(player);
@@ -599,6 +601,9 @@ public final class ReliquaryEvents {
 			SoulShield.onJoin(player);
 			// 1.6.9：黑心补满口径与魂心对齐（戴撒旦圣经且池子空了就补满）
 			com.summy.reliquary.effect.DemonPact.onJoin(player);
+			// 每次登录重新开放吸血与受伤窗口的低噪声诊断。
+			com.summy.reliquary.effect.DemonPact.onLoggedIn(player);
+			com.summy.reliquary.effect.CombatTuning.onLoggedIn(player);
 			// 老存档自愈：过期存档里可能已有纯洁之人 / 无罪之人，但没有对应的标记
 			SinChallenges.selfHeal(player);
 			com.summy.reliquary.effect.VirtuesEffects.tickPlayer(player);
@@ -947,8 +952,8 @@ public final class ReliquaryEvents {
 				&& event.getSource().getEntity() instanceof ServerPlayer pactAttacker
 				&& pactAttacker != event.getEntity()
 				&& com.summy.reliquary.effect.DemonPact.lifestealActive(pactAttacker)) {
-			pactAttacker.heal(event.getAmount()
-					* (float) (com.summy.reliquary.effect.DemonPact.lifestealPercent(pactAttacker) / 100.0D));
+			com.summy.reliquary.effect.DemonPact.applyLifesteal(
+					pactAttacker, event.getEntity(), event.getAmount());
 		}
 		// 七罪：受害者是本模组玩家时的受伤增加与色欲受击脱甲
 		// 1.8.2：献祭的自伤不触发傲慢放大与色欲脱甲

@@ -9,7 +9,9 @@ import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,6 +36,10 @@ public final class CombatTuning {
 	private static final Map<UUID, Integer> FABRIC_WINDOW = new HashMap<>();
 	/** 1.8.6：Fabric 侧（Kilt）要"命中后清帧"的受害者（tick 末尾清零） */
 	private static final java.util.Set<UUID> FABRIC_CLEAR = new java.util.HashSet<>();
+	/** 本次登录已经记录过的“来源 + 窗口”组合，避免每次命中都刷窗口日志。 */
+	private static final Map<UUID, Set<String>> LOGGED_WINDOWS = new HashMap<>();
+	/** 自检用：累计输出过多少条窗口诊断。 */
+	private static int windowLogCount = 0;
 	/** 自检用：在 Forge 上强制按 Fabric 侧处理 */
 	private static boolean fabricForTest = false;
 
@@ -129,8 +135,26 @@ public final class CombatTuning {
 		}
 		// 只有"新的一击"（原版刚写成 20）才改写窗口；差值命中保持原版的递减，不额外刷新
 		if (entity.invulnerableTime >= VANILLA_FRESH) {
+			int before = entity.invulnerableTime;
 			entity.invulnerableTime = window + VANILLA_GATE;
+			if (entity instanceof ServerPlayer player) {
+				logAppliedWindow(player, source, before, entity.invulnerableTime, window);
+			}
 		}
+	}
+
+	private static void logAppliedWindow(ServerPlayer player, DamageSource source, int before, int after,
+			int effectiveWindow) {
+		String sourceId = source.getMsgId();
+		String key = sourceId + "|" + effectiveWindow;
+		Set<String> logged = LOGGED_WINDOWS.computeIfAbsent(player.getUUID(), ignored -> new HashSet<>());
+		if (!logged.add(key)) {
+			return;
+		}
+		windowLogCount++;
+		com.summy.reliquary.SummyReliquary.LOGGER.info(
+				"[Summy Reliquary] 受伤窗口：玩家={}、来源={}、字段 {} → {}、有效窗口={} tick",
+				player.getName().getString(), sourceId, before, after, effectiveWindow);
 	}
 
 	/**
@@ -265,8 +289,39 @@ public final class CombatTuning {
 		}
 	}
 
+	/** 登录：重新开放每个伤害来源的首条窗口诊断。 */
+	public static void onLoggedIn(ServerPlayer player) {
+		if (player != null) {
+			LOGGED_WINDOWS.remove(player.getUUID());
+		}
+	}
+
+	/** 退出：只释放登录期状态；死亡重建和换维度不会经过此入口。 */
+	public static void onLoggedOut(ServerPlayer player) {
+		if (player != null) {
+			LOGGED_WINDOWS.remove(player.getUUID());
+		}
+	}
+
+	/** 自检用：已经输出的窗口诊断总数。 */
+	public static int windowLogCountForTest() {
+		return windowLogCount;
+	}
+
+	/** 自检用：某来源与有效窗口组合是否已经输出过。 */
+	public static boolean windowLoggedForTest(ServerPlayer player, DamageSource source, int effectiveWindow) {
+		if (player == null || source == null) {
+			return false;
+		}
+		Set<String> logged = LOGGED_WINDOWS.get(player.getUUID());
+		return logged != null && logged.contains(source.getMsgId() + "|" + effectiveWindow);
+	}
+
 	public static void clear() {
 		STATS.clear();
 		FABRIC_WINDOW.clear();
+		FABRIC_CLEAR.clear();
+		LOGGED_WINDOWS.clear();
+		windowLogCount = 0;
 	}
 }
