@@ -375,6 +375,9 @@ public final class ReliquaryCommand {
 			return playerOnly(context);
 		}
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, value);
+		if (value) {
+			com.summy.reliquary.effect.DemonPact.unequipNonDemonRouteEquipment(player);
+		}
 		applyChanges(player);
 		post(context, Component.translatable(value
 				? "message.summy-reliquary.angel.granted"

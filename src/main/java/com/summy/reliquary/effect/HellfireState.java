@@ -111,7 +111,7 @@ public final class HellfireState {
 		}
 		TimedMarkerState.markDemonicBrand(target);
 		target.invulnerableTime = 0;
-		TrueDamageLimits.hurt(target, hellfireSource(serverLevel), (float) damage);
+		TrueDamageLimits.hurtWithoutKnockback(target, hellfireSource(serverLevel), (float) damage);
 	}
 
 	public static boolean removeOneStack(LivingEntity target) {

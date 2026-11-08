@@ -199,6 +199,30 @@ public final class ReliquaryTooltips {
 	}
 
 	/**
+	 * 当前是否不在恶魔阵营。
+	 *
+	 * <p>与仪式法袍的“是否曾经签约”不同：契约、撒旦圣经和恶魔王冠只认当前恶魔标记，
+	 * 转回天使线或处于中立后即使保留签约历史也会重新锁定。
+	 */
+	public static boolean demonRouteLocked(LivingEntity entity) {
+		if (entity == null) {
+			return false;
+		}
+		return !com.summy.reliquary.effect.PlayerFlags.isDemon(entity);
+	}
+
+	/** 本地玩家的当前恶魔路线门禁。 */
+	public static boolean demonRouteLocked() {
+		return demonRouteLocked(localPlayer());
+	}
+
+	/** 当前非恶魔路线时追加的灰色提示行。 */
+	public static void appendDemonRouteHint(List<Component> tooltip) {
+		tooltip.add(Component.translatable("item.summy-reliquary.demon.route_required")
+				.withStyle(ChatFormatting.GRAY));
+	}
+
+	/**
 	 * 「恶魔线饰品」的锁定判定（1.6.2）：需要**恶魔标记**且该里程碑**已解锁**。
 	 *
 	 * <p>复仇之魂 / 咒印用它：没拿到标记时不能佩戴、也查不到功能描述。服务端返回 false。

@@ -209,10 +209,11 @@ public class ActOfContritionItem extends Item {
 		//   ① 魂印栏的撒旦圣经被没收（快照缺失时换成七罪之源，保证它不会留在原位）；
 		//   ② 666 之前可得的恶魔线饰品一律没收（契约已在上面收回）；
 		//   ③ 666 之后才解锁的（硫磺火 / 魔眼 / 深渊领主 / 亚巴顿）只摘除不删除；
-		//   ④ 恶魔王冠按需求不没收、不摘除（留作纪念）。
+		//   ④ 恶魔王冠不没收，但非恶魔路线统一从 Curios 卸回背包（留作纪念）。
 		com.summy.reliquary.effect.DemonPact.confiscateSatanicBible(player);
 		com.summy.reliquary.effect.DemonPact.confiscateDemonRelics(player);
 		com.summy.reliquary.effect.DemonPact.unequipHighDemonRelics(player);
+		com.summy.reliquary.effect.DemonPact.unequipNonDemonRouteEquipment(player);
 		// 1.6.2：清掉「6」的掉落记录 —— 忏悔后三类 Boss 可以再各掉一次
 		com.summy.reliquary.effect.PlayerFlags.clearSixDrops(player);
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);

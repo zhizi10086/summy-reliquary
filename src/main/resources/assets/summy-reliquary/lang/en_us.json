@@ -294,6 +294,7 @@
   "item.summy-reliquary.ceremonial_robes.shift.3": "Daily evil decay|reduced to %s",
   "item.summy-reliquary.demon.required": "You have not made a deal with it yet",
   "item.summy-reliquary.demon.not_ready": "Your contract is not deep enough yet",
+  "item.summy-reliquary.demon.route_required": "You are not currently on the demonic path",
   "item.summy-reliquary.vengeful_spirit.tagline.1": "One insignificant wisp among endless vengeful souls",
   "item.summy-reliquary.vengeful_spirit.tagline.2": "It only wants to burn everything",
   "item.summy-reliquary.vengeful_spirit.shift.1": "Hellfire damage|Enemies within %s blocks take %s damage per second",

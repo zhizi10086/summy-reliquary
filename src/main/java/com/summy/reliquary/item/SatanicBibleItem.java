@@ -42,7 +42,8 @@ public class SatanicBibleItem extends Item implements ICurioItem {
 
 	@Override
 	public boolean canEquip(SlotContext slotContext, ItemStack stack) {
-		return CurioItemSupport.canEquipInto(slotContext, stack, ReliquarySlots.SOUL_SEAL);
+		return CurioItemSupport.canEquipInto(slotContext, stack, ReliquarySlots.SOUL_SEAL, false,
+				com.summy.reliquary.effect.PlayerFlags::isDemon, "当前不在恶魔阵营");
 	}
 
 	/** 与七罪之源一致：必须手动放进魂印栏（或由转化放入），不允许右键快捷佩戴 */
@@ -83,6 +84,11 @@ public class SatanicBibleItem extends Item implements ICurioItem {
 					.withStyle(Style.EMPTY
 							.withColor(TextColor.fromRgb(ReliquaryTooltips.DEMON_FLAVOR_COLOR))
 							.withItalic(true)));
+		}
+
+		if (ReliquaryTooltips.demonRouteLocked()) {
+			ReliquaryTooltips.appendDemonRouteHint(tooltip);
+			return;
 		}
 
 		if (ReliquaryTooltips.shiftDown()) {

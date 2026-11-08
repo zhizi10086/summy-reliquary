@@ -40,7 +40,8 @@ public class ThePactItem extends Item implements ICurioItem {
 	/** 只允许装进「恶魔契约」栏位（重复佩戴由公共检查拦住） */
 	@Override
 	public boolean canEquip(SlotContext slotContext, ItemStack stack) {
-		return CurioItemSupport.canEquipInto(slotContext, stack, ReliquarySlots.DEMON_PACT);
+		return CurioItemSupport.canEquipInto(slotContext, stack, ReliquarySlots.DEMON_PACT, false,
+				com.summy.reliquary.effect.PlayerFlags::isDemon, "当前不在恶魔阵营");
 	}
 
 	/** 禁止右键快捷佩戴（契约只能由签约流程戴上） */
@@ -80,6 +81,11 @@ public class ThePactItem extends Item implements ICurioItem {
 		ReliquaryTooltips.demonFlavorLine(tooltip, "item.summy-reliquary.the_pact.tagline");
 		tooltip.add(Component.translatable("item.summy-reliquary.the_pact.quote")
 				.withStyle(demonStyle()));
+
+		if (ReliquaryTooltips.demonRouteLocked()) {
+			ReliquaryTooltips.appendDemonRouteHint(tooltip);
+			return;
+		}
 
 		if (ReliquaryTooltips.shiftDown()) {
 			// 1.6.3：七行属性统一按「属性名 + 数值」两段配色（恶魔线 = 深红 + 亮红）

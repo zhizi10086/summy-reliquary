@@ -2,7 +2,11 @@ package com.summy.reliquary.devcheck;
 
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
+import com.summy.reliquary.item.DevilCrownItem;
 import com.summy.reliquary.item.CovenantItem;
+import com.summy.reliquary.item.ReliquaryTooltips;
+import com.summy.reliquary.item.SatanicBibleItem;
+import com.summy.reliquary.item.ThePactItem;
 import com.summy.reliquary.attribute.ReliquaryAttributes;
 import com.summy.reliquary.client.SpearAnimation;
 import com.summy.reliquary.effect.RevelationTracker;
@@ -487,6 +491,7 @@ public final class ForgeDevCheck {
 				case 2279 -> checkGatedRecipeProtection(player);
 				case 2280 -> checkBrokenHeartAndInternalStates(player);
 				case 2281 -> checkPactCurseGrowthAndJei(player);
+				case 2282 -> checkDemonRouteAndHellfireKnockback(player);
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
@@ -9148,6 +9153,149 @@ public final class ForgeDevCheck {
 			resetSinState(player);
 			com.summy.reliquary.effect.AttributeManager.apply(player);
 		}
+	}
+
+	/** 2282：两条狱火无击退 + 三件恶魔路线物品的当前路线门禁与转线卸装。 */
+	private static void checkDemonRouteAndHellfireKnockback(ServerPlayer player) {
+		java.util.List<LivingEntity> cleanup = new java.util.ArrayList<>();
+		try {
+			prepareBarePlayer(player);
+			resetDemonPactState(player);
+			player.getInventory().clearContent();
+			var handler = CuriosApi.getCuriosInventory(player).orElse(null);
+			if (handler == null) {
+				throw new IllegalStateException("Curios 容器不存在");
+			}
+			for (var stacksHandler : handler.getCurios().values()) {
+				for (int index = 0; index < stacksHandler.getSlots(); index++) {
+					stacksHandler.getStacks().setStackInSlot(index, ItemStack.EMPTY);
+				}
+			}
+
+			Zombie target = spawnTestZombie(player, 3.0D, 0.0D);
+			if (target == null) {
+				throw new IllegalStateException("无法生成狱火无击退测试目标");
+			}
+			cleanup.add(target);
+			target.setNoAi(true);
+			target.setHealth(target.getMaxHealth());
+			com.summy.reliquary.effect.HellfireState.clear(target);
+			com.summy.reliquary.effect.HellfireState.applyStack(target, player);
+			Vec3 stateVelocity = new Vec3(0.31D, 0.17D, -0.23D);
+			target.setDeltaMovement(stateVelocity);
+			target.invulnerableTime = 0;
+			com.summy.reliquary.effect.HellfireState.setNextDamageForTest(
+					target, target.level().getGameTime());
+			float stateHealthBefore = target.getHealth();
+			com.summy.reliquary.effect.HellfireState.tick(target);
+			boolean stateDamaged = target.getHealth() < stateHealthBefore - 1.0E-4F;
+			boolean stateNoKnockback = target.getDeltaMovement().distanceToSqr(stateVelocity) < 1.0E-12D;
+
+			target.setHealth(target.getMaxHealth());
+			target.invulnerableTime = 0;
+			Vec3 vengefulVelocity = new Vec3(-0.27D, 0.11D, 0.35D);
+			target.setDeltaMovement(vengefulVelocity);
+			float vengefulHealthBefore = target.getHealth();
+			com.summy.reliquary.effect.VengefulSpirit.applyHellfire(
+					player.serverLevel(), player, target, 1.0F);
+			boolean vengefulDamaged = target.getHealth() < vengefulHealthBefore - 1.0E-4F;
+			boolean vengefulNoKnockback =
+					target.getDeltaMovement().distanceToSqr(vengefulVelocity) < 1.0E-12D;
+
+			boolean routeHintTranslated = !Component.translatable(
+					"item.summy-reliquary.demon.route_required").getString().isBlank();
+			setCurrentRouteForTest(player, false, true, false);
+			boolean angelLocked = ReliquaryTooltips.demonRouteLocked(player)
+					&& !canEquipDemonRouteItems(player)
+					&& routeHintTranslated;
+			setCurrentRouteForTest(player, false, false, false);
+			boolean neutralLocked = ReliquaryTooltips.demonRouteLocked(player)
+					&& !canEquipDemonRouteItems(player);
+			setCurrentRouteForTest(player, false, true, true);
+			boolean sealedAngelLocked = ReliquaryTooltips.demonRouteLocked(player)
+					&& !canEquipDemonRouteItems(player);
+			setCurrentRouteForTest(player, true, false, true);
+			boolean demonUnlocked = !ReliquaryTooltips.demonRouteLocked(player)
+					&& canEquipDemonRouteItems(player)
+					&& routeHintTranslated;
+
+			var halo = handler.getCurios().get(ReliquarySlots.HALO);
+			boolean crownMoved = false;
+			boolean crownKept = false;
+			if (halo != null && halo.getSlots() > 0) {
+				handler.setEquippedCurio(ReliquarySlots.HALO, 0,
+						new ItemStack(SummyReliquary.DEVIL_CROWN.get()));
+				boolean crownEquipped = halo.getStacks().getStackInSlot(0)
+						.is(SummyReliquary.DEVIL_CROWN.get());
+				setCurrentRouteForTest(player, false, true, true);
+				int moved = com.summy.reliquary.effect.DemonPact
+						.unequipNonDemonRouteEquipment(player);
+				crownMoved = crownEquipped && moved >= 1
+						&& !halo.getStacks().getStackInSlot(0)
+								.is(SummyReliquary.DEVIL_CROWN.get());
+				crownKept = player.getInventory().countItem(SummyReliquary.DEVIL_CROWN.get()) >= 1;
+			}
+
+			boolean allOk = stateDamaged && stateNoKnockback && vengefulDamaged
+					&& vengefulNoKnockback && angelLocked && neutralLocked
+					&& sealedAngelLocked && demonUnlocked && crownMoved && crownKept;
+			require("demon-route-hellfire", allOk);
+			log("狱火无击退 / 恶魔路线门禁：周期狱火伤害=" + stateDamaged
+					+ "、速度不变=" + stateNoKnockback
+					+ "；复仇之魂伤害=" + vengefulDamaged
+					+ "、速度不变=" + vengefulNoKnockback
+					+ "；天使锁定=" + angelLocked
+					+ "、中立锁定=" + neutralLocked
+					+ "、前恶魔天使仍锁定=" + sealedAngelLocked
+					+ "、当前恶魔放行=" + demonUnlocked
+					+ "、路线提示双语键=" + routeHintTranslated
+					+ "、王冠卸回=" + crownMoved
+					+ "、物品保留=" + crownKept
+					+ " → " + allOk + "（应 true）");
+		} catch (Throwable throwable) {
+			require("demon-route-hellfire", false);
+			log("狱火无击退 / 恶魔路线门禁执行失败：" + throwable);
+			throwable.printStackTrace();
+		} finally {
+			for (LivingEntity entity : cleanup) {
+				entity.discard();
+			}
+			player.getInventory().clearContent();
+			CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+				for (var stacksHandler : handler.getCurios().values()) {
+					for (int index = 0; index < stacksHandler.getSlots(); index++) {
+						stacksHandler.getStacks().setStackInSlot(index, ItemStack.EMPTY);
+					}
+				}
+			});
+			resetDemonPactState(player);
+			com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
+			com.summy.reliquary.effect.AttributeManager.apply(player);
+		}
+	}
+
+	private static void setCurrentRouteForTest(ServerPlayer player, boolean demon, boolean angel,
+			boolean sealed) {
+		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
+		com.summy.reliquary.effect.PlayerFlags.setAngel(player, angel);
+		if (demon) {
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+		}
+		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, sealed);
+	}
+
+	private static boolean canEquipDemonRouteItems(ServerPlayer player) {
+		ItemStack pact = new ItemStack(SummyReliquary.THE_PACT.get());
+		ItemStack bible = new ItemStack(SummyReliquary.SATANIC_BIBLE.get());
+		ItemStack crown = new ItemStack(SummyReliquary.DEVIL_CROWN.get());
+		return ((ThePactItem) SummyReliquary.THE_PACT.get()).canEquip(
+						new SlotContext(ReliquarySlots.DEMON_PACT, player, 0, false, true), pact)
+				&& ((SatanicBibleItem) SummyReliquary.SATANIC_BIBLE.get()).canEquip(
+						new SlotContext(ReliquarySlots.SOUL_SEAL, player, 0, false, true), bible)
+				&& ((DevilCrownItem) SummyReliquary.DEVIL_CROWN.get()).canEquip(
+						new SlotContext(ReliquarySlots.HALO, player, 0, false, true), crown);
 	}
 
 	private static String translationValue(String json, String key) {

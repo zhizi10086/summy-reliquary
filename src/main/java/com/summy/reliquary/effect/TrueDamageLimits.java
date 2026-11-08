@@ -6,6 +6,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 import java.util.ArrayDeque;
@@ -77,6 +78,25 @@ public final class TrueDamageLimits {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * 结算一次真伤并抵消原版 hurt 写入的击退。
+	 *
+	 * <p>只恢复速度，不改伤害、无敌帧清理、受击动画或补差逻辑；伤害成功落地后再标记同步，
+	 * 让客户端收到的是结算前速度而不是击退后的速度。
+	 */
+	public static boolean hurtWithoutKnockback(LivingEntity target, DamageSource source, float damage) {
+		if (target == null || source == null || damage <= 0.0F) {
+			return false;
+		}
+		Vec3 velocity = target.getDeltaMovement();
+		boolean landed = hurt(target, source, damage);
+		target.setDeltaMovement(velocity);
+		if (landed) {
+			target.hurtMarked = true;
+		}
+		return landed;
 	}
 
 	/**

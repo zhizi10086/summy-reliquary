@@ -115,6 +115,11 @@ public final class DemonPact {
 			SummyReliquary.OCCULT_EYE,
 			SummyReliquary.ABYSS_LORD,
 			SummyReliquary.ABADDON);
+	/** 只允许当前恶魔路线装备的三件物品；非恶魔路线会统一卸回背包。 */
+	private static final List<java.util.function.Supplier<Item>> DEMON_ROUTE_ONLY_EQUIPMENT = List.of(
+			SummyReliquary.THE_PACT,
+			SummyReliquary.SATANIC_BIBLE,
+			SummyReliquary.DEVIL_CROWN);
 
 	/** 防止"献祭追加伤害 → 再次触发事件 → 再追加"的递归 */
 	private static boolean applyingSacrifice = false;
@@ -732,7 +737,7 @@ public final class DemonPact {
 	 *
 	 * <p>撒旦圣经不在这里（魂印物品由 {@link #restoreSinSnapshot} / {@link #confiscateSatanicBible}
 	 * 处理）；666 之后才解锁的（硫磺火 / 魔眼 / 深渊领主 / 亚巴顿）走 {@link #unequipHighDemonRelics}；
-	 * **恶魔王冠按需求不没收**（留作纪念）。
+	 * **恶魔王冠按需求不没收**（留作纪念，但非恶魔路线会由统一校正卸回背包）。
 	 */
 	public static void confiscateDemonRelics(ServerPlayer player) {
 		if (!ReliquaryConfig.enableDemonPact()) {
@@ -762,6 +767,24 @@ public final class DemonPact {
 	/** 异常解除契约时只摘除（不删除）"过线 / 封锁档"的天使线饰品（1.7.2） */
 	public static void unequipHighAngelRelics(ServerPlayer player) {
 		unequipOnly(player, ANGEL_RELICS_UNEQUIP_ONLY);
+	}
+
+	/**
+	 * 当前不在恶魔路线时，把契约、撒旦圣经和恶魔王冠从 Curios 栏位卸回背包。
+	 *
+	 * <p>背包满时由公共 {@link #unequipOnly} 路径掉在玩家脚下，不删除物品。
+	 */
+	public static int unequipNonDemonRouteEquipment(ServerPlayer player) {
+		// 登录读档阶段 NBT 可能还没就绪；此时沿用 Curios 公共放行规则，首个 tick 后再校正。
+		if (player == null || !PlayerFlags.isDataReady(player) || PlayerFlags.isDemon(player)) {
+			return 0;
+		}
+		int moved = unequipOnly(player, DEMON_ROUTE_ONLY_EQUIPMENT);
+		if (moved > 0) {
+			syncSlot(player);
+			sync(player);
+		}
+		return moved;
 	}
 
 	/**
@@ -1218,6 +1241,8 @@ public final class DemonPact {
 
 	/** 服务端每秒：契约自愈 + 每日刷新（衰减 / 上限重置）+ 里程碑兜底 */
 	public static void tickPlayer(ServerPlayer player) {
+		// 当前路线门禁不依赖契约总开关：非恶魔路线始终不得继续佩戴三件专属装备。
+		unequipNonDemonRouteEquipment(player);
 		if (!ReliquaryConfig.enableDemonPact()) {
 			return;
 		}
@@ -1374,6 +1399,7 @@ public final class DemonPact {
 	public static void onLoggedIn(ServerPlayer player) {
 		if (player != null) {
 			LIFESTEAL_LOGGED.remove(player.getUUID());
+			unequipNonDemonRouteEquipment(player);
 		}
 	}
 

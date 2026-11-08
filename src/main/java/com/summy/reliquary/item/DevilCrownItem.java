@@ -48,7 +48,8 @@ public class DevilCrownItem extends Item implements ICurioItem {
 
 	@Override
 	public boolean canEquip(SlotContext slotContext, ItemStack stack) {
-		return CurioItemSupport.canEquipInto(slotContext, stack, ReliquarySlots.HALO);
+		return CurioItemSupport.canEquipInto(slotContext, stack, ReliquarySlots.HALO, false,
+				PlayerFlags::isDemon, "当前不在恶魔阵营");
 	}
 
 	/** 与「光环」一致：允许手持右键快捷佩戴 */
@@ -86,6 +87,11 @@ public class DevilCrownItem extends Item implements ICurioItem {
 		// 风味两行（恶魔线深红）
 		ReliquaryTooltips.demonFlavorLine(tooltip, "item.summy-reliquary.devil_crown.tagline.1");
 		ReliquaryTooltips.demonFlavorLine(tooltip, "item.summy-reliquary.devil_crown.tagline.2");
+
+		if (ReliquaryTooltips.demonRouteLocked()) {
+			ReliquaryTooltips.appendDemonRouteHint(tooltip);
+			return;
+		}
 
 		if (!ReliquaryTooltips.shiftDown()) {
 			tooltip.add(ReliquaryTooltips.shiftHint());
