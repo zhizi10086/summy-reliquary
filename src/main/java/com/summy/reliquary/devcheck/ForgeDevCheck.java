@@ -5030,11 +5030,26 @@ public final class ForgeDevCheck {
 			Vec3 expectedCenter = new Vec3(player.getX(), player.getY() + player.getBbHeight() / 2.0D,
 					player.getZ()).add(expectedNormal.scale(com.summy.reliquary.config.ReliquaryConfig
 							.divineInterventionBarrierDistance()));
+			ServerLevel projectileLevel = player.serverLevel();
+			Vec3 previousProjectilePos = expectedCenter.subtract(expectedNormal.scale(12.0D));
+			Vec3 currentProjectilePos = expectedCenter.add(expectedNormal.scale(12.0D));
+			net.minecraft.world.entity.projectile.Arrow noBarrierFastArrow =
+					new net.minecraft.world.entity.projectile.Arrow(projectileLevel,
+							currentProjectilePos.x, currentProjectilePos.y, currentProjectilePos.z);
+			noBarrierFastArrow.setPos(currentProjectilePos);
+			noBarrierFastArrow.xo = previousProjectilePos.x;
+			noBarrierFastArrow.yo = previousProjectilePos.y;
+			noBarrierFastArrow.zo = previousProjectilePos.z;
+			noBarrierFastArrow.setDeltaMovement(Vec3.ZERO);
+			noBarrierFastArrow.setNoGravity(true);
+			projectileLevel.addFreshEntity(noBarrierFastArrow);
 			int seedScansBefore = com.summy.reliquary.effect.DivineIntervention
 					.projectileSeedScanCountForTest();
 			com.summy.reliquary.effect.DivineIntervention.tickServer(player.getServer());
 			boolean noBarrierSkipsSeedScan = com.summy.reliquary.effect.DivineIntervention
 					.projectileSeedScanCountForTest() == seedScansBefore;
+			boolean noBarrierFastArrowSurvives = noBarrierFastArrow.isAlive();
+			noBarrierFastArrow.discard();
 			boolean barrier = com.summy.reliquary.effect.DivineIntervention.activate(player)
 					&& com.summy.reliquary.effect.DivineIntervention.barrierCount() == 1
 					&& com.summy.reliquary.effect.DivineIntervention.barrierNormalForTest(player)
@@ -5049,9 +5064,6 @@ public final class ForgeDevCheck {
 					&& com.summy.reliquary.effect.DivineIntervention.projectileSeedScanCountForTest()
 							== seedScansAfterFirst;
 
-			ServerLevel projectileLevel = player.serverLevel();
-			Vec3 previousProjectilePos = expectedCenter.subtract(expectedNormal.scale(12.0D));
-			Vec3 currentProjectilePos = expectedCenter.add(expectedNormal.scale(12.0D));
 			net.minecraft.world.entity.projectile.Arrow hostileFastArrow =
 					new net.minecraft.world.entity.projectile.Arrow(projectileLevel,
 							currentProjectilePos.x, currentProjectilePos.y, currentProjectilePos.z);
@@ -5079,6 +5091,66 @@ public final class ForgeDevCheck {
 			boolean fastFriendlyBoosted = friendlyFastArrow.isAlive()
 					&& friendlyFastArrow.getPersistentData().getInt(
 							com.summy.reliquary.effect.DivineIntervention.PROJECTILE_BOOST_TAG) == 1;
+
+			// 增伤必须同时覆盖事件金额与完整 hurt 管线；目标使用无甲、无抗性的测试牛。
+			net.minecraft.world.entity.animal.Cow projectileDamageTarget =
+					spawnTestMobAt(player, 6.0D, EntityType.COW);
+			if (projectileDamageTarget == null) {
+				throw new IllegalStateException("无法生成神圣干预增伤测试目标");
+			}
+			cleanup.add(projectileDamageTarget);
+			makeToughTestTarget(projectileDamageTarget);
+			projectileDamageTarget.setNoAi(true);
+			net.minecraft.world.entity.projectile.Arrow baselineFriendlyArrow =
+					new net.minecraft.world.entity.projectile.Arrow(projectileLevel, player);
+			projectileDamageTarget.setHealth(40.0F);
+			projectileDamageTarget.invulnerableTime = 0;
+			float baselineHealthBefore = projectileDamageTarget.getHealth();
+			boolean baselineLanded = projectileDamageTarget.hurt(
+					player.damageSources().arrow(baselineFriendlyArrow, player), 10.0F);
+			float baselineHealthLoss = baselineHealthBefore - projectileDamageTarget.getHealth();
+			projectileDamageTarget.setHealth(40.0F);
+			projectileDamageTarget.invulnerableTime = 0;
+			float boostedHealthBefore = projectileDamageTarget.getHealth();
+			boolean boostedLanded = projectileDamageTarget.hurt(
+					player.damageSources().arrow(friendlyFastArrow, player), 10.0F);
+			float boostedHealthLoss = boostedHealthBefore - projectileDamageTarget.getHealth();
+
+			double configuredBoostPercent = ReliquaryConfig.divineInterventionProjectileDamagePercent();
+			double expectedOneBoost = 10.0D * (1.0D + configuredBoostPercent / 100.0D);
+			double expectedTwoBoosts = 10.0D
+					* Math.pow(1.0D + configuredBoostPercent / 100.0D, 2.0D);
+			net.minecraft.world.entity.projectile.Arrow eventArrow =
+					new net.minecraft.world.entity.projectile.Arrow(projectileLevel, player);
+			LivingHurtEvent unboostedEvent = new LivingHurtEvent(
+					projectileDamageTarget, player.damageSources().arrow(eventArrow, player), 10.0F);
+			com.summy.reliquary.effect.DivineIntervention.onProjectileHurt(unboostedEvent);
+			eventArrow.getPersistentData().putInt(
+					com.summy.reliquary.effect.DivineIntervention.PROJECTILE_BOOST_TAG, 1);
+			LivingHurtEvent oneBoostEvent = new LivingHurtEvent(
+					projectileDamageTarget, player.damageSources().arrow(eventArrow, player), 10.0F);
+			com.summy.reliquary.effect.DivineIntervention.onProjectileHurt(oneBoostEvent);
+			eventArrow.getPersistentData().putInt(
+					com.summy.reliquary.effect.DivineIntervention.PROJECTILE_BOOST_TAG, 2);
+			LivingHurtEvent twoBoostEvent = new LivingHurtEvent(
+					projectileDamageTarget, player.damageSources().arrow(eventArrow, player), 10.0F);
+			com.summy.reliquary.effect.DivineIntervention.onProjectileHurt(twoBoostEvent);
+			LivingHurtEvent canceledBoostEvent = new LivingHurtEvent(
+					projectileDamageTarget, player.damageSources().arrow(eventArrow, player), 10.0F);
+			canceledBoostEvent.setCanceled(true);
+			com.summy.reliquary.effect.DivineIntervention.onProjectileHurt(canceledBoostEvent);
+			LivingHurtEvent zeroBoostEvent = new LivingHurtEvent(
+					projectileDamageTarget, player.damageSources().arrow(eventArrow, player), 0.0F);
+			com.summy.reliquary.effect.DivineIntervention.onProjectileHurt(zeroBoostEvent);
+			boolean divineProjectileDamageOk =
+					Math.abs(unboostedEvent.getAmount() - 10.0F) < 1.0E-4F
+					&& Math.abs(oneBoostEvent.getAmount() - expectedOneBoost) < 1.0E-4F
+					&& Math.abs(twoBoostEvent.getAmount() - expectedTwoBoosts) < 1.0E-4F
+					&& Math.abs(canceledBoostEvent.getAmount() - 10.0F) < 1.0E-4F
+					&& Math.abs(zeroBoostEvent.getAmount()) < 1.0E-4F
+					&& baselineLanded && boostedLanded
+					&& Math.abs(baselineHealthLoss - 10.0F) < 1.0E-3F
+					&& Math.abs(boostedHealthLoss - expectedOneBoost) < 1.0E-3F;
 			int indexedAfterHit = com.summy.reliquary.effect.DivineIntervention
 					.indexedProjectileCountForTest(projectileLevel);
 			com.summy.reliquary.effect.DivineIntervention.onProjectileLeave(
@@ -5096,8 +5168,10 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.DivineIntervention.forget(player);
 			boolean indexReleased = com.summy.reliquary.effect.DivineIntervention
 					.indexedProjectileCountForTest(projectileLevel) == 0;
-			boolean projectileIndexOk = noBarrierSkipsSeedScan && firstSeedOnly && reactivated
-					&& indexedBeforeTick >= 2 && fastHostileBlocked && fastFriendlyBoosted
+			boolean projectileIndexOk = noBarrierSkipsSeedScan && noBarrierFastArrowSurvives
+					&& firstSeedOnly && reactivated && indexedBeforeTick >= 2
+					&& fastHostileBlocked && fastFriendlyBoosted
+					&& divineProjectileDamageOk
 					&& leaveRemoved && reconcileRuns && indexReleased;
 			boolean interventionOk = Math.abs(reflected - 10.0F) < 0.25F
 					&& barrier && projectileIndexOk;
@@ -5562,7 +5636,10 @@ public final class ForgeDevCheck {
 							+ "直接死亡待结算/重生冷却=%s；过期恢复清理=%s；摘除即死/重生冷却=%s；"
 							+ "进度平滑=%s/达标待倒计时=%s/重复击杀忽略=%s；屏幕红光静态/达标/脉冲=%d/%d/%d~%d → %s；"
 							+ "专属死亡源=%s（免伤标签=%s/文本=「%s」）/按下沿=%s/长矛门禁回绕=%s；"
-							+ "神圣干预反伤 %.1f（应 10）/屏障=%s/描边密度=%s/高速投射物索引=%s → %s；"
+							+ "神圣干预反伤 %.1f（应 10）/屏障=%s/描边密度=%s；"
+							+ "高速拦截（24 格无屏障存活=%s、有屏障敌箭删除=%s、玩家箭穿越=%s）；"
+							+ "穿盾增伤事件 0/1/2 次=%.2f/%.2f/%.2f（应 %.2f/%.2f/%.2f）/"
+							+ "完整管线生命损失 %.2f（应 %.2f）/增伤校验=%s/索引=%s → %s；"
 							+ "神圣裁决附伤 %.2f（应 5）/重复候选 %d（应 1）/重复附伤 %.2f（应 5）/"
 							+ "批次合并附伤 %.2f（应 5）/不同直接实体候选=%s/重复施法=%s/爆炸伤害 %.2f（应 21）/"
 							+ "未满攻击强度附伤 %.2f（应 0）/状态图标定义=%s（共 %d 个）/锥形采样=%s → %s；"
@@ -5584,7 +5661,12 @@ public final class ForgeDevCheck {
 					staticAlpha, metAlpha, warningLow, warningHigh, screenOverlay,
 					failureSourceOk, failureInvulnerabilityTag, failureText,
 					oathPressEdge, spearGateReset,
-					reflected, barrier, barrierDensityOk, projectileIndexOk, interventionOk,
+					reflected, barrier, barrierDensityOk,
+					noBarrierFastArrowSurvives, fastHostileBlocked, fastFriendlyBoosted,
+					unboostedEvent.getAmount(), oneBoostEvent.getAmount(), twoBoostEvent.getAmount(),
+					10.0D, expectedOneBoost, expectedTwoBoosts,
+					boostedHealthLoss, expectedOneBoost, divineProjectileDamageOk,
+					projectileIndexOk, interventionOk,
 					verdictBonus, duplicateCandidates, duplicateVerdictBonus, mergedVerdictBonus,
 					differentDirectEntities, duplicateCastBlocked, castDamage, unchargedBonus,
 					markerEffectDefinitions, covenantEffectCount, coneParticleGeometry, sacredOk,
