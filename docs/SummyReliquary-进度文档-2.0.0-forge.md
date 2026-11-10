@@ -1,6 +1,6 @@
 # Summy Reliquary 进度文档（截至 2.0.0-forge）
 
-> 更新时间：2026-11-09（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-11-09（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　1.20.1 worktree：`C:\Users\52527\Documents\ChatGPT\MC mod\1.20.1\summy-reliquary`
 > 本文档由当前代码与资源逐一核对后整理，内容与 `README.md` 一致（README 是随版本更新的主文档，本文档是更全的"总台账"）。
 
 ---

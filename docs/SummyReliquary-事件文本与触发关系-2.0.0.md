@@ -1,6 +1,6 @@
 # Summy Reliquary 事件文本与触发关系总台账（2.0.0-forge）
 
-> 更新时间：2026-11-08（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　工程目录：`C:\Users\52527\Documents\ChatGPT\MC mod\summy-reliquary`
+> 更新时间：2026-11-08（2.0.0）　｜　对应版本：**2.0.0-forge**　｜　1.20.1 worktree：`C:\Users\52527\Documents\ChatGPT\MC mod\1.20.1\summy-reliquary`
 > **2.0.0 文本变更**：2.17 不涉及文本；2.13 把献祭匕首 `shift.2` 改为“池子为空时会致死”；
 > 2.10 新增修女服的名称、经文两行与三行 Shift 提示；2.11 新增背叛提示与成就「三十枚银钱」；
 > 2.3 新增誓约五件物品、R 键说明、失败提示与四种伤害类型死亡文本。
