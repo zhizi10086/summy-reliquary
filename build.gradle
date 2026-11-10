@@ -201,11 +201,24 @@ jar {
     }
 }
 
-// 构建结束后把 reobf 后的 jar 复制到固定的发布目录（项目外的 ../JAR/summy-reliquary）
+// 从主协调树或版本 worktree 向上查找工作区 JAR 根，再按 Minecraft 版本归档。
+def resolveJarArchive = { String moduleDirectory ->
+    File cursor = projectDir
+    while (cursor != null && !new File(cursor, 'JAR').isDirectory()) {
+        cursor = cursor.parentFile
+    }
+    if (cursor == null) {
+        throw new GradleException('找不到工作区 JAR 归档目录')
+    }
+    return new File(cursor, "JAR/${project.minecraft_version}/${moduleDirectory}")
+}
+
+// 构建结束后把 reobf 后的 jar 复制到 JAR/<Minecraft版本>/summy-reliquary
 tasks.named('build') {
     doLast {
         // 带诊断开关时：改名 + 放进 _test 子目录，避免覆盖正式产物
-        def releaseDir = diagnosisSwitch ? file('../JAR/summy-reliquary/_test') : file('../JAR/summy-reliquary')
+        def archiveDir = resolveJarArchive('summy-reliquary')
+        def releaseDir = diagnosisSwitch ? new File(archiveDir, '_test') : archiveDir
         releaseDir.mkdirs()
         // 开启 JarJar 后，真正可发布的产物是 reobfJarJar（含嵌套的 MixinExtras）；
         // 没有该任务时才退回 reobfJar。ForgeGradle 6 的任务没有 archiveFile 属性，

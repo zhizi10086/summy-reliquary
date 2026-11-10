@@ -757,7 +757,7 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
 ## 开发
 
 - 构建：`gradlew build`（需要 Java 17，见 `gradle.properties` 的 `org.gradle.java.home`），
-  产物会自动复制到 `../JAR/summy-reliquary/`
+  产物会自动复制到 `JAR/<Minecraft版本>/summy-reliquary/`
 - **clone 后请先把 `gradle.properties` 里的 `org.gradle.java.home` 指向本机 JDK 17**（仓库里那一行是注释示例，不填会用系统默认 JDK，可能不是 17 而构建失败）。
 - 开发台账（进度文档 / 事件文本与触发关系）在 [`docs/`](docs/)，与模组源码一起维护。
 - `gradle.properties` 里关掉了 ForgeGradle 的联网自检（`systemProp.net.minecraftforge.gradle.check.certs=false`）：
@@ -776,7 +776,7 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
   - **流程与命令**：首次发放、右键规则、创造飞行、末影龙一次性裁决与老存档自愈、命令权限矩阵、进度 23 条
   逐版本各自补了哪些用例，见 [CHANGELOG.md](CHANGELOG.md)。
 - 自检会把测试世界切成「简单难度 + 关闭刷怪 + 玩家无敌」（和平难度会立刻清除测试用的僵尸）
-- 排查用诊断开关（三选一，产物会**改名**并放进 `../JAR/summy-reliquary/_test/`，不会覆盖正式包）：
+- 排查用诊断开关（三选一，产物会**改名**并放进 `JAR/<Minecraft版本>/summy-reliquary/_test/`，不会覆盖正式包）：
   `-Pnodata`（去掉本轮新增的**全部数据包内容**：自定义伤害类型 + 3 个原版伤害类型标签覆盖）、
   `-Pnotags`（只去掉那 3 个原版伤害类型标签覆盖，保留自定义伤害类型）、
   `-Pnomodel`（去掉**终末天启**的模型与贴图）；例：`gradlew build -Pnodata`

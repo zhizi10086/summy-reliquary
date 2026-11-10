@@ -23,8 +23,8 @@
 | 目标环境 | Minecraft **1.20.1** + **Forge 47.4.10**（`gradle.properties` 固定 JDK 17） |
 | 前置 | **Curios** `5.14.1+1.20.1`（`mods.toml` 只有 forge + minecraft + curios） |
 | Fabric 侧 | 通过 **Kilt** 跑同一个 jar（历史可用组合：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；另需 Sodium + Indium；Kilt 不兼容 Async / Embeddium）。2026-11-07 已确认 Kilt 20.1.22 存在上游 `LivingDamageEvent` 金额写回失效；SR 启动探针检测到后会回退旧吸收路径，但 Kilt 仍只作实验性兼容 |
-| 构建 | `gradlew clean build`（产物自动复制到 `../JAR/summy-reliquary/`） |
-| 当前版本 | `2.0.0-forge`（协议 `"19"`）；历史 jar 全保留（均在 `JAR/summy-reliquary/`） |
+| 构建 | `gradlew clean build`（产物自动复制到 `JAR/1.20.1/summy-reliquary/`） |
+| 当前版本 | `2.0.0-forge`（协议 `"19"`）；历史 jar 全保留（均在 `JAR/1.20.1/summy-reliquary/`） |
 | 二创与致谢 | 本模组是基于《以撒的结合》（The Binding of Isaac）的**粉丝二创作品**：物品贴图与部分设定有相当数量直接取自或改编自该作，**不主张任何权利**、不用于商业用途；`LICENSE` 的 MIT **只覆盖原创代码与原创素材**。完整中英声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`；联系邮箱 **525277385@qq.com** |
 | 实例部署 | 把新 jar 放进整合包 `mods/`，旧版本就地改名为 `*.jar.disabled`（同名双版本会因 mod id 重复报错） |
 | 诊断开关 | `-Pnodata`（去掉自定义伤害类型 + 原版伤害类型标签覆盖）、`-Pnotags`（只去掉标签覆盖）、`-Pnomodel`（去掉终末天启模型/贴图）；产物改名进 `_test/` |
@@ -687,7 +687,7 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
 
 ## 11. 开发与验证流程
 
-1. **构建**：`gradlew clean build`（JDK 17，路径写在 `gradle.properties`），产物自动复制到 `../JAR/summy-reliquary/`；旧 jar 一律保留，部署时把实例里旧版改名 `.disabled`。
+1. **构建**：`gradlew clean build`（JDK 17，路径写在 `gradle.properties`），产物自动复制到 `JAR/1.20.1/summy-reliquary/`；旧 jar 一律保留，部署时把实例里旧版改名 `.disabled`。
 > **609 行 `[DEVCHECK]`** 是 2.0.0 的完整自检（比 1.8.8 的 605 行多 4 行 = 2.13 / 2.10 / 2.11 / 2.9 各新增一组断言）。下面这段“当前 595 行”是 1.8.7 的历史记录，保留用于对照。
 
 2. **自检**：`gradlew runClient -Pdevcheck --args="--quickPlaySingleplayer DevCheckWorld"`。2.0.0 当前自检共输出 **627~630 行 `[DEVCHECK]`**（2026-11-08 高速投射物索引与厄咒无击退实测 627），逐项断言行全部通过；`case 2272` 覆盖定值真伤死神祝福矩阵，`case 2276` 覆盖固定真伤黑名单优先级与固定补差目标；`case 2277` 覆盖誓约五件的栏位 / 资源、生死逆转、反伤与屏障、裁决附伤、状态粒子、厄咒传播玩家排除、血债独立层/吸收顺序/静默生命目标匹配、厄咒最高单转移，神圣干预首次种子扫描 / 加入 / 离开 / 20 tick 对账 / 24 格穿越 / 最后屏障释放，以及无阵营 / 双路线 / 独立保底 / 共享取得位 / 补铸门禁与真实箱子来源过滤；`case 2278` 覆盖慈善捆绑包注册 / 资源 / 单行 Shift / JEI 边界、护符门禁、50/5 阈值、目标 + tick 事务匹配、无玩家最终伤害源、掉落/经验各消费一次、真实 `hex_transfer` 击杀、事件追加物复制、最终经验翻倍与生死逆转七罪之源前置；`case 2279` 覆盖 30 张门禁配方的自动查找阻止、直接组装阻止、手动上下文放行、普通配方隔离、SR/Twilight 物品标签一致性，以及 4 张专用 / 2 张普通无序序列化器与 Create `automation_ignore` 标签；`case 2280` 覆盖碎心、启示/恶魔内部标记、三类恶魔伤害、状态免疫、HellfireState、8 张配方、两轮组合矩阵、真实击杀链路与两种特殊材料的捆绑包独立重掷；`case 2281` 覆盖恶魔契约真实/成长诅咒、七罪与撒旦圣经优先级、生命/移速/吸血上限、死形态后吸血时点及 11 个 JEI 信息页的双语映射与占位符；`case 2282` 覆盖两条狱火与厄咒转移无击退、四种路线状态下的三件 Tooltip/装备门禁、两态路线文本、旧键删除及恶魔王冠转线卸回。历史值：1.8.8 为 605、1.8.7 为 595、1.8.6 为 594、1.8.5 为 585、1.8.4 为 574、1.8.3 为 574、1.8.2 为 569。覆盖：
