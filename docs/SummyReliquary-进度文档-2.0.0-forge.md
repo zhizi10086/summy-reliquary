@@ -849,10 +849,12 @@ NBT `soul_heart_points`，客户端点数**由状态包同步**给魂心 HUD（�
     `actuallyHurt`）的局部变量，实际绑定到 slot 3 的 `f1`（扣吸收前的值）；真正用于 `setHealth(getHealth() - amount)`
     的是 slot 2 的 `amount`。SR 把 `LivingDamageEvent` 金额改成 0 只写到 `f1`，扣血仍按 `amount` 执行。对照：非玩家走
     `LivingEntityInject.kilt$callDamageEvent`，用 `@Local(argsOnly = true)` 正确绑定参数槽 `amount`；玩家侧
-    `LivingHurtEvent` 也用 `@Local(argsOnly = true)`，金额修改有效。③ **处置** —— SR 不做规避，等待 Kilt 上游修复
-    （`@Local(ordinal = 1)` → `@Local(argsOnly = true)`）；在此期间 Kilt 环境的伤害池为「魂心扣、红血也扣」，
-    Forge 原生端与第 38 条 ② 的旧路径结论不受影响。④ **复测判据** —— 升级 Kilt 后，无吸收值时连打 10 次
-    `/damage 0.5`：池子应掉 5 点、`/data get entity @s Health` 不变；若血量仍掉，说明修复未生效。
+    `LivingHurtEvent` 也用 `@Local(argsOnly = true)`，金额修改有效。③ **最终处置（2026-11-11 修订）** ——
+    原 Issue 已转移为 `KiltMC/Kilt-Archive#1`，Kilt 1.20.1 已被上游标记为 EOL；我方保持现状，不再等待或处理
+    该上游问题。SR 的启动探针与 `LEGACY` 安全回退继续保留，Kilt + Fabric 仅作实验性兼容，不纳入主要负责、
+    正式支持或发布门禁。Forge 原生端与第 38 条 ② 的旧路径结论不受影响。④ **历史复测判据** —— 升级 Kilt 后，
+    无吸收值时连打 10 次 `/damage 0.5`：池子应掉 5 点、`/data get entity @s Health` 不变；若血量仍掉，说明旧
+    上游缺陷未修复。该判据现仅用于实验性兼容复查，不是发布门禁。
     本条与第 38 条 ② 的关系：该击确实派发了 `LivingDamageEvent`（所以 SR 走新路径），但金额写回对**玩家**无效 ——
     两项结论不冲突。
 
