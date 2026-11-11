@@ -22,7 +22,7 @@
 | 模组 id / 命名空间 | `summy_reliquary` / `summy-reliquary` |
 | 目标环境 | Minecraft **1.20.1** + **Forge 47.4.10**（`gradle.properties` 固定 JDK 17） |
 | 前置 | **Curios** `5.14.1+1.20.1`（`mods.toml` 只有 forge + minecraft + curios） |
-| Fabric 侧 | 通过 **Kilt** 跑同一个 jar（历史可用组合：Loader 0.19.5 + Kilt 20.1.20 + Fabric API 0.92.12 + FLK 1.14.1；另需 Sodium + Indium；Kilt 不兼容 Async / Embeddium）。2026-11-07 已确认 Kilt 20.1.22 存在上游 `LivingDamageEvent` 金额写回失效；SR 启动探针检测到后会回退旧吸收路径，但 Kilt 仍只作实验性兼容 |
+| Fabric 侧 | 通过 **Kilt** 跑同一个 jar，仅作实验性兼容。上游 1.20.1 已 EOL，`LivingDamageEvent` 金额写回 Issue 已转移到 `KiltMC/Kilt-Archive#1`；我方保持启动探针与安全回退，但不继续处理该上游问题，也不把 Kilt/Fabric 纳入主要负责、发布门禁或正式支持范围 |
 | 构建 | `gradlew clean build`（产物自动复制到 `JAR/1.20.1/summy-reliquary/`） |
 | 当前版本 | `2.0.0-forge`（协议 `"19"`）；历史 jar 全保留（均在 `JAR/1.20.1/summy-reliquary/`） |
 | 二创与致谢 | 本模组是基于《以撒的结合》（The Binding of Isaac）的**粉丝二创作品**：物品贴图与部分设定有相当数量直接取自或改编自该作，**不主张任何权利**、不用于商业用途；`LICENSE` 的 MIT **只覆盖原创代码与原创素材**。完整中英声明见 `README.md`「致谢与免责声明」与 `CREDITS.md`；联系邮箱 **525277385@qq.com** |
