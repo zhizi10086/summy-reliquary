@@ -760,6 +760,10 @@
   "jei.summy-reliquary.heart_materials.4": "When the Humbleing Bundle triggers its extra kill reward, both materials roll independently one additional time, allowing at most two of the same material from one death.",
   "jei.summy-reliquary.heart_materials.5": "These drops cannot be destroyed by fire, explosions, or natural despawn.",
 
+  "message.summy-reliquary.command.evil.query": "%s: Evil=%s (display %s / %s), unlock bits=%s, locked at 666=%s",
+  "message.summy-reliquary.command.evil.set": "Set %s's Evil from %s to %s (display %s / %s), locked at 666=%s",
+  "message.summy-reliquary.command.evil.add": "Adjusted %s's Evil from %s to %s (display %s / %s), locked at 666=%s",
+
   "death.attack.summy-reliquary.sacred_verdict": "%1$s was struck down by Sacred Verdict",
   "death.attack.summy-reliquary.sacred_verdict.player": "%1$s was struck down by %2$s's Sacred Verdict",
   "death.attack.summy-reliquary.divine_intervention_reflect": "%1$s's malice was reflected by Divine Intervention",

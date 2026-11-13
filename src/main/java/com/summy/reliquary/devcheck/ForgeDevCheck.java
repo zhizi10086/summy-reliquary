@@ -1089,6 +1089,14 @@ public final class ForgeDevCheck {
 		SpearAnimation.Stab s1 = SpearAnimation.stab(1.0F);
 		log("戳刺 0：g=" + s0.g() + " h=" + s0.h() + " j=" + s0.j() + "（应 0/0/0）");
 		log("戳刺 1：g=" + s1.g() + " h=" + s1.h() + " j=" + s1.j() + "（应 1/1/1）");
+		float thrustStart = SpearAnimation.thirdPersonThrust(0.0F);
+		float thrustPeak = SpearAnimation.thirdPersonThrust(0.4F);
+		float thrustEnd = SpearAnimation.thirdPersonThrust(1.0F);
+		boolean thirdPersonOk = close(thrustStart, 0.0D)
+				&& thrustPeak > 0.9F && thrustEnd < 0.01F;
+		log(String.format("第三人称戳刺前突：%.3f → %.3f → %.3f（应 0 → >0.9 → 0）",
+				thrustStart, thrustPeak, thrustEnd));
+		require("spear-third-person-thrust", thirdPersonOk);
 	}
 
 	private static void equipAll(ServerPlayer player) {
@@ -3076,6 +3084,8 @@ public final class ForgeDevCheck {
 		var sin = root.getChild("sin");
 		var sinArg = sin.getChild("sin");
 		var angel = root.getChild("angel");
+		var demon = root.getChild("demon");
+		var evil = demon.getChild("evil");
 		var dragon = root.getChild("dragon");
 		var genesis = root.getChild("genesis");
 		// 1.8.5 补修：护盾夹取命令（OP 专用）
@@ -3096,12 +3106,14 @@ public final class ForgeDevCheck {
 				&& !sin.getChild("all").getRequirement().test(p0)
 				&& !root.getChild("slots").getRequirement().test(p0)
 				&& !angel.getChild("grant").getRequirement().test(p0)
+				&& !evil.getRequirement().test(p0)
 				&& !genesis.getChild("reset").getRequirement().test(p0)
 				&& !dragon.getRequirement().test(p0)
 				&& !shield.getRequirement().test(p0);
 		boolean adminAllowed = sinArg.getChild("on").getRequirement().test(p2)
 				&& sin.getChild("all").getRequirement().test(p2)
 				&& angel.getChild("grant").getRequirement().test(p2)
+				&& evil.getRequirement().test(p2)
 				&& genesis.getChild("reset").getRequirement().test(p2)
 				&& dragon.getRequirement().test(p2)
 				&& shield.getRequirement().test(p2)
@@ -3116,8 +3128,43 @@ public final class ForgeDevCheck {
 		boolean allRedeemed = SinManager.redeemedMask(player) == (1 << Sin.values().length) - 1;
 		server.getCommands().performPrefixedCommand(p2, "summyreliquary sin refresh");
 		server.getCommands().performPrefixedCommand(p2, "summyreliquary angel refresh");
+		double oldEvil = com.summy.reliquary.effect.PlayerFlags.evil(player);
+		int oldUnlocks = com.summy.reliquary.effect.PlayerFlags.evilUnlocks(player);
+		boolean oldHellLocked = com.summy.reliquary.effect.PlayerFlags.isHellLocked(player);
+		boolean evilCommandOk;
+		try {
+			com.summy.reliquary.effect.PlayerFlags.setEvilUnlocks(player, 0);
+			com.summy.reliquary.effect.PlayerFlags.setHellLocked(player, false);
+			String playerName = player.getScoreboardName();
+			server.getCommands().performPrefixedCommand(p2,
+					"summyreliquary demon evil query " + playerName);
+			server.getCommands().performPrefixedCommand(p2,
+					"summyreliquary demon evil set " + playerName + " 123.456");
+			boolean setOk = Math.abs(com.summy.reliquary.effect.PlayerFlags.evil(player) - 123.456D) < 1.0E-6D;
+			server.getCommands().performPrefixedCommand(p2,
+					"summyreliquary demon evil add " + playerName + " -23.456");
+			boolean addOk = Math.abs(com.summy.reliquary.effect.PlayerFlags.evil(player) - 100.0D) < 1.0E-6D;
+			server.getCommands().performPrefixedCommand(p2,
+					"summyreliquary demon evil set " + playerName + " 666");
+			boolean milestoneOk = com.summy.reliquary.effect.EvilUnlock.BRIMSTONE
+					.unlocked(com.summy.reliquary.effect.PlayerFlags.evilUnlocks(player))
+					&& com.summy.reliquary.effect.PlayerFlags.isHellLocked(player);
+			server.getCommands().performPrefixedCommand(p2,
+					"summyreliquary demon evil add " + playerName + " 1000");
+			boolean clampOk = Math.abs(com.summy.reliquary.effect.PlayerFlags.evil(player)
+					- com.summy.reliquary.config.ReliquaryConfig.evilMax()) < 1.0E-6D;
+			evilCommandOk = setOk && addOk && milestoneOk && clampOk;
+		} finally {
+			com.summy.reliquary.effect.PlayerFlags.setEvil(player, oldEvil);
+			com.summy.reliquary.effect.PlayerFlags.setEvilUnlocks(player, oldUnlocks);
+			com.summy.reliquary.effect.PlayerFlags.setHellLocked(player, oldHellLocked);
+			com.summy.reliquary.effect.DemonPact.sync(player);
+			com.summy.reliquary.effect.AttributeManager.apply(player);
+		}
+		require("evil-command", evilCommandOk);
 		log("批量命令：sin all on → 全激活=" + allActive + "（应为 true）、sin all redeem → 全赎罪="
 				+ allRedeemed + "（应为 true）；sin refresh / angel refresh 执行无异常");
+		log("邪恶度命令：set/add/查询/上限夹取/666 里程碑=" + evilCommandOk + "（应为 true）");
 	}
 
 	/** 按 UUID 找实体 */
@@ -6057,10 +6104,18 @@ public final class ForgeDevCheck {
 		ItemStack bundle = new ItemStack(SummyReliquary.HUMBLEING_BUNDLE.get());
 		var curio = (top.theillusivec4.curios.api.type.capability.ICurioItem)
 				SummyReliquary.HUMBLEING_BUNDLE.get();
+		var charmTag = net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+				net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("curios", "charm"));
+		boolean charmTagged = bundle.is(charmTag)
+				&& new ItemStack(SummyReliquary.PENTAGRAM.get()).is(charmTag);
+		var charmContext = new SlotContext(ReliquarySlots.CHARM, player, 0, false, true);
+		boolean charmValid = curio.canEquip(charmContext, bundle)
+				&& top.theillusivec4.curios.api.CuriosApi.isStackValid(charmContext, bundle);
 		boolean slotGate = curio.canEquip(
 				new SlotContext(ReliquarySlots.CHARM, player, 0, false, true), bundle)
 				&& !curio.canEquip(
-						new SlotContext(ReliquarySlots.HALO, player, 0, false, true), bundle);
+						new SlotContext(ReliquarySlots.HALO, player, 0, false, true), bundle)
+				&& charmTagged && charmValid;
 		boolean keepOnDeath = curio.getDropRule(
 				new SlotContext(ReliquarySlots.CHARM, player, 0, false, true),
 				level.damageSources().generic(), 0, true, bundle)
@@ -6144,7 +6199,7 @@ public final class ForgeDevCheck {
 				&& serverResourceText(player.getServer(), "forge",
 						"loot_modifiers/global_loot_modifiers.json")
 						.contains("summy-reliquary:humbleing_bundle")
-				&& serverResourceText(player.getServer(), "curios", "tags/items/charm.json")
+				&& serverResourceText(player.getServer(), "curios", "tags/item/charm.json")
 						.contains("summy-reliquary:humbleing_bundle");
 
 		// 事务中的玩家来自 LAST_DAMAGE_PLAYER；最终伤害源故意不再提供玩家，
@@ -6359,6 +6414,7 @@ public final class ForgeDevCheck {
 				&& copiedOnly && copiedExperience && transactionMatching
 				&& hexTransferBundle && sourceGate;
 		log("慈善捆绑包：50/5 阈值=" + thresholds + "、护符门禁=" + slotGate
+				+ "（标签=" + charmTagged + "、Curios 校验=" + charmValid + "）"
 				+ "、死亡保留=" + keepOnDeath + "、单行 Shift / JEI 边界 / 资源=" + resources
 				+ "、仅复制事件追加物=" + copiedOnly + "、最终经验 7→"
 				+ xpEvent.getDroppedExperience() + "=" + copiedExperience
@@ -7369,7 +7425,13 @@ public final class ForgeDevCheck {
 		double armorAfter = player.getAttributeValue(Attributes.ARMOR);
 		var backTag = net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
 				net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("curios", "back"));
-		boolean backTagged = new ItemStack(SummyReliquary.HABIT.get()).is(backTag);
+		boolean backTagged = new ItemStack(SummyReliquary.HABIT.get()).is(backTag)
+				&& new ItemStack(SummyReliquary.CEREMONIAL_ROBES.get()).is(backTag);
+		var backContext = new SlotContext(ReliquarySlots.BACK, player, 0, false, true);
+		boolean backValid = top.theillusivec4.curios.api.CuriosApi.isStackValid(
+				backContext, new ItemStack(SummyReliquary.HABIT.get()))
+				&& top.theillusivec4.curios.api.CuriosApi.isStackValid(
+						backContext, new ItemStack(SummyReliquary.CEREMONIAL_ROBES.get()));
 		var recipe = player.getServer() == null ? null
 				: player.getServer().getRecipeManager().byKey(SummyReliquary.id("habit")).map(net.minecraft.world.item.crafting.RecipeHolder::value).orElse(null);
 		java.util.Map<Item, Integer> ingredients = recipe == null
@@ -7505,13 +7567,13 @@ public final class ForgeDevCheck {
 				&& Math.abs(soulBefore - 4.0D) < 1.0E-4D
 				&& Math.abs(soulAfter - 8.0D) < 1.0E-4D
 				&& Math.abs(armorAfter - armorBefore - 2.0D) < 1.0E-4D
-				&& backTagged && recipeOk && configOk && modelOk && textsOk
+				&& backTagged && backValid && recipeOk && configOk && modelOk && textsOk
 				&& beamAdvanceOk && abaddonAdvanceOk && covenantAdvanceOk
 				&& lifeAdvanceOk && sacrificeSelfIgnored && wrathSelfIgnored
 				&& triggersAfterEmpty == triggersBeforeEmpty;
 		log("修女服（2.10）：无天使锁定=" + locked + " / 有天使可装=" + angelAllowed
 				+ "、魂心容量 " + soulBefore + " → " + soulAfter + "（应 4 → 8）、护甲 +"
-				+ (armorAfter - armorBefore) + "、背饰标签=" + backTagged + "、配方=" + recipeOk
+				+ (armorAfter - armorBefore) + "、背饰标签=" + backTagged + "/" + backValid + "、配方=" + recipeOk
 				+ "、配置=" + configOk + "、模型/文本=" + modelOk + "/" + textsOk
 				+ "；V 冷却 100 → " + beamRemaining + " tick、同 tick 再受击 → " + beamThrottled
 				+ "（应 80/80）；X 冷却剩 " + abaddonRemaining + " tick（应约 21600 = 24000−2400）；"
@@ -7523,6 +7585,7 @@ public final class ForgeDevCheck {
 				+ "/" + lifeAdvanceOk + "/" + sacrificeSelfIgnored + "/" + wrathSelfIgnored + "；"
 				+ "无冷却作废=" + (triggersAfterEmpty == triggersBeforeEmpty) + " → 整体=" + overall
 				+ "（应 true）");
+		require("curios-back-slot", backTagged && backValid && angelAllowed && overall);
 
 		com.summy.reliquary.effect.Habit.clear();
 		com.summy.reliquary.effect.RevelationBeam.forget(player);
@@ -9124,7 +9187,9 @@ public final class ForgeDevCheck {
 
 			com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
 			com.summy.reliquary.effect.DemonPact.grant(player, false);
-			boolean contractWorn = com.summy.reliquary.effect.DemonPact.wears(player);
+			boolean contractQueued = com.summy.reliquary.effect.DemonPact.pendingContractEquipForTest(player);
+			boolean contractWorn = com.summy.reliquary.effect.DemonPact.equipPendingContractForTest(player)
+					&& com.summy.reliquary.effect.DemonPact.wears(player);
 
 			EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
 					EquipmentSlot.FEET, EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND};
@@ -9151,7 +9216,7 @@ public final class ForgeDevCheck {
 			player.getInventory().add(backpackCurio);
 
 			int realCurses = com.summy.reliquary.effect.DemonPact.realCurseCount(player);
-			boolean countMatrix = contractWorn && realCurses == 14
+			boolean countMatrix = contractQueued && contractWorn && realCurses == 14
 					&& com.summy.reliquary.effect.DemonPact.curseCount(player) == 14;
 
 			handler.setEquippedCurio(ReliquarySlots.SOUL_SEAL, 0,
@@ -9355,10 +9420,17 @@ public final class ForgeDevCheck {
 					&& placeholderCount(enPact, "%s") == 3;
 			boolean jei = mapping && checkedLines == 51 && placeholderMismatch == 0
 					&& numericSpacingMismatch == 0 && technical.length() == 0 && shiftText;
+			boolean jeiLoaded = net.neoforged.fml.ModList.get().isLoaded("jei");
+			boolean createLoaded = net.neoforged.fml.ModList.get().isLoaded("create");
+			var hiddenRecipeIds = com.summy.reliquary.integration.ReliquaryJeiPlugin.hiddenRecipeIdsForTest();
+			int holderBindings = com.summy.reliquary.integration.ReliquaryJeiPlugin.holderBindingsForTest();
+			int rawBindings = com.summy.reliquary.integration.ReliquaryJeiPlugin.rawBindingsForTest();
+			boolean jeiBindings = !jeiLoaded || (!hiddenRecipeIds.isEmpty()
+					&& holderBindings > 0 && (!createLoaded || rawBindings > 0));
 
 			boolean allOk = countMatrix && growthMatrix && twoRealLocked
 					&& threeRealUnlocked && sourcePrecedence && config && eventPoint
-					&& exactExcluded && canceledExcluded && jei;
+					&& exactExcluded && canceledExcluded && jei && jeiBindings;
 			require("pact-jei", allOk);
 			log("恶魔契约诅咒成长：六装备+功能栏真实诅咒=" + realCurses + "（应 14）、"
 					+ "2真实+7成长不激活=" + twoRealLocked + "、3真实后有效=10/吸血="
@@ -9389,6 +9461,9 @@ public final class ForgeDevCheck {
 					+ "）、技术词="
 					+ (technical.length() == 0 ? "无" : technical.toString().trim())
 					+ "、契约 Shift 三参数=" + shiftText);
+			log("契约 JEI 配方门禁：安装=" + jeiLoaded + "、目标隐藏=" + hiddenRecipeIds.size()
+					+ "、holder 绑定=" + holderBindings + "、raw 绑定=" + rawBindings
+					+ "、Create=" + createLoaded + " → " + jeiBindings + "（应 true）");
 			log("恶魔契约与 JEI 汇总=" + allOk + "（应 true）");
 		} catch (Throwable throwable) {
 			log("恶魔契约诅咒成长：执行失败 " + throwable);

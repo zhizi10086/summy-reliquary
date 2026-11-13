@@ -77,6 +77,12 @@ public final class SpearAnimation {
 		return new Stab(g, h, j);
 	}
 
+	/** 第三人称戳刺沿视线方向的前突量；正值向前，负值回收。 */
+	public static float thirdPersonThrust(float progress) {
+		Stab stab = stab(progress);
+		return stab.h() - stab.j();
+	}
+
 	private static float lerp(float value, float start, float end) {
 		return (value - start) / (end - start);
 	}

@@ -758,6 +758,10 @@
   "jei.summy-reliquary.heart_materials.4": "慈善捆绑包成功触发击杀奖励时，两种材料会各自再次判定一次，因此一次死亡最多获得2份同类材料。",
   "jei.summy-reliquary.heart_materials.5": "掉落的材料不会被火焰、爆炸或自然消失摧毁。",
 
+  "message.summy-reliquary.command.evil.query": "%s：邪恶度=%s（显示 %s / %s）、解锁位图=%s、666锁定=%s",
+  "message.summy-reliquary.command.evil.set": "已将 %s 的邪恶度从 %s 设置为 %s（显示 %s / %s）、666锁定=%s",
+  "message.summy-reliquary.command.evil.add": "已将 %s 的邪恶度从 %s 调整为 %s（显示 %s / %s）、666锁定=%s",
+
   "death.attack.summy-reliquary.sacred_verdict": "%1$s被神圣制裁",
   "death.attack.summy-reliquary.sacred_verdict.player": "%1$s被%2$s的神圣制裁",
   "death.attack.summy-reliquary.divine_intervention_reflect": "%1$s的恶意被神圣干预反噬",

@@ -129,6 +129,11 @@ public final class DemonPact {
 	private static final Map<UUID, Integer> BLACK_HEART_REFILL = new HashMap<>();
 	/** 2.13：黑心池破裂后的无敌截止 gameTime */
 	private static final Map<UUID, Long> GUARD_UNTIL = new HashMap<>();
+	/**
+	 * Curios 1.21 的槽位尺寸与物品使用两条同步包；
+	 * 扩栏后的契约延后到下一服务器 tick 写入，避免客户端先收到越界槽位。
+	 */
+	private static final Map<UUID, ItemStack> PENDING_CONTRACT_EQUIP = new HashMap<>();
 	/** 本次登录是否已经输出过契约吸血成功诊断 */
 	private static final Set<UUID> LIFESTEAL_LOGGED = new HashSet<>();
 	/** 自检用：累计输出过多少条首次吸血诊断 */
@@ -431,6 +436,32 @@ public final class DemonPact {
 		}
 	}
 
+	/** 槽位修饰符同步后的下一 tick，再发送契约物品本身。 */
+	private static void flushPendingContractEquip(ServerPlayer player) {
+		ItemStack pending = PENDING_CONTRACT_EQUIP.remove(player.getUUID());
+		if (pending == null || pending.isEmpty()) {
+			return;
+		}
+		if (!PlayerFlags.isDemon(player)) {
+			returnContractItem(player, pending);
+			return;
+		}
+		var handler = CuriosApi.getCuriosInventory(player).orElse(null);
+		var pactStacks = handler == null ? null : handler.getCurios().get(ReliquarySlots.DEMON_PACT);
+		if (handler != null && pactStacks != null && pactStacks.getSlots() > 0
+				&& pactStacks.getStacks().getStackInSlot(0).isEmpty()) {
+			handler.setEquippedCurio(ReliquarySlots.DEMON_PACT, 0, pending);
+			return;
+		}
+		returnContractItem(player, pending);
+	}
+
+	private static void returnContractItem(ServerPlayer player, ItemStack stack) {
+		if (!player.getInventory().add(stack)) {
+			player.drop(stack, false);
+		}
+	}
+
 	/** 该玩家身上（背包或栏位）是否有契约 */
 	public static boolean hasContract(ServerPlayer player) {
 		return ItemObtained.has(player, SummyReliquary.THE_PACT.get());
@@ -454,21 +485,23 @@ public final class DemonPact {
 		// 1.7.1：判据改成"**栏位里**有没有契约" —— 背包里已有那份就优先直接佩戴（不新造一份），
 		// 否则才补发一份强制佩戴。避免"契约躺在背包、栏位空着、契约效果全不生效"。
 		if (!wearsContract(player)) {
-			ItemStack pact = takePactFromInventory(player);
-			if (pact.isEmpty()) {
-				pact = new ItemStack(SummyReliquary.THE_PACT.get());
-			}
-			boolean equipped = false;
-			var handler = CuriosApi.getCuriosInventory(player).orElse(null);
-			if (handler != null && handler.getCurios().containsKey(ReliquarySlots.DEMON_PACT)
-					&& handler.getCurios().get(ReliquarySlots.DEMON_PACT).getSlots() > 0
-					&& handler.getCurios().get(ReliquarySlots.DEMON_PACT).getStacks()
-							.getStackInSlot(0).isEmpty()) {
-				handler.setEquippedCurio(ReliquarySlots.DEMON_PACT, 0, pact);
-				equipped = true;
-			}
-			if (!equipped && !player.getInventory().add(pact)) {
-				player.drop(pact, false);
+			if (!PENDING_CONTRACT_EQUIP.containsKey(player.getUUID())) {
+				ItemStack pact = takePactFromInventory(player);
+				if (pact.isEmpty()) {
+					pact = new ItemStack(SummyReliquary.THE_PACT.get());
+				}
+				boolean equipped = false;
+				var handler = CuriosApi.getCuriosInventory(player).orElse(null);
+				if (handler != null && handler.getCurios().containsKey(ReliquarySlots.DEMON_PACT)
+						&& handler.getCurios().get(ReliquarySlots.DEMON_PACT).getSlots() > 0
+						&& handler.getCurios().get(ReliquarySlots.DEMON_PACT).getStacks()
+								.getStackInSlot(0).isEmpty()) {
+					PENDING_CONTRACT_EQUIP.put(player.getUUID(), pact);
+					equipped = true;
+				}
+				if (!equipped && !player.getInventory().add(pact)) {
+					player.drop(pact, false);
+				}
 			}
 		}
 		// 每份新契约都要重新走一遍献祭
@@ -678,6 +711,7 @@ public final class DemonPact {
 
 	/** 收回契约（忏悔时）：删掉格内与背包里的契约，并把栏位压回 0 格 */
 	public static void revoke(ServerPlayer player) {
+		PENDING_CONTRACT_EQUIP.remove(player.getUUID());
 		var handler = CuriosApi.getCuriosInventory(player).orElse(null);
 		if (handler != null) {
 			var stacks = handler.getCurios().get(ReliquarySlots.DEMON_PACT);
@@ -1241,6 +1275,7 @@ public final class DemonPact {
 
 	/** 服务端每秒：契约自愈 + 每日刷新（衰减 / 上限重置）+ 里程碑兜底 */
 	public static void tickPlayer(ServerPlayer player) {
+		flushPendingContractEquip(player);
 		// 当前路线门禁不依赖契约总开关：非恶魔路线始终不得继续佩戴三件专属装备。
 		unequipNonDemonRouteEquipment(player);
 		if (!ReliquaryConfig.enableDemonPact()) {
@@ -1392,6 +1427,10 @@ public final class DemonPact {
 		if (player != null) {
 			BLACK_HEART_REFILL.remove(player.getUUID());
 			GUARD_UNTIL.remove(player.getUUID());
+			ItemStack pending = PENDING_CONTRACT_EQUIP.remove(player.getUUID());
+			if (pending != null && !pending.isEmpty()) {
+				returnContractItem(player, pending);
+			}
 		}
 	}
 
@@ -1431,6 +1470,7 @@ public final class DemonPact {
 		applyingShatter = false;
 		BLACK_HEART_REFILL.clear();
 		GUARD_UNTIL.clear();
+		PENDING_CONTRACT_EQUIP.clear();
 		LIFESTEAL_LOGGED.clear();
 		lifestealLogCount = 0;
 	}
@@ -1465,6 +1505,30 @@ public final class DemonPact {
 				.map(handler -> handler.getCurios().containsKey(ReliquarySlots.DEMON_PACT)
 						? handler.getCurios().get(ReliquarySlots.DEMON_PACT).getSlots() : -1)
 				.orElse(-1);
+	}
+
+	/** 自检用：当前是否有一份等待 Curios 槽位同步的契约。 */
+	public static boolean pendingContractEquipForTest(ServerPlayer player) {
+		return player != null && PENDING_CONTRACT_EQUIP.containsKey(player.getUUID());
+	}
+
+	/** 自检用：绕过网络包直接写入服务端槽位，等价于下一 tick 的最终状态。 */
+	public static boolean equipPendingContractForTest(ServerPlayer player) {
+		if (player == null) {
+			return false;
+		}
+		ItemStack pending = PENDING_CONTRACT_EQUIP.remove(player.getUUID());
+		if (pending == null || pending.isEmpty()) {
+			return false;
+		}
+		var handler = CuriosApi.getCuriosInventory(player).orElse(null);
+		var stacks = handler == null ? null : handler.getCurios().get(ReliquarySlots.DEMON_PACT);
+		if (stacks == null || stacks.getSlots() <= 0) {
+			returnContractItem(player, pending);
+			return false;
+		}
+		stacks.getStacks().setStackInSlot(0, pending);
+		return true;
 	}
 
 	/** 黑心 HUD 需要的心数（4 点 = 2 满心；3 点 = 1 满心 + 1 半心） */

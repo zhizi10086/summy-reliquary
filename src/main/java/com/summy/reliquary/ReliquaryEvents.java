@@ -640,6 +640,7 @@ public final class ReliquaryEvents {
 					com.summy.reliquary.slot.ReliquarySlots.SPIRIT_ALTAR,
 					com.summy.reliquary.slot.ReliquarySlots.REVELATION,
 					com.summy.reliquary.slot.ReliquarySlots.BLESSING,
+					com.summy.reliquary.slot.ReliquarySlots.CHARM,
 					com.summy.reliquary.slot.ReliquarySlots.DEMON_PACT,
 					com.summy.reliquary.slot.ReliquarySlots.BACK,
 					com.summy.reliquary.slot.ReliquarySlots.COVENANT}) {

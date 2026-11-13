@@ -1,6 +1,7 @@
 package com.summy.reliquary.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
@@ -76,6 +77,21 @@ public final class ReliquaryCommand {
 										.executes(context -> pentagram(context, "reset")))))
 				// 恶魔交易（1.5.9）：查询 / 直接发放 / 撤销（仅 OP）
 				.then(Commands.literal("demon").requires(OP_ONLY)
+						.then(Commands.literal("evil")
+								.then(Commands.literal("query")
+										.then(Commands.argument("player", net.minecraft.commands.arguments.EntityArgument.player())
+												.executes(ReliquaryCommand::queryEvil)))
+								.then(Commands.literal("set")
+										.then(Commands.argument("player", net.minecraft.commands.arguments.EntityArgument.player())
+												.then(Commands.argument("value", DoubleArgumentType.doubleArg(
+																0.0D, com.summy.reliquary.config.ReliquaryConfig.evilMax()))
+														.executes(context -> changeEvil(context, false)))))
+								.then(Commands.literal("add")
+										.then(Commands.argument("player", net.minecraft.commands.arguments.EntityArgument.player())
+												.then(Commands.argument("amount", DoubleArgumentType.doubleArg(
+																-com.summy.reliquary.config.ReliquaryConfig.evilMax(),
+																com.summy.reliquary.config.ReliquaryConfig.evilMax()))
+														.executes(context -> changeEvil(context, true))))))
 						.then(Commands.literal("query")
 								.then(Commands.argument("player", net.minecraft.commands.arguments.EntityArgument.player())
 										.executes(context -> demon(context, "query"))))
@@ -321,6 +337,45 @@ public final class ReliquaryCommand {
 					yesNo(com.summy.reliquary.effect.PlayerFlags.hasAngel(target))).getString());
 		}
 		return 1;
+	}
+
+	private static int queryEvil(CommandContext<CommandSourceStack> context)
+			throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+		ServerPlayer target = net.minecraft.commands.arguments.EntityArgument.getPlayer(context, "player");
+		post(context, Component.translatable("message.summy-reliquary.command.evil.query",
+				target.getName(),
+				evilNumber(com.summy.reliquary.effect.PlayerFlags.evil(target)),
+				com.summy.reliquary.effect.PlayerFlags.evilDisplay(target),
+				com.summy.reliquary.config.ReliquaryConfig.evilMax(),
+				com.summy.reliquary.effect.PlayerFlags.evilUnlocks(target),
+				com.summy.reliquary.effect.PlayerFlags.isHellLocked(target)).getString());
+		return 1;
+	}
+
+	private static int changeEvil(CommandContext<CommandSourceStack> context, boolean add)
+			throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+		ServerPlayer target = net.minecraft.commands.arguments.EntityArgument.getPlayer(context, "player");
+		double before = com.summy.reliquary.effect.PlayerFlags.evil(target);
+		double input = DoubleArgumentType.getDouble(context, add ? "amount" : "value");
+		double requested = add ? before + input : input;
+		double after = net.minecraft.util.Mth.clamp(
+				requested, 0.0D, com.summy.reliquary.config.ReliquaryConfig.evilMax());
+		com.summy.reliquary.effect.PlayerFlags.setEvil(target, after);
+		com.summy.reliquary.effect.DemonPact.checkMilestones(target);
+		com.summy.reliquary.effect.DemonPact.sync(target);
+		AttributeManager.apply(target);
+		post(context, Component.translatable(
+				add ? "message.summy-reliquary.command.evil.add"
+						: "message.summy-reliquary.command.evil.set",
+				target.getName(), evilNumber(before), evilNumber(after),
+				com.summy.reliquary.effect.PlayerFlags.evilDisplay(target),
+				com.summy.reliquary.config.ReliquaryConfig.evilMax(),
+				com.summy.reliquary.effect.PlayerFlags.isHellLocked(target)).getString());
+		return 1;
+	}
+
+	private static String evilNumber(double value) {
+		return String.format(java.util.Locale.ROOT, "%.2f", value);
 	}
 
 	/** OP：把玩家加入 / 移出「救恩可审判」名单 */

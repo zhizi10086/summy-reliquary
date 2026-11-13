@@ -1,7 +1,6 @@
 package com.summy.reliquary.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.summy.reliquary.client.SpearAnimation;
 import com.summy.reliquary.item.SpearItem;
 import net.minecraft.client.Minecraft;
@@ -32,11 +31,11 @@ public abstract class HeldItemFeatureRendererMixin {
 			return;
 		}
 		float partialTick = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
-		// 戳刺：物品随三段曲线前突
-		SpearAnimation.Stab stab = SpearAnimation.stab(entity.getAttackAnim(partialTick));
+		// 戳刺只沿视线方向前突，保持模型原有的手腕朝向。
+		float thrust = SpearAnimation.thirdPersonThrust(entity.getAttackAnim(partialTick));
 		poseStack.translate(0.0F, -0.125F, 0.125F);
-		poseStack.mulPose(Axis.XN.rotationDegrees(70.0F * (stab.h() - stab.j())));
 		poseStack.translate(0.0F, 0.125F, -0.125F);
+		poseStack.translate(0.0F, 0.0F, -0.45F * thrust);
 	}
 
 	/**
