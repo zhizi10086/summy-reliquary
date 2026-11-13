@@ -27,7 +27,7 @@ public abstract class HeldItemFeatureRendererMixin {
 	 * 左键攻击时在手臂矩阵应用前抬高当前手持物。
 	 *
 	 * <p>此处位于 {@code renderArmWithItem} 自身的 pushPose 之后，方法结束时会自动恢复，
-	 * 因此不会把位移泄漏到另一只手。实体空间 Y 才是屏幕中的世界垂直方向。
+	 * 因此不会把位移泄漏到另一只手。实体渲染矩阵已翻转 Y，负值才表示屏幕上移。
 	 */
 	@Inject(method = "renderArmWithItem",
 			at = @At(value = "INVOKE",
