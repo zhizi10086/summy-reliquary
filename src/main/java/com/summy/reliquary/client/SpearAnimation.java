@@ -5,7 +5,7 @@ import net.minecraft.util.Mth;
 /**
  * 长矛动画的纯函数曲线（1.8.8）。
  *
- * <p>数值参照 {@code Backported-Spears} 1.20.1 的 {@code holdUpAnimation} 与戳刺曲线：
+ * <p>数值参照 {@code Backported-Spears} 1.21.1 的 {@code holdUpAnimation} 与戳刺曲线：
  * 蓄力分「举起 / 摇晃」两段，戳刺用三段缓动。全部写成静态纯函数，便于自检断言，
  * 不依赖客户端实体或渲染状态。
  */
@@ -56,6 +56,11 @@ public final class SpearAnimation {
 	public record Stab(float g, float h, float j) {
 	}
 
+	/** 第三人称戳刺围绕手腕枢轴的最大旋转角度 */
+	public static final float THIRD_PERSON_ROTATION_DEGREES = 70.0F;
+	/** 第三人称戳刺沿旋转后局部轴的最大推进距离 */
+	public static final float THIRD_PERSON_ADVANCE = 0.125F;
+
 	/**
 	 * 戳刺曲线：{@code progress} 是原版 {@code getAttackAnim} 的 0..1。
 	 */
@@ -77,10 +82,20 @@ public final class SpearAnimation {
 		return new Stab(g, h, j);
 	}
 
-	/** 第三人称戳刺沿视线方向的前突量；正值向前，负值回收。 */
-	public static float thirdPersonThrust(float progress) {
+	/** 第三人称戳刺的挥动权重；正值向前，负值回收。 */
+	public static float thirdPersonSwing(float progress) {
 		Stab stab = stab(progress);
 		return stab.h() - stab.j();
+	}
+
+	/** 第三人称戳刺围绕手腕枢轴的旋转角度。 */
+	public static float thirdPersonRotationDegrees(float progress) {
+		return THIRD_PERSON_ROTATION_DEGREES * thirdPersonSwing(progress);
+	}
+
+	/** 第三人称戳刺沿旋转后局部 Y 轴的推进距离。 */
+	public static float thirdPersonAdvance(float progress) {
+		return THIRD_PERSON_ADVANCE * thirdPersonSwing(progress);
 	}
 
 	private static float lerp(float value, float start, float end) {

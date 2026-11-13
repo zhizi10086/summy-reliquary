@@ -1089,14 +1089,27 @@ public final class ForgeDevCheck {
 		SpearAnimation.Stab s1 = SpearAnimation.stab(1.0F);
 		log("戳刺 0：g=" + s0.g() + " h=" + s0.h() + " j=" + s0.j() + "（应 0/0/0）");
 		log("戳刺 1：g=" + s1.g() + " h=" + s1.h() + " j=" + s1.j() + "（应 1/1/1）");
-		float thrustStart = SpearAnimation.thirdPersonThrust(0.0F);
-		float thrustPeak = SpearAnimation.thirdPersonThrust(0.4F);
-		float thrustEnd = SpearAnimation.thirdPersonThrust(1.0F);
-		boolean thirdPersonOk = close(thrustStart, 0.0D)
-				&& thrustPeak > 0.9F && thrustEnd < 0.01F;
-		log(String.format("第三人称戳刺前突：%.3f → %.3f → %.3f（应 0 → >0.9 → 0）",
-				thrustStart, thrustPeak, thrustEnd));
-		require("spear-third-person-thrust", thirdPersonOk);
+		float rotationStart = SpearAnimation.thirdPersonRotationDegrees(0.0F);
+		float rotationPeak = SpearAnimation.thirdPersonRotationDegrees(0.4F);
+		float rotationEnd = SpearAnimation.thirdPersonRotationDegrees(1.0F);
+		float advanceStart = SpearAnimation.thirdPersonAdvance(0.0F);
+		float advancePeak = SpearAnimation.thirdPersonAdvance(0.4F);
+		float advanceEnd = SpearAnimation.thirdPersonAdvance(1.0F);
+		boolean thirdPersonOk = close(rotationStart, 0.0D)
+				&& rotationPeak > 60.0F && rotationEnd < 0.7F
+				&& close(advanceStart, 0.0D)
+				&& advancePeak > 0.1F && advanceEnd < 0.001F
+				&& close(rotationPeak,
+						SpearAnimation.THIRD_PERSON_ROTATION_DEGREES
+								* SpearAnimation.thirdPersonSwing(0.4F), 1.0E-4D)
+				&& close(advancePeak,
+						SpearAnimation.THIRD_PERSON_ADVANCE
+								* SpearAnimation.thirdPersonSwing(0.4F), 1.0E-6D);
+		log(String.format("第三人称戳刺旋转：%.3f° → %.3f° → %.3f°（应 0 → >60° → 0）",
+				rotationStart, rotationPeak, rotationEnd));
+		log(String.format("第三人称戳刺局部推进：%.4f → %.4f → %.4f（应 0 → >0.1 → 0）",
+				advanceStart, advancePeak, advanceEnd));
+		require("spear-third-person-transform", thirdPersonOk);
 	}
 
 	private static void equipAll(ServerPlayer player) {
@@ -16338,6 +16351,10 @@ public final class ForgeDevCheck {
 				&& sameZ(baseText, holyUsing, "firstperson_lefthand")
 				&& sameZ(baseText, seraphUsing, "firstperson_righthand")
 				&& sameZ(baseText, seraphUsing, "firstperson_lefthand");
+		boolean baseThirdPersonAligned = translationZ(baseText, "thirdperson_righthand") == 2.0D
+				&& translationZ(baseText, "thirdperson_lefthand") == 2.0D;
+		boolean usingTransformsMatch = sameTransform(holyUsing, seraphUsing,
+				"thirdperson_righthand", "thirdperson_lefthand");
 		// 投掷物的平面内补偿：+45° 对齐飞行方向 + 180° 换头尾 = 225°（两次实测才定下来）
 		boolean tiltAlignedAndFlipped = com.summy.reliquary.client.ThrownSpearRenderer.Z_TILT_DEGREES == 225.0F;
 		// 谓词注册：客户端 tick 会在进世界前幂等注册（这里由客户端用例再断言一次）
@@ -16346,10 +16363,13 @@ public final class ForgeDevCheck {
 				+ "（应 true）；主模型含 using overrides=" + overrides + "（应 true）、两个举矛模型在包内="
 				+ usingModels + "（应 true）；蓄力朝向（修订）：两把矛的**第三人称** Z 都比主模型多 180°（头尾翻转）="
 				+ thirdFlipped + "（应 true）、第一人称 Z 与主模型一致（不动第一人称）=" + firstPersonKept
+				+ "（应 true）；第三人称基础 Z=2.0=" + baseThirdPersonAligned
+				+ "（应 true）、两把 using 模型的第三人称旋转与缩放一致=" + usingTransformsMatch
 				+ "（应 true）；投掷物平面补偿=+" + String.format("%.0f",
 						com.summy.reliquary.client.ThrownSpearRenderer.Z_TILT_DEGREES)
 				+ "°（应为 +225 = +45 对齐飞行方向 + 180 换头尾；写 −45 会让矛身垂直于飞行方向，"
 				+ "只写 +45 会顺着飞但前后反）=" + tiltAlignedAndFlipped + "（应 true）");
+		require("spear-model-third-person", baseThirdPersonAligned && usingTransformsMatch);
 	}
 
 	/** 从模型 JSON 文本里取某个 display 上下文的 rotation 三元组（拿不到返回 null） */
@@ -16365,6 +16385,49 @@ public final class ForgeDevCheck {
 		}
 		return new int[]{Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)),
 				Integer.parseInt(matcher.group(3))};
+	}
+
+	/** 从模型 JSON 文本里取某个 display 上下文的 translation Z（拿不到返回 NaN）。 */
+	private static double translationZ(String json, String context) {
+		if (json == null || json.isEmpty()) {
+			return Double.NaN;
+		}
+		java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
+				"\"" + context + "\"\\s*:\\s*\\{[^}]*?\"translation\"\\s*:\\s*\\[\\s*[-+]?\\d+(?:\\.\\d+)?\\s*,\\s*[-+]?\\d+(?:\\.\\d+)?\\s*,\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*\\]")
+				.matcher(json);
+		return matcher.find() ? Double.parseDouble(matcher.group(1)) : Double.NaN;
+	}
+
+	/** 从模型 JSON 文本里取某个 display 上下文的 scale 三元组（拿不到返回 null）。 */
+	private static double[] scaleOf(String json, String context) {
+		if (json == null || json.isEmpty()) {
+			return null;
+		}
+		java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
+				"\"" + context + "\"\\s*:\\s*\\{[^}]*?\"scale\"\\s*:\\s*\\[\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*,\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*,\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*\\]")
+				.matcher(json);
+		if (!matcher.find()) {
+			return null;
+		}
+		return new double[]{Double.parseDouble(matcher.group(1)), Double.parseDouble(matcher.group(2)),
+				Double.parseDouble(matcher.group(3))};
+	}
+
+	/** 两个模型在指定上下文中的旋转和缩放必须完整存在且一致。 */
+	private static boolean sameTransform(String first, String second, String... contexts) {
+		for (String context : contexts) {
+			int[] firstRotation = rotationOf(first, context);
+			int[] secondRotation = rotationOf(second, context);
+			double[] firstScale = scaleOf(first, context);
+			double[] secondScale = scaleOf(second, context);
+			if (firstRotation == null || secondRotation == null
+					|| firstScale == null || secondScale == null
+					|| !java.util.Arrays.equals(firstRotation, secondRotation)
+					|| !java.util.Arrays.equals(firstScale, secondScale)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/** using 模型的两个第三人称 Z 是否都比主模型多 180°（mod 360） */

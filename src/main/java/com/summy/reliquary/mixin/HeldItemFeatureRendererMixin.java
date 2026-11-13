@@ -1,6 +1,7 @@
 package com.summy.reliquary.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import com.summy.reliquary.client.SpearAnimation;
 import com.summy.reliquary.item.SpearItem;
 import net.minecraft.client.Minecraft;
@@ -16,9 +17,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 长矛第三人称手持物品矩阵（1.8.8）：蓄力前移、戳刺前突。
+ * 长矛第三人称手持物品矩阵（1.8.8）：蓄力前移、戳刺枢轴旋转与局部推进。
  *
- * <p>Forge 没有这一层的扩展点，只能 Mixin；仅对两把长矛生效。
+ * <p>NeoForge 没有这一层的现成扩展点，只能 Mixin；仅对两把长矛生效。
  */
 @Mixin(ItemInHandLayer.class)
 public abstract class HeldItemFeatureRendererMixin {
@@ -31,11 +32,17 @@ public abstract class HeldItemFeatureRendererMixin {
 			return;
 		}
 		float partialTick = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
-		// 戳刺只沿视线方向前突，保持模型原有的手腕朝向。
-		float thrust = SpearAnimation.thirdPersonThrust(entity.getAttackAnim(partialTick));
+		float attack = entity.getAttackAnim(partialTick);
+		if (attack <= 0.0F) {
+			return;
+		}
+		// 与 Backported-Spears 1.21.1 一致：围绕手腕附近枢轴旋转，再沿局部 Y 轴推进。
+		float rotation = SpearAnimation.thirdPersonRotationDegrees(attack);
+		float advance = SpearAnimation.thirdPersonAdvance(attack);
 		poseStack.translate(0.0F, -0.125F, 0.125F);
+		poseStack.mulPose(Axis.XN.rotationDegrees(rotation));
 		poseStack.translate(0.0F, 0.125F, -0.125F);
-		poseStack.translate(0.0F, 0.0F, -0.45F * thrust);
+		poseStack.translate(0.0F, advance, 0.0F);
 	}
 
 	/**
