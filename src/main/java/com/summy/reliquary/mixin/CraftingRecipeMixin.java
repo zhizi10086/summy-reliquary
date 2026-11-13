@@ -2,9 +2,9 @@ package com.summy.reliquary.mixin;
 
 import com.summy.reliquary.integration.recipe.GatedRecipeContext;
 import com.summy.reliquary.integration.recipe.GatedRecipeRegistry;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
@@ -17,10 +17,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin({ShapedRecipe.class, ShapelessRecipe.class})
 public abstract class CraftingRecipeMixin {
 	@Inject(method = "assemble", at = @At("HEAD"), cancellable = true, require = 1)
-	private void summyReliquary$blockAutomatedAssembly(CraftingContainer container,
-			RegistryAccess registryAccess, CallbackInfoReturnable<ItemStack> cir) {
+	private void summyReliquary$blockAutomatedAssembly(CraftingInput input,
+			HolderLookup.Provider registries, CallbackInfoReturnable<ItemStack> cir) {
 		Recipe<?> recipe = (Recipe<?>) (Object) this;
-		if (GatedRecipeRegistry.isGatedRecipe(recipe, registryAccess) && !GatedRecipeContext.isManualCrafting()) {
+		if (GatedRecipeRegistry.isGatedRecipe(recipe, registries) && !GatedRecipeContext.isManualCrafting()) {
 			cir.setReturnValue(ItemStack.EMPTY);
 		}
 	}

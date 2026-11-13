@@ -119,6 +119,8 @@ neoForge {
             gameDirectory = project.file('run')
             if (project.hasProperty('devcheck')) {
                 systemProperty 'summy.devcheck', 'true'
+                programArgument '--quickPlaySingleplayer'
+                programArgument 'summy-devcheck'
             }
         }
         server {
@@ -147,6 +149,7 @@ dependencies {
 }
 
 processResources {
+    filteringCharset = 'UTF-8'
     inputs.property 'version', project.mod_version
     inputs.property 'curios_version', project.curios_version
 

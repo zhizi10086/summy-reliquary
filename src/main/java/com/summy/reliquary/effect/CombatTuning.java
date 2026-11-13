@@ -6,7 +6,6 @@ import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
-import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,8 +26,6 @@ import java.util.UUID;
 public final class CombatTuning {
 	/** 原版判定阈值：字段值必须大于它，无敌才生效 */
 	public static final int VANILLA_GATE = 10;
-	/** 原版"新的一击"会把字段写成这个值 */
-	private static final int VANILLA_FRESH = 20;
 
 	/** 汇总日志：实体 →（伤害来源 id → [尝试次数, 落地次数]） */
 	private static final Map<UUID, Map<String, int[]>> STATS = new HashMap<>();
@@ -128,18 +125,19 @@ public final class CombatTuning {
 		if (window <= 0) {
 			return;
 		}
-		// 1.6.5：Fabric 侧（Kilt）的事件发生在 hurt 开头，字段还没写成 20，写不进去 ——
-		// 所以这里只**登记**本击该用的窗口，等玩家 tick 末尾再钳位。
-		if (fabricSide() && isNewHit(entity, source)) {
+		// 1.21 的 LivingIncomingDamageEvent 在 hurt 写入原版 20 tick 之前触发，
+		// 因此必须通过事件容器指定本击落地后的无敌时间；直接改实体字段会被原版随后覆盖。
+		boolean newHit = isNewHit(entity, source);
+		if (newHit) {
+			event.setInvulnerabilityTicks(window + VANILLA_GATE);
+		}
+		// 1.6.5：Fabric 侧（Kilt）的事件仍只登记窗口，等玩家 tick 末尾再钳位。
+		if (fabricSide() && newHit) {
 			FABRIC_WINDOW.put(entity.getUUID(), window);
 		}
-		// 只有"新的一击"（原版刚写成 20）才改写窗口；差值命中保持原版的递减，不额外刷新
-		if (entity.invulnerableTime >= VANILLA_FRESH) {
-			int before = entity.invulnerableTime;
-			entity.invulnerableTime = window + VANILLA_GATE;
-			if (entity instanceof ServerPlayer player) {
-				logAppliedWindow(player, source, before, entity.invulnerableTime, window);
-			}
+		// 窗口内更高伤害的差值命中交给原版继续递减，不在这里刷新。
+		if (newHit && entity instanceof ServerPlayer player) {
+			logAppliedWindow(player, source, entity.invulnerableTime, window + VANILLA_GATE, window);
 		}
 	}
 

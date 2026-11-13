@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "GWG",
+    "BCB",
+    "WGW"
+  ],
+  "key": {
+    "G": { "item": "minecraft:gold_ingot" },
+    "W": { "item": "minecraft:white_wool" },
+    "B": { "item": "minecraft:black_wool" },
+    "C": { "item": "summy-reliquary:heart_shard" }
+  },
+  "result": { "id": "summy-reliquary:habit", "count": 1 }
+}

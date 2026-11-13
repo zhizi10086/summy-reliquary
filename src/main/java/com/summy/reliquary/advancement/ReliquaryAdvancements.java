@@ -102,6 +102,6 @@ public final class ReliquaryAdvancements {
 		if (player == null) {
 			return;
 		}
-		SummyReliquary.EVENT_TRIGGER.trigger(player, event);
+		SummyReliquary.EVENT_TRIGGER.get().trigger(player, event);
 	}
 }

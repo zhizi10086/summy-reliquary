@@ -889,6 +889,63 @@ public final class ForgeDevCheck {
 		player.setOldPosAndRot();
 	}
 
+	/** 判断脚部落点是否脚下有支撑、身体六格无方块和液体，并且头顶可见天空。 */
+	private static boolean isExposedDryStand(ServerLevel level, BlockPos stand) {
+		BlockPos floor = stand.below();
+		if (!level.getBlockState(floor).isFaceSturdy(level, floor, net.minecraft.core.Direction.UP)) {
+			return false;
+		}
+		for (int offset = 0; offset <= 5; offset++) {
+			BlockPos current = stand.above(offset);
+			if (!level.isEmptyBlock(current) || !level.getFluidState(current).isEmpty()) {
+				return false;
+			}
+		}
+		return level.canSeeSky(stand.above(1));
+	}
+
+	/** 从指定中心向外寻找可站立、无水且头顶可见天空的位置。 */
+	private static BlockPos findExposedDryStand(ServerLevel level, int centerX, int centerZ, int tolerance) {
+		int step = 4;
+		for (int ring = 0; ring <= tolerance; ring += step) {
+			for (int dx = -ring; dx <= ring; dx += step) {
+				for (int dz = -ring; dz <= ring; dz += step) {
+					if (ring > 0 && Math.max(Math.abs(dx), Math.abs(dz)) != ring) {
+						continue;
+					}
+					int x = centerX + dx;
+					int z = centerZ + dz;
+					level.getChunk(x >> 4, z >> 4);
+					BlockPos stand = level.getHeightmapPos(
+							Heightmap.Types.OCEAN_FLOOR, new BlockPos(x, 0, z));
+					if (isExposedDryStand(level, stand)) {
+						return stand;
+					}
+				}
+			}
+		}
+		int floorTop = level.getHeight(Heightmap.Types.OCEAN_FLOOR, centerX, centerZ);
+		BlockPos stand = new BlockPos(centerX,
+				Math.max(floorTop + 1, level.getSeaLevel() + 2), centerZ);
+		for (int dx = -4; dx <= 4; dx++) {
+			for (int dz = -4; dz <= 4; dz++) {
+				level.setBlockAndUpdate(stand.offset(dx, -1, dz),
+						net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+			}
+		}
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dz = -2; dz <= 2; dz++) {
+				for (int offset = 0; offset <= 5; offset++) {
+					level.setBlockAndUpdate(stand.offset(dx, offset, dz),
+							net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+				}
+			}
+		}
+		log("测试落点兜底：已在(" + centerX + "," + centerZ + ")上方建立露天平台，脚部Y="
+				+ stand.getY());
+		return stand;
+	}
+
 	/**
 	 * 测试环境保护：和平难度、关闭刷怪、清掉附近怪物、玩家无敌并回满血，
 	 * 避免测试过程中被怪物打死导致验证中断。
@@ -938,8 +995,8 @@ public final class ForgeDevCheck {
 		// 不清理的话"夜间转化"会在早期自动触发，后续数字全部失真
 		ServerLevel level = player.serverLevel();
 		level.setDayTime(6000L);
-		BlockPos spawn = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-				level.getSharedSpawnPos()).above();
+		BlockPos shared = level.getSharedSpawnPos();
+		BlockPos spawn = findExposedDryStand(level, shared.getX(), shared.getZ(), 128);
 		player.teleportTo(spawn.getX() + 0.5D, spawn.getY(), spawn.getZ() + 0.5D);
 		log("测试保护已开启：和平难度 / 关闭刷怪 / 清理怪物 " + removed + " 只 / 玩家无敌");
 	}
@@ -1924,34 +1981,16 @@ public final class ForgeDevCheck {
 		int x = RevelationTracker.revealX(player);
 		int z = RevelationTracker.revealZ(player);
 		level.setDayTime(18000L);
-		// 在容差范围内找一个"头顶露天"的落点（揭示坐标本身可能正好在树荫下或水下）
-		BlockPos stand = null;
 		int tolerance = com.summy.reliquary.config.ReliquaryConfig.transformRadius();
-		for (int ring = 0; ring <= tolerance && stand == null; ring++) {
-			for (int dx = -ring; dx <= ring && stand == null; dx++) {
-				for (int dz = -ring; dz <= ring && stand == null; dz++) {
-					if (Math.max(Math.abs(dx), Math.abs(dz)) != ring) {
-						continue;
-					}
-					int cx = x + dx;
-					int cz = z + dz;
-					level.getChunk(cx >> 4, cz >> 4);
-					BlockPos candidate = level
-							.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(cx, 0, cz))
-							.above();
-					if (level.canSeeSky(candidate)) {
-						stand = candidate;
-					}
-				}
-			}
-		}
-		if (stand == null) {
-			stand = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(x, 0, z)).above();
-		}
+		BlockPos stand = findExposedDryStand(level, x, z, tolerance);
 		player.teleportTo(stand.getX() + 0.5D, stand.getY(), stand.getZ() + 0.5D);
-		log(String.format("转化准备：目标(%d,%d)、落点(%d,%d,%d)、时间=%d、露天=%s",
+		boolean dry = isExposedDryStand(level, stand);
+		boolean exposed = level.canSeeSky(stand.above(1));
+		require("ascension-landing-dry", dry);
+		require("ascension-landing-exposed", exposed);
+		log(String.format("转化准备：目标(%d,%d)、落点(%d,%d,%d)、时间=%d、无水=%s、露天=%s",
 				x, z, stand.getX(), stand.getY(), stand.getZ(), level.getDayTime(),
-				level.canSeeSky(player.blockPosition())));
+				dry, exposed));
 	}
 
 	private static void checkAscension(ServerPlayer player) {
@@ -10809,23 +10848,23 @@ public final class ForgeDevCheck {
 		// ⓪ 绕过复杂伤害管线，直接验证窗口改写函数本身。
 		com.summy.reliquary.effect.CombatTuning.onLoggedIn(player);
 		int windowLogsBefore = com.summy.reliquary.effect.CombatTuning.windowLogCountForTest();
-		player.invulnerableTime = 20;
+		player.invulnerableTime = 0;
 		var directGeneric = player.damageSources().generic();
-		com.summy.reliquary.effect.CombatTuning.applyWindow(
-				new DevIncomingDamageEvent(player, directGeneric, 1.0F));
-		int directGenericField = player.invulnerableTime;
-		player.invulnerableTime = 20;
+		DevIncomingDamageEvent directGenericEvent = new DevIncomingDamageEvent(player, directGeneric, 1.0F);
+		com.summy.reliquary.effect.CombatTuning.applyWindow(directGenericEvent);
+		int directGenericTicks = directGenericEvent.getContainer().getPostAttackInvulnerabilityTicks();
+		player.invulnerableTime = 0;
 		var directFrame = player.damageSources().inFire();
-		com.summy.reliquary.effect.CombatTuning.applyWindow(
-				new DevIncomingDamageEvent(player, directFrame, 1.0F));
-		int directFrameField = player.invulnerableTime;
-		player.invulnerableTime = 20;
+		DevIncomingDamageEvent directFrameEvent = new DevIncomingDamageEvent(player, directFrame, 1.0F);
+		com.summy.reliquary.effect.CombatTuning.applyWindow(directFrameEvent);
+		int directFrameTicks = directFrameEvent.getContainer().getPostAttackInvulnerabilityTicks();
+		player.invulnerableTime = 0;
 		com.summy.reliquary.effect.CombatTuning.applyWindow(
 				new DevIncomingDamageEvent(player, directGeneric, 1.0F));
 		int windowLogsAfterRepeat = com.summy.reliquary.effect.CombatTuning.windowLogCountForTest();
 		boolean directWindowOk = genericWindow == 5 && frameWindow == 10
-				&& directGenericField == genericWindow + 10
-				&& directFrameField == frameWindow + 10
+				&& directGenericTicks == genericWindow + 10
+				&& directFrameTicks == frameWindow + 10
 				&& windowLogsAfterRepeat == windowLogsBefore + 2
 				&& com.summy.reliquary.effect.CombatTuning.windowLoggedForTest(
 						player, directGeneric, genericWindow)
@@ -10889,12 +10928,12 @@ public final class ForgeDevCheck {
 				&& frameSet
 				&& extraIdsEmpty;
 
-		log(String.format("无敌帧（1.6.3 原版逻辑 + 两档窗口）：直测字段=%d/%d（应 %d/%d）、"
+		log(String.format("无敌帧（1.6.3 原版逻辑 + 两档窗口）：直测窗口=%d/%d（应 %d/%d）、"
 						+ "一次性窗口日志=%d（应 2）、一般字段=%d（应 %d = %d+10）、帧伤字段=%d"
 						+ "（应 %d = %d+10）、30 tick 内落地 一般=%d 次（应 6 = 每 5 tick）、帧伤=%d 次（应 3 = 每 10 tick）、"
 						+ "SE 主击=%.1f / 追加段=%.1f（都应落地：2.0 / 3.0）、窗口内更大一击只结算差值=%.1f（应 3.0）、"
 						+ "帧伤集合识别=%s（应 true）、frame_damage_ids 默认空=%s（应 true）→ iframeOk=%s（应 true）",
-				directGenericField, directFrameField, genericWindow + 10, frameWindow + 10,
+				directGenericTicks, directFrameTicks, genericWindow + 10, frameWindow + 10,
 				windowLogsAfterRepeat - windowLogsBefore,
 				genericField, genericWindow + 10, genericWindow, frameField, frameWindow + 10, frameWindow,
 				genericLandings, frameLandings, mainDealt, extraDealt, diffDealt, frameSet, extraIdsEmpty,

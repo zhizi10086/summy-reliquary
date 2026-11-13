@@ -19,9 +19,22 @@ public final class CurioHelper {
 		if (entity == null) {
 			return false;
 		}
-		return CuriosApi.getCuriosInventory(entity)
-				.map(handler -> handler.isEquipped(item))
-				.orElse(false);
+		ICuriosItemHandler handler = CuriosApi.getCuriosInventory(entity).orElse(null);
+		if (handler == null) {
+			return false;
+		}
+		// Curios 1.21 的 isEquipped 按游戏刻缓存；同一刻内先查询、后装备会继续读到旧值。
+		// 直接扫描当前有效功能栏，保证发放、转线与战斗判定读取的是即时状态。
+		for (var entry : handler.getCurios().entrySet()) {
+			String identifier = entry.getKey();
+			for (int index = 0; index < entry.getValue().getSlots(); index++) {
+				if (handler.isSlotActive(identifier, index)
+						&& entry.getValue().getStacks().getStackInSlot(index).is(item)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	/** 该实体是否同时佩戴了所有指定物品（套装判定） */

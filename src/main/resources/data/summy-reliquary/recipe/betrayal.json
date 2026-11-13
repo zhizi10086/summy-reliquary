@@ -1,0 +1,11 @@
+{
+  "type": "summy-reliquary:manual_only_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "minecraft:iron_ingot" },
+    { "item": "minecraft:iron_ingot" },
+    { "item": "minecraft:iron_ingot" },
+    { "item": "minecraft:rotten_flesh" }
+  ],
+  "result": { "id": "summy-reliquary:betrayal", "count": 1 }
+}

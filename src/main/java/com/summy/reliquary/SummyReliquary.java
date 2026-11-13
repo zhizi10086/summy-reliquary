@@ -66,6 +66,8 @@ public class SummyReliquary {
 	/** 状态效果：1.5.6 起新增「启示之光」（纯标记） */
 	private static final DeferredRegister<net.minecraft.world.effect.MobEffect> EFFECTS =
 			DeferredRegister.create(Registries.MOB_EFFECT, NAMESPACE);
+	private static final DeferredRegister<net.minecraft.advancements.CriterionTrigger<?>> TRIGGERS =
+			DeferredRegister.create(Registries.TRIGGER_TYPE, NAMESPACE);
 
 	/** 启示之光：所有启示伤害会给受击者挂上它，带它死亡的生物有机会掉「心之碎片」 */
 	public static final DeferredHolder<net.minecraft.world.effect.MobEffect, net.minecraft.world.effect.MobEffect> REVELATION_LIGHT =
@@ -129,9 +131,8 @@ public class SummyReliquary {
 							.updateInterval(20)
 							.build(id("thrown_razor").toString()));
 	/** 统一进度触发器：{@code summy-reliquary:event} */
-	public static final ReliquaryTrigger EVENT_TRIGGER =
-			net.minecraft.advancements.CriteriaTriggers.register(
-					NAMESPACE + ":event", new ReliquaryTrigger());
+	public static final DeferredHolder<net.minecraft.advancements.CriterionTrigger<?>, ReliquaryTrigger>
+			EVENT_TRIGGER = TRIGGERS.register("event", ReliquaryTrigger::new);
 
 	/** 邦邦咔邦光环：装进「光环」栏位，右键（背包 / 手持潜行）切换邦邦女仆状态（1.8.6 起不再占用 R 键） */
 	public static final DeferredHolder<Item, Item> BANG_BANG_HALO =
@@ -507,6 +508,7 @@ public class SummyReliquary {
 		EFFECTS.register(modBus);
 		PARTICLES.register(modBus);
 		ENTITY_TYPES.register(modBus);
+		TRIGGERS.register(modBus);
 		LOOT_MODIFIER_CODECS.register(modBus);
 		com.summy.reliquary.recipe.ReliquaryRecipeSerializers.SERIALIZERS.register(modBus);
 		// 自定义属性（魂心）

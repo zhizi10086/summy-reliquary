@@ -8,6 +8,8 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.inventory.ResultContainer;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 
@@ -20,9 +22,10 @@ public abstract class CraftingMenuMixin {
 	@WrapMethod(method = "slotChangedCraftingGrid", require = 1)
 	private static void summyReliquary$markManualCrafting(AbstractContainerMenu menu, Level level,
 			Player player, CraftingContainer craftSlots, ResultContainer resultSlots,
+			RecipeHolder<CraftingRecipe> recipe,
 			Operation<Void> original) {
 		try (GatedRecipeContext.Scope ignored = GatedRecipeContext.enterManualCrafting(player)) {
-			original.call(menu, level, player, craftSlots, resultSlots);
+			original.call(menu, level, player, craftSlots, resultSlots, recipe);
 		}
 	}
 }
