@@ -60,8 +60,8 @@ public final class SpearAnimation {
 	public static final float THIRD_PERSON_ROTATION_DEGREES = 70.0F;
 	/** 第三人称戳刺沿旋转后局部轴的最大推进距离 */
 	public static final float THIRD_PERSON_ADVANCE = 0.125F;
-	/** 第三人称常态持矛在实体空间中上移 1 像素；实体渲染 Y 已翻转，因此使用负值 */
-	public static final float THIRD_PERSON_HOLD_Y_ADJUSTMENT = -0.0625F;
+	/** 第三人称常态持矛在实体空间中上移 2 像素；实体渲染 Y 已翻转，因此使用负值 */
+	public static final float THIRD_PERSON_HOLD_Y_ADJUSTMENT = -0.125F;
 
 	/**
 	 * 戳刺曲线：{@code progress} 是原版 {@code getAttackAnim} 的 0..1。

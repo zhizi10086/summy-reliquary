@@ -1100,7 +1100,7 @@ public final class ForgeDevCheck {
 				&& rotationPeak > 60.0F && rotationEnd < 0.7F
 				&& close(advanceStart, 0.0D)
 				&& advancePeak > 0.1F && advanceEnd < 0.001F
-				&& close(holdYAdjustment, -0.0625D)
+				&& close(holdYAdjustment, -0.125D)
 				&& close(rotationPeak,
 						SpearAnimation.THIRD_PERSON_ROTATION_DEGREES
 								* SpearAnimation.thirdPersonSwing(0.4F), 1.0E-4D)
@@ -1111,7 +1111,7 @@ public final class ForgeDevCheck {
 				rotationStart, rotationPeak, rotationEnd));
 		log(String.format("第三人称戳刺局部推进：%.4f → %.4f → %.4f（应 0 → >0.1 → 0）",
 				advanceStart, advancePeak, advanceEnd));
-		log(String.format("第三人称常态实体空间 Y 调整：%.4f（应 -0.0625）", holdYAdjustment));
+		log(String.format("第三人称常态实体空间 Y 调整：%.4f（应 -0.125）", holdYAdjustment));
 		require("spear-third-person-transform", thirdPersonOk);
 	}
 
