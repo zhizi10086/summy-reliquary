@@ -1,11 +1,12 @@
 pluginManagement {
     repositories {
-        gradlePluginPortal()
         maven {
-            name = 'MinecraftForge'
-            url = 'https://maven.minecraftforge.net/'
+            name = 'NeoForgedForgeCDN'
+            url = 'https://neoforged.forgecdn.net/releases'
         }
+        gradlePluginPortal()
+        mavenCentral()
     }
 }
 
-rootProject.name = 'summy-reliquary'
+rootProject.name = 'summy-reliquary-neoforge'

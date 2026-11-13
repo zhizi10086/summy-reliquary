@@ -1,164 +1,151 @@
-// Summy Reliquary 1.20.1：Forge + Curios 版本
-// 说明：本工程由原来的 Fabric/Trinkets 版本原地改造而来，现在只产出 Forge jar；
-//      在 Fabric 整合包里通过 Kilt（+ Fabric Language Kotlin）运行同一个 jar。
-buildscript {
-    repositories {
-        // 本地 Maven 仓库：内含 org.spongepowered:mixin:0.8.5（含注解处理器），
-        // 避免 MixinGradle 去 CreeperHost 回源被墙的 Sponge 站导致构建卡死。
-        maven { url = uri("${projectDir}/libs-m2") }
-        // MixinGradle 只能从 CreeperHost 镜像取（repo.spongepowered.org 本机不可达）
-        maven { name = 'CreeperHost'; url = 'https://maven.creeperhost.net/' }
-        mavenCentral()
-        maven { name = 'MinecraftForge'; url = 'https://maven.minecraftforge.net/' }
-    }
-    dependencies {
-        classpath 'org.spongepowered:mixingradle:0.7.38'
-    }
-}
-
+// Summy Reliquary 1.21.1：NeoForge + Curios 版本
 plugins {
-    id 'eclipse'
-    id 'idea'
+    id 'java-library'
     id 'maven-publish'
-    // Forge 1.20.1 官方工具链（与 Curios 自身使用的版本区间一致）
-    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'net.neoforged.moddev' version '2.0.148'
+    id 'idea'
 }
 
-// 1.8.8：长矛动画专用 Mixin（全工程仅此一组允许使用）
-apply plugin: 'org.spongepowered.mixin'
+tasks.named('wrapper', Wrapper).configure {
+    distributionType = Wrapper.DistributionType.BIN
+}
 
 version = project.mod_version
 group = project.maven_group
-
-// 启动问题诊断开关（仅排查用，三选一）：
-//   -Pnodata  去掉本轮新增的全部数据包内容（自定义伤害类型 + 3 个原版伤害类型标签覆盖）
-//   -Pnotags  只去掉 3 个原版伤害类型标签覆盖（保留自定义伤害类型）
-//   -Pnomodel 去掉新物品「终末天启」的模型与贴图
-def diagnosisSwitch = ['nodata', 'notags', 'nomodel'].find { project.hasProperty(it) }
-
 base {
     archivesName = project.archives_base_name
 }
 
+// 启动问题诊断开关：
+//   -Pnodata  去掉全部新增数据包内容
+//   -Pnotags  只去掉原版伤害类型标签覆盖
+//   -Pnomodel 去掉终末天启模型与贴图
+def diagnosisSwitch = ['nodata', 'notags', 'nomodel'].find { project.hasProperty(it) }
+
 java {
     toolchain {
-        // Forge 1.20.1 的目标是 Java 17；本机 JDK 通过 gradle.properties 的 org.gradle.java.home 指定
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
     withSourcesJar()
 }
 
 repositories {
-    maven { url = uri("${projectDir}/libs-m2") }
-    mavenCentral()
-    // Forge 与 Curios 的发布仓库
+    // Gate A 已验证的 1.21.1 官方元数据离线补充。
+    def localMetadata = file('.gradle/se-local-maven')
+    if (localMetadata.isDirectory()) {
+        maven {
+            name = 'SRMigrateLocalMaven'
+            url = uri(localMetadata)
+            metadataSources {
+                gradleMetadata()
+                mavenPom()
+                artifact()
+            }
+        }
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = 'SRMigratePinned'
+                    url = uri(localMetadata)
+                    metadataSources {
+                        mavenPom()
+                        artifact()
+                    }
+                }
+            }
+            filter {
+                includeVersion('com.google.guava', 'guava', '31.1-jre')
+                includeVersion('org.apache.logging.log4j', 'log4j-core', '2.8.1')
+                includeVersion('org.apache.logging.log4j', 'log4j-core', '2.22.1')
+                includeVersion('com.google.code.gson', 'gson', '2.10')
+                includeVersion('com.google.code.gson', 'gson', '2.10.1')
+                includeVersion('com.mojang', 'logging', '1.1.1')
+                includeVersion('org.checkerframework', 'checker-qual', '3.12.0')
+                includeVersion('com.google.errorprone', 'error_prone_annotations', '2.11.0')
+                includeVersion('com.google.j2objc', 'j2objc-annotations', '1.3')
+                includeVersion('commons-io', 'commons-io', '2.11.0')
+            }
+        }
+    }
     maven {
-        name = 'MinecraftForge'
-        url = 'https://maven.minecraftforge.net/'
+        name = 'NeoForgedForgeCDN'
+        url = 'https://neoforged.forgecdn.net/releases'
+    }
+    maven {
+        name = 'BMCLAPI'
+        url = 'https://bmclapi2.bangbang93.com/maven'
+    }
+    maven {
+        name = 'ParchmentMC'
+        url = 'https://maven.parchmentmc.org'
     }
     maven {
         name = 'Curios'
         url = 'https://maven.theillusivec4.top/'
     }
-    // JEI：仅编译期（按玩家隐藏「赎罪」配方）；运行期没装 JEI 时相关类不会被加载
     maven {
         name = 'BlameJared'
         url = 'https://maven.blamejared.com'
     }
+    mavenCentral()
 }
 
-// JarJar 只接受 Maven 范围格式；把动态版本缓存拉到 365 天，解析完全走本地缓存。
-configurations.all {
-    resolutionStrategy {
-        cacheDynamicVersionsFor 365, 'days'
-        cacheChangingModulesFor 365, 'days'
+// 自动注入的旧官方源当前不可用，统一改由 ForgeCDN 与本地元数据解析。
+repositories.configureEach { repo ->
+    if (repo instanceof org.gradle.api.artifacts.repositories.MavenArtifactRepository
+            && repo.url?.host in ['maven.neoforged.net', 'maven.minecraftforge.net']) {
+        repo.content {
+            excludeGroupByRegex '.*'
+        }
     }
 }
 
-minecraft {
-    // 使用 Mojang 官方映射（Curios 也是这套），保证 Curios API 的类/方法名可以直接引用
-    mappings channel: 'official', version: project.minecraft_version
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        minecraftVersion = project.parchment_minecraft_version
+        mappingsVersion = project.parchment_mappings_version
+    }
 
     runs {
         client {
-            workingDirectory project.file('run')
-            property 'forge.logging.console.level', 'debug'
-            // 开发环境里让 Mixin 把依赖模组（Curios）自带的 SRG refmap 重映射成开发映射，
-            // 否则 Curios 的 mixin 会因为找不到 f_xxx_ 字段而崩溃
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            // 只有显式加 -Pdevcheck 时才打开自检脚本（跑完会自动退出游戏）
+            client()
+            gameDirectory = project.file('run')
             if (project.hasProperty('devcheck')) {
-                property 'summy.devcheck', 'true'
-            }
-            mods {
-                "${project.mod_id}" {
-                    source sourceSets.main
-                }
+                systemProperty 'summy.devcheck', 'true'
             }
         }
         server {
-            workingDirectory project.file('run')
-            property 'forge.logging.console.level', 'debug'
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            mods {
-                "${project.mod_id}" {
-                    source sourceSets.main
-                }
-            }
+            server()
+            gameDirectory = project.file('run')
+            programArgument '--nogui'
         }
     }
-}
 
-mixin {
-    // AP 生成 refmap，并在 dev 运行参数 / jar manifest 里注册配置
-    add sourceSets.main, 'summy-reliquary.refmap.json'
-    config 'summy_reliquary.mixins.json'
-}
-
-// ForgeGradle 的 jarJar 默认关闭：显式打开，MixinExtras 才会作为嵌套 jar 打进产物
-jarJar {
-    enable()
-}
-
-// 正式包不带开发自检脚本（jarJar 从 classes 重新组装，不会继承 jar 的 exclude）
-tasks.named('jarJar') {
-    if (!project.hasProperty('devcheck')) {
-        exclude 'com/summy/reliquary/devcheck/**'
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+        }
     }
 }
 
 dependencies {
-    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
+    // Curios 是 SR 的硬前置；MDG 直接读取 NeoForge 版本制品。
+    implementation "top.theillusivec4.curios:curios-neoforge:${project.curios_version}"
 
-    // Mixin 注解处理器：Forge 自带运行期 Mixin，这里只需要编译期
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-    annotationProcessor 'org.ow2.asm:asm:9.5'
-    annotationProcessor 'org.ow2.asm:asm-tree:9.5'
-    annotationProcessor 'org.ow2.asm:asm-commons:9.5'
-    annotationProcessor 'org.ow2.asm:asm-util:9.5'
-    annotationProcessor 'org.ow2.asm:asm-analysis:9.5'
-    annotationProcessor 'com.google.code.gson:gson:2.10.1'
-    annotationProcessor 'com.google.guava:guava:31.1-jre'
+    // JEI 仅在编译期引用，运行期由用户可选安装。
+    compileOnly "mezz.jei:jei-1.21.1-neoforge-api:${project.jei_version}"
 
-    // MixinExtras：@WrapOperation / @Local / @Share 等注入器（jar-in-jar 打进产物）
-    compileOnly(annotationProcessor('io.github.llamalad7:mixinextras-common:0.5.5'))
-    implementation(jarJar(group: 'io.github.llamalad7', name: 'mixinextras-forge', version: '[0.5.5]'))
-
-    // Curios：本模组唯一的硬前置（饰品系统与栏位面板都由它提供）
-    implementation fg.deobf("top.theillusivec4.curios:curios-forge:${project.curios_version}")
-
-    // JEI API：compileOnly，不写进 mods.toml，也不打包
-    compileOnly "mezz.jei:jei-1.20.1-forge-api:15.59.0.212"
+    // NeoForge 运行期提供 MixinExtras，这里只补编译期注解。
+    compileOnly 'io.github.llamalad7:mixinextras-common:0.5.5'
 }
 
-// 把 gradle.properties 里的版本号写进 mods.toml
 processResources {
     inputs.property 'version', project.mod_version
     inputs.property 'curios_version', project.curios_version
 
-    filesMatching('META-INF/mods.toml') {
+    filesMatching('META-INF/neoforge.mods.toml') {
         expand(
                 'version': project.mod_version,
                 'curios_version': project.curios_version
@@ -167,12 +154,11 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 17
-    it.options.encoding = 'UTF-8'
+    options.release = 21
+    options.encoding = 'UTF-8'
 }
 
 jar {
-    // 开发自检脚本不打进正式 jar；需要测试时用 -Pdevcheck 打包
     if (!project.hasProperty('devcheck')) {
         exclude 'com/summy/reliquary/devcheck/**'
     }
@@ -201,7 +187,7 @@ jar {
     }
 }
 
-// 从主协调树或版本 worktree 向上查找工作区 JAR 根，再按 Minecraft 版本归档。
+// 从版本 worktree 向上查找统一 JAR 根，再按 Minecraft 版本归档。
 def resolveJarArchive = { String moduleDirectory ->
     File cursor = projectDir
     while (cursor != null && !new File(cursor, 'JAR').isDirectory()) {
@@ -213,30 +199,14 @@ def resolveJarArchive = { String moduleDirectory ->
     return new File(cursor, "JAR/${project.minecraft_version}/${moduleDirectory}")
 }
 
-// 构建结束后把 reobf 后的 jar 复制到 JAR/<Minecraft版本>/summy-reliquary
 tasks.named('build') {
     doLast {
-        // 带诊断开关时：改名 + 放进 _test 子目录，避免覆盖正式产物
         def archiveDir = resolveJarArchive('summy-reliquary')
         def releaseDir = diagnosisSwitch ? new File(archiveDir, '_test') : archiveDir
         releaseDir.mkdirs()
-        // 开启 JarJar 后，真正可发布的产物是 reobfJarJar（含嵌套的 MixinExtras）；
-        // 没有该任务时才退回 reobfJar。ForgeGradle 6 的任务没有 archiveFile 属性，
-        // 优先取 output 属性，取不到再退回约定目录。
-        def reobfTask = tasks.findByName('reobfJarJar') ?: tasks.named('reobfJar').get()
-        def jarFile = null
-        if (reobfTask.hasProperty('output')) {
-            def output = reobfTask.property('output')
-            if (output instanceof File) {
-                jarFile = output
-            }
-        }
-        if (jarFile == null) {
-            jarFile = (file('build/reobfJarJar').listFiles() ?: file('build/reobfJar').listFiles())
-                    ?.find { it.name.endsWith('.jar') }
-        }
-        if (jarFile == null || !jarFile.exists()) {
-            throw new GradleException('找不到 reobfJar 的输出 jar')
+        def jarFile = tasks.named('jar').get().archiveFile.get().asFile
+        if (!jarFile.exists()) {
+            throw new GradleException('找不到 NeoForge JAR 输出')
         }
         def targetName = diagnosisSwitch
                 ? "${project.archives_base_name}-${project.mod_version}-test-${diagnosisSwitch}.jar"
@@ -245,6 +215,14 @@ tasks.named('build') {
             from jarFile
             rename { targetName }
             into releaseDir
+        }
+    }
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
         }
     }
 }
