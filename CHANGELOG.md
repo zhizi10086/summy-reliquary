@@ -3,13 +3,15 @@
 > 本文档收录 Summy Reliquary 的历史版本变更；**当前版本的内容与玩法以 [README.md](README.md) 为准**
 > （README 只保留最新一版变更，历史记录全部收在这里）。
 
-## 2.0.0 变更
+## 2.0.0-neoforge 变更
 
-> Minecraft 1.20.1 · Forge 47.4.10+ · Curios 5.14.1+1.20.1
+> Minecraft 1.21.1 · NeoForge 21.1.265+ · Curios 9.5.1+1.21.1 · Java 21
 >
 > 本次新增 9 件物品、7 张配方和 1 个成就；网络协议升级为 `"19"`。
 >
 > 客户端与服务端必须同时升级，且 `mods/` 中只能保留一份 SR。
+>
+> 这是 SR 2.0.0 的 Minecraft 1.21.1 NeoForge 平台版本，玩法内容与 1.20.1 Forge 2.0.0 对等。
 
 ### 新增
 

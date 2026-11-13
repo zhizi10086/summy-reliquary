@@ -1,16 +1,16 @@
 # Summy Reliquary
 
-> 七罪遗物 · 天使与恶魔双线 · Minecraft 1.20.1 Forge
+> 七罪遗物 · 天使与恶魔双线 · Minecraft 1.21.1 NeoForge
 
-**前置：** Forge 1.20.1（推荐 47.4.10+）｜ Curios 5.14.1+1.20.1
+**前置：** NeoForge 21.1.265+｜ Curios 9.5.1+1.21.1｜ Java 21
 
 [GitHub](https://github.com/zhizi10086/summy-reliquary) | [Issues](https://github.com/zhizi10086/summy-reliquary/issues) | [CHANGELOG](CHANGELOG.md) | [CREDITS](CREDITS.md) | [LICENSE](LICENSE)
 
-以 **Curios** 为前置的七罪主题饰品与武器合集（Minecraft 1.20.1 / **Forge 47.4.10**）。
+以 **Curios** 为前置的七罪主题饰品与武器合集（Minecraft 1.21.1 / **NeoForge 21.1.265**）。
 
 ## 模组概述
 
-Summy Reliquary 是一个以 **Curios** 为前置的七罪主题饰品与武器模组（Minecraft 1.20.1 / Forge），灵感来自《以撒的结合》，围绕七宗罪与天使 / 恶魔两条线展开。
+Summy Reliquary 是一个以 **Curios** 为前置的七罪主题饰品与武器模组（Minecraft 1.21.1 / NeoForge），灵感来自《以撒的结合》，围绕七宗罪与天使 / 恶魔两条线展开。
 
 - **起点**：首次进入世界会拿到「七罪之源」与「光环」；七宗罪各有自己的触发条件，觉醒后同时带来增益与减益，把某一项**赎罪**可以只保留增益。
 - **天使线**：把七罪**全部赎罪**、再用「赎罪」把七罪之源转化为「美德」，就走上天使线 —— 灵台三件套 → 伯列恒之星 → 终末天启 → 神性，武器是两把长矛（圣光短矛 / 炽天使之枪）。
@@ -415,41 +415,11 @@ JEI 另提供 11 个系统型信息主题，覆盖七罪与赎罪、撒旦圣经
 
 ## 安装
 
-1. 安装 **Forge 1.20.1**（推荐 47.4.10 或更高）
-2. 安装前置 **[Curios](https://modrinth.com/mod/curios)** `5.14.1+1.20.1`
-3. 把 `summy-reliquary-<版本>-forge.jar` 放进 `mods`（升级时把旧版改名成 `*.jar.disabled` 或移出 `mods`，只留一份）
+1. 安装 **Minecraft 1.21.1 + NeoForge 21.1.265 或更高**，并使用 **Java 21**。
+2. 安装前置 **Curios** `9.5.1+1.21.1`。
+3. 把 `summy-reliquary-2.0.0-neoforge.jar` 放进 `mods`，只保留一份 SR。
 
-### Fabric 侧（通过 Kilt 运行同一个 jar）
-
-本模组只产出 Forge jar；要在 Fabric 1.20.1 整合包跑，需要 [Kilt](https://modrinth.com/mod/kilt)
-+ Fabric Language Kotlin + Curios(Forge) 版。**版本必须成组匹配**，实测可用组合：
-
-| Fabric Loader | Kilt | Fabric API | Fabric Language Kotlin |
-| --- | --- | --- | --- |
-| 0.18.4 | 20.1.16 | 0.92.7+1.20.1 | 1.13.x |
-| **0.19.5** | **20.1.20** | **0.92.12+1.20.1** | **1.14.1** |
-
-> **Kilt 1.20.1 支持状态（2026-11-11 定稿）**：玩家系 `LivingDamageEvent#setAmount(...)` 的金额写回问题仍存在于上游，原 Issue 已转移为 [KiltMC/Kilt-Archive#1](https://github.com/KiltMC/Kilt-Archive/issues/1)。Kilt 1.20.1 已被上游标记为 EOL，我方保持现状，不再等待或处理该问题。Kilt + Fabric 1.20.1 仅作为实验性兼容分支，不属于主要负责与支持范围；我们不会删除现有的启动探针与安全回退，但正式游玩与发布验收仍以 Forge 为准。
-
-**1.3.x 起建议使用下面这组（0.19.5 + Kilt 20.1.20）**：实测在旧组合（Loader 0.18.4 + Kilt 20.1.16）
-下，装了 1.3.x 的客户端会卡在模型加载之后、Kilt 的 `FREEZE_DATA`（Forge 注册表冻结）之前 ——
-日志停在 `Unhandled error loading model: ……waxed_cut_copper` 之后不再输出，等多久都不会出现
-`running FREEZE_DATA in COMPLETE` 与图集行（本地实测 3 次，含去数据包/去模型的诊断包）；把 Loader 与
-Kilt 一起升到上表第二行后一切正常（能进存档）。升级用的三个 jar 与步骤见 `JAR\_kilt-upgrade\`。
-
-反面案例：`Kilt 20.1.20` 配 `Fabric Loader 0.18.4` 会在资源加载结束时崩在
-`transform method call failed`（本地 5 个 JVM 均复现），换 20.1.16 或把 loader 升到 0.19.5 即可。
-
-**Kilt 侧实测还需要（Kilt 元数据里只标 optional）：**
-
-- **Sodium + Indium**：Kilt 有一整套围绕 Sodium 渲染管线的兼容层（`kilt/mixin/compat/sodium/*`、
-  `MultiPartBakedModelInject`）与 `compat/indium/BakedModelMixin`；装了 Sodium 后必须由 Indium
-  提供 Fabric Rendering API 后端，否则 Forge/Porting Lib 的模型管线没有后端。
-- **Architectury API**：Kilt 并没有依赖它（只在内部提供兼容层），不是硬性要求；但建议保留，
-  你两个可用的实例里都有。
-
-**Kilt 明确不兼容**：Async、Embeddium；不支持 Quilt Loader。Kilt 自述 alpha，崩溃请报 Kilt 仓库。
-本模组**不新增任何依赖声明**（`mods.toml` 仍是 forge + minecraft + curios），以上只是整合包侧说明。
+客户端和服务端必须使用同一 SR 版本。JEI `19.70.0.469` 为可选兼容，用于查询配方与系统信息页。
 
 **「启示之光」的实现说明**：
 
