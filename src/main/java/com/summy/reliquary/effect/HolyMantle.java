@@ -5,7 +5,7 @@ import com.summy.reliquary.config.ReliquaryConfig;
 import com.summy.reliquary.util.CurioHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,7 +34,7 @@ public final class HolyMantle {
 	 *
 	 * <p>顺序很关键：本方法要放在 {@code DeathImmunity.onHurt} 之后、七罪/七德倍率之前。
 	 */
-	public static void onHurt(LivingHurtEvent event) {
+	public static void onHurt(LivingIncomingDamageEvent event) {
 		if (!(event.getEntity() instanceof ServerPlayer player) || !ReliquaryConfig.enableHolyMantle()) {
 			return;
 		}

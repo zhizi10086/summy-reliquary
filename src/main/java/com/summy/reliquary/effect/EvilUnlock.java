@@ -39,15 +39,15 @@ public enum EvilUnlock {
 		// 1.7.0：恶魔线配方的门禁清单（JEI 按解锁位图隐藏 + 服务端取产物时收走并退料）
 		//   咒印：3×「6」无序
 		//   玄秘魔眼 / 复仇之魂 / 夜之幽魂 / 硫磺火 / 深渊领主 / 亚巴顿：各自的 3×3 合成表
-		GATED_RECIPES.put(new ResourceLocation("summy-reliquary", "the_mark"), THE_MARK);
-		GATED_RECIPES.put(new ResourceLocation("summy-reliquary", "occult_eye"), OCCULT_EYE);
-		GATED_RECIPES.put(new ResourceLocation("summy-reliquary", "vengeful_spirit"), VENGEFUL_SPIRIT);
-		GATED_RECIPES.put(new ResourceLocation("summy-reliquary", "night_wraith"), NIGHT_WRAITH);
-		GATED_RECIPES.put(new ResourceLocation("summy-reliquary", "brimstone"), BRIMSTONE);
-		GATED_RECIPES.put(new ResourceLocation("summy-reliquary", "abyss_lord"), ABYSS_LORD);
-		GATED_RECIPES.put(new ResourceLocation("summy-reliquary", "abaddon"), ABADDON);
+		GATED_RECIPES.put(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "the_mark"), THE_MARK);
+		GATED_RECIPES.put(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "occult_eye"), OCCULT_EYE);
+		GATED_RECIPES.put(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "vengeful_spirit"), VENGEFUL_SPIRIT);
+		GATED_RECIPES.put(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "night_wraith"), NIGHT_WRAITH);
+		GATED_RECIPES.put(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "brimstone"), BRIMSTONE);
+		GATED_RECIPES.put(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "abyss_lord"), ABYSS_LORD);
+		GATED_RECIPES.put(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "abaddon"), ABADDON);
 		// 1.7.6：暗仪刺刀借 700 档（与玄秘魔眼同一解锁位）
-		GATED_RECIPES.put(new ResourceLocation("summy-reliquary", "dark_arts"), OCCULT_EYE);
+		GATED_RECIPES.put(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "dark_arts"), OCCULT_EYE);
 	}
 
 	private final String itemId;

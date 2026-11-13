@@ -5,10 +5,11 @@ import com.summy.reliquary.net.ReliquaryNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ScreenEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 /**
  * 客户端「玩家动作」交互（1.8.5）。
@@ -29,7 +30,7 @@ import net.minecraftforge.fml.common.Mod;
  *
  * <p>手持神性 + 潜行右键那条走 {@code GodheadItem#use}，不走这里。
  */
-@Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE,
+@EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = EventBusSubscriber.Bus.GAME,
 		value = Dist.CLIENT)
 public final class ReliquaryClientInteractions {
 	/** 右键 */

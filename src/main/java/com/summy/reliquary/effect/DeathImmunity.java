@@ -7,8 +7,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -84,7 +84,7 @@ public final class DeathImmunity {
 	}
 
 	/** 2 秒无敌守卫：无敌期间的一切伤害都被取消（不区分来源，虚空与指令同样拦） */
-	public static void onHurt(LivingHurtEvent event) {
+	public static void onHurt(LivingIncomingDamageEvent event) {
 		if (!(event.getEntity() instanceof ServerPlayer player) || !isGuarded(player)) {
 			return;
 		}

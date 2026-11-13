@@ -38,7 +38,7 @@ public class ThrownSpearRenderer extends EntityRenderer<ThrownSpear> {
 
 	/** 物品渲染不走实体贴图，这里只是接口要求（取一张肯定存在的原版贴图占位） */
 	private static final ResourceLocation PLACEHOLDER =
-			new ResourceLocation("minecraft", "textures/particle/flame.png");
+			ResourceLocation.fromNamespaceAndPath("minecraft", "textures/particle/flame.png");
 
 	public ThrownSpearRenderer(EntityRendererProvider.Context context) {
 		super(context);

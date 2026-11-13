@@ -1,10 +1,14 @@
 package com.summy.reliquary.net;
 
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
 import com.summy.reliquary.client.ClientRenderHooks;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
 
-import java.util.function.Supplier;
 
 /**
  * 服务端 → 客户端：让该客户端播放"不死图腾动画"（1.5.9）。
@@ -17,7 +21,12 @@ import java.util.function.Supplier;
  * <p>真正的客户端调用放在 {@link ClientRenderHooks} 的回调里，通用类不直接引用客户端类型
  * （否则专用服务端加载本类会被 dist 校验拦下）。
  */
-public class DemonDealMessage {
+public class DemonDealMessage implements CustomPacketPayload {
+	public static final CustomPacketPayload.Type<DemonDealMessage> TYPE =
+			new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "demon_deal"));
+	public static final StreamCodec<RegistryFriendlyByteBuf, DemonDealMessage> CODEC =
+			StreamCodec.of((buffer, value) -> value.encode(buffer), DemonDealMessage::new);
+
 	public DemonDealMessage() {
 	}
 
@@ -29,9 +38,14 @@ public class DemonDealMessage {
 		// 空包：没有负载
 	}
 
-	public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-		NetworkEvent.Context context = contextSupplier.get();
-		context.enqueueWork(ClientRenderHooks.itemActivationSink);
-		context.setPacketHandled(true);
+	public void handle(IPayloadContext context) {
+		context.enqueueWork(() -> {
+			ClientRenderHooks.itemActivationSink.run();
+		});
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 }

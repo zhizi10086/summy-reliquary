@@ -7,8 +7,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -295,7 +295,7 @@ public final class SoulShield {
 	}
 
 	/** 受伤前：破碎后的无敌期内取消一切伤害（与神圣斗篷同一套写法） */
-	public static void onHurt(LivingHurtEvent event) {
+	public static void onHurt(LivingIncomingDamageEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player && isGuarded(player)) {
 			event.setAmount(0.0F);
 			event.setCanceled(true);

@@ -40,15 +40,16 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.event.TickEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 import top.theillusivec4.curios.api.CuriosApi;
 import top.theillusivec4.curios.api.CuriosCapability;
 import top.theillusivec4.curios.api.SlotContext;
@@ -66,7 +67,7 @@ import java.util.UUID;
  * 正式打包时通过 build.gradle 的 exclude 把它排除在 jar 之外。
  */
 // 只挂在客户端：自检要用 Minecraft / LocalPlayer，专用服务端不能加载这个类（会触发 dist 校验失败）
-@Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+@EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
 public final class ForgeDevCheck {
 	/** 只有显式打开时才跑，避免影响正常游戏 */
 	private static final boolean ENABLED = Boolean.getBoolean("summy.devcheck");
@@ -135,7 +136,7 @@ public final class ForgeDevCheck {
 	private ForgeDevCheck() {
 	}
 
-	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGHEST)
 	public static void capTrueDamageForDevCheck(LivingHurtEvent event) {
 		if (!ENABLED || trueDamageCapTargetId == null
 				|| !trueDamageCapTargetId.equals(event.getEntity().getUUID())) {
@@ -144,9 +145,9 @@ public final class ForgeDevCheck {
 		event.setAmount(Math.min(event.getAmount(), trueDamageCapAmount));
 	}
 
-	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
 	public static void suppressMarkerVisualsForDevCheck(
-			net.minecraftforge.event.entity.living.MobEffectEvent.Applicable event) {
+			net.neoforged.neoforge.event.entity.living.MobEffectEvent.Applicable event) {
 		if (!ENABLED || !suppressMarkerVisualsForTest) {
 			return;
 		}
@@ -154,7 +155,7 @@ public final class ForgeDevCheck {
 		if (effect == SummyReliquary.REVELATION_LIGHT.get()
 				|| effect == SummyReliquary.DEMONIC_BRAND.get()
 				|| effect == SummyReliquary.HELLFIRE.get()) {
-			event.setResult(net.minecraftforge.eventbus.api.Event.Result.DENY);
+			event.setResult(net.neoforged.bus.api.Event.Result.DENY);
 		}
 	}
 
@@ -1036,7 +1037,7 @@ public final class ForgeDevCheck {
 		player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.APPLE));
 		PlayerInteractEvent.RightClickItem event =
 				new PlayerInteractEvent.RightClickItem(player, InteractionHand.MAIN_HAND);
-		MinecraftForge.EVENT_BUS.post(event);
+		NeoForge.EVENT_BUS.post(event);
 		log("禁食检查：吃苹果被拦下=" + event.isCanceled());
 	}
 
@@ -1052,7 +1053,7 @@ public final class ForgeDevCheck {
 
 		PlayerInteractEvent.RightClickItem event =
 				new PlayerInteractEvent.RightClickItem(player, InteractionHand.MAIN_HAND);
-		MinecraftForge.EVENT_BUS.post(event);
+		NeoForge.EVENT_BUS.post(event);
 		log("赎罪转化检查：事件被取消=" + event.isCanceled());
 	}
 
@@ -1232,13 +1233,13 @@ public final class ForgeDevCheck {
 		zombie.setGlowingTag(false);
 		LivingHurtEvent plain = new LivingHurtEvent(zombie,
 				player.damageSources().playerAttack(player), 10.0F);
-		MinecraftForge.EVENT_BUS.post(plain);
+		NeoForge.EVENT_BUS.post(plain);
 		damagePlain = plain.getAmount();
 
 		zombie.setGlowingTag(true);
 		LivingHurtEvent glowing = new LivingHurtEvent(zombie,
 				player.damageSources().playerAttack(player), 10.0F);
-		MinecraftForge.EVENT_BUS.post(glowing);
+		NeoForge.EVENT_BUS.post(glowing);
 		damageGlowing = glowing.getAmount();
 
 		log(String.format("伤害加成检查：普通目标 %.2f（期望 12.00 = 10×1.2 星）/ 发光目标 %.2f（期望 13.20 = 10×1.1×1.2）",
@@ -1251,7 +1252,7 @@ public final class ForgeDevCheck {
 						new ItemStack(SummyReliquary.SACRED_HEART.get())));
 		LivingHurtEvent withHeart = new LivingHurtEvent(zombie,
 				player.damageSources().playerAttack(player), 10.0F);
-		MinecraftForge.EVENT_BUS.post(withHeart);
+		NeoForge.EVENT_BUS.post(withHeart);
 		double damageWithHeart = withHeart.getAmount();
 		CuriosApi.getCuriosInventory(player).ifPresent(handler ->
 				handler.setEquippedCurio(ReliquarySlots.BLESSING, 1, ItemStack.EMPTY));
@@ -1403,7 +1404,7 @@ public final class ForgeDevCheck {
 		ItemStack crafted = new ItemStack(SummyReliquary.REDEMPTION.get(), 1);
 		player.getInventory().add(crafted.copy());
 		int before = countRedemption(player);
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player, crafted,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player, crafted,
 				new net.minecraft.world.SimpleContainer(9)));
 		int afterBlocked = countRedemption(player);
 		log("配方拦截（七罪未清）：背包里的赎罪 " + before + " → " + afterBlocked + "（应被收走，且退回 8 个材料）");
@@ -1414,7 +1415,7 @@ public final class ForgeDevCheck {
 		ItemStack crafted2 = new ItemStack(SummyReliquary.REDEMPTION.get(), 1);
 		player.getInventory().add(crafted2.copy());
 		int before2 = countRedemption(player);
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player, crafted2,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player, crafted2,
 				new net.minecraft.world.SimpleContainer(9)));
 		int afterAllowed = countRedemption(player);
 		log("配方拦截（七罪已清）：背包里的赎罪 " + before2 + " → " + afterAllowed + "（应保持不变）");
@@ -1720,7 +1721,7 @@ public final class ForgeDevCheck {
 		boolean guarded = com.summy.reliquary.effect.SoulShield.isGuarded(player);
 		int shatterAfter = com.summy.reliquary.effect.SoulShield.shatterCount();
 		// 无敌期内再受击应被直接取消
-		var guardedHit = new net.minecraftforge.event.entity.living.LivingHurtEvent(player,
+		var guardedHit = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player,
 				player.damageSources().generic(), 5.0F);
 		com.summy.reliquary.effect.SoulShield.onHurt(guardedHit);
 		boolean guardBlocks = guardedHit.isCanceled() && guardedHit.getAmount() == 0.0F;
@@ -2472,10 +2473,10 @@ public final class ForgeDevCheck {
 		}
 		float healthAfter = player.getHealth();
 		boolean guarded = com.summy.reliquary.effect.DeathImmunity.isGuarded(player);
-		net.minecraftforge.event.entity.living.LivingHurtEvent hurt =
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(player,
+		net.neoforged.neoforge.event.entity.living.LivingHurtEvent hurt =
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player,
 						player.damageSources().generic(), 5.0F);
-		MinecraftForge.EVENT_BUS.post(hurt);
+		NeoForge.EVENT_BUS.post(hurt);
 		log(String.format("免死：%d 次致命伤害触发 %d 次（%.0f%%，应约 20%%）；本次触发后生命 %.1f/%.1f（应为半血）、"
 				+ "无敌守卫=%s、无敌期内受伤被取消=%s",
 				trials, triggered, rate, healthAfter, player.getMaxHealth() / 2.0F, guarded, hurt.isCanceled()));
@@ -2812,7 +2813,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, false);
 		player.getInventory().clearContent();
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.THE_BODY.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.THE_BODY.get()), player.inventoryMenu.getCraftSlots()));
 		int body = com.summy.reliquary.sin.SinEffects.countItem(player, SummyReliquary.THE_BODY.get());
 		int beef = com.summy.reliquary.sin.SinEffects.countItem(player, Items.BEEF);
@@ -2827,7 +2828,7 @@ public final class ForgeDevCheck {
 		player.getInventory().clearContent();
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.THE_BODY.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.THE_BODY.get()), player.inventoryMenu.getCraftSlots()));
 		boolean kept = player.inventoryMenu.getCarried().is(SummyReliquary.THE_BODY.get());
 		player.inventoryMenu.setCarried(ItemStack.EMPTY);
@@ -2835,7 +2836,7 @@ public final class ForgeDevCheck {
 		player.getInventory().clearContent();
 		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, false);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.CEREMONIAL_ROBES.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.CEREMONIAL_ROBES.get()), player.inventoryMenu.getCraftSlots()));
 		int robesLeft = com.summy.reliquary.sin.SinEffects.countItem(player, SummyReliquary.CEREMONIAL_ROBES.get());
 		int goldBack = com.summy.reliquary.sin.SinEffects.countItem(player, Items.GOLD_INGOT);
@@ -2845,7 +2846,7 @@ public final class ForgeDevCheck {
 		player.getInventory().clearContent();
 		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.CEREMONIAL_ROBES.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.CEREMONIAL_ROBES.get()), player.inventoryMenu.getCraftSlots()));
 		boolean robesKept = player.inventoryMenu.getCarried().is(SummyReliquary.CEREMONIAL_ROBES.get());
 		player.inventoryMenu.setCarried(ItemStack.EMPTY);
@@ -2860,11 +2861,11 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
 		PlayerEvent.NameFormat plain = new PlayerEvent.NameFormat(player,
 				net.minecraft.network.chat.Component.literal("Dev"));
-		MinecraftForge.EVENT_BUS.post(plain);
+		NeoForge.EVENT_BUS.post(plain);
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
 		PlayerEvent.NameFormat gold = new PlayerEvent.NameFormat(player,
 				net.minecraft.network.chat.Component.literal("Dev"));
-		MinecraftForge.EVENT_BUS.post(gold);
+		NeoForge.EVENT_BUS.post(gold);
 		log("玩家名：无天使标记=" + colorOf(plain.getDisplayname()) + "（应为 无）、有天使标记="
 				+ colorOf(gold.getDisplayname()) + "（应为 #FFAA00）");
 	}
@@ -3753,10 +3754,10 @@ public final class ForgeDevCheck {
 		int before = com.summy.reliquary.effect.HolyLightEffect.triggerCount();
 		float healthBefore = zombie.getHealth();
 		com.summy.reliquary.effect.HolyLightEffect.record(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(zombie,
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(zombie,
 						player.damageSources().playerAttack(player), 10.0F));
 		com.summy.reliquary.effect.HolyLightEffect.record(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(zombie,
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(zombie,
 						player.damageSources().indirectMagic(player, player), 6.0F));
 		com.summy.reliquary.effect.HolyLightEffect.tickServer(server);
 		int triggers = com.summy.reliquary.effect.HolyLightEffect.triggerCount() - before;
@@ -3781,9 +3782,9 @@ public final class ForgeDevCheck {
 		float healthBefore = zombie.getHealth();
 		var melee = player.damageSources().playerAttack(player);
 		com.summy.reliquary.effect.HolyLightEffect.record(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(zombie, melee, 10.0F));
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(zombie, melee, 10.0F));
 		com.summy.reliquary.effect.HolyLightEffect.record(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(zombie, melee, 10.0F));
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(zombie, melee, 10.0F));
 		com.summy.reliquary.effect.HolyLightEffect.tickServer(server);
 		int triggers = com.summy.reliquary.effect.HolyLightEffect.triggerCount() - before;
 		float damage = healthBefore - zombie.getHealth();
@@ -3808,7 +3809,7 @@ public final class ForgeDevCheck {
 		for (int index = 0; index < trials; index++) {
 			zombie.setHealth(zombie.getMaxHealth());
 			com.summy.reliquary.effect.HolyLightEffect.record(
-					new net.minecraftforge.event.entity.living.LivingHurtEvent(zombie,
+					new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(zombie,
 							player.damageSources().playerAttack(player), 10.0F));
 			com.summy.reliquary.effect.HolyLightEffect.tickServer(server);
 			// 采样时不需要真的保留光柱（否则会堆积几百条）
@@ -3831,14 +3832,14 @@ public final class ForgeDevCheck {
 				.map(handler -> handler.findFirstCurio(SummyReliquary.HOLY_MANTLE.get()).isPresent())
 				.orElse(false);
 		var source = player.damageSources().magic();
-		net.minecraftforge.event.entity.living.LivingHurtEvent first =
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(player, source, 5.0F);
+		net.neoforged.neoforge.event.entity.living.LivingHurtEvent first =
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player, source, 5.0F);
 		com.summy.reliquary.effect.HolyMantle.onHurt(first);
 		boolean guarded = com.summy.reliquary.effect.HolyMantle.isGuarded(player);
 		long window = com.summy.reliquary.effect.HolyMantle.guardUntil(player)
 				- player.serverLevel().getGameTime();
-		net.minecraftforge.event.entity.living.LivingHurtEvent second =
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(player, source, 5.0F);
+		net.neoforged.neoforge.event.entity.living.LivingHurtEvent second =
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player, source, 5.0F);
 		com.summy.reliquary.effect.HolyMantle.onHurt(second);
 		log("神圣斗篷：已佩戴=" + worn + "（应 true）、受击后无敌=" + guarded + "（应 true）、窗口=" + window
 				+ " tick（应 20）；无敌期内第二击被取消=" + second.isCanceled() + "（应 true）、伤害="
@@ -3913,7 +3914,7 @@ public final class ForgeDevCheck {
 			target.invulnerableTime = 20;
 		}
 		com.summy.reliquary.effect.HolyLightEffect.record(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(target,
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(target,
 						player.damageSources().playerAttack(player), baseline));
 		com.summy.reliquary.effect.HolyLightEffect.tickServer(server);
 		return before - target.getHealth();
@@ -4028,9 +4029,9 @@ public final class ForgeDevCheck {
 		float before = target.getHealth();
 		// 1.6.2：合成的伤害事件也要先清掉"受伤节流"记录
 		com.summy.reliquary.effect.CombatTuning.clear();
-		var hurt = new net.minecraftforge.event.entity.living.LivingHurtEvent(target,
+		var hurt = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(target,
 				player.damageSources().playerAttack(player), 10.0F);
-		net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(hurt);
+		net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(hurt);
 		float baselineSeen = hurt.getAmount();
 		com.summy.reliquary.effect.HolyLightEffect.tickServer(server);
 		float holyDamage = before - target.getHealth();
@@ -4048,9 +4049,9 @@ public final class ForgeDevCheck {
 		// 1.6.2：受伤无敌帧改成自定义节流后，连续合成的伤害事件也会被窗口挡下；
 		// 这里要测的是"倍率管线"，所以先清掉节流记录。
 		com.summy.reliquary.effect.CombatTuning.clear();
-		var event = new net.minecraftforge.event.entity.living.LivingHurtEvent(target,
+		var event = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(target,
 				player.damageSources().playerAttack(player), base);
-		net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
+		net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(event);
 		// 事件会顺带被圣光记录，这里清掉免得影响后续用例
 		com.summy.reliquary.effect.HolyLightEffect.reset();
 		return event.getAmount();
@@ -4224,9 +4225,9 @@ public final class ForgeDevCheck {
 
 	/** 2.4 自检用：用指定 SR 伤害类型发一次 LivingHurtEvent，返回事件后的金额 */
 	private static float hurtAmount(ServerPlayer player, LivingEntity target, String path, float amount) {
-		var hurt = new net.minecraftforge.event.entity.living.LivingHurtEvent(
+		var hurt = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(
 				target, srSource(player, path), amount);
-		net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(hurt);
+		net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(hurt);
 		return hurt.getAmount();
 	}
 
@@ -5154,7 +5155,7 @@ public final class ForgeDevCheck {
 			int indexedAfterHit = com.summy.reliquary.effect.DivineIntervention
 					.indexedProjectileCountForTest(projectileLevel);
 			com.summy.reliquary.effect.DivineIntervention.onProjectileLeave(
-					new net.minecraftforge.event.entity.EntityLeaveLevelEvent(
+					new net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent(
 							friendlyFastArrow, projectileLevel));
 			boolean leaveRemoved = com.summy.reliquary.effect.DivineIntervention
 					.indexedProjectileCountForTest(projectileLevel) == indexedAfterHit - 1;
@@ -5211,7 +5212,7 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
 					verdictTarget, verdictSource, 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.confirmLanding(
-					new net.minecraftforge.event.entity.living.LivingDamageEvent(
+					new net.neoforged.neoforge.event.entity.living.LivingDamageEvent(
 							verdictTarget, verdictLandingSource, 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float verdictBonus = verdictBefore - verdictTarget.getHealth();
@@ -5229,10 +5230,10 @@ public final class ForgeDevCheck {
 			int duplicateCandidates = com.summy.reliquary.effect.SacredVerdict
 					.pendingCandidateCountForTest();
 			com.summy.reliquary.effect.SacredVerdict.confirmLanding(
-					new net.minecraftforge.event.entity.living.LivingDamageEvent(
+					new net.neoforged.neoforge.event.entity.living.LivingDamageEvent(
 							verdictTarget, duplicateLandingSourceA, 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.confirmLanding(
-					new net.minecraftforge.event.entity.living.LivingDamageEvent(
+					new net.neoforged.neoforge.event.entity.living.LivingDamageEvent(
 							verdictTarget, duplicateLandingSourceB, 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float duplicateVerdictBonus = 100.0F - verdictTarget.getHealth();
@@ -5277,7 +5278,7 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.SacredVerdict.recordOutgoing(new LivingHurtEvent(
 					verdictTarget, unchargedSource, 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.confirmLanding(
-					new net.minecraftforge.event.entity.living.LivingDamageEvent(
+					new net.neoforged.neoforge.event.entity.living.LivingDamageEvent(
 							verdictTarget, player.damageSources().playerAttack(player), 10.0F));
 			com.summy.reliquary.effect.SacredVerdict.tickServer(player.getServer());
 			float unchargedBonus = beforeUncharged - verdictTarget.getHealth();
@@ -6073,13 +6074,13 @@ public final class ForgeDevCheck {
 		java.util.List<ItemEntity> drops = new java.util.ArrayList<>();
 		drops.add(new ItemEntity(level, player.getX(), player.getY(), player.getZ(),
 				new ItemStack(Items.ROTTEN_FLESH, 2)));
-		net.minecraftforge.event.entity.living.LivingDropsEvent dropsEvent =
-				new net.minecraftforge.event.entity.living.LivingDropsEvent(
+		net.neoforged.neoforge.event.entity.living.LivingDropsEvent dropsEvent =
+				new net.neoforged.neoforge.event.entity.living.LivingDropsEvent(
 						victim, source, drops, 0, true);
 		com.summy.reliquary.loot.HumbleingBundleLoot.captureLivingDrops(dropsEvent);
 		boolean playerlessReroll = dropsEvent.getDrops().size() > 1;
-		net.minecraftforge.event.entity.living.LivingDropsEvent duplicateDropsEvent =
-				new net.minecraftforge.event.entity.living.LivingDropsEvent(
+		net.neoforged.neoforge.event.entity.living.LivingDropsEvent duplicateDropsEvent =
+				new net.neoforged.neoforge.event.entity.living.LivingDropsEvent(
 						victim, source, new java.util.ArrayList<>(), 0, true);
 		com.summy.reliquary.loot.HumbleingBundleLoot.captureLivingDrops(duplicateDropsEvent);
 		boolean dropsOnce = duplicateDropsEvent.getDrops().isEmpty();
@@ -6102,14 +6103,14 @@ public final class ForgeDevCheck {
 						.count() == 1
 				&& retainedTag;
 
-		net.minecraftforge.event.entity.living.LivingExperienceDropEvent xpEvent =
-				new net.minecraftforge.event.entity.living.LivingExperienceDropEvent(
+		net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent xpEvent =
+				new net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent(
 						victim, player, 5);
 		xpEvent.setDroppedExperience(7);
 		com.summy.reliquary.loot.HumbleingBundleLoot.onExperienceDrop(xpEvent);
 		boolean copiedExperience = xpEvent.getDroppedExperience() == 14;
-		net.minecraftforge.event.entity.living.LivingExperienceDropEvent duplicateXpEvent =
-				new net.minecraftforge.event.entity.living.LivingExperienceDropEvent(
+		net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent duplicateXpEvent =
+				new net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent(
 						victim, player, 7);
 		com.summy.reliquary.loot.HumbleingBundleLoot.onExperienceDrop(duplicateXpEvent);
 		boolean experienceOnce = duplicateXpEvent.getDroppedExperience() == 7;
@@ -6157,12 +6158,12 @@ public final class ForgeDevCheck {
 				hexTransferCredit = hexVictim.getKillCredit() == player;
 				int state = com.summy.reliquary.loot.HumbleingBundleLoot
 						.killTransactionStateForTest(hexVictim);
-				net.minecraftforge.event.entity.living.LivingExperienceDropEvent duplicateHexXp =
-						new net.minecraftforge.event.entity.living.LivingExperienceDropEvent(
+				net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent duplicateHexXp =
+						new net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent(
 								hexVictim, player, 5);
 				com.summy.reliquary.loot.HumbleingBundleLoot.onExperienceDrop(duplicateHexXp);
-				net.minecraftforge.event.entity.living.LivingDropsEvent duplicateHexDrops =
-						new net.minecraftforge.event.entity.living.LivingDropsEvent(
+				net.neoforged.neoforge.event.entity.living.LivingDropsEvent duplicateHexDrops =
+						new net.neoforged.neoforge.event.entity.living.LivingDropsEvent(
 								hexVictim, srSource(player, "hex_transfer"),
 								new java.util.ArrayList<>(), 0, true);
 				com.summy.reliquary.loot.HumbleingBundleLoot.captureLivingDrops(duplicateHexDrops);
@@ -6818,7 +6819,7 @@ public final class ForgeDevCheck {
 
 			com.summy.reliquary.effect.TimedMarkerState.clear(victim);
 			suppressMarkerVisualsForTest = true;
-			MinecraftForge.EVENT_BUS.post(new LivingHurtEvent(victim,
+			NeoForge.EVENT_BUS.post(new LivingHurtEvent(victim,
 					sourceOf.apply("revelation_light"), 1.0F));
 			boolean revelationMarked = com.summy.reliquary.effect.TimedMarkerState.hasRevelation(victim)
 					&& !victim.hasEffect(SummyReliquary.REVELATION_LIGHT.get());
@@ -6832,7 +6833,7 @@ public final class ForgeDevCheck {
 			suppressMarkerVisualsForTest = true;
 			for (String path : List.of("demon_flame", "hellfire", "abyss_aura")) {
 				com.summy.reliquary.effect.TimedMarkerState.clear(victim);
-				MinecraftForge.EVENT_BUS.post(new LivingHurtEvent(victim, sourceOf.apply(path), 1.0F));
+				NeoForge.EVENT_BUS.post(new LivingHurtEvent(victim, sourceOf.apply(path), 1.0F));
 				allDemonSources &= com.summy.reliquary.effect.TimedMarkerState.hasDemonicBrand(victim)
 						&& !victim.hasEffect(SummyReliquary.DEMONIC_BRAND.get());
 			}
@@ -6842,7 +6843,7 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.TimedMarkerState.setRemainingTicksForTest(victim, true, -1L);
 			boolean demonExpired = !com.summy.reliquary.effect.TimedMarkerState.hasDemonicBrand(victim);
 			com.summy.reliquary.effect.TimedMarkerState.clear(victim);
-			MinecraftForge.EVENT_BUS.post(new LivingHurtEvent(victim,
+			NeoForge.EVENT_BUS.post(new LivingHurtEvent(victim,
 					victim.damageSources().generic(), 1.0F));
 			boolean ordinaryNoMark = !com.summy.reliquary.effect.TimedMarkerState.hasRevelation(victim)
 					&& !com.summy.reliquary.effect.TimedMarkerState.hasDemonicBrand(victim);
@@ -7050,7 +7051,7 @@ public final class ForgeDevCheck {
 				SummyReliquary.id("freeloaders_rice"));
 		var manualSerializer =
 				com.summy.reliquary.recipe.ReliquaryRecipeSerializers.MANUAL_ONLY_SHAPELESS.get();
-		var manualKey = net.minecraftforge.registries.ForgeRegistries.RECIPE_SERIALIZERS
+				var manualKey = net.minecraft.core.registries.BuiltInRegistries.RECIPE_SERIALIZER
 				.getKey(manualSerializer);
 		var standardKey = new net.minecraft.resources.ResourceLocation(
 				"minecraft", "crafting_shapeless");
@@ -7062,7 +7063,7 @@ public final class ForgeDevCheck {
 			var recipe = server.getRecipeManager().byKey(id).orElse(null);
 			return recipe != null
 					&& recipe.getType() == net.minecraft.world.item.crafting.RecipeType.CRAFTING
-					&& manualKey.equals(net.minecraftforge.registries.ForgeRegistries
+						&& manualKey.equals(net.minecraft.core.registries.BuiltInRegistries
 							.RECIPE_SERIALIZERS.getKey(recipe.getSerializer()));
 		});
 		int actualManualCount = (int) server.getRecipeManager().getRecipes().stream()
@@ -7073,7 +7074,7 @@ public final class ForgeDevCheck {
 			var recipe = server.getRecipeManager().byKey(id).orElse(null);
 			if (!(recipe instanceof net.minecraft.world.item.crafting.CraftingRecipe crafting)
 					|| recipe.getType() != net.minecraft.world.item.crafting.RecipeType.CRAFTING
-					|| !standardKey.equals(net.minecraftforge.registries.ForgeRegistries
+						|| !standardKey.equals(net.minecraft.core.registries.BuiltInRegistries
 							.RECIPE_SERIALIZERS.getKey(recipe.getSerializer()))) {
 				return false;
 			}
@@ -7088,7 +7089,7 @@ public final class ForgeDevCheck {
 							grid, player.serverLevel().registryAccess()).isEmpty();
 		});
 
-		boolean tagged = net.minecraftforge.registries.ForgeRegistries.RECIPE_SERIALIZERS
+			boolean tagged = net.minecraft.core.registries.BuiltInRegistries.RECIPE_SERIALIZER
 				.getHolder(manualSerializer)
 				.map(holder -> holder.is(automationIgnore))
 				.orElse(false);
@@ -7100,7 +7101,7 @@ public final class ForgeDevCheck {
 			net.minecraft.world.inventory.TransientCraftingContainer grid,
 			net.minecraft.world.item.crafting.CraftingRecipe recipe) {
 		var ingredients = recipe.getIngredients();
-		if (recipe instanceof net.minecraftforge.common.crafting.IShapedRecipe<?> shaped) {
+		if (recipe instanceof net.neoforged.neoforge.common.crafting.IShapedRecipe<?> shaped) {
 			int width = shaped.getRecipeWidth();
 			int height = shaped.getRecipeHeight();
 			for (int row = 0; row < height; row++) {
@@ -7470,7 +7471,7 @@ public final class ForgeDevCheck {
 		// 无恶魔标记强合：收走产物并完整退料。
 		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.BETRAYAL.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.BETRAYAL.get()), player.inventoryMenu.getCraftSlots()));
 		boolean refunded = player.inventoryMenu.getCarried().isEmpty()
 				&& com.summy.reliquary.sin.SinEffects.countItem(player, Items.IRON_INGOT) == 3
@@ -8008,7 +8009,7 @@ public final class ForgeDevCheck {
 		boolean fovForwarded = java.util.Arrays.stream(
 				com.summy.reliquary.client.ReliquaryClientTicks.class.getDeclaredMethods())
 				.anyMatch(m -> m.getName().equals("onComputeFov")
-						&& m.isAnnotationPresent(net.minecraftforge.eventbus.api.SubscribeEvent.class));
+						&& m.isAnnotationPresent(net.neoforged.bus.api.SubscribeEvent.class));
 		log("视野收缩转发（1.8.2）：ReliquaryClientTicks#onComputeFov 带 @SubscribeEvent=" + fovForwarded
 				+ "（应 true）");
 	}
@@ -8737,13 +8738,13 @@ public final class ForgeDevCheck {
 		// ③ 名字颜色：恶魔 = 深红 #8B0000；天使仍是金色
 		PlayerEvent.NameFormat nameEvent = new PlayerEvent.NameFormat(
 				player, net.minecraft.network.chat.Component.literal(player.getGameProfile().getName()));
-		MinecraftForge.EVENT_BUS.post(nameEvent);
+		NeoForge.EVENT_BUS.post(nameEvent);
 		String demonNameColor = colorOf(nameEvent.getDisplayname());
 		com.summy.reliquary.effect.PlayerFlags.setDemon(player, false);
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
 		PlayerEvent.NameFormat angelEvent = new PlayerEvent.NameFormat(
 				player, net.minecraft.network.chat.Component.literal(player.getGameProfile().getName()));
-		MinecraftForge.EVENT_BUS.post(angelEvent);
+		NeoForge.EVENT_BUS.post(angelEvent);
 		String angelNameColor = colorOf(angelEvent.getDisplayname());
 
 		// ④ 错误位置提示 + 按玩家 5 秒节流
@@ -9652,7 +9653,7 @@ public final class ForgeDevCheck {
 	private static void pactHit(ServerPlayer player, net.minecraft.world.entity.LivingEntity target) {
 		target.invulnerableTime = 0;
 		com.summy.reliquary.effect.DemonPact.extraSacrificeDamage(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(target,
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(target,
 						player.damageSources().playerAttack(player), 1.0F));
 	}
 
@@ -9926,7 +9927,7 @@ public final class ForgeDevCheck {
 		player.getInventory().clearContent();
 		ItemStack crafted = new ItemStack(SummyReliquary.THE_MARK.get());
 		player.getInventory().add(crafted.copy());
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(
 				player, crafted, player.inventoryMenu.getCraftSlots()));
 		int marksAfterGate = player.getInventory().countItem(SummyReliquary.THE_MARK.get());
 		int sixAfterGate = player.getInventory().countItem(SummyReliquary.SIX.get());
@@ -9939,7 +9940,7 @@ public final class ForgeDevCheck {
 		player.getInventory().clearContent();
 		ItemStack crafted2 = new ItemStack(SummyReliquary.THE_MARK.get());
 		player.getInventory().add(crafted2.copy());
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(
 				player, crafted2, player.inventoryMenu.getCraftSlots()));
 		boolean gateAllows = player.getInventory().countItem(SummyReliquary.THE_MARK.get()) == 1;
 
@@ -10132,7 +10133,7 @@ public final class ForgeDevCheck {
 		ItemStack crafted = new ItemStack(SummyReliquary.SACRED_HEART.get());
 		player.getInventory().add(crafted);
 		int before = player.getInventory().countItem(SummyReliquary.SACRED_HEART.get());
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(
 				player, crafted, player.inventoryMenu.getCraftSlots()));
 		int after = player.getInventory().countItem(SummyReliquary.SACRED_HEART.get());
 		boolean noGate = before == 1 && after == 1;
@@ -10141,7 +10142,7 @@ public final class ForgeDevCheck {
 		try {
 			com.summy.reliquary.ReliquaryEvents.logSlotSnapshot(player, "自检");
 			// 真的发一次 SaveToFile 事件，验证"写盘快照"这条监听确实挂着
-			MinecraftForge.EVENT_BUS.post(new PlayerEvent.SaveToFile(
+			NeoForge.EVENT_BUS.post(new PlayerEvent.SaveToFile(
 					player, null, player.getStringUUID()));
 		} catch (Throwable throwable) {
 			snapshotOk = false;
@@ -11116,8 +11117,8 @@ public final class ForgeDevCheck {
 		var exactSource = new net.minecraft.world.damagesource.DamageSource(registry.getHolderOrThrow(
 				net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE,
 						SummyReliquary.id("revelation_light"))));
-		var exact = new net.minecraftforge.event.entity.living.LivingHurtEvent(target, exactSource, 5.0F);
-		MinecraftForge.EVENT_BUS.post(exact);
+		var exact = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(target, exactSource, 5.0F);
+		NeoForge.EVENT_BUS.post(exact);
 		boolean exactSkipped = !com.summy.reliquary.effect.HellfireState.active(target);
 
 		// ⑥ 狱火自身（每秒伤害）也不会再叠层
@@ -12211,13 +12212,13 @@ public final class ForgeDevCheck {
 		// 同一击：同一个 DamageSource 实例 + 同一个金额
 		net.minecraft.world.damagesource.DamageSource hit = player.damageSources().generic();
 		boolean firstHandled = com.summy.reliquary.effect.DamagePools.prepare(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(player, hit, 3.0F));
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player, hit, 3.0F));
 		double poolAfterFirst = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
 		float absorptionAfterFirst = player.getAbsorptionAmount();
 
 		// 第二次触发：同一 tick、同一来源、同一金额，且吸收值还是"并入后"的样子 → 判定为重复事件
 		boolean secondHandled = com.summy.reliquary.effect.DamagePools.prepare(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(player, hit, 3.0F));
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player, hit, 3.0F));
 		double poolAfterSecond = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
 		float absorptionAfterSecond = player.getAbsorptionAmount();
 
@@ -12226,7 +12227,7 @@ public final class ForgeDevCheck {
 		// 注意 `damageSources().generic()` 是**缓存实例**，两次调用拿到的是同一个对象 —— 想要"另一个来源"
 		// 必须换类型（这里用 magic），否则会被正确地判成同一击的重复事件。
 		boolean otherHitHandled = com.summy.reliquary.effect.DamagePools.prepare(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(player, player.damageSources().magic(),
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player, player.damageSources().magic(),
 						3.0F));
 		double poolAfterOtherHit = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
 
@@ -12335,7 +12336,7 @@ public final class ForgeDevCheck {
 
 		player.invulnerableTime = 0;
 		com.summy.reliquary.effect.DamagePools.prepare(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(player,
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player,
 						player.damageSources().generic(), 3.0F));
 		double poolCharged = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
 		float absorptionTopped = player.getAbsorptionAmount();
@@ -12665,7 +12666,7 @@ public final class ForgeDevCheck {
 		net.minecraft.world.item.ItemStack crafted = new net.minecraft.world.item.ItemStack(
 				SummyReliquary.OCCULT_EYE.get());
 		player.getInventory().add(crafted.copy());
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerEvent.ItemCraftedEvent(
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent(
 				player, crafted, player.getInventory()));
 		int wraithBack = player.getInventory().countItem(SummyReliquary.NIGHT_WRAITH.get());
 		int eyeBack = player.getInventory().countItem(Items.ENDER_EYE);
@@ -12736,19 +12737,19 @@ public final class ForgeDevCheck {
 		// 增伤：与"目标身上有没有恐惧"无关 —— 清掉恐惧后照样 ×1.3
 		target.removeEffect(SummyReliquary.FEAR.get());
 		equip(player, ReliquarySlots.BLESSING, SummyReliquary.OCCULT_EYE.get());
-		var hurt = new net.minecraftforge.event.entity.living.LivingHurtEvent(target,
+		var hurt = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(target,
 				player.damageSources().playerAttack(player), 10.0F);
 		com.summy.reliquary.effect.SpiritAltarSet.onLivingHurt(hurt);
 		float boosted = hurt.getAmount();
 		player.setYRot(180.0F);
-		var turned = new net.minecraftforge.event.entity.living.LivingHurtEvent(target,
+		var turned = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(target,
 				player.damageSources().playerAttack(player), 10.0F);
 		com.summy.reliquary.effect.SpiritAltarSet.onLivingHurt(turned);
 		float plain = turned.getAmount();
 		player.setYRot(0.0F);
 
 		// ⑤b 增伤覆盖面（1.6.6 补断言）：近战 / 箭矢 / 普通魔法来源都吃 ×1.3；本模组"定值真伤"不吃
-		var magic = new net.minecraftforge.event.entity.living.LivingHurtEvent(target,
+		var magic = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(target,
 				player.damageSources().indirectMagic(player, player), 10.0F);
 		com.summy.reliquary.effect.SpiritAltarSet.onLivingHurt(magic);
 		float magicAmount = magic.getAmount();
@@ -12757,7 +12758,7 @@ public final class ForgeDevCheck {
 		float arrowAmount = -1.0F;
 		if (arrow != null) {
 			arrow.setOwner(player);
-			var arrowHurt = new net.minecraftforge.event.entity.living.LivingHurtEvent(target,
+			var arrowHurt = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(target,
 					player.damageSources().arrow(arrow, player), 10.0F);
 			com.summy.reliquary.effect.SpiritAltarSet.onLivingHurt(arrowHurt);
 			arrowAmount = arrowHurt.getAmount();
@@ -12768,7 +12769,7 @@ public final class ForgeDevCheck {
 		var exactSource = new net.minecraft.world.damagesource.DamageSource(registry.getHolderOrThrow(
 				net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE,
 						SummyReliquary.id("revelation_light"))));
-		var exact = new net.minecraftforge.event.entity.living.LivingHurtEvent(target, exactSource, 10.0F);
+		var exact = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(target, exactSource, 10.0F);
 		com.summy.reliquary.effect.SpiritAltarSet.onLivingHurt(exact);
 		float exactAmount = exact.getAmount();
 
@@ -12953,7 +12954,7 @@ public final class ForgeDevCheck {
 			}
 		}
 		int iconItems = 0;
-		for (var icon : new net.minecraftforge.registries.RegistryObject[]{SummyReliquary.TRINITY,
+		for (var icon : new net.neoforged.neoforge.registries.RegistryObject[]{SummyReliquary.TRINITY,
 				SummyReliquary.ERROR_ICON, SummyReliquary.PURITY_ICON, SummyReliquary.DUALITY_STAT,
 				SummyReliquary.YOUR_SOUL}) {
 			if (icon.isPresent()) {
@@ -12962,7 +12963,7 @@ public final class ForgeDevCheck {
 		}
 		// 1.7.0：三位一体已转正（有配方 + 进创造页），所以"纯图标物品"只剩 4 件
 		int pureIconCount = 0;
-		for (var icon : new net.minecraftforge.registries.RegistryObject[]{SummyReliquary.ERROR_ICON,
+		for (var icon : new net.neoforged.neoforge.registries.RegistryObject[]{SummyReliquary.ERROR_ICON,
 				SummyReliquary.PURITY_ICON, SummyReliquary.DUALITY_STAT, SummyReliquary.YOUR_SOUL}) {
 			if (icon.isPresent()) {
 				pureIconCount++;
@@ -13633,7 +13634,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.HolyMantle.tick(player.getServer());
 		equip(player, ReliquarySlots.BLESSING, SummyReliquary.HOLY_MANTLE.get());
 		prepareBarePlayer(player);
-		var mantleEvent = new net.minecraftforge.event.entity.living.LivingHurtEvent(player,
+		var mantleEvent = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player,
 				player.damageSources().magic(), 1.0F);
 		com.summy.reliquary.effect.HolyMantle.onHurt(mantleEvent);
 		long aloneWindow = com.summy.reliquary.effect.HolyMantle.guardUntil(player)
@@ -13641,7 +13642,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.HolyMantle.reset();
 		equip(player, ReliquarySlots.REVELATION, SummyReliquary.GODHEAD.get());
 		prepareBarePlayer(player);
-		var mantleEvent2 = new net.minecraftforge.event.entity.living.LivingHurtEvent(player,
+		var mantleEvent2 = new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player,
 				player.damageSources().magic(), 1.0F);
 		com.summy.reliquary.effect.HolyMantle.onHurt(mantleEvent2);
 		long withWindow = com.summy.reliquary.effect.HolyMantle.guardUntil(player)
@@ -14011,7 +14012,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
 		player.getInventory().clearContent();
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.TRINITY.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.TRINITY.get()), player.inventoryMenu.getCraftSlots()));
 		int trinityHeld = com.summy.reliquary.sin.SinEffects.countItem(player, SummyReliquary.TRINITY.get())
 				+ (player.inventoryMenu.getCarried().is(SummyReliquary.TRINITY.get()) ? 1 : 0);
@@ -14036,7 +14037,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setEvil(player, 0.0D);
 		player.getInventory().clearContent();
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.HOLY_LIGHT.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.HOLY_LIGHT.get()), player.inventoryMenu.getCraftSlots()));
 		boolean holyLightBlocked = com.summy.reliquary.sin.SinEffects
 				.countItem(player, SummyReliquary.HOLY_LIGHT.get()) == 0
@@ -14045,7 +14046,7 @@ public final class ForgeDevCheck {
 				&& com.summy.reliquary.sin.SinEffects.countItem(player, Items.GOLDEN_APPLE) == 1;
 		player.getInventory().clearContent();
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.VENGEFUL_SPIRIT.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.VENGEFUL_SPIRIT.get()), player.inventoryMenu.getCraftSlots()));
 		boolean vengefulBlocked = com.summy.reliquary.sin.SinEffects
 				.countItem(player, SummyReliquary.VENGEFUL_SPIRIT.get()) == 0
@@ -14106,7 +14107,7 @@ public final class ForgeDevCheck {
 
 		// ⑥ 可获得性审计：40 件玩法物品 + 4 件纯图标物品
 		int iconOnly = 0;
-		for (var icon : new net.minecraftforge.registries.RegistryObject[]{SummyReliquary.ERROR_ICON,
+		for (var icon : new net.neoforged.neoforge.registries.RegistryObject[]{SummyReliquary.ERROR_ICON,
 				SummyReliquary.PURITY_ICON, SummyReliquary.DUALITY_STAT, SummyReliquary.YOUR_SOUL}) {
 			if (icon.isPresent()) {
 				iconOnly++;
@@ -14583,7 +14584,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, false);
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.SACRED_HEART.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.SACRED_HEART.get()), player.inventoryMenu.getCraftSlots()));
 		// 被拦下时产物必须被收走（光标上 / 背包里都不该剩下）
 		boolean productRemains = player.inventoryMenu.getCarried().is(SummyReliquary.SACRED_HEART.get())
@@ -14596,7 +14597,7 @@ public final class ForgeDevCheck {
 		// 有天使标记 → 正常放行
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.SACRED_HEART.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.SACRED_HEART.get()), player.inventoryMenu.getCraftSlots()));
 		boolean allowed = player.inventoryMenu.getCarried().is(SummyReliquary.SACRED_HEART.get());
 		player.inventoryMenu.setCarried(ItemStack.EMPTY);
@@ -15374,8 +15375,8 @@ public final class ForgeDevCheck {
 		player.hurt(player.damageSources().generic(), 4.0F);
 		boolean hurtCanceled = player.getHealth() >= healthBefore;
 		boolean knockCanceled = false;
-		var knock = new net.minecraftforge.event.entity.living.LivingKnockBackEvent(player, 1.0F, 1.0D, 0.0D);
-		net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(knock);
+		var knock = new net.neoforged.neoforge.event.entity.living.LivingKnockBackEvent(player, 1.0F, 1.0D, 0.0D);
+		net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(knock);
 		knockCanceled = knock.isCanceled() || knock.getStrength() == 0.0F;
 
 		// 推进到判定期结束（第 20 次 tick 进入结算期）
@@ -15491,7 +15492,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setDaggerRecoveryOpen(player, false);
 		player.getInventory().clearContent();
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.SACRIFICIAL_DAGGER.get()));
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerEvent.ItemCraftedEvent(
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent(
 				player, new ItemStack(SummyReliquary.SACRIFICIAL_DAGGER.get()),
 				player.inventoryMenu.getCraftSlots()));
 		boolean blocked = !player.inventoryMenu.getCarried().is(SummyReliquary.SACRIFICIAL_DAGGER.get())
@@ -15504,7 +15505,7 @@ public final class ForgeDevCheck {
 
 		com.summy.reliquary.effect.PlayerFlags.setDaggerRecoveryOpen(player, true);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.SACRIFICIAL_DAGGER.get()));
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerEvent.ItemCraftedEvent(
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent(
 				player, new ItemStack(SummyReliquary.SACRIFICIAL_DAGGER.get()),
 				player.inventoryMenu.getCraftSlots()));
 		boolean allowedWhenOpen = player.inventoryMenu.getCarried().is(SummyReliquary.SACRIFICIAL_DAGGER.get());
@@ -15521,7 +15522,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setDemonSealed(player, true);
 		com.summy.reliquary.effect.PlayerFlags.setEvilUnlocks(player, 0);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.DARK_ARTS.get()));
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerEvent.ItemCraftedEvent(
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent(
 				player, new ItemStack(SummyReliquary.DARK_ARTS.get()), player.inventoryMenu.getCraftSlots()));
 		boolean darkBlocked = !player.inventoryMenu.getCarried().is(SummyReliquary.DARK_ARTS.get());
 		boolean darkRefunded = countItem(player, Items.NETHER_STAR) == 1
@@ -15534,7 +15535,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setEvilUnlocks(player,
 				com.summy.reliquary.effect.EvilUnlock.OCCULT_EYE.bit());
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.DARK_ARTS.get()));
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerEvent.ItemCraftedEvent(
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent(
 				player, new ItemStack(SummyReliquary.DARK_ARTS.get()), player.inventoryMenu.getCraftSlots()));
 		boolean darkAllowed = player.inventoryMenu.getCarried().is(SummyReliquary.DARK_ARTS.get());
 		player.inventoryMenu.setCarried(ItemStack.EMPTY);
@@ -15544,11 +15545,11 @@ public final class ForgeDevCheck {
 		net.minecraft.world.entity.item.ItemEntity daggerDrop = new net.minecraft.world.entity.item.ItemEntity(
 				level, player.getX(), player.getY() + 1.0D, player.getZ(),
 				new ItemStack(SummyReliquary.SACRIFICIAL_DAGGER.get()));
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.EntityJoinLevelEvent(daggerDrop, level));
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.EntityJoinLevelEvent(daggerDrop, level));
 		boolean dropProtected = daggerDrop.isInvulnerable() && daggerDrop.lifespan == Integer.MAX_VALUE;
 		java.util.List<net.minecraft.world.entity.item.ItemEntity> drops = new java.util.ArrayList<>();
 		drops.add(daggerDrop);
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.living.LivingDropsEvent(
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.living.LivingDropsEvent(
 				player, player.damageSources().generic(), drops, 0, true));
 		boolean stripped = drops.isEmpty();
 		daggerDrop.discard();
@@ -15618,14 +15619,14 @@ public final class ForgeDevCheck {
 		net.minecraft.world.entity.item.ItemEntity drop = new net.minecraft.world.entity.item.ItemEntity(
 				player.serverLevel(), player.getX(), player.getY() + 1.0D, player.getZ(),
 				new ItemStack(SummyReliquary.GENESIS.get()));
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.EntityJoinLevelEvent(
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.EntityJoinLevelEvent(
 				drop, player.serverLevel()));
 		boolean dropProtected = drop.isInvulnerable() && drop.lifespan == Integer.MAX_VALUE;
 
 		// ③ 死亡掉落列表里不应出现创世纪（避免和复活补发重复）
 		List<net.minecraft.world.entity.item.ItemEntity> drops = new java.util.ArrayList<>();
 		drops.add(drop);
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.living.LivingDropsEvent(
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.living.LivingDropsEvent(
 				player, player.damageSources().generic(), drops, 0, true));
 		boolean strippedFromDrops = drops.isEmpty();
 		drop.discard();
@@ -15779,7 +15780,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
 		com.summy.reliquary.effect.PlayerFlags.setSpearRecoveryOpen(player, false);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.SERAPH_SPEAR.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.SERAPH_SPEAR.get()), player.inventoryMenu.getCraftSlots()));
 		boolean seraphBlocked = !player.inventoryMenu.getCarried().is(SummyReliquary.SERAPH_SPEAR.get());
 		boolean seraphRefunded = countItem(player, Items.NETHER_STAR) == 1
@@ -15792,7 +15793,7 @@ public final class ForgeDevCheck {
 		// ② 有天使标记 → 放行
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.SERAPH_SPEAR.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.SERAPH_SPEAR.get()), player.inventoryMenu.getCraftSlots()));
 		boolean seraphAllowed = player.inventoryMenu.getCarried().is(SummyReliquary.SERAPH_SPEAR.get());
 		player.inventoryMenu.setCarried(ItemStack.EMPTY);
@@ -15802,7 +15803,7 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
 		com.summy.reliquary.effect.PlayerFlags.setSpearRecoveryOpen(player, true);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.HOLY_SPEAR.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.HOLY_SPEAR.get()), player.inventoryMenu.getCraftSlots()));
 		boolean holyBlocked = !player.inventoryMenu.getCarried().is(SummyReliquary.HOLY_SPEAR.get());
 		boolean holyRefunded = countItem(player, SummyReliquary.HOLY_LIGHT.get()) == 1
@@ -15815,7 +15816,7 @@ public final class ForgeDevCheck {
 		// ④ 丢失态 + 天使标记 → 放行
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.HOLY_SPEAR.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.HOLY_SPEAR.get()), player.inventoryMenu.getCraftSlots()));
 		boolean holyAllowed = player.inventoryMenu.getCarried().is(SummyReliquary.HOLY_SPEAR.get());
 		player.inventoryMenu.setCarried(ItemStack.EMPTY);
@@ -15824,7 +15825,7 @@ public final class ForgeDevCheck {
 		// ⑤ 只有天使标记、但没丢（未开放）→ 照样拦下（"仅在触发丢失后可用"）
 		com.summy.reliquary.effect.PlayerFlags.setSpearRecoveryOpen(player, false);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.HOLY_SPEAR.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.HOLY_SPEAR.get()), player.inventoryMenu.getCraftSlots()));
 		boolean holyBlockedWhenPresent = !player.inventoryMenu.getCarried().is(SummyReliquary.HOLY_SPEAR.get());
 		player.inventoryMenu.setCarried(ItemStack.EMPTY);
@@ -15985,11 +15986,11 @@ public final class ForgeDevCheck {
 		net.minecraft.world.entity.item.ItemEntity holyDrop = new net.minecraft.world.entity.item.ItemEntity(
 				level, player.getX(), player.getY() + 1.0D, player.getZ(),
 				new ItemStack(SummyReliquary.HOLY_SPEAR.get()));
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.EntityJoinLevelEvent(holyDrop, level));
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.EntityJoinLevelEvent(holyDrop, level));
 		boolean dropProtected = holyDrop.isInvulnerable() && holyDrop.lifespan == Integer.MAX_VALUE;
 		List<net.minecraft.world.entity.item.ItemEntity> drops = new java.util.ArrayList<>();
 		drops.add(holyDrop);
-		MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.living.LivingDropsEvent(
+		NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.living.LivingDropsEvent(
 				player, player.damageSources().generic(), drops, 0, true));
 		boolean stripped = drops.isEmpty();
 		holyDrop.discard();
@@ -16054,7 +16055,7 @@ public final class ForgeDevCheck {
 
 		// ② 攻击距离：短矛 +0.5 / 炽天使 +1.0 / 空手 0 / 未达标 0
 		net.minecraft.world.entity.ai.attributes.Attribute reach =
-				net.minecraftforge.common.ForgeMod.ENTITY_REACH.get();
+				net.neoforged.neoforge.common.ForgeMod.ENTITY_REACH.get();
 		player.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(SummyReliquary.HOLY_SPEAR.get()));
 		com.summy.reliquary.effect.AttributeManager.apply(player);
 		double holyReach = modifierAmount(player, reach, "spear_reach");
@@ -16077,13 +16078,13 @@ public final class ForgeDevCheck {
 		// ③ 未达标时左键伤害整体归零（直接跑一遍事件处理器，避免真的打人）
 		Zombie dummy = spawnTestZombie(player, 2.0D, 0.0D);
 		var source = player.damageSources().playerAttack(player);
-		net.minecraftforge.event.entity.living.LivingHurtEvent blocked =
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(dummy, source, 10.0F);
+		net.neoforged.neoforge.event.entity.living.LivingHurtEvent blocked =
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(dummy, source, 10.0F);
 		com.summy.reliquary.ReliquaryEvents.onLivingHurt(blocked);
 		boolean zeroed = blocked.isCanceled() || blocked.getAmount() == 0.0F;
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, true);
-		net.minecraftforge.event.entity.living.LivingHurtEvent allowed =
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(dummy, source, 10.0F);
+		net.neoforged.neoforge.event.entity.living.LivingHurtEvent allowed =
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(dummy, source, 10.0F);
 		com.summy.reliquary.ReliquaryEvents.onLivingHurt(allowed);
 		boolean notZeroed = !allowed.isCanceled() && allowed.getAmount() > 0.0F;
 		// 10% 圣光 proc 的门槛：手持圣光短矛 + 天使标记才掷骰
@@ -16214,7 +16215,7 @@ public final class ForgeDevCheck {
 		// ① 只拿短矛（不戴圣光）→ 也有一条通道
 		Zombie first = spawnTestZombie(player, 4.0D, 0.0D);
 		com.summy.reliquary.effect.HolyLightEffect.record(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(first,
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(first,
 						player.damageSources().playerAttack(player), 10.0F));
 		com.summy.reliquary.effect.HolyLightEffect.tickServer(server);
 		int spearOnly = com.summy.reliquary.effect.HolyLightEffect.triggerCount();
@@ -16227,7 +16228,7 @@ public final class ForgeDevCheck {
 		Zombie second = spawnTestZombie(player, 4.0D, 0.0D);
 		float healthBefore = second.getHealth();
 		com.summy.reliquary.effect.HolyLightEffect.record(
-				new net.minecraftforge.event.entity.living.LivingHurtEvent(second,
+				new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(second,
 						player.damageSources().playerAttack(player), 10.0F));
 		com.summy.reliquary.effect.HolyLightEffect.tickServer(server);
 		int both = com.summy.reliquary.effect.HolyLightEffect.triggerCount();
@@ -16760,7 +16761,7 @@ public final class ForgeDevCheck {
 		// ① 三位一体：无天使标记 → 产物被收走 + 按配方退回全部材料（三件套 + 心之碎片）
 		com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.TRINITY.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.TRINITY.get()), player.inventoryMenu.getCraftSlots()));
 		boolean trinityBlocked = player.inventoryMenu.getCarried().isEmpty()
 				&& countItem(player, SummyReliquary.THE_BODY.get()) == 1
@@ -16786,7 +16787,7 @@ public final class ForgeDevCheck {
 		// ③ 痛悔短祷：无恶魔标记 → 配方被拦（产物收走 + 退回全部材料）
 		player.getInventory().clearContent();
 		player.inventoryMenu.setCarried(new ItemStack(SummyReliquary.ACT_OF_CONTRITION.get()));
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
+		NeoForge.EVENT_BUS.post(new PlayerEvent.ItemCraftedEvent(player,
 				new ItemStack(SummyReliquary.ACT_OF_CONTRITION.get()), player.inventoryMenu.getCraftSlots()));
 		boolean contritionBlocked = player.inventoryMenu.getCarried().isEmpty()
 				&& countItem(player, SummyReliquary.WOODEN_CROSS.get()) == 1
@@ -17765,7 +17766,7 @@ public final class ForgeDevCheck {
 		boolean orderOk = sizeOk && mismatch.length() == 0;
 
 		// ② mod 描述与 logoFile（直接读 Forge 解析好的 IModInfo，避免碰 dev 环境的文件路径）
-		var modInfo = net.minecraftforge.fml.ModList.get().getModFileById(SummyReliquary.MOD_ID)
+		var modInfo = net.neoforged.fml.ModList.get().getModFileById(SummyReliquary.MOD_ID)
 				.getMods().get(0);
 		String description = modInfo.getDescription();
 		boolean logoOk = "assets/summy-reliquary/icon.png".equals(modInfo.getLogoFile().orElse(""));
@@ -18147,9 +18148,9 @@ public final class ForgeDevCheck {
 	/** 自检用：post 一次真实的 {@code LivingAttackEvent}，返回它是否被取消 */
 	private static boolean attackCanceled(ServerPlayer player,
 			net.minecraft.world.damagesource.DamageSource source) {
-		net.minecraftforge.event.entity.living.LivingAttackEvent event =
-				new net.minecraftforge.event.entity.living.LivingAttackEvent(player, source, 4.0F);
-		MinecraftForge.EVENT_BUS.post(event);
+		net.neoforged.neoforge.event.entity.living.LivingAttackEvent event =
+				new net.neoforged.neoforge.event.entity.living.LivingAttackEvent(player, source, 4.0F);
+		NeoForge.EVENT_BUS.post(event);
 		return event.isCanceled();
 	}
 
@@ -18183,7 +18184,7 @@ public final class ForgeDevCheck {
 		float beforeAbsorption = player.getAbsorptionAmount();
 		double beforePool = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
 
-		MinecraftForge.EVENT_BUS.post(new PlayerEvent.Clone(player, player, true));
+		NeoForge.EVENT_BUS.post(new PlayerEvent.Clone(player, player, true));
 		boolean afterPending = com.summy.reliquary.effect.DamagePools.hasPending(player);
 		double afterPool = com.summy.reliquary.effect.PlayerFlags.blackHeartPoints(player);
 		log("复活的伤害池清理（1.8.5）：发车前 有挂起=" + beforePending + "（应 true，吸收 " + beforeAbsorption
@@ -18405,8 +18406,8 @@ public final class ForgeDevCheck {
 			player.setAbsorptionAmount(0.0F);
 			player.setHealth(player.getMaxHealth() * 0.25F);
 			int guardsBefore = com.summy.reliquary.effect.Godhead.deathGuardCount();
-			net.minecraftforge.event.entity.living.LivingHurtEvent lethal =
-					new net.minecraftforge.event.entity.living.LivingHurtEvent(player,
+			net.neoforged.neoforge.event.entity.living.LivingHurtEvent lethal =
+					new net.neoforged.neoforge.event.entity.living.LivingHurtEvent(player,
 							player.damageSources().generic(), player.getMaxHealth() * 2.0F);
 			com.summy.reliquary.effect.DamagePools.prepare(lethal);
 			boolean immunityFired = com.summy.reliquary.effect.DeathImmunity.isGuarded(player);

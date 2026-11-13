@@ -1,17 +1,26 @@
 package com.summy.reliquary.net;
 
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
 import com.summy.reliquary.client.ClientRenderHooks;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
 
-import java.util.function.Supplier;
 
 /**
  * 服务端 → 客户端：广播一次「启示之光」的位置与朝向，供客户端渲染光柱。
  *
  * <p>真正的渲染器由客户端注册（见 {@link ClientRenderHooks}），本类不引用任何客户端类型。
  */
-public class RevelationBeamMessage {
+public class RevelationBeamMessage implements CustomPacketPayload {
+	public static final CustomPacketPayload.Type<RevelationBeamMessage> TYPE =
+			new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "revelation_beam"));
+	public static final StreamCodec<RegistryFriendlyByteBuf, RevelationBeamMessage> CODEC =
+			StreamCodec.of((buffer, value) -> value.encode(buffer), RevelationBeamMessage::new);
+
 	private final double x;
 	private final double y;
 	private final double z;
@@ -64,10 +73,15 @@ public class RevelationBeamMessage {
 		buffer.writeVarInt(kind);
 	}
 
-	public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-		NetworkEvent.Context context = contextSupplier.get();
-		context.enqueueWork(() -> ClientRenderHooks.beamSink.spawn(x, y, z, dirX, dirY, dirZ,
-				length, radius, durationTicks, kind));
-		context.setPacketHandled(true);
+	public void handle(IPayloadContext context) {
+		context.enqueueWork(() -> {
+			ClientRenderHooks.beamSink.spawn(x, y, z, dirX, dirY, dirZ,
+					length, radius, durationTicks, kind);
+		});
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 }

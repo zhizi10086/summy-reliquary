@@ -23,9 +23,9 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -79,7 +79,7 @@ public final class SacredVerdict {
 	}
 
 	/** 普通命中：只记录候选，真正落地后由 {@link #confirmLanding} 确认。 */
-	public static void recordOutgoing(LivingHurtEvent event) {
+	public static void recordOutgoing(LivingIncomingDamageEvent event) {
 		if (isApplyingDamage() || event.isCanceled() || event.getAmount() <= 0.0F
 				|| (HolyLightEffect.isDivine(event.getSource())
 						&& !HolyLightEffect.isGoldenRazor(event.getSource()))) {

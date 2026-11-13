@@ -42,11 +42,11 @@ public final class LifeDeath {
 	/** 旧版卸装补发链留下的物品标记；只做清理，不再参与任何归还逻辑。 */
 	private static final String LEGACY_RETURN_TAG = "summy_reliquary_life_death_return";
 	private static final TagKey<EntityType<?>> FORGE_BOSSES =
-			TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation("forge", "bosses"));
+			TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath("forge", "bosses"));
 	private static final TagKey<EntityType<?>> COMMON_BOSSES =
-			TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation("c", "bosses"));
+			TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath("c", "bosses"));
 	private static final TagKey<EntityType<?>> SUMMY_BOSSES =
-			TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation(SummyReliquary.NAMESPACE, "bosses"));
+			TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(SummyReliquary.NAMESPACE, "bosses"));
 	private static final ResourceKey<DamageType> REVIVAL_FAILURE_DAMAGE =
 			ResourceKey.create(Registries.DAMAGE_TYPE, SummyReliquary.id("life_death_failure"));
 	/** 转形态后的统一 2 秒完全无敌窗口 */
@@ -148,7 +148,7 @@ public final class LifeDeath {
 				|| source.is(REVIVAL_FAILURE_DAMAGE));
 	}
 
-	public static void onHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+	public static void onHurt(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player && isGuarded(player)) {
 			event.setAmount(0.0F);
 			event.setCanceled(true);
@@ -274,7 +274,7 @@ public final class LifeDeath {
 		int previous = PlayerFlags.deathFormKillWeight(killer);
 		int total = Math.min(required, previous + weight);
 		boolean newlyReached = previous < required && total >= required;
-		ResourceLocation typeId = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES
+		ResourceLocation typeId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE
 				.getKey(killed.getType());
 		SummyReliquary.LOGGER.info(
 				"生死逆转击杀计数：玩家={}、目标={}、类型={}、本次权重={}、累计={}/{}、"
@@ -664,7 +664,7 @@ public final class LifeDeath {
 	}
 
 	private static int killWeight(LivingEntity killed, ServerPlayer player) {
-		ResourceLocation id = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES.getKey(killed.getType());
+		ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(killed.getType());
 		if (id != null) {
 			for (String line : ReliquaryConfig.lifeDeathKillWeights()) {
 				String[] parts = line.split("=", 2);

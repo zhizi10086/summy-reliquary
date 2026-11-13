@@ -37,8 +37,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import top.theillusivec4.curios.api.CuriosApi;
 
 import java.util.ArrayList;
@@ -1039,7 +1039,7 @@ public final class DemonPact {
 	 * <p>用本模组的 {@code summy-reliquary:sacrifice} 伤害类型（自带死亡文本「被献祭了」）；
 	 * {@code applyingSacrifice} 防止递归，{@code isDivine} 防止我们自己的神性伤害再次触发它。
 	 */
-	public static void extraSacrificeDamage(LivingHurtEvent event) {
+	public static void extraSacrificeDamage(LivingIncomingDamageEvent event) {
 		if (applyingSacrifice || !(event.getEntity() instanceof Villager villager)) {
 			return;
 		}
@@ -1360,7 +1360,7 @@ public final class DemonPact {
 	}
 
 	/** 2.13：黑心破裂后的短无敌期内取消一切来源伤害 */
-	public static void onHurt(LivingHurtEvent event) {
+	public static void onHurt(LivingIncomingDamageEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player && isGuarded(player)) {
 			event.setAmount(0.0F);
 			event.setCanceled(true);

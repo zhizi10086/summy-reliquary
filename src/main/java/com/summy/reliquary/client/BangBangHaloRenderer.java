@@ -84,13 +84,12 @@ public class BangBangHaloRenderer implements ICurioRenderer {
 
 	private static void vertex(VertexConsumer consumer, Matrix4f matrix, float x, float y, float z,
 			float u, float v, int light) {
-		consumer.vertex(matrix, x, y, z)
-				.color(255, 255, 255, 255)
-				.uv(u, v)
-				.overlayCoords(OverlayTexture.NO_OVERLAY)
-				.uv2(light)
+		consumer.addVertex(matrix, x, y, z)
+				.setColor(255, 255, 255, 255)
+				.setUv(u, v)
+				.setOverlay(OverlayTexture.NO_OVERLAY)
+				.setLight(light)
 				// 本地 +Z 指向玩家身后，法线朝后朝向观察者
-				.normal(0.0F, 0.0F, 1.0F)
-				.endVertex();
+				.setNormal(0.0F, 0.0F, 1.0F);
 	}
 }

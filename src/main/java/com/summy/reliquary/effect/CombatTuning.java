@@ -5,8 +5,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -111,11 +111,11 @@ public final class CombatTuning {
 	}
 
 	/**
-	 * 在 {@code LivingHurtEvent} 里改写窗口长度。
+	 * 在 {@code LivingIncomingDamageEvent} 里改写窗口长度。
 	 *
 	 * <p>跳过 `#bypasses_cooldown` 与本模组特效伤害：它们按原版"原始数值落地 + 刷新窗口"处理。
 	 */
-	public static void applyWindow(LivingHurtEvent event) {
+	public static void applyWindow(LivingIncomingDamageEvent event) {
 		LivingEntity entity = event.getEntity();
 		DamageSource source = event.getSource();
 		record(entity, source, false);
@@ -231,8 +231,8 @@ public final class CombatTuning {
 		return entity.invulnerableTime <= VANILLA_GATE || source.is(DamageTypeTags.BYPASSES_COOLDOWN);
 	}
 
-	/** 在 {@code LivingAttackEvent} 里统计"尝试"（这一步在原版无敌判定之前） */
-	public static void recordAttempt(LivingAttackEvent event) {
+	/** 在 {@code LivingIncomingDamageEvent} 里统计"尝试"（这一步在原版无敌判定之前） */
+	public static void recordAttempt(LivingIncomingDamageEvent event) {
 		record(event.getEntity(), event.getSource(), true);
 	}
 

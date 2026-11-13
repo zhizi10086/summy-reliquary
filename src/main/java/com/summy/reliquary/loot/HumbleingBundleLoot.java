@@ -31,16 +31,17 @@ import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
+import net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -59,7 +60,7 @@ import java.util.UUID;
  * <p>真实物理开箱只在当前 tick 的交互窗口中生效；BONUS 由当前战利品表调用结束后调度，
  * 因此不会在容器尚未完成第一次填装时改写其内容。
  */
-@Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class HumbleingBundleLoot {
 	private static final ThreadLocal<Integer> REPLAY_DEPTH = ThreadLocal.withInitial(() -> 0);
 	private static final Map<UUID, OpenWindow> OPEN_WINDOWS = new HashMap<>();
@@ -259,7 +260,7 @@ public final class HumbleingBundleLoot {
 
 		// 每个 BONUS pass 只推进 SR/SRA 各一次；事件只发布一次。
 		grantCovenantBonus(firstContext);
-		MinecraftForge.EVENT_BUS.post(new HumbleingBundleBonusChestEvent(player, level, firstContext));
+		NeoForge.EVENT_BUS.post(new HumbleingBundleBonusChestEvent(player, level, firstContext));
 
 		boolean grantBundle = naturalBundleRoll(level.getRandom());
 		boolean bundleAdded = false;
@@ -578,11 +579,12 @@ public final class HumbleingBundleLoot {
 	}
 
 	@SubscribeEvent
-	public static void onServerTick(TickEvent.ServerTickEvent event) {
-		if (event.phase == TickEvent.Phase.START) {
-			OPEN_WINDOWS.clear();
-			return;
-		}
+	public static void onServerTickPre(ServerTickEvent.Pre event) {
+		OPEN_WINDOWS.clear();
+	}
+
+	@SubscribeEvent
+	public static void onServerTickPost(ServerTickEvent.Post event) {
 		int tick = event.getServer().getTickCount();
 		KILL_TRANSACTIONS.keySet().removeIf(key -> key.tick() < tick - 1);
 	}

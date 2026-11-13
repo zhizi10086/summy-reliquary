@@ -1,6 +1,6 @@
 package com.summy.reliquary.config;
 
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.List;
 
@@ -15,542 +15,542 @@ public final class ReliquaryConfig {
 	public static final int MAX_RADIUS = 32;
 	public static final int DEFAULT_RADIUS = 10;
 
-	public static final ForgeConfigSpec SPEC;
+	public static final ModConfigSpec SPEC;
 
-	private static final ForgeConfigSpec.IntValue RADIUS;
+	private static final ModConfigSpec.IntValue RADIUS;
 
 	// ===== 首次进入世界时的发放 =====
-	private static final ForgeConfigSpec.BooleanValue GRANT_START_ITEMS;
-	private static final ForgeConfigSpec.BooleanValue AUTO_EQUIP_SOURCE_OF_SINS;
+	private static final ModConfigSpec.BooleanValue GRANT_START_ITEMS;
+	private static final ModConfigSpec.BooleanValue AUTO_EQUIP_SOURCE_OF_SINS;
 
 	// ===== 灵台（肉体 / 思想 / 灵魂） =====
-	private static final ForgeConfigSpec.IntValue GLOW_RADIUS;
-	private static final ForgeConfigSpec.IntValue SOUL_HEARTS;
+	private static final ModConfigSpec.IntValue GLOW_RADIUS;
+	private static final ModConfigSpec.IntValue SOUL_HEARTS;
 	/** 每点魂心换算成多少点黄血 */
-	private static final ForgeConfigSpec.DoubleValue ABSORPTION_PER_SOUL_HEART;
-	private static final ForgeConfigSpec.IntValue SOUL_REFRESH_SECONDS;
+	private static final ModConfigSpec.DoubleValue ABSORPTION_PER_SOUL_HEART;
+	private static final ModConfigSpec.IntValue SOUL_REFRESH_SECONDS;
 	/** 魂心 HUD：是否用自绘的蓝色魂心覆盖原版黄心的对应位置 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_SOUL_HEART_HUD;
+	private static final ModConfigSpec.BooleanValue ENABLE_SOUL_HEART_HUD;
 	/** 魂心 HUD（1.8.5）：布局模式 —— auto / vanilla / single_row */
-	private static final ForgeConfigSpec.ConfigValue<String> SOUL_HEART_HUD_LAYOUT;
+	private static final ModConfigSpec.ConfigValue<String> SOUL_HEART_HUD_LAYOUT;
 	/** 魂心 HUD（1.8.5）：在布局结果之上再整体下移多少像素（正数向下） */
-	private static final ForgeConfigSpec.IntValue SOUL_HEART_HUD_OFFSET_Y;
+	private static final ModConfigSpec.IntValue SOUL_HEART_HUD_OFFSET_Y;
 	/** 受伤无敌帧（1.6.3）：帧伤/持续伤害的有效窗口（tick） */
-	private static final ForgeConfigSpec.IntValue INVULNERABILITY_TICKS_FRAME_DAMAGE;
+	private static final ModConfigSpec.IntValue INVULNERABILITY_TICKS_FRAME_DAMAGE;
 	/** 受伤无敌帧（1.6.3）：额外按"帧伤"处理的伤害类型 id 列表 */
-	private static final ForgeConfigSpec.ConfigValue<List<? extends String>> FRAME_DAMAGE_IDS;
+	private static final ModConfigSpec.ConfigValue<List<? extends String>> FRAME_DAMAGE_IDS;
 	/** 受伤无敌帧（1.6.3）：是否每 5 秒汇总一条节流日志 */
-	private static final ForgeConfigSpec.BooleanValue LOG_IFRAME_THROTTLE;
+	private static final ModConfigSpec.BooleanValue LOG_IFRAME_THROTTLE;
 	/** 伤害池（1.6.4）：每次魂心 / 黑心接管伤害时是否打一条 INFO */
-	private static final ForgeConfigSpec.BooleanValue LOG_DAMAGE_POOLS;
+	private static final ModConfigSpec.BooleanValue LOG_DAMAGE_POOLS;
 
 	// ===== 硫磺火（1.6.4）：长按 V 发射的「恶魔之焰」 =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_BRIMSTONE;
-	private static final ForgeConfigSpec.DoubleValue BRIMSTONE_CHARGE_SECONDS;
-	private static final ForgeConfigSpec.IntValue BRIMSTONE_BEAM_LENGTH;
-	private static final ForgeConfigSpec.IntValue BRIMSTONE_BEAM_RADIUS;
-	private static final ForgeConfigSpec.DoubleValue BRIMSTONE_DURATION_SECONDS;
-	private static final ForgeConfigSpec.IntValue BRIMSTONE_DAMAGE_PER_TICK;
-	private static final ForgeConfigSpec.DoubleValue BRIMSTONE_DAMAGE_INTERVAL_SECONDS;
-	private static final ForgeConfigSpec.IntValue BRIMSTONE_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.BooleanValue ENABLE_BRIMSTONE;
+	private static final ModConfigSpec.DoubleValue BRIMSTONE_CHARGE_SECONDS;
+	private static final ModConfigSpec.IntValue BRIMSTONE_BEAM_LENGTH;
+	private static final ModConfigSpec.IntValue BRIMSTONE_BEAM_RADIUS;
+	private static final ModConfigSpec.DoubleValue BRIMSTONE_DURATION_SECONDS;
+	private static final ModConfigSpec.IntValue BRIMSTONE_DAMAGE_PER_TICK;
+	private static final ModConfigSpec.DoubleValue BRIMSTONE_DAMAGE_INTERVAL_SECONDS;
+	private static final ModConfigSpec.IntValue BRIMSTONE_COOLDOWN_SECONDS;
 	/** 魂心池（1.6.2）：完全破碎时对周围敌人的击退强度 */
-	private static final ForgeConfigSpec.DoubleValue SOUL_SHATTER_KNOCKBACK;
+	private static final ModConfigSpec.DoubleValue SOUL_SHATTER_KNOCKBACK;
 	/** 魂心池（1.6.2）：完全破碎时的作用半径（格） */
-	private static final ForgeConfigSpec.IntValue SOUL_SHATTER_RADIUS;
+	private static final ModConfigSpec.IntValue SOUL_SHATTER_RADIUS;
 	/** 魂心池（1.6.2）：完全破碎后给予玩家的无敌秒数 */
-	private static final ForgeConfigSpec.DoubleValue SOUL_SHATTER_INVULNERABLE_SECONDS;
+	private static final ModConfigSpec.DoubleValue SOUL_SHATTER_INVULNERABLE_SECONDS;
 	/** 三件套齐时的免死几率（百分比） */
-	private static final ForgeConfigSpec.IntValue DEATH_IMMUNITY_PERCENT;
-	private static final ForgeConfigSpec.IntValue BODY_HEALTH;
-	private static final ForgeConfigSpec.IntValue BODY_SET_DAMAGE_REDUCTION_PERCENT;
-	private static final ForgeConfigSpec.IntValue MIND_BONUS_PERCENT;
+	private static final ModConfigSpec.IntValue DEATH_IMMUNITY_PERCENT;
+	private static final ModConfigSpec.IntValue BODY_HEALTH;
+	private static final ModConfigSpec.IntValue BODY_SET_DAMAGE_REDUCTION_PERCENT;
+	private static final ModConfigSpec.IntValue MIND_BONUS_PERCENT;
 
 	// ===== 修女服（Habit，2.0） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_HABIT;
-	private static final ForgeConfigSpec.IntValue HABIT_SOUL_HEARTS;
-	private static final ForgeConfigSpec.DoubleValue HABIT_ARMOR;
-	private static final ForgeConfigSpec.DoubleValue HABIT_CHARGE_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue HABIT_CHARGE_MIN_SECONDS;
-	private static final ForgeConfigSpec.IntValue HABIT_CHARGE_INTERVAL_TICKS;
+	private static final ModConfigSpec.BooleanValue ENABLE_HABIT;
+	private static final ModConfigSpec.IntValue HABIT_SOUL_HEARTS;
+	private static final ModConfigSpec.DoubleValue HABIT_ARMOR;
+	private static final ModConfigSpec.DoubleValue HABIT_CHARGE_PERCENT;
+	private static final ModConfigSpec.DoubleValue HABIT_CHARGE_MIN_SECONDS;
+	private static final ModConfigSpec.IntValue HABIT_CHARGE_INTERVAL_TICKS;
 
 	// ===== 背叛（Betrayal，2.0） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_BETRAYAL;
-	private static final ForgeConfigSpec.IntValue BETRAYAL_RADIUS;
-	private static final ForgeConfigSpec.DoubleValue BETRAYAL_CHANCE_PER_TICK;
-	private static final ForgeConfigSpec.IntValue BETRAYAL_MIN_ENEMIES;
-	private static final ForgeConfigSpec.IntValue BETRAYAL_TAUNT_SECONDS;
-	private static final ForgeConfigSpec.IntValue BETRAYAL_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.BooleanValue ENABLE_BETRAYAL;
+	private static final ModConfigSpec.IntValue BETRAYAL_RADIUS;
+	private static final ModConfigSpec.DoubleValue BETRAYAL_CHANCE_PER_TICK;
+	private static final ModConfigSpec.IntValue BETRAYAL_MIN_ENEMIES;
+	private static final ModConfigSpec.IntValue BETRAYAL_TAUNT_SECONDS;
+	private static final ModConfigSpec.IntValue BETRAYAL_COOLDOWN_SECONDS;
 
 	// ===== 誓约主动饰品（2.3） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_LIFE_DEATH;
-	private static final ForgeConfigSpec.IntValue DEATH_FORM_SECONDS;
-	private static final ForgeConfigSpec.DoubleValue DEATH_FORM_DAMAGE_BASE;
-	private static final ForgeConfigSpec.DoubleValue DEATH_FORM_DAMAGE_STEP_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue DEATH_FORM_DAMAGE_CAP;
-	private static final ForgeConfigSpec.IntValue DEATH_FORM_MOVE_SPEED_PERCENT;
-	private static final ForgeConfigSpec.IntValue DEATH_FORM_ATTACK_SPEED_PERCENT;
-	private static final ForgeConfigSpec.IntValue REVIVE_KILL_REQUIRED;
-	private static final ForgeConfigSpec.IntValue BOSS_WEIGHT_DEFAULT;
-	private static final ForgeConfigSpec.IntValue LIFE_DEATH_COOLDOWN_SECONDS;
-	private static final ForgeConfigSpec.ConfigValue<List<? extends String>> LIFE_DEATH_KILL_WEIGHTS;
-	private static final ForgeConfigSpec.BooleanValue ENABLE_DIVINE_INTERVENTION;
-	private static final ForgeConfigSpec.DoubleValue DIVINE_INTERVENTION_REFLECT_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue DIVINE_INTERVENTION_BARRIER_DISTANCE;
-	private static final ForgeConfigSpec.DoubleValue DIVINE_INTERVENTION_BARRIER_WIDTH;
-	private static final ForgeConfigSpec.DoubleValue DIVINE_INTERVENTION_BARRIER_HEIGHT;
-	private static final ForgeConfigSpec.IntValue DIVINE_INTERVENTION_BARRIER_SECONDS;
-	private static final ForgeConfigSpec.IntValue DIVINE_INTERVENTION_EDGE_PARTICLES;
-	private static final ForgeConfigSpec.DoubleValue DIVINE_INTERVENTION_PROJECTILE_PERCENT;
-	private static final ForgeConfigSpec.IntValue DIVINE_INTERVENTION_COOLDOWN_SECONDS;
-	private static final ForgeConfigSpec.BooleanValue ENABLE_SACRED_VERDICT;
-	private static final ForgeConfigSpec.DoubleValue SACRED_VERDICT_PROC_CHANCE;
-	private static final ForgeConfigSpec.IntValue SACRED_VERDICT_PROC_SECONDS;
-	private static final ForgeConfigSpec.DoubleValue SACRED_VERDICT_CAST_RANGE;
-	private static final ForgeConfigSpec.DoubleValue SACRED_VERDICT_CAST_RADIUS;
-	private static final ForgeConfigSpec.DoubleValue SACRED_VERDICT_CAST_DAMAGE;
-	private static final ForgeConfigSpec.IntValue SACRED_VERDICT_CAST_MARK_SECONDS;
-	private static final ForgeConfigSpec.DoubleValue SACRED_VERDICT_BONUS_PERCENT;
-	private static final ForgeConfigSpec.IntValue SACRED_VERDICT_COOLDOWN_SECONDS;
-	private static final ForgeConfigSpec.BooleanValue ENABLE_BLOOD_DEBT_ALTAR;
-	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_REDUCTION_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_DEFER_SECONDS;
-	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_MIN_DEFERRED;
-	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_ACTIVE_ABSORB_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_CAP_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue BLOOD_DEBT_KILL_REDUCE_SECONDS;
-	private static final ForgeConfigSpec.ConfigValue<List<? extends String>> BLOOD_DEBT_EXTRA_BOSS_ENTITIES;
-	private static final ForgeConfigSpec.ConfigValue<List<? extends String>> BLOOD_DEBT_EXTRA_HOSTILE_ENTITIES;
-	private static final ForgeConfigSpec.IntValue BLOOD_DEBT_COOLDOWN_SECONDS;
-	private static final ForgeConfigSpec.BooleanValue ENABLE_HEX_SEAL;
-	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_PROC_CHANCE;
-	private static final ForgeConfigSpec.IntValue HEX_SEAL_PROC_SECONDS;
-	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_CAST_ANGLE;
-	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_CAST_RANGE;
-	private static final ForgeConfigSpec.IntValue HEX_SEAL_CAST_SECONDS;
-	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_DAMAGE_TAKEN_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_TRANSFER_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue HEX_SEAL_SPREAD_RADIUS;
-	private static final ForgeConfigSpec.IntValue HEX_SEAL_COOLDOWN_SECONDS;
-	private static final ForgeConfigSpec.BooleanValue ENABLE_COVENANT_ACQUISITION;
-	private static final ForgeConfigSpec.IntValue COVENANT_LOOT_CHANCE_PERCENT;
-	private static final ForgeConfigSpec.IntValue COVENANT_PITY_CHESTS;
-	private static final ForgeConfigSpec.BooleanValue ENABLE_HUMBLEING_BUNDLE;
-	private static final ForgeConfigSpec.IntValue HUMBLEING_BUNDLE_EXTRA_LOOT_CHANCE;
-	private static final ForgeConfigSpec.IntValue HUMBLEING_BUNDLE_NATURAL_LOOT_CHANCE;
+	private static final ModConfigSpec.BooleanValue ENABLE_LIFE_DEATH;
+	private static final ModConfigSpec.IntValue DEATH_FORM_SECONDS;
+	private static final ModConfigSpec.DoubleValue DEATH_FORM_DAMAGE_BASE;
+	private static final ModConfigSpec.DoubleValue DEATH_FORM_DAMAGE_STEP_PERCENT;
+	private static final ModConfigSpec.DoubleValue DEATH_FORM_DAMAGE_CAP;
+	private static final ModConfigSpec.IntValue DEATH_FORM_MOVE_SPEED_PERCENT;
+	private static final ModConfigSpec.IntValue DEATH_FORM_ATTACK_SPEED_PERCENT;
+	private static final ModConfigSpec.IntValue REVIVE_KILL_REQUIRED;
+	private static final ModConfigSpec.IntValue BOSS_WEIGHT_DEFAULT;
+	private static final ModConfigSpec.IntValue LIFE_DEATH_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.ConfigValue<List<? extends String>> LIFE_DEATH_KILL_WEIGHTS;
+	private static final ModConfigSpec.BooleanValue ENABLE_DIVINE_INTERVENTION;
+	private static final ModConfigSpec.DoubleValue DIVINE_INTERVENTION_REFLECT_PERCENT;
+	private static final ModConfigSpec.DoubleValue DIVINE_INTERVENTION_BARRIER_DISTANCE;
+	private static final ModConfigSpec.DoubleValue DIVINE_INTERVENTION_BARRIER_WIDTH;
+	private static final ModConfigSpec.DoubleValue DIVINE_INTERVENTION_BARRIER_HEIGHT;
+	private static final ModConfigSpec.IntValue DIVINE_INTERVENTION_BARRIER_SECONDS;
+	private static final ModConfigSpec.IntValue DIVINE_INTERVENTION_EDGE_PARTICLES;
+	private static final ModConfigSpec.DoubleValue DIVINE_INTERVENTION_PROJECTILE_PERCENT;
+	private static final ModConfigSpec.IntValue DIVINE_INTERVENTION_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.BooleanValue ENABLE_SACRED_VERDICT;
+	private static final ModConfigSpec.DoubleValue SACRED_VERDICT_PROC_CHANCE;
+	private static final ModConfigSpec.IntValue SACRED_VERDICT_PROC_SECONDS;
+	private static final ModConfigSpec.DoubleValue SACRED_VERDICT_CAST_RANGE;
+	private static final ModConfigSpec.DoubleValue SACRED_VERDICT_CAST_RADIUS;
+	private static final ModConfigSpec.DoubleValue SACRED_VERDICT_CAST_DAMAGE;
+	private static final ModConfigSpec.IntValue SACRED_VERDICT_CAST_MARK_SECONDS;
+	private static final ModConfigSpec.DoubleValue SACRED_VERDICT_BONUS_PERCENT;
+	private static final ModConfigSpec.IntValue SACRED_VERDICT_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.BooleanValue ENABLE_BLOOD_DEBT_ALTAR;
+	private static final ModConfigSpec.DoubleValue BLOOD_DEBT_REDUCTION_PERCENT;
+	private static final ModConfigSpec.DoubleValue BLOOD_DEBT_DEFER_SECONDS;
+	private static final ModConfigSpec.DoubleValue BLOOD_DEBT_MIN_DEFERRED;
+	private static final ModConfigSpec.DoubleValue BLOOD_DEBT_ACTIVE_ABSORB_PERCENT;
+	private static final ModConfigSpec.DoubleValue BLOOD_DEBT_CAP_PERCENT;
+	private static final ModConfigSpec.DoubleValue BLOOD_DEBT_KILL_REDUCE_SECONDS;
+	private static final ModConfigSpec.ConfigValue<List<? extends String>> BLOOD_DEBT_EXTRA_BOSS_ENTITIES;
+	private static final ModConfigSpec.ConfigValue<List<? extends String>> BLOOD_DEBT_EXTRA_HOSTILE_ENTITIES;
+	private static final ModConfigSpec.IntValue BLOOD_DEBT_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.BooleanValue ENABLE_HEX_SEAL;
+	private static final ModConfigSpec.DoubleValue HEX_SEAL_PROC_CHANCE;
+	private static final ModConfigSpec.IntValue HEX_SEAL_PROC_SECONDS;
+	private static final ModConfigSpec.DoubleValue HEX_SEAL_CAST_ANGLE;
+	private static final ModConfigSpec.DoubleValue HEX_SEAL_CAST_RANGE;
+	private static final ModConfigSpec.IntValue HEX_SEAL_CAST_SECONDS;
+	private static final ModConfigSpec.DoubleValue HEX_SEAL_DAMAGE_TAKEN_PERCENT;
+	private static final ModConfigSpec.DoubleValue HEX_SEAL_TRANSFER_PERCENT;
+	private static final ModConfigSpec.DoubleValue HEX_SEAL_SPREAD_RADIUS;
+	private static final ModConfigSpec.IntValue HEX_SEAL_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.BooleanValue ENABLE_COVENANT_ACQUISITION;
+	private static final ModConfigSpec.IntValue COVENANT_LOOT_CHANCE_PERCENT;
+	private static final ModConfigSpec.IntValue COVENANT_PITY_CHESTS;
+	private static final ModConfigSpec.BooleanValue ENABLE_HUMBLEING_BUNDLE;
+	private static final ModConfigSpec.IntValue HUMBLEING_BUNDLE_EXTRA_LOOT_CHANCE;
+	private static final ModConfigSpec.IntValue HUMBLEING_BUNDLE_NATURAL_LOOT_CHANCE;
 
 	// ===== 七罪效果（1.4.0） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_SIN_EFFECTS;
-	private static final ForgeConfigSpec.IntValue PRIDE_KILL_REQUIRED;
-	private static final ForgeConfigSpec.DoubleValue PRIDE_DAMAGE_PER_PERCENT;
-	private static final ForgeConfigSpec.IntValue PRIDE_INCOMING_DAMAGE_PERCENT;
-	private static final ForgeConfigSpec.IntValue ENVY_OBSERVE_RADIUS;
-	private static final ForgeConfigSpec.IntValue ENVY_BONUS_PERCENT;
-	private static final ForgeConfigSpec.IntValue ENVY_HOSTILE_RADIUS;
-	private static final ForgeConfigSpec.IntValue ENVY_HOSTILE_REFRESH_TICKS;
-	private static final ForgeConfigSpec.IntValue WRATH_KILL_REQUIRED;
-	private static final ForgeConfigSpec.DoubleValue WRATH_RANDOM_MIN;
-	private static final ForgeConfigSpec.DoubleValue WRATH_RANDOM_MAX;
-	private static final ForgeConfigSpec.DoubleValue WRATH_RANDOM_MAX_REDEEMED;
-	private static final ForgeConfigSpec.IntValue WRATH_SELF_HIT_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue WRATH_SELF_HIT_MULTIPLIER;
-	private static final ForgeConfigSpec.IntValue SLOTH_SLEEP_REQUIRED;
-	private static final ForgeConfigSpec.IntValue SLOTH_SLEEP_BEFORE_HOUR;
-	private static final ForgeConfigSpec.IntValue SLOTH_RESISTANCE_AMPLIFIER;
-	private static final ForgeConfigSpec.IntValue SLOTH_RESISTANCE_AMPLIFIER_REDEEMED;
-	private static final ForgeConfigSpec.IntValue SLOTH_SLOWDOWN_PERCENT;
-	private static final ForgeConfigSpec.IntValue GREED_DIAMOND_THRESHOLD;
+	private static final ModConfigSpec.BooleanValue ENABLE_SIN_EFFECTS;
+	private static final ModConfigSpec.IntValue PRIDE_KILL_REQUIRED;
+	private static final ModConfigSpec.DoubleValue PRIDE_DAMAGE_PER_PERCENT;
+	private static final ModConfigSpec.IntValue PRIDE_INCOMING_DAMAGE_PERCENT;
+	private static final ModConfigSpec.IntValue ENVY_OBSERVE_RADIUS;
+	private static final ModConfigSpec.IntValue ENVY_BONUS_PERCENT;
+	private static final ModConfigSpec.IntValue ENVY_HOSTILE_RADIUS;
+	private static final ModConfigSpec.IntValue ENVY_HOSTILE_REFRESH_TICKS;
+	private static final ModConfigSpec.IntValue WRATH_KILL_REQUIRED;
+	private static final ModConfigSpec.DoubleValue WRATH_RANDOM_MIN;
+	private static final ModConfigSpec.DoubleValue WRATH_RANDOM_MAX;
+	private static final ModConfigSpec.DoubleValue WRATH_RANDOM_MAX_REDEEMED;
+	private static final ModConfigSpec.IntValue WRATH_SELF_HIT_PERCENT;
+	private static final ModConfigSpec.DoubleValue WRATH_SELF_HIT_MULTIPLIER;
+	private static final ModConfigSpec.IntValue SLOTH_SLEEP_REQUIRED;
+	private static final ModConfigSpec.IntValue SLOTH_SLEEP_BEFORE_HOUR;
+	private static final ModConfigSpec.IntValue SLOTH_RESISTANCE_AMPLIFIER;
+	private static final ModConfigSpec.IntValue SLOTH_RESISTANCE_AMPLIFIER_REDEEMED;
+	private static final ModConfigSpec.IntValue SLOTH_SLOWDOWN_PERCENT;
+	private static final ModConfigSpec.IntValue GREED_DIAMOND_THRESHOLD;
 	/** 「纯洁无瑕」：要求的最低佩戴率（百分比；99 = 允许 1% 未佩戴） */
-	private static final ForgeConfigSpec.IntValue FLAWLESS_MIN_WEARING_PERCENT;
+	private static final ModConfigSpec.IntValue FLAWLESS_MIN_WEARING_PERCENT;
 	/** 「纯洁无瑕」：开局宽限（秒；这段时间内未佩戴不计入判据） */
-	private static final ForgeConfigSpec.IntValue FLAWLESS_UNWORN_GRACE_SECONDS;
-	private static final ForgeConfigSpec.IntValue GREED_DAMAGE_PER_DIAMOND_PERCENT;
-	private static final ForgeConfigSpec.IntValue GREED_DAMAGE_CAP_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue GREED_LOW_DIAMOND_DAMAGE_FACTOR;
-	private static final ForgeConfigSpec.IntValue GREED_DEATH_DIAMOND_MIN;
-	private static final ForgeConfigSpec.IntValue GREED_DEATH_DIAMOND_MAX;
-	private static final ForgeConfigSpec.IntValue GLUTTONY_MEAL_REQUIRED;
-	private static final ForgeConfigSpec.DoubleValue GLUTTONY_SATURATION_THRESHOLD;
-	private static final ForgeConfigSpec.DoubleValue GLUTTONY_KILL_HEAL;
-	private static final ForgeConfigSpec.IntValue GLUTTONY_KILL_FOOD;
-	private static final ForgeConfigSpec.IntValue GLUTTONY_FOOD_CAP;
-	private static final ForgeConfigSpec.IntValue GLUTTONY_DRAIN_SECONDS;
-	private static final ForgeConfigSpec.IntValue GLUTTONY_WEAK_FOOD_THRESHOLD;
-	private static final ForgeConfigSpec.IntValue LUST_BREED_REQUIRED;
-	private static final ForgeConfigSpec.IntValue LUST_STRIP_ARMOR_PERCENT;
-	private static final ForgeConfigSpec.IntValue LUST_ARMOR_REDUCTION_PERCENT;
-	private static final ForgeConfigSpec.IntValue LUST_SELF_STRIP_PERCENT;
+	private static final ModConfigSpec.IntValue FLAWLESS_UNWORN_GRACE_SECONDS;
+	private static final ModConfigSpec.IntValue GREED_DAMAGE_PER_DIAMOND_PERCENT;
+	private static final ModConfigSpec.IntValue GREED_DAMAGE_CAP_PERCENT;
+	private static final ModConfigSpec.DoubleValue GREED_LOW_DIAMOND_DAMAGE_FACTOR;
+	private static final ModConfigSpec.IntValue GREED_DEATH_DIAMOND_MIN;
+	private static final ModConfigSpec.IntValue GREED_DEATH_DIAMOND_MAX;
+	private static final ModConfigSpec.IntValue GLUTTONY_MEAL_REQUIRED;
+	private static final ModConfigSpec.DoubleValue GLUTTONY_SATURATION_THRESHOLD;
+	private static final ModConfigSpec.DoubleValue GLUTTONY_KILL_HEAL;
+	private static final ModConfigSpec.IntValue GLUTTONY_KILL_FOOD;
+	private static final ModConfigSpec.IntValue GLUTTONY_FOOD_CAP;
+	private static final ModConfigSpec.IntValue GLUTTONY_DRAIN_SECONDS;
+	private static final ModConfigSpec.IntValue GLUTTONY_WEAK_FOOD_THRESHOLD;
+	private static final ModConfigSpec.IntValue LUST_BREED_REQUIRED;
+	private static final ModConfigSpec.IntValue LUST_STRIP_ARMOR_PERCENT;
+	private static final ModConfigSpec.IntValue LUST_ARMOR_REDUCTION_PERCENT;
+	private static final ModConfigSpec.IntValue LUST_SELF_STRIP_PERCENT;
 
 	// ===== 七德加成（1.4.4；生效条件：佩戴美德 + 七罪全部已赎清） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_VIRTUE_EFFECTS;
-	private static final ForgeConfigSpec.IntValue HUMILITY_DAMAGE_BONUS_PERCENT;
-	private static final ForgeConfigSpec.IntValue CHARITY_SPEED_PERCENT_PER_DROP;
-	private static final ForgeConfigSpec.IntValue CHARITY_SPEED_CAP_PERCENT;
-	private static final ForgeConfigSpec.IntValue CHARITY_DURATION_SECONDS;
-	private static final ForgeConfigSpec.IntValue CHASTITY_DURABILITY_PER_SECOND;
-	private static final ForgeConfigSpec.DoubleValue KINDNESS_HEAL_PER_SECOND;
-	private static final ForgeConfigSpec.IntValue KINDNESS_RADIUS;
-	private static final ForgeConfigSpec.IntValue PATIENCE_BONUS_PERCENT_PER_HIT;
-	private static final ForgeConfigSpec.IntValue PATIENCE_CAP_PERCENT;
-	private static final ForgeConfigSpec.IntValue PATIENCE_RESET_SECONDS;
-	private static final ForgeConfigSpec.IntValue DILIGENCE_SPEED_PERCENT;
+	private static final ModConfigSpec.BooleanValue ENABLE_VIRTUE_EFFECTS;
+	private static final ModConfigSpec.IntValue HUMILITY_DAMAGE_BONUS_PERCENT;
+	private static final ModConfigSpec.IntValue CHARITY_SPEED_PERCENT_PER_DROP;
+	private static final ModConfigSpec.IntValue CHARITY_SPEED_CAP_PERCENT;
+	private static final ModConfigSpec.IntValue CHARITY_DURATION_SECONDS;
+	private static final ModConfigSpec.IntValue CHASTITY_DURABILITY_PER_SECOND;
+	private static final ModConfigSpec.DoubleValue KINDNESS_HEAL_PER_SECOND;
+	private static final ModConfigSpec.IntValue KINDNESS_RADIUS;
+	private static final ModConfigSpec.IntValue PATIENCE_BONUS_PERCENT_PER_HIT;
+	private static final ModConfigSpec.IntValue PATIENCE_CAP_PERCENT;
+	private static final ModConfigSpec.IntValue PATIENCE_RESET_SECONDS;
+	private static final ModConfigSpec.IntValue DILIGENCE_SPEED_PERCENT;
 
 	// ===== 加护（救恩的领域，1.5.0） =====
-	private static final ForgeConfigSpec.DoubleValue SALVATION_RADIUS;
-	private static final ForgeConfigSpec.DoubleValue SALVATION_RADIUS_EXTENDED;
-	private static final ForgeConfigSpec.DoubleValue SALVATION_LOCK_SECONDS;
-	private static final ForgeConfigSpec.IntValue SALVATION_DAMAGE;
-	private static final ForgeConfigSpec.DoubleValue SALVATION_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.DoubleValue SALVATION_RADIUS;
+	private static final ModConfigSpec.DoubleValue SALVATION_RADIUS_EXTENDED;
+	private static final ModConfigSpec.DoubleValue SALVATION_LOCK_SECONDS;
+	private static final ModConfigSpec.IntValue SALVATION_DAMAGE;
+	private static final ModConfigSpec.DoubleValue SALVATION_COOLDOWN_SECONDS;
 	/** 圣光：总开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_HOLY_LIGHT;
+	private static final ModConfigSpec.BooleanValue ENABLE_HOLY_LIGHT;
 	/** 圣光：触发几率（百分比） */
-	private static final ForgeConfigSpec.IntValue HOLY_LIGHT_CHANCE_PERCENT;
+	private static final ModConfigSpec.IntValue HOLY_LIGHT_CHANCE_PERCENT;
 	/** 圣光：与神性同戴时的触发几率（百分比，1.6.10 联动） */
-	private static final ForgeConfigSpec.IntValue HOLY_LIGHT_CHANCE_PERCENT_GODHEAD;
+	private static final ModConfigSpec.IntValue HOLY_LIGHT_CHANCE_PERCENT_GODHEAD;
 	/** 圣光：以命中伤害为基准的百分比 */
-	private static final ForgeConfigSpec.IntValue HOLY_LIGHT_DAMAGE_PERCENT;
+	private static final ModConfigSpec.IntValue HOLY_LIGHT_DAMAGE_PERCENT;
 	/** 圣光：手持圣光短矛时的独立触发几率（百分比，1.7.9） */
-	private static final ForgeConfigSpec.IntValue HOLY_LIGHT_CHANCE_PERCENT_SPEAR;
+	private static final ModConfigSpec.IntValue HOLY_LIGHT_CHANCE_PERCENT_SPEAR;
 	/** 炽天使之枪投掷命中：落点圣光爆发的真伤点数（1.7.9） */
-	private static final ForgeConfigSpec.IntValue HOLY_LIGHT_BURST_DAMAGE;
+	private static final ModConfigSpec.IntValue HOLY_LIGHT_BURST_DAMAGE;
 	/** 炽天使之枪投掷命中：落点圣光爆发的半径（格，1.7.9） */
-	private static final ForgeConfigSpec.IntValue HOLY_LIGHT_BURST_RADIUS;
+	private static final ModConfigSpec.IntValue HOLY_LIGHT_BURST_RADIUS;
 	/** 炽天使之枪 + 神性：落点爆发的半径加成（格，1.7.10 联动） */
-	private static final ForgeConfigSpec.IntValue HOLY_LIGHT_BURST_RADIUS_GODHEAD;
+	private static final ModConfigSpec.IntValue HOLY_LIGHT_BURST_RADIUS_GODHEAD;
 	/** 炽天使之枪 + 神性：落点爆发的伤害加成（点，1.7.10 联动） */
-	private static final ForgeConfigSpec.IntValue HOLY_LIGHT_BURST_DAMAGE_GODHEAD;
+	private static final ModConfigSpec.IntValue HOLY_LIGHT_BURST_DAMAGE_GODHEAD;
 	/** 神圣斗篷：总开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_HOLY_MANTLE;
+	private static final ModConfigSpec.BooleanValue ENABLE_HOLY_MANTLE;
 	/** 神圣斗篷：受击后的无敌秒数 */
-	private static final ForgeConfigSpec.DoubleValue HOLY_MANTLE_INVULNERABLE_SECONDS;
+	private static final ModConfigSpec.DoubleValue HOLY_MANTLE_INVULNERABLE_SECONDS;
 	/** 神圣斗篷：与神性同戴时的无敌秒数（1.6.10 联动） */
-	private static final ForgeConfigSpec.DoubleValue HOLY_MANTLE_INVULNERABLE_SECONDS_GODHEAD;
+	private static final ModConfigSpec.DoubleValue HOLY_MANTLE_INVULNERABLE_SECONDS_GODHEAD;
 	/** 圣心：最大生命 */
-	private static final ForgeConfigSpec.DoubleValue SACRED_HEART_MAX_HEALTH;
+	private static final ModConfigSpec.DoubleValue SACRED_HEART_MAX_HEALTH;
 	/** 圣心：护甲 */
-	private static final ForgeConfigSpec.DoubleValue SACRED_HEART_ARMOR;
+	private static final ModConfigSpec.DoubleValue SACRED_HEART_ARMOR;
 	/** 圣心：盔甲韧性 */
-	private static final ForgeConfigSpec.DoubleValue SACRED_HEART_TOUGHNESS;
+	private static final ModConfigSpec.DoubleValue SACRED_HEART_TOUGHNESS;
 	/** 圣心：攻击速度（加法） */
-	private static final ForgeConfigSpec.DoubleValue SACRED_HEART_ATTACK_SPEED;
+	private static final ModConfigSpec.DoubleValue SACRED_HEART_ATTACK_SPEED;
 	/** 圣心：移动速度（百分比） */
-	private static final ForgeConfigSpec.IntValue SACRED_HEART_MOVEMENT_PERCENT;
+	private static final ModConfigSpec.IntValue SACRED_HEART_MOVEMENT_PERCENT;
 	/** 圣心：挖掘速度（百分比） */
-	private static final ForgeConfigSpec.IntValue SACRED_HEART_BREAK_SPEED_PERCENT;
+	private static final ModConfigSpec.IntValue SACRED_HEART_BREAK_SPEED_PERCENT;
 	/** 圣心：全伤害最终倍率（百分比） */
-	private static final ForgeConfigSpec.IntValue SACRED_HEART_DAMAGE_PERCENT;
+	private static final ModConfigSpec.IntValue SACRED_HEART_DAMAGE_PERCENT;
 	/** 圣心：箭矢追踪半径 */
-	private static final ForgeConfigSpec.DoubleValue SACRED_HEART_ARROW_RADIUS;
+	private static final ModConfigSpec.DoubleValue SACRED_HEART_ARROW_RADIUS;
 	/** 圣心：与神性同戴时的箭矢追踪半径（1.6.10 联动） */
-	private static final ForgeConfigSpec.DoubleValue SACRED_HEART_ARROW_RADIUS_GODHEAD;
+	private static final ModConfigSpec.DoubleValue SACRED_HEART_ARROW_RADIUS_GODHEAD;
 	/** 圣心：投掷初速加成（百分比，1.7.10 联动） */
-	private static final ForgeConfigSpec.IntValue SACRED_HEART_THROW_SPEED_PERCENT;
+	private static final ModConfigSpec.IntValue SACRED_HEART_THROW_SPEED_PERCENT;
 	/** 圣心：箭矢追踪开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_ARROW_HOMING;
+	private static final ModConfigSpec.BooleanValue ENABLE_ARROW_HOMING;
 	/** 神性：总开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_GODHEAD;
+	private static final ModConfigSpec.BooleanValue ENABLE_GODHEAD;
 	/** 神性：光柱蓄力秒数 */
-	private static final ForgeConfigSpec.DoubleValue GODHEAD_BEAM_CHARGE_SECONDS;
+	private static final ModConfigSpec.DoubleValue GODHEAD_BEAM_CHARGE_SECONDS;
 	/** 神性：光柱冷却秒数 */
-	private static final ForgeConfigSpec.DoubleValue GODHEAD_BEAM_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.DoubleValue GODHEAD_BEAM_COOLDOWN_SECONDS;
 	/** 神性：光柱半径 */
-	private static final ForgeConfigSpec.IntValue GODHEAD_BEAM_RADIUS;
+	private static final ModConfigSpec.IntValue GODHEAD_BEAM_RADIUS;
 	/** 神性：光柱射程 */
-	private static final ForgeConfigSpec.IntValue GODHEAD_BEAM_LENGTH;
+	private static final ModConfigSpec.IntValue GODHEAD_BEAM_LENGTH;
 	/** 神性：救恩领域半径 */
-	private static final ForgeConfigSpec.DoubleValue GODHEAD_SALVATION_RADIUS;
+	private static final ModConfigSpec.DoubleValue GODHEAD_SALVATION_RADIUS;
 	/** 神性：光环半径 */
-	private static final ForgeConfigSpec.DoubleValue GODHEAD_AURA_RADIUS;
+	private static final ModConfigSpec.DoubleValue GODHEAD_AURA_RADIUS;
 	/** 神性：光环伤害 */
-	private static final ForgeConfigSpec.IntValue GODHEAD_AURA_DAMAGE;
+	private static final ModConfigSpec.IntValue GODHEAD_AURA_DAMAGE;
 	/** 神性：全伤害最终倍率（百分比） */
-	private static final ForgeConfigSpec.IntValue GODHEAD_DAMAGE_PERCENT;
+	private static final ModConfigSpec.IntValue GODHEAD_DAMAGE_PERCENT;
 	/** 是否让救恩领域 / 神性光环把训练人偶也当作目标（dummmmmmy:target_dummy） */
-	private static final ForgeConfigSpec.BooleanValue AFFECT_TARGET_DUMMIES;
+	private static final ModConfigSpec.BooleanValue AFFECT_TARGET_DUMMIES;
 	/** 启示之光 buff：总开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_REVELATION_LIGHT_BUFF;
+	private static final ModConfigSpec.BooleanValue ENABLE_REVELATION_LIGHT_BUFF;
 	/** 启示之光 buff：时长（秒） */
-	private static final ForgeConfigSpec.DoubleValue REVELATION_LIGHT_BUFF_SECONDS;
+	private static final ModConfigSpec.DoubleValue REVELATION_LIGHT_BUFF_SECONDS;
 	/** 心之碎片：掉落总开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_HEART_SHARD_DROP;
+	private static final ModConfigSpec.BooleanValue ENABLE_HEART_SHARD_DROP;
 	/** 心之碎片：普通生物掉落几率（百分比） */
-	private static final ForgeConfigSpec.DoubleValue HEART_SHARD_DROP_CHANCE;
+	private static final ModConfigSpec.DoubleValue HEART_SHARD_DROP_CHANCE;
 	/** 心之碎片：凋灵 / 监守者掉落几率（百分比） */
-	private static final ForgeConfigSpec.DoubleValue HEART_SHARD_BOSS_CHANCE;
+	private static final ModConfigSpec.DoubleValue HEART_SHARD_BOSS_CHANCE;
 	/** 心之碎片：末影龙掉落几率（百分比） */
-	private static final ForgeConfigSpec.DoubleValue HEART_SHARD_DRAGON_CHANCE;
+	private static final ModConfigSpec.DoubleValue HEART_SHARD_DRAGON_CHANCE;
 	/** 心之碎片：是否打印"带启示之光死亡"的判定过程日志 */
-	private static final ForgeConfigSpec.BooleanValue LOG_DROP_CHECKS;
+	private static final ModConfigSpec.BooleanValue LOG_DROP_CHECKS;
 	/** 恶魔印记内部标记总开关。 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_DEMONIC_BRAND_MARK;
+	private static final ModConfigSpec.BooleanValue ENABLE_DEMONIC_BRAND_MARK;
 	/** 恶魔印记持续时间（秒）。 */
-	private static final ForgeConfigSpec.DoubleValue DEMONIC_BRAND_SECONDS;
+	private static final ModConfigSpec.DoubleValue DEMONIC_BRAND_SECONDS;
 	/** 碎心掉落总开关。 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_BROKEN_HEART_DROP;
-	private static final ForgeConfigSpec.DoubleValue BROKEN_HEART_DROP_CHANCE;
-	private static final ForgeConfigSpec.DoubleValue BROKEN_HEART_BOSS_CHANCE;
-	private static final ForgeConfigSpec.DoubleValue BROKEN_HEART_DRAGON_CHANCE;
-	private static final ForgeConfigSpec.BooleanValue LOG_BROKEN_HEART_DROP_CHECKS;
+	private static final ModConfigSpec.BooleanValue ENABLE_BROKEN_HEART_DROP;
+	private static final ModConfigSpec.DoubleValue BROKEN_HEART_DROP_CHANCE;
+	private static final ModConfigSpec.DoubleValue BROKEN_HEART_BOSS_CHANCE;
+	private static final ModConfigSpec.DoubleValue BROKEN_HEART_DRAGON_CHANCE;
+	private static final ModConfigSpec.BooleanValue LOG_BROKEN_HEART_DROP_CHECKS;
 	/** 五芒星：近战伤害加成 */
-	private static final ForgeConfigSpec.DoubleValue PENTAGRAM_ATTACK_DAMAGE;
+	private static final ModConfigSpec.DoubleValue PENTAGRAM_ATTACK_DAMAGE;
 	/** 五芒星：累计持有多少秒后触发那句聊天消息 */
-	private static final ForgeConfigSpec.IntValue PENTAGRAM_MESSAGE_SECONDS;
+	private static final ModConfigSpec.IntValue PENTAGRAM_MESSAGE_SECONDS;
 	/** 恶魔交易：总开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_DEMON_DEAL;
+	private static final ModConfigSpec.BooleanValue ENABLE_DEMON_DEAL;
 	/** 恶魔交易：在灵魂沙峡谷里需要停留多少秒 */
-	private static final ForgeConfigSpec.IntValue DEMON_BIOME_DWELL_SECONDS;
+	private static final ModConfigSpec.IntValue DEMON_BIOME_DWELL_SECONDS;
 	/** 恶魔交易：签约蓄力秒数 */
-	private static final ForgeConfigSpec.DoubleValue DEMON_CHARGE_SECONDS;
+	private static final ModConfigSpec.DoubleValue DEMON_CHARGE_SECONDS;
 	/** 恶魔交易：逐行台词的间隔（tick） */
-	private static final ForgeConfigSpec.IntValue DEMON_LINE_DELAY_TICKS;
+	private static final ModConfigSpec.IntValue DEMON_LINE_DELAY_TICKS;
 	/** 恶魔交易：错误位置提示的最短间隔（秒） */
-	private static final ForgeConfigSpec.IntValue DEMON_ERROR_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.IntValue DEMON_ERROR_COOLDOWN_SECONDS;
 	/** 恶魔交易：蓄力时视野（FOV）最多收缩的比例 */
-	private static final ForgeConfigSpec.DoubleValue DEMON_CHARGE_FOV_SCALE;
+	private static final ModConfigSpec.DoubleValue DEMON_CHARGE_FOV_SCALE;
 	/** 恶魔契约：总开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_DEMON_PACT;
+	private static final ModConfigSpec.BooleanValue ENABLE_DEMON_PACT;
 	/** 恶魔契约：献祭时对村民追加的真实伤害 */
-	private static final ForgeConfigSpec.DoubleValue PACT_VILLAGER_DAMAGE;
+	private static final ModConfigSpec.DoubleValue PACT_VILLAGER_DAMAGE;
 	/** 恶魔契约：黑心心数 */
-	private static final ForgeConfigSpec.DoubleValue PACT_BLACK_HEARTS;
+	private static final ModConfigSpec.DoubleValue PACT_BLACK_HEARTS;
 	/** 恶魔契约：每颗黑心换算的吸收点 */
-	private static final ForgeConfigSpec.DoubleValue PACT_ABSORPTION_PER_HEART;
+	private static final ModConfigSpec.DoubleValue PACT_ABSORPTION_PER_HEART;
 	/** 恶魔契约：伤害加成（%） */
-	private static final ForgeConfigSpec.DoubleValue PACT_DAMAGE_PERCENT;
+	private static final ModConfigSpec.DoubleValue PACT_DAMAGE_PERCENT;
 	/** 恶魔契约：攻速加成（%） */
-	private static final ForgeConfigSpec.DoubleValue PACT_ATTACK_SPEED_PERCENT;
+	private static final ModConfigSpec.DoubleValue PACT_ATTACK_SPEED_PERCENT;
 	/** 恶魔契约：每条诅咒的生命加成（%） */
-	private static final ForgeConfigSpec.DoubleValue PACT_HEALTH_PER_CURSE_PERCENT;
+	private static final ModConfigSpec.DoubleValue PACT_HEALTH_PER_CURSE_PERCENT;
 	/** 恶魔契约：每条诅咒的速度加成（%） */
-	private static final ForgeConfigSpec.DoubleValue PACT_SPEED_PER_CURSE_PERCENT;
+	private static final ModConfigSpec.DoubleValue PACT_SPEED_PER_CURSE_PERCENT;
 	/** 恶魔契约：参与生命 / 速度 / 吸血成长的最高有效诅咒条数 */
-	private static final ForgeConfigSpec.IntValue PACT_MAX_EFFECTIVE_CURSES;
+	private static final ModConfigSpec.IntValue PACT_MAX_EFFECTIVE_CURSES;
 	/** 恶魔契约：移动速度加成上限（%） */
-	private static final ForgeConfigSpec.DoubleValue PACT_SPEED_CAP_PERCENT;
+	private static final ModConfigSpec.DoubleValue PACT_SPEED_CAP_PERCENT;
 	/** 恶魔契约：生命吸取所需的诅咒条数阈值 */
-	private static final ForgeConfigSpec.IntValue PACT_LIFESTEAL_CURSE_THRESHOLD;
+	private static final ModConfigSpec.IntValue PACT_LIFESTEAL_CURSE_THRESHOLD;
 	/** 恶魔契约：达到生命吸取门槛时的基础比例（%） */
-	private static final ForgeConfigSpec.DoubleValue PACT_LIFESTEAL_PERCENT;
+	private static final ModConfigSpec.DoubleValue PACT_LIFESTEAL_PERCENT;
 	/** 恶魔契约：每超过门槛 1 项有效诅咒增加的吸血比例（%） */
-	private static final ForgeConfigSpec.DoubleValue PACT_LIFESTEAL_PER_EXTRA_CURSE_PERCENT;
+	private static final ModConfigSpec.DoubleValue PACT_LIFESTEAL_PER_EXTRA_CURSE_PERCENT;
 	/** 恶魔契约：生命吸取比例上限（%） */
-	private static final ForgeConfigSpec.DoubleValue PACT_LIFESTEAL_CAP_PERCENT;
+	private static final ModConfigSpec.DoubleValue PACT_LIFESTEAL_CAP_PERCENT;
 	/** 仪式法袍：总开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_ROBE;
+	private static final ModConfigSpec.BooleanValue ENABLE_ROBE;
 	/** 仪式法袍：黑心上限加成（心数） */
-	private static final ForgeConfigSpec.DoubleValue ROBE_BLACK_HEARTS;
+	private static final ModConfigSpec.DoubleValue ROBE_BLACK_HEARTS;
 	/** 仪式法袍：攻击力加成（加法） */
-	private static final ForgeConfigSpec.DoubleValue ROBE_ATTACK_DAMAGE;
+	private static final ModConfigSpec.DoubleValue ROBE_ATTACK_DAMAGE;
 	/** 仪式法袍：佩戴时的邪恶每日衰减 */
-	private static final ForgeConfigSpec.DoubleValue ROBE_DAILY_DECAY;
+	private static final ModConfigSpec.DoubleValue ROBE_DAILY_DECAY;
 	/** 撒旦圣经：总开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_SATANIC_BIBLE;
+	private static final ModConfigSpec.BooleanValue ENABLE_SATANIC_BIBLE;
 	/** 撒旦圣经：黑心上限加成（心数） */
-	private static final ForgeConfigSpec.DoubleValue SATANIC_BIBLE_BLACK_HEARTS;
+	private static final ModConfigSpec.DoubleValue SATANIC_BIBLE_BLACK_HEARTS;
 	/** 撒旦圣经：黑心补满的间隔（秒） */
-	private static final ForgeConfigSpec.IntValue SATANIC_REFILL_SECONDS;
+	private static final ModConfigSpec.IntValue SATANIC_REFILL_SECONDS;
 	/** 撒旦圣经：黑心碎裂的作用半径（格） */
-	private static final ForgeConfigSpec.IntValue SATANIC_SHATTER_RADIUS;
+	private static final ModConfigSpec.IntValue SATANIC_SHATTER_RADIUS;
 	/** 撒旦圣经：黑心碎裂的伤害 */
-	private static final ForgeConfigSpec.DoubleValue SATANIC_SHATTER_DAMAGE;
+	private static final ModConfigSpec.DoubleValue SATANIC_SHATTER_DAMAGE;
 	/** 黑心池从非空被打空后的无敌时长（秒） */
-	private static final ForgeConfigSpec.DoubleValue BLACK_SHATTER_INVULNERABLE_SECONDS;
+	private static final ModConfigSpec.DoubleValue BLACK_SHATTER_INVULNERABLE_SECONDS;
 	/** 咒印（1.6.2）：佩戴时覆盖的黑心碎裂伤害 */
-	private static final ForgeConfigSpec.DoubleValue MARK_SHATTER_DAMAGE;
+	private static final ModConfigSpec.DoubleValue MARK_SHATTER_DAMAGE;
 	/** 咒印：与亚巴顿同戴时覆盖的黑心碎裂伤害（1.6.10 联动） */
-	private static final ForgeConfigSpec.DoubleValue MARK_SHATTER_DAMAGE_ABADDON;
+	private static final ModConfigSpec.DoubleValue MARK_SHATTER_DAMAGE_ABADDON;
 	/** 咒印（1.6.2）：是否把邪恶每日衰减压到 0 */
-	private static final ForgeConfigSpec.BooleanValue MARK_STOPS_EVIL_DECAY;
+	private static final ModConfigSpec.BooleanValue MARK_STOPS_EVIL_DECAY;
 	/** 咒印（1.6.2）：黑心池上限加成（心数；由灵魂的魂心转化而来） */
-	private static final ForgeConfigSpec.DoubleValue MARK_BLACK_HEARTS;
+	private static final ModConfigSpec.DoubleValue MARK_BLACK_HEARTS;
 	/** 复仇之魂（1.6.2）：每秒狱火伤害 */
-	private static final ForgeConfigSpec.DoubleValue VENGEFUL_HELLFIRE_DAMAGE;
+	private static final ModConfigSpec.DoubleValue VENGEFUL_HELLFIRE_DAMAGE;
 	/** 复仇之魂（1.6.2）：狱火作用半径（格） */
-	private static final ForgeConfigSpec.IntValue VENGEFUL_HELLFIRE_RADIUS;
-	private static final ForgeConfigSpec.IntValue VENGEFUL_HELLFIRE_RADIUS_BRIMSTONE;
+	private static final ModConfigSpec.IntValue VENGEFUL_HELLFIRE_RADIUS;
+	private static final ModConfigSpec.IntValue VENGEFUL_HELLFIRE_RADIUS_BRIMSTONE;
 	/** 夜之幽魂（1.6.3）：移动速度加成（百分比） */
-	private static final ForgeConfigSpec.DoubleValue NIGHT_WRAITH_MOVEMENT_PERCENT;
+	private static final ModConfigSpec.DoubleValue NIGHT_WRAITH_MOVEMENT_PERCENT;
 
 	// ===== 玄秘魔眼 / 恐惧（1.6.5） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_OCCULT_EYE;
-	private static final ForgeConfigSpec.IntValue FEAR_RADIUS;
-	private static final ForgeConfigSpec.IntValue FEAR_SECONDS;
-	private static final ForgeConfigSpec.BooleanValue FEAR_AFFECTS_PLAYERS;
-	private static final ForgeConfigSpec.BooleanValue FEAR_GLOW;
-	private static final ForgeConfigSpec.BooleanValue FEAR_GLOW_AFFECTS_PLAYERS;
-	private static final ForgeConfigSpec.DoubleValue FEAR_DAMAGE_MULTIPLIER;
+	private static final ModConfigSpec.BooleanValue ENABLE_OCCULT_EYE;
+	private static final ModConfigSpec.IntValue FEAR_RADIUS;
+	private static final ModConfigSpec.IntValue FEAR_SECONDS;
+	private static final ModConfigSpec.BooleanValue FEAR_AFFECTS_PLAYERS;
+	private static final ModConfigSpec.BooleanValue FEAR_GLOW;
+	private static final ModConfigSpec.BooleanValue FEAR_GLOW_AFFECTS_PLAYERS;
+	private static final ModConfigSpec.DoubleValue FEAR_DAMAGE_MULTIPLIER;
 	/** 恐惧是否附带「黑暗」（1.6.6 起的新键） */
-	private static final ForgeConfigSpec.BooleanValue FEAR_DARKNESS;
+	private static final ModConfigSpec.BooleanValue FEAR_DARKNESS;
 	/** 1.6.5 的旧键（当时误用了「失明」）；只为兼容旧配置里显式的关闭而保留 */
-	private static final ForgeConfigSpec.BooleanValue FEAR_BLINDNESS_LEGACY;
-	private static final ForgeConfigSpec.IntValue FEAR_MINING_FATIGUE_AMPLIFIER;
-	private static final ForgeConfigSpec.IntValue FEAR_SLOWNESS_AMPLIFIER;
-	private static final ForgeConfigSpec.IntValue FEAR_WEAKNESS_AMPLIFIER;
+	private static final ModConfigSpec.BooleanValue FEAR_BLINDNESS_LEGACY;
+	private static final ModConfigSpec.IntValue FEAR_MINING_FATIGUE_AMPLIFIER;
+	private static final ModConfigSpec.IntValue FEAR_SLOWNESS_AMPLIFIER;
+	private static final ModConfigSpec.IntValue FEAR_WEAKNESS_AMPLIFIER;
 	/** 恐惧：与亚巴顿同戴时是否额外把目标移速归零（1.6.10 联动） */
-	private static final ForgeConfigSpec.BooleanValue FEAR_FREEZE_WITH_ABADDON;
+	private static final ModConfigSpec.BooleanValue FEAR_FREEZE_WITH_ABADDON;
 	// ===== 深渊领主 / 狱火（1.6.7） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_ABYSS_LORD;
-	private static final ForgeConfigSpec.IntValue HELLFIRE_SECONDS;
-	private static final ForgeConfigSpec.IntValue HELLFIRE_MAX_LEVEL;
-	private static final ForgeConfigSpec.DoubleValue HELLFIRE_ARMOR_PERCENT_PER_LEVEL;
-	private static final ForgeConfigSpec.DoubleValue HELLFIRE_DAMAGE_PER_LEVEL_PER_SECOND;
-	private static final ForgeConfigSpec.BooleanValue ENABLE_DEMON_FIRE_IMMUNITY;
+	private static final ModConfigSpec.BooleanValue ENABLE_ABYSS_LORD;
+	private static final ModConfigSpec.IntValue HELLFIRE_SECONDS;
+	private static final ModConfigSpec.IntValue HELLFIRE_MAX_LEVEL;
+	private static final ModConfigSpec.DoubleValue HELLFIRE_ARMOR_PERCENT_PER_LEVEL;
+	private static final ModConfigSpec.DoubleValue HELLFIRE_DAMAGE_PER_LEVEL_PER_SECOND;
+	private static final ModConfigSpec.BooleanValue ENABLE_DEMON_FIRE_IMMUNITY;
 	/** 狱火：与亚巴顿同戴时，狱火满级是否把目标「抗性提升」等级减半并持续覆盖（1.6.10 联动） */
-	private static final ForgeConfigSpec.BooleanValue HELLFIRE_HALVES_RESISTANCE_WITH_ABADDON;
+	private static final ModConfigSpec.BooleanValue HELLFIRE_HALVES_RESISTANCE_WITH_ABADDON;
 	// ===== 亚巴顿（1.6.8） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_ABADDON;
-	private static final ForgeConfigSpec.DoubleValue ABADDON_BEAM_CHARGE_SECONDS;
-	private static final ForgeConfigSpec.IntValue ABADDON_BEAM_DAMAGE_PER_TICK;
-	private static final ForgeConfigSpec.IntValue ABADDON_BEAM_LENGTH;
-	private static final ForgeConfigSpec.IntValue ABADDON_BEAM_RADIUS;
-	private static final ForgeConfigSpec.IntValue ABADDON_REVIVE_COOLDOWN_SECONDS;
-	private static final ForgeConfigSpec.IntValue ABADDON_REVIVE_INVULNERABLE_SECONDS;
-	private static final ForgeConfigSpec.DoubleValue ABADDON_AURA_RADIUS;
-	private static final ForgeConfigSpec.IntValue ABADDON_AURA_DAMAGE_PER_TICK;
-	private static final ForgeConfigSpec.IntValue VENGEFUL_HELLFIRE_RADIUS_ABADDON;
+	private static final ModConfigSpec.BooleanValue ENABLE_ABADDON;
+	private static final ModConfigSpec.DoubleValue ABADDON_BEAM_CHARGE_SECONDS;
+	private static final ModConfigSpec.IntValue ABADDON_BEAM_DAMAGE_PER_TICK;
+	private static final ModConfigSpec.IntValue ABADDON_BEAM_LENGTH;
+	private static final ModConfigSpec.IntValue ABADDON_BEAM_RADIUS;
+	private static final ModConfigSpec.IntValue ABADDON_REVIVE_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.IntValue ABADDON_REVIVE_INVULNERABLE_SECONDS;
+	private static final ModConfigSpec.DoubleValue ABADDON_AURA_RADIUS;
+	private static final ModConfigSpec.IntValue ABADDON_AURA_DAMAGE_PER_TICK;
+	private static final ModConfigSpec.IntValue VENGEFUL_HELLFIRE_RADIUS_ABADDON;
 	/** 邪恶度：上限 */
-	private static final ForgeConfigSpec.IntValue EVIL_MAX;
+	private static final ModConfigSpec.IntValue EVIL_MAX;
 	/** 邪恶度：每 1 点提供多少 % 的攻击或攻速（奇偶交替） */
-	private static final ForgeConfigSpec.DoubleValue EVIL_PER_POINT_PERCENT;
+	private static final ModConfigSpec.DoubleValue EVIL_PER_POINT_PERCENT;
 	/** 邪恶度：友善生物 */
-	private static final ForgeConfigSpec.DoubleValue EVIL_FRIENDLY;
+	private static final ModConfigSpec.DoubleValue EVIL_FRIENDLY;
 	/** 邪恶度：中立生物 */
-	private static final ForgeConfigSpec.DoubleValue EVIL_NEUTRAL;
+	private static final ModConfigSpec.DoubleValue EVIL_NEUTRAL;
 	/** 邪恶度：敌对生物 */
-	private static final ForgeConfigSpec.DoubleValue EVIL_HOSTILE;
+	private static final ModConfigSpec.DoubleValue EVIL_HOSTILE;
 	/** 邪恶度：监守者 / 凋灵 */
-	private static final ForgeConfigSpec.DoubleValue EVIL_WARDEN_WITHER;
+	private static final ModConfigSpec.DoubleValue EVIL_WARDEN_WITHER;
 	/** 邪恶度：末影龙 */
-	private static final ForgeConfigSpec.DoubleValue EVIL_DRAGON;
+	private static final ModConfigSpec.DoubleValue EVIL_DRAGON;
 	/** 邪恶度：每游戏日增益总量上限 */
-	private static final ForgeConfigSpec.DoubleValue EVIL_DAILY_CAP;
+	private static final ModConfigSpec.DoubleValue EVIL_DAILY_CAP;
 	/** 邪恶度：每游戏日自然衰减 */
-	private static final ForgeConfigSpec.DoubleValue EVIL_DAILY_DECAY;
+	private static final ModConfigSpec.DoubleValue EVIL_DAILY_DECAY;
 	/** 邪恶度：友善档每日上限 */
-	private static final ForgeConfigSpec.DoubleValue EVIL_FRIENDLY_DAILY_CAP;
+	private static final ModConfigSpec.DoubleValue EVIL_FRIENDLY_DAILY_CAP;
 
 	// ===== 战斗手感 =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_INVULNERABILITY_CHANGE;
+	private static final ModConfigSpec.BooleanValue ENABLE_INVULNERABILITY_CHANGE;
 	/** 1.8.6：真伤命中后是否清掉受害者的保护帧 */
-	private static final ForgeConfigSpec.BooleanValue CLEAR_IFRAMES_AFTER_TRUE_DAMAGE;
+	private static final ModConfigSpec.BooleanValue CLEAR_IFRAMES_AFTER_TRUE_DAMAGE;
 	/** 2.0.0 / 2.17：定值真伤是否吃七罪、七德、最终倍率与条件乘区 */
-	private static final ForgeConfigSpec.BooleanValue EXACT_DAMAGE_GETS_MULTIPLIER;
+	private static final ModConfigSpec.BooleanValue EXACT_DAMAGE_GETS_MULTIPLIER;
 	/** 2.0.0 / 2.9：真伤是否补齐被第三方数值上限削掉的差额 */
-	private static final ForgeConfigSpec.BooleanValue TRUE_DAMAGE_IGNORES_DAMAGE_LIMITS;
+	private static final ModConfigSpec.BooleanValue TRUE_DAMAGE_IGNORES_DAMAGE_LIMITS;
 	/** 2.0.0 / 2.9：补差是否也对玩家目标生效 */
-	private static final ForgeConfigSpec.BooleanValue TRUE_DAMAGE_LIMIT_AFFECTS_PLAYERS;
-	private static final ForgeConfigSpec.IntValue INVULNERABILITY_TICKS;
-	private static final ForgeConfigSpec.DoubleValue MAX_ATTACK_SPEED;
+	private static final ModConfigSpec.BooleanValue TRUE_DAMAGE_LIMIT_AFFECTS_PLAYERS;
+	private static final ModConfigSpec.IntValue INVULNERABILITY_TICKS;
+	private static final ModConfigSpec.DoubleValue MAX_ATTACK_SPEED;
 
 	// ===== 光环 =====
-	private static final ForgeConfigSpec.DoubleValue HALO_MAX_HEALTH;
-	private static final ForgeConfigSpec.DoubleValue HALO_ATTACK_DAMAGE;
-	private static final ForgeConfigSpec.DoubleValue HALO_ATTACK_SPEED;
-	private static final ForgeConfigSpec.DoubleValue HALO_ARMOR;
-	private static final ForgeConfigSpec.DoubleValue HALO_ARMOR_TOUGHNESS;
-	private static final ForgeConfigSpec.IntValue HALO_MOVEMENT_PERCENT;
-	private static final ForgeConfigSpec.IntValue HALO_BREAK_SPEED_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue HALO_SIN_MULTIPLIER;
-	private static final ForgeConfigSpec.DoubleValue HALO_VIRTUE_MULTIPLIER;
+	private static final ModConfigSpec.DoubleValue HALO_MAX_HEALTH;
+	private static final ModConfigSpec.DoubleValue HALO_ATTACK_DAMAGE;
+	private static final ModConfigSpec.DoubleValue HALO_ATTACK_SPEED;
+	private static final ModConfigSpec.DoubleValue HALO_ARMOR;
+	private static final ModConfigSpec.DoubleValue HALO_ARMOR_TOUGHNESS;
+	private static final ModConfigSpec.IntValue HALO_MOVEMENT_PERCENT;
+	private static final ModConfigSpec.IntValue HALO_BREAK_SPEED_PERCENT;
+	private static final ModConfigSpec.DoubleValue HALO_SIN_MULTIPLIER;
+	private static final ModConfigSpec.DoubleValue HALO_VIRTUE_MULTIPLIER;
 	/** 光环：生命值低于该百分比时获得「生命回复」（1.7.1，需已获取启示） */
-	private static final ForgeConfigSpec.IntValue HALO_REGEN_THRESHOLD_PERCENT;
+	private static final ModConfigSpec.IntValue HALO_REGEN_THRESHOLD_PERCENT;
 	/** 光环：生命回复的等级（amplifier；0 = 生命回复 I） */
-	private static final ForgeConfigSpec.IntValue HALO_REGEN_AMPLIFIER;
+	private static final ModConfigSpec.IntValue HALO_REGEN_AMPLIFIER;
 
 	// ===== 恶魔王冠（1.7.1） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_DEVIL_CROWN;
-	private static final ForgeConfigSpec.IntValue DEVIL_CROWN_MOVEMENT_PERCENT;
-	private static final ForgeConfigSpec.DoubleValue DEVIL_CROWN_ATTACK_SPEED;
-	private static final ForgeConfigSpec.DoubleValue DEVIL_CROWN_MELEE_DAMAGE;
-	private static final ForgeConfigSpec.DoubleValue DEVIL_CROWN_MAX_HEALTH;
-	private static final ForgeConfigSpec.DoubleValue DEVIL_CROWN_ARMOR;
-	private static final ForgeConfigSpec.DoubleValue DEVIL_CROWN_ARMOR_TOUGHNESS;
+	private static final ModConfigSpec.BooleanValue ENABLE_DEVIL_CROWN;
+	private static final ModConfigSpec.IntValue DEVIL_CROWN_MOVEMENT_PERCENT;
+	private static final ModConfigSpec.DoubleValue DEVIL_CROWN_ATTACK_SPEED;
+	private static final ModConfigSpec.DoubleValue DEVIL_CROWN_MELEE_DAMAGE;
+	private static final ModConfigSpec.DoubleValue DEVIL_CROWN_MAX_HEALTH;
+	private static final ModConfigSpec.DoubleValue DEVIL_CROWN_ARMOR;
+	private static final ModConfigSpec.DoubleValue DEVIL_CROWN_ARMOR_TOUGHNESS;
 	/** 恶魔王冠：每损失 10% 生命值提升的造成伤害（百分比） */
-	private static final ForgeConfigSpec.DoubleValue DEVIL_CROWN_DAMAGE_PER_DECILE_PERCENT;
+	private static final ModConfigSpec.DoubleValue DEVIL_CROWN_DAMAGE_PER_DECILE_PERCENT;
 	/** 恶魔王冠：上述加成的上限（百分比） */
-	private static final ForgeConfigSpec.DoubleValue DEVIL_CROWN_DAMAGE_CAP_PERCENT;
+	private static final ModConfigSpec.DoubleValue DEVIL_CROWN_DAMAGE_CAP_PERCENT;
 
 	// ===== 遁入暗影（1.7.5：献祭匕首 / 暗仪刺刀） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_SHADOW_DASH;
+	private static final ModConfigSpec.BooleanValue ENABLE_SHADOW_DASH;
 	/** 献祭匕首：技能判定时长（tick） */
-	private static final ForgeConfigSpec.IntValue SHADOW_SACRIFICIAL_DURATION_TICKS;
+	private static final ModConfigSpec.IntValue SHADOW_SACRIFICIAL_DURATION_TICKS;
 	/** 暗仪刺刀：技能判定时长（tick） */
-	private static final ForgeConfigSpec.IntValue SHADOW_DARK_ARTS_DURATION_TICKS;
+	private static final ModConfigSpec.IntValue SHADOW_DARK_ARTS_DURATION_TICKS;
 	/** 献祭匕首：基础斩击倍率 */
-	private static final ForgeConfigSpec.DoubleValue SHADOW_SACRIFICIAL_MULTIPLIER;
+	private static final ModConfigSpec.DoubleValue SHADOW_SACRIFICIAL_MULTIPLIER;
 	/** 暗仪刺刀：基础斩击倍率 */
-	private static final ForgeConfigSpec.DoubleValue SHADOW_DARK_ARTS_MULTIPLIER;
+	private static final ModConfigSpec.DoubleValue SHADOW_DARK_ARTS_MULTIPLIER;
 	/** 接触判定半径 */
-	private static final ForgeConfigSpec.DoubleValue SHADOW_CONTACT_RADIUS;
+	private static final ModConfigSpec.DoubleValue SHADOW_CONTACT_RADIUS;
 	/** 强力斩击半径 */
-	private static final ForgeConfigSpec.DoubleValue SHADOW_HEAVY_RADIUS;
+	private static final ModConfigSpec.DoubleValue SHADOW_HEAVY_RADIUS;
 	/** 技能期间移动速度加成（百分比） */
-	private static final ForgeConfigSpec.IntValue SHADOW_MOVEMENT_PERCENT;
+	private static final ModConfigSpec.IntValue SHADOW_MOVEMENT_PERCENT;
 	/** 冷却（tick，从无敌解除开始计时） */
-	private static final ForgeConfigSpec.IntValue SHADOW_COOLDOWN_TICKS;
+	private static final ModConfigSpec.IntValue SHADOW_COOLDOWN_TICKS;
 	/** 逐个结算标记目标的间隔（tick） */
-	private static final ForgeConfigSpec.IntValue SHADOW_RESOLVE_INTERVAL_TICKS;
+	private static final ModConfigSpec.IntValue SHADOW_RESOLVE_INTERVAL_TICKS;
 	/** 献祭匕首：连续多少秒身上没有匕首才开放"防丢失配方" */
-	private static final ForgeConfigSpec.IntValue DAGGER_RECOVERY_SECONDS;
+	private static final ModConfigSpec.IntValue DAGGER_RECOVERY_SECONDS;
 	/** 亚巴顿联动：遁入暗影时长加成（tick，1.7.10） */
-	private static final ForgeConfigSpec.IntValue SHADOW_ABADDON_DURATION_TICKS;
+	private static final ModConfigSpec.IntValue SHADOW_ABADDON_DURATION_TICKS;
 	/** 亚巴顿联动：接触判定半径加成（格，1.7.10） */
-	private static final ForgeConfigSpec.DoubleValue SHADOW_ABADDON_CONTACT_RADIUS;
+	private static final ModConfigSpec.DoubleValue SHADOW_ABADDON_CONTACT_RADIUS;
 	/** 亚巴顿联动：强力斩击半径加成（格，1.7.10） */
-	private static final ForgeConfigSpec.DoubleValue SHADOW_ABADDON_HEAVY_RADIUS;
+	private static final ModConfigSpec.DoubleValue SHADOW_ABADDON_HEAVY_RADIUS;
 
 	// ===== 献祭（1.8.2：献祭匕首的右键技能） =====
 	/** 献祭：总开关 */
-	private static final ForgeConfigSpec.BooleanValue ENABLE_SACRIFICE;
+	private static final ModConfigSpec.BooleanValue ENABLE_SACRIFICE;
 	/** 献祭：对自身造成的伤害点数（不致死） */
-	private static final ForgeConfigSpec.DoubleValue SACRIFICE_SELF_DAMAGE;
+	private static final ModConfigSpec.DoubleValue SACRIFICE_SELF_DAMAGE;
 	/** 献祭：近战增伤（百分比，随时间线性衰减到 0） */
-	private static final ForgeConfigSpec.IntValue SACRIFICE_DAMAGE_PERCENT;
+	private static final ModConfigSpec.IntValue SACRIFICE_DAMAGE_PERCENT;
 	/** 献祭：增伤持续秒数 */
-	private static final ForgeConfigSpec.DoubleValue SACRIFICE_DURATION_SECONDS;
+	private static final ModConfigSpec.DoubleValue SACRIFICE_DURATION_SECONDS;
 	/** 献祭：冷却秒数 */
-	private static final ForgeConfigSpec.IntValue SACRIFICE_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.IntValue SACRIFICE_COOLDOWN_SECONDS;
 
 	// ===== 神圣行动（1.8.2：神性回溯 / 亚巴顿恶魔形态的 X 键） =====
 	/** X 技能：长按蓄力秒数 */
-	private static final ForgeConfigSpec.DoubleValue DIVINE_ACTION_CHARGE_SECONDS;
+	private static final ModConfigSpec.DoubleValue DIVINE_ACTION_CHARGE_SECONDS;
 
 	// ===== 金刀片（1.7.10：无属性、右键投掷、固定伤害、可穿透） =====
-	private static final ForgeConfigSpec.BooleanValue ENABLE_GOLDEN_RAZOR;
+	private static final ModConfigSpec.BooleanValue ENABLE_GOLDEN_RAZOR;
 	/** 金刀片：命中伤害点数（不吃任何加成） */
-	private static final ForgeConfigSpec.DoubleValue RAZOR_DAMAGE;
+	private static final ModConfigSpec.DoubleValue RAZOR_DAMAGE;
 	/** 金刀片：投掷冷却（tick，10 = 0.5 秒） */
-	private static final ForgeConfigSpec.IntValue RAZOR_COOLDOWN_TICKS;
+	private static final ModConfigSpec.IntValue RAZOR_COOLDOWN_TICKS;
 	/** 金刀片：出手速度 */
-	private static final ForgeConfigSpec.DoubleValue RAZOR_VELOCITY;
+	private static final ModConfigSpec.DoubleValue RAZOR_VELOCITY;
 	/** 金刀片：穿透等级（原版口径：可穿透 等级+1 个生物） */
-	private static final ForgeConfigSpec.IntValue RAZOR_PIERCE_LEVEL;
+	private static final ModConfigSpec.IntValue RAZOR_PIERCE_LEVEL;
 	/** 金刀片：幻影存活上限（tick 兜底删除） */
-	private static final ForgeConfigSpec.IntValue RAZOR_MAX_LIFE_TICKS;
+	private static final ModConfigSpec.IntValue RAZOR_MAX_LIFE_TICKS;
 	/** 金刀片：命中方块后插在原地停留多久再清除（tick，100 = 5 秒） */
-	private static final ForgeConfigSpec.IntValue RAZOR_STUCK_TICKS;
+	private static final ModConfigSpec.IntValue RAZOR_STUCK_TICKS;
 
 	// ===== 启示之座（伯列恒之星 / 终末天启） =====
-	private static final ForgeConfigSpec.IntValue REVEAL_SECONDS;
-	private static final ForgeConfigSpec.IntValue REVEAL_RADIUS;
-	private static final ForgeConfigSpec.IntValue STAR_ATTACK_SPEED_PERCENT;
-	private static final ForgeConfigSpec.IntValue STAR_DAMAGE_PERCENT;
-	private static final ForgeConfigSpec.IntValue FINAL_SOUL_HEARTS;
-	private static final ForgeConfigSpec.DoubleValue FLIGHT_SPEED_MULTIPLIER;
-	private static final ForgeConfigSpec.IntValue TRANSFORM_RADIUS;
-	private static final ForgeConfigSpec.IntValue TRANSFORM_SECONDS;
-	private static final ForgeConfigSpec.DoubleValue TRANSFORM_MAX_MOVE_BLOCKS;
-	private static final ForgeConfigSpec.IntValue BEAM_LENGTH;
-	private static final ForgeConfigSpec.IntValue BEAM_RADIUS;
-	private static final ForgeConfigSpec.IntValue BEAM_DAMAGE_PER_TICK;
-	private static final ForgeConfigSpec.DoubleValue BEAM_DURATION_SECONDS;
-	private static final ForgeConfigSpec.DoubleValue BEAM_DAMAGE_INTERVAL_SECONDS;
-	private static final ForgeConfigSpec.DoubleValue BEAM_CHARGE_SECONDS;
-	private static final ForgeConfigSpec.IntValue BEAM_COOLDOWN_SECONDS;
-	private static final ForgeConfigSpec.IntValue BEAM_BROADCAST_RADIUS;
-	private static final ForgeConfigSpec.DoubleValue CHARGE_FOV_SCALE;
+	private static final ModConfigSpec.IntValue REVEAL_SECONDS;
+	private static final ModConfigSpec.IntValue REVEAL_RADIUS;
+	private static final ModConfigSpec.IntValue STAR_ATTACK_SPEED_PERCENT;
+	private static final ModConfigSpec.IntValue STAR_DAMAGE_PERCENT;
+	private static final ModConfigSpec.IntValue FINAL_SOUL_HEARTS;
+	private static final ModConfigSpec.DoubleValue FLIGHT_SPEED_MULTIPLIER;
+	private static final ModConfigSpec.IntValue TRANSFORM_RADIUS;
+	private static final ModConfigSpec.IntValue TRANSFORM_SECONDS;
+	private static final ModConfigSpec.DoubleValue TRANSFORM_MAX_MOVE_BLOCKS;
+	private static final ModConfigSpec.IntValue BEAM_LENGTH;
+	private static final ModConfigSpec.IntValue BEAM_RADIUS;
+	private static final ModConfigSpec.IntValue BEAM_DAMAGE_PER_TICK;
+	private static final ModConfigSpec.DoubleValue BEAM_DURATION_SECONDS;
+	private static final ModConfigSpec.DoubleValue BEAM_DAMAGE_INTERVAL_SECONDS;
+	private static final ModConfigSpec.DoubleValue BEAM_CHARGE_SECONDS;
+	private static final ModConfigSpec.IntValue BEAM_COOLDOWN_SECONDS;
+	private static final ModConfigSpec.IntValue BEAM_BROADCAST_RADIUS;
+	private static final ModConfigSpec.DoubleValue CHARGE_FOV_SCALE;
 
 	static {
-		ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
+		ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
 		builder.comment("邦邦女仆（邦邦咔邦光环）相关设置").push("maid");
 		RADIUS = builder
@@ -1473,7 +1473,7 @@ public final class ReliquaryConfig {
 	}
 
 	/** 配置还没加载时退回默认值，避免启动早期读配置报错 */
-	private static int intOr(ForgeConfigSpec.IntValue value, int fallback) {
+	private static int intOr(ModConfigSpec.IntValue value, int fallback) {
 		try {
 			return value.get();
 		} catch (IllegalStateException exception) {
@@ -1481,7 +1481,7 @@ public final class ReliquaryConfig {
 		}
 	}
 
-	private static double doubleOr(ForgeConfigSpec.DoubleValue value, double fallback) {
+	private static double doubleOr(ModConfigSpec.DoubleValue value, double fallback) {
 		try {
 			return value.get();
 		} catch (IllegalStateException exception) {
@@ -1970,7 +1970,7 @@ public final class ReliquaryConfig {
 
 	// ==================== 七罪效果 ====================
 
-	private static boolean boolOr(ForgeConfigSpec.BooleanValue value, boolean fallback) {
+	private static boolean boolOr(ModConfigSpec.BooleanValue value, boolean fallback) {
 		try {
 			return value.get();
 		} catch (IllegalStateException exception) {

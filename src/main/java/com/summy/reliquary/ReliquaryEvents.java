@@ -30,27 +30,29 @@ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
-import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import top.theillusivec4.curios.api.event.CurioEquipEvent;
-import top.theillusivec4.curios.api.event.CurioUnequipEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.neoforged.neoforge.event.entity.living.BabyEntitySpawnEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
+import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
+import top.theillusivec4.curios.api.event.CurioChangeEvent;
 
 /**
  * 服务端 / 通用事件入口（全部走 Forge 事件总线，不依赖任何 Mixin）。
  */
-@Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class ReliquaryEvents {
 	/** 上次同步给客户端的「主世界有个人重生点」值（只在变化时补发包，避免每秒刷屏） */
 	private static final java.util.Map<java.util.UUID, Boolean> LAST_OVERWORLD_RESPAWN = new java.util.HashMap<>();
@@ -69,10 +71,7 @@ public final class ReliquaryEvents {
 
 	/** 每个服务端 tick：维护邦邦女仆状态并锁定白饭佩戴者的饥饿值 */
 	@SubscribeEvent
-	public static void onServerTick(TickEvent.ServerTickEvent event) {
-		if (event.phase != TickEvent.Phase.END) {
-			return;
-		}
+	public static void onServerTick(ServerTickEvent.Post event) {
 		MinecraftServer server = event.getServer();
 		MaidModeManager.tickServer(server);
 		// 恶魔交易的台词逐行延迟发送（1.5.9）
@@ -153,8 +152,8 @@ public final class ReliquaryEvents {
 	 * 因此被它们清掉的黄血能在同一 tick 内补回来。
 	 */
 	@SubscribeEvent
-	public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-		if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer player)) {
+	public static void onPlayerTick(PlayerTickEvent.Post event) {
+		if (!(event.getEntity() instanceof ServerPlayer player)) {
 			return;
 		}
 		// 1.5.9：本模组数据就绪登记（"这个实体实例 tick 过"）—— 读档阶段的 canEquip 一律放行
@@ -245,7 +244,7 @@ public final class ReliquaryEvents {
 	 * 受伤尝试（在原版 {@code invulnerableTime = 20} 与 {@code markHurt()} **之前**）：
 	 * 既用于受伤节流的汇总日志，也承担"完全拦截"的**提前取消**（1.8.5）。
 	 *
-	 * <p>为什么必须提前到这一层：原版 {@code LivingEntity#hurt} 在触发 {@code LivingHurtEvent} 之前
+	 * <p>为什么必须提前到这一层：原版 {@code LivingEntity#hurt} 在触发 {@code LivingIncomingDamageEvent} 之前
 	 * 就已经写好了 {@code invulnerableTime = 20} 并调用 {@code markHurt()}。只在 Hurt 层取消的话，
 	 * 伤害虽然不落地，但 ① 客户端仍会因为速度同步**抖一下**；② 这一击**白吃一次原版无敌帧**，
 	 * 会把紧接其后的真伤害一起挡掉（"戴神性站火里被打反而不掉血"这种假象）。
@@ -258,7 +257,7 @@ public final class ReliquaryEvents {
 	 * （估算误判风险大于收益）。
 	 */
 	@SubscribeEvent
-	public static void onLivingAttack(net.minecraftforge.event.entity.living.LivingAttackEvent event) {
+	public static void onLivingAttack(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
 		if (event.getEntity().level().isClientSide()) {
 			return;
 		}
@@ -276,7 +275,7 @@ public final class ReliquaryEvents {
 	 * 排除在候选之外，避免箭被拽回同一个目标身边打转。
 	 */
 	@SubscribeEvent
-	public static void onProjectileImpact(net.minecraftforge.event.entity.ProjectileImpactEvent event) {
+	public static void onProjectileImpact(net.neoforged.neoforge.event.entity.ProjectileImpactEvent event) {
 		if (event.getProjectile().level().isClientSide()) {
 			return;
 		}
@@ -329,7 +328,7 @@ public final class ReliquaryEvents {
 
 	/** 投射物离开世界：立即从神圣干预索引删除。 */
 	@SubscribeEvent
-	public static void onProjectileLeave(net.minecraftforge.event.entity.EntityLeaveLevelEvent event) {
+	public static void onProjectileLeave(net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent event) {
 		if (!event.getLevel().isClientSide()) {
 			com.summy.reliquary.effect.DivineIntervention.onProjectileLeave(event);
 		}
@@ -337,7 +336,7 @@ public final class ReliquaryEvents {
 
 	/** 神圣干预屏障拦截爆炸射线：盾后的方块与实体从受影响列表中移除。 */
 	@SubscribeEvent
-	public static void onExplosionDetonate(net.minecraftforge.event.level.ExplosionEvent.Detonate event) {
+	public static void onExplosionDetonate(net.neoforged.neoforge.event.level.ExplosionEvent.Detonate event) {
 		if (!event.getLevel().isClientSide()) {
 			com.summy.reliquary.effect.DivineIntervention.onExplosionDetonate(event);
 		}
@@ -347,7 +346,7 @@ public final class ReliquaryEvents {
 	 * 这次伤害是否会被本模组**完全拦下**（不落地、也不该产生任何受伤反馈）。
 	 *
 	 * <p>只收"玩家处在无敌 / 免疫状态"这类判定。**不含**「武器门槛归零」——那种语义是"这次攻击无效"，
-	 * 提前取消会连击退与音效一起吞掉，必须留在 {@code LivingHurtEvent} 里。
+	 * 提前取消会连击退与音效一起吞掉，必须留在 {@code LivingIncomingDamageEvent} 里。
 	 *
 	 * <p>设为 public 是为了让自检直接断言真值表。
 	 */
@@ -409,7 +408,7 @@ public final class ReliquaryEvents {
 
 	/** 丢弃物品：慷慨叠层（七德） */
 	@SubscribeEvent
-	public static void onItemToss(net.minecraftforge.event.entity.item.ItemTossEvent event) {
+	public static void onItemToss(net.neoforged.neoforge.event.entity.item.ItemTossEvent event) {
 		if (event.getPlayer() instanceof ServerPlayer player) {
 			com.summy.reliquary.effect.VirtuesEffects.onItemToss(player);
 		}
@@ -426,7 +425,7 @@ public final class ReliquaryEvents {
 	 * （原版 5 分钟会 despawn）。掉进虚空仍会被移除，那是"主动丢弃"，按需求不补发。
 	 */
 	@SubscribeEvent
-	public static void onEntityJoinLevel(net.minecraftforge.event.entity.EntityJoinLevelEvent event) {
+	public static void onEntityJoinLevel(net.neoforged.neoforge.event.entity.EntityJoinLevelEvent event) {
 		if (event.getLevel().isClientSide()) {
 			return;
 		}
@@ -454,7 +453,7 @@ public final class ReliquaryEvents {
 	 * 非玩家目标则在此阶段结算心之碎片与碎心，确保实体战利品表已经建立捆绑包事务。
 	 */
 	@SubscribeEvent
-	public static void onLivingDrops(net.minecraftforge.event.entity.living.LivingDropsEvent event) {
+	public static void onLivingDrops(net.neoforged.neoforge.event.entity.living.LivingDropsEvent event) {
 		if (event.getEntity().level().isClientSide() || event.isCanceled()) {
 			return;
 		}
@@ -476,7 +475,7 @@ public final class ReliquaryEvents {
 
 	/** 进度达成：纯洁之人 → 天使标记；无罪之人 → 放弃一切；解放末地 → 判定两条末影龙挑战 */
 	@SubscribeEvent
-	public static void onAdvancementEarned(net.minecraftforge.event.entity.player.AdvancementEvent.AdvancementEarnEvent event) {
+	public static void onAdvancementEarned(net.neoforged.neoforge.event.entity.player.AdvancementEvent.AdvancementEarnEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
 			SinChallenges.onAdvancementEarned(player, event.getAdvancement());
 		}
@@ -527,8 +526,9 @@ public final class ReliquaryEvents {
 
 	/** 上床睡觉：怠惰的「早睡」计数 */
 	@SubscribeEvent
-	public static void onSleepInBed(PlayerSleepInBedEvent event) {
-		if (event.getEntity() instanceof ServerPlayer player) {
+	public static void onSleepInBed(CanPlayerSleepEvent event) {
+		if (event.getProblem() == null) {
+			ServerPlayer player = event.getEntity();
 			com.summy.reliquary.sin.SinEffects.onSleep(player);
 		}
 	}
@@ -702,16 +702,8 @@ public final class ReliquaryEvents {
 
 	/** 饰品装卸后立刻重算属性（血条/攻速/生命上限都不再等 1 秒） */
 	@SubscribeEvent
-	public static void onCurioEquip(CurioEquipEvent event) {
-		if (event.getSlotContext().entity() instanceof ServerPlayer player) {
-			AttributeManager.apply(player);
-			com.summy.reliquary.effect.BloodDebtAltar.sync(player);
-		}
-	}
-
-	@SubscribeEvent
-	public static void onCurioUnequip(CurioUnequipEvent event) {
-		if (event.getSlotContext().entity() instanceof ServerPlayer player) {
+	public static void onCurioChange(CurioChangeEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player) {
 			AttributeManager.apply(player);
 			com.summy.reliquary.effect.BloodDebtAltar.sync(player);
 		}
@@ -780,24 +772,24 @@ public final class ReliquaryEvents {
 	}
 
 	/** 战斗结算：套装加成、投射物免疫、伯列恒之星加伤 */
-	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
-	public static void onLivingHurtTraceSacredVerdict(LivingHurtEvent event) {
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGHEST)
+	public static void onLivingHurtTraceSacredVerdict(LivingIncomingDamageEvent event) {
 		if (!event.getEntity().level().isClientSide()) {
 			com.summy.reliquary.effect.SacredVerdictTrace.onHurt(event);
 		}
 	}
 
-	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGHEST)
 	public static void onLivingDamageTraceSacredVerdict(
-			net.minecraftforge.event.entity.living.LivingDamageEvent event) {
+			net.neoforged.neoforge.event.entity.living.LivingDamageEvent event) {
 		if (!event.getEntity().level().isClientSide()) {
 			com.summy.reliquary.effect.SacredVerdictTrace.onDamage(event);
 		}
 	}
 
 	/** 在所有受击取消与改伤逻辑之后写入内部标记，保证致死事件能读取。 */
-	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
-	public static void onLivingHurtApplyMarkers(LivingHurtEvent event) {
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
+	public static void onLivingHurtApplyMarkers(LivingIncomingDamageEvent event) {
 		if (event.getEntity().level().isClientSide() || event.isCanceled()
 				|| event.getAmount() <= 0.0F) {
 			return;
@@ -813,14 +805,14 @@ public final class ReliquaryEvents {
 	/** 狱火机制由实体 tick 驱动，不依赖视觉 MobEffect 是否被免疫或清除。 */
 	@SubscribeEvent
 	public static void onLivingTickHellfire(
-			net.minecraftforge.event.entity.living.LivingEvent.LivingTickEvent event) {
+			EntityTickEvent.Post event) {
 		if (!event.getEntity().level().isClientSide()) {
 			com.summy.reliquary.effect.HellfireState.tick(event.getEntity());
 		}
 	}
 
 	@SubscribeEvent
-	public static void onLivingHurt(LivingHurtEvent event) {
+	public static void onLivingHurt(LivingIncomingDamageEvent event) {
 		if (event.getEntity().level().isClientSide()) {
 			return;
 		}
@@ -1003,8 +995,8 @@ public final class ReliquaryEvents {
 	 * （见 {@code CombatTuning.applyFabricClear}）。开关
 	 * {@code [combat] clear_iframes_after_true_damage}（默认 true，关掉恢复旧行为）。
 	 */
-	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
-	public static void onLivingHurtClearTrueDamageIframes(LivingHurtEvent event) {
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
+	public static void onLivingHurtClearTrueDamageIframes(LivingIncomingDamageEvent event) {
 		// LOWEST 再取一次最大值；其它模组若在前一阶段继续改金额，也能进入补差目标。
 		com.summy.reliquary.effect.TrueDamageLimits.capture(event);
 		if (event.getEntity().level().isClientSide() || event.isCanceled() || event.getAmount() <= 0.0F) {
@@ -1026,7 +1018,7 @@ public final class ReliquaryEvents {
 	 * 所以这里用 {@code setResult(DENY)} 让 {@code addEffect} 直接返回 false。
 	 */
 	@SubscribeEvent
-	public static void onEffectApplicable(net.minecraftforge.event.entity.living.MobEffectEvent.Applicable event) {
+	public static void onEffectApplicable(net.neoforged.neoforge.event.entity.living.MobEffectEvent.Applicable event) {
 		if (event.getEntity().level().isClientSide()) {
 			return;
 		}
@@ -1034,14 +1026,14 @@ public final class ReliquaryEvents {
 		// （必须放在前面的免疫判定之前：亚巴顿不在 DivineImmunity 的名单里）
 		if (com.summy.reliquary.effect.DebuffImmunity.covers(event.getEntity())
 				&& com.summy.reliquary.effect.DebuffImmunity.blocks(event.getEffectInstance().getEffect())) {
-			event.setResult(net.minecraftforge.eventbus.api.Event.Result.DENY);
+			event.setResult(net.neoforged.bus.api.Event.Result.DENY);
 			return;
 		}
 		if (!com.summy.reliquary.effect.DivineImmunity.immune(event.getEntity())) {
 			return;
 		}
 		if (com.summy.reliquary.effect.DivineImmunity.blocks(event.getEffectInstance().getEffect())) {
-			event.setResult(net.minecraftforge.eventbus.api.Event.Result.DENY);
+			event.setResult(net.neoforged.bus.api.Event.Result.DENY);
 		}
 	}
 
@@ -1100,8 +1092,8 @@ public final class ReliquaryEvents {
 	 * <p>用 LOWEST 是因为本模组的七罪/七德加成与其它模组的倍率都在更早的优先级里改过数值，
 	 * 这样才能拿到你要的「结算各类伤害倍率后、结算减伤前」的基准。
 	 */
-	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
-	public static void onLivingHurtRecordHolyLight(LivingHurtEvent event) {
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
+	public static void onLivingHurtRecordHolyLight(LivingIncomingDamageEvent event) {
 		if (event.getEntity().level().isClientSide()) {
 			return;
 		}
@@ -1120,8 +1112,8 @@ public final class ReliquaryEvents {
 	 * <p>1.8.5 第二轮起：启动探针确认事件和金额写回均有效的环境（Forge / 已修复的 Connector）
 	 * 会改走 {@link #onLivingDamagePools} 的「后置扣池」——本方法那时只登记、不并入吸收值。
 	 */
-	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
-	public static void onLivingHurtPreparePools(LivingHurtEvent event) {
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
+	public static void onLivingHurtPreparePools(LivingIncomingDamageEvent event) {
 		if (event.getEntity().level().isClientSide()) {
 			return;
 		}
@@ -1141,8 +1133,8 @@ public final class ReliquaryEvents {
 	 * <p>能力探测由服务器启动时的一次性合成玩家探针完成；本处理器不根据“收到事件”直接切换路径，
 	 * 因为 Kilt 20.1.22 会派发事件但忽略金额写回。
 	 */
-	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
-	public static void onLivingDamagePools(net.minecraftforge.event.entity.living.LivingDamageEvent event) {
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
+	public static void onLivingDamagePools(net.neoforged.neoforge.event.entity.living.LivingDamageEvent event) {
 		com.summy.reliquary.effect.DamagePools.applyToHealthDamage(event);
 		if (!event.isCanceled() && event.getAmount() >= 0.0F) {
 			com.summy.reliquary.effect.SacredVerdict.confirmLanding(event);
@@ -1249,7 +1241,7 @@ public final class ReliquaryEvents {
 
 	/** 遁入暗影（1.7.5）：技能期间禁用左键攻击 */
 	@SubscribeEvent
-	public static void onAttackEntity(net.minecraftforge.event.entity.player.AttackEntityEvent event) {
+	public static void onAttackEntity(net.neoforged.neoforge.event.entity.player.AttackEntityEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player
 				&& com.summy.reliquary.effect.ShadowDash.isInvulnerable(player)) {
 			event.setCanceled(true);
@@ -1268,7 +1260,7 @@ public final class ReliquaryEvents {
 	/** 遁入暗影（1.7.5）：无敌期间免疫击退（只免疫击退，不清除药水效果） */
 	@SubscribeEvent
 	public static void onLivingKnockBack(
-			net.minecraftforge.event.entity.living.LivingKnockBackEvent event) {
+			net.neoforged.neoforge.event.entity.living.LivingKnockBackEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player
 				&& com.summy.reliquary.effect.ShadowDash.isInvulnerable(player)) {
 			event.setStrength(0.0F);

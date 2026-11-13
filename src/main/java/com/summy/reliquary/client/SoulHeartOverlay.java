@@ -4,11 +4,12 @@ import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.attribute.ReliquaryAttributes;
 import com.summy.reliquary.config.ReliquaryConfig;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 /**
  * 魂心 HUD（1.6.1 起；1.6.2 改为读**独立魂心池**的同步点数）。
@@ -17,13 +18,13 @@ import net.minecraftforge.client.gui.overlay.IGuiOverlay;
  * 所以这里画的是"池子里还剩多少"，画在**生命心之后的吸收位**（与之前的观感一致）。
  * 原版黄心照常显示、不隐藏也不改写。
  */
-public final class SoulHeartOverlay implements IGuiOverlay {
+public final class SoulHeartOverlay implements LayeredDraw.Layer {
 	/** 满心贴图 */
 	private static final ResourceLocation FULL =
-			new ResourceLocation(SummyReliquary.NAMESPACE, "textures/gui/soul_heart/full.png");
+			ResourceLocation.fromNamespaceAndPath(SummyReliquary.NAMESPACE, "textures/gui/soul_heart/full.png");
 	/** 半心贴图 */
 	private static final ResourceLocation HALF =
-			new ResourceLocation(SummyReliquary.NAMESPACE, "textures/gui/soul_heart/half.png");
+			ResourceLocation.fromNamespaceAndPath(SummyReliquary.NAMESPACE, "textures/gui/soul_heart/half.png");
 	/** 单颗心贴图尺寸（9×9，与原版心一致） */
 	private static final int HEART_SIZE = 9;
 	/** 相邻两颗心的水平间距（与原版一致） */
@@ -53,8 +54,7 @@ public final class SoulHeartOverlay implements IGuiOverlay {
 	}
 
 	@Override
-	public void render(net.minecraftforge.client.gui.overlay.ForgeGui gui, GuiGraphics graphics,
-			float partialTick, int width, int height) {
+	public void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
 		if (!ReliquaryConfig.enableSoulHeartHud()) {
 			return;
 		}
@@ -73,15 +73,15 @@ public final class SoulHeartOverlay implements IGuiOverlay {
 			return;
 		}
 		boolean half = ourPoints % 2.0D != 0.0D;
-		int startX = width / 2 - 91;
+		int startX = graphics.guiWidth() / 2 - 91;
 		// 1.6.5 起不再与"生命心之后的吸收位"抢位置（那会和原版黄心重叠），改成**独立占行**：
 		// 基准行 = 原版"红心 + 黄心"这张心网格的上方一排；玩家有盔甲时原版盔甲占用网格再上一排，所以再避让一排。
 		// 1.6.6 修正：以前只按"一排红心"估算，玩家生命心超过一排（例如灵魂 +18 生命 = 19 颗心）时
 		// 会正好压住第二排红心。现在完全复刻原版 Gui#renderPlayerHealth 的网格行数与行距。
 		// 1.8.5 补修：经典状态条环境改用它的实际条堆高度（gui.rightHeight）锚定 —— 注册锚点已挪到
 		// ITEM_NAME 之上，保证读到的偏移是累加完的（与 Summy Enchantment 的额外饥饿行同一套做法）。
-		int startY = soulHeartRowY(height, maxHealthOf(player), player.getAbsorptionAmount(),
-				player.getArmorValue(), gui.rightHeight, ReliquaryConfig.soulHeartHudOffsetY());
+		int startY = soulHeartRowY(graphics.guiHeight(), maxHealthOf(player), player.getAbsorptionAmount(),
+				player.getArmorValue(), 0, ReliquaryConfig.soulHeartHudOffsetY());
 		for (int index = 0; index < ourHearts; index++) {
 			int x = startX + (index % HEARTS_PER_ROW) * HEART_STEP;
 			int y = startY - (index / HEARTS_PER_ROW) * ROW_STEP;
@@ -223,7 +223,7 @@ public final class SoulHeartOverlay implements IGuiOverlay {
 			// Fabric 侧不存在或方法签名不符 → 只信 Forge 侧
 		}
 		try {
-			net.minecraftforge.fml.ModList list = net.minecraftforge.fml.ModList.get();
+			net.neoforged.fml.ModList list = net.neoforged.fml.ModList.get();
 			return list != null && list.isLoaded(modId);
 		} catch (Throwable ignored) {
 			return false;
@@ -296,7 +296,7 @@ public final class SoulHeartOverlay implements IGuiOverlay {
 		if (ReliquaryClientState.hasSynced()) {
 			return Math.max(0, synced);
 		}
-		double hearts = player.getAttributeValue(ReliquaryAttributes.SOUL_HEARTS.get());
+		double hearts = player.getAttributeValue(ReliquaryAttributes.SOUL_HEARTS);
 		return Math.max(0.0D, hearts) * ReliquaryConfig.absorptionPerSoulHeart();
 	}
 

@@ -5,8 +5,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -32,7 +32,7 @@ public final class SacredVerdictTrace {
 		ACTIVE.get().push(new Trace(kind, traceId, attacker, target, damageType, baseDamage));
 	}
 
-	public static void onHurt(LivingHurtEvent event) {
+	public static void onHurt(LivingIncomingDamageEvent event) {
 		Trace trace = currentFor(event.getEntity());
 		if (trace != null) {
 			trace.hurt(event);
@@ -163,13 +163,13 @@ public final class SacredVerdictTrace {
 			this.intended = baseDamage;
 		}
 
-		private void hurt(LivingHurtEvent event) {
+		private void hurt(LivingIncomingDamageEvent event) {
 			String line = String.format("#%d %s=%.4f 直接来源=%s 取消=%s",
 					hurtEvents.size() + 1, sourceType(event.getSource()), event.getAmount(),
 					entityName(event.getSource().getDirectEntity()), event.isCanceled());
 			hurtEvents.add(line);
 			SummyReliquary.LOGGER.info(
-					"神圣裁决伤害探针：事务={}#{}、目标={}、阶段=LivingHurtEvent{}、"
+					"神圣裁决伤害探针：事务={}#{}、目标={}、阶段=LivingIncomingDamageEvent{}、"
 							+ "类型={}、金额={}、直接来源={}、取消={}、tick={}",
 					kind, id, targetName, line, sourceType(event.getSource()), event.getAmount(),
 					entityName(event.getSource().getDirectEntity()), event.isCanceled(),

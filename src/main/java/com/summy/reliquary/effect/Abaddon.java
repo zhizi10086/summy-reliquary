@@ -159,7 +159,7 @@ public final class Abaddon {
 	}
 
 	/** 无敌期间：取消一切来源的伤害（与灵魂破碎 / 神圣斗篷同一套写法） */
-	public static void onHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+	public static void onHurt(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player && isGuarded(player)) {
 			event.setAmount(0.0F);
 			event.setCanceled(true);
@@ -270,7 +270,7 @@ public final class Abaddon {
 	private static void clearHarmfulEffects(ServerPlayer player) {
 		List<MobEffectInstance> harmful = new ArrayList<>();
 		for (MobEffectInstance instance : player.getActiveEffects()) {
-			if (instance.getEffect().getCategory() == MobEffectCategory.HARMFUL) {
+			if (instance.getEffect().value().getCategory() == MobEffectCategory.HARMFUL) {
 				harmful.add(instance);
 			}
 		}

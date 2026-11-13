@@ -97,16 +97,18 @@ public final class OccultEye {
 		if (speed == null) {
 			return;
 		}
-		speed.removeModifier(FREEZE_UUID);
-		speed.addTransientModifier(new AttributeModifier(FREEZE_UUID, "summy_reliquary_fear_freeze",
-				FREEZE_VALUE, AttributeModifier.Operation.MULTIPLY_TOTAL));
+		net.minecraft.resources.ResourceLocation modifierId =
+				com.summy.reliquary.SummyReliquary.id("fear_freeze");
+		speed.removeModifier(modifierId);
+		speed.addTransientModifier(new AttributeModifier(modifierId,
+				FREEZE_VALUE, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
 	}
 
 	/** 移除目标的"移速归零" */
 	private static void clearFreeze(LivingEntity target) {
 		AttributeInstance speed = target.getAttribute(Attributes.MOVEMENT_SPEED);
 		if (speed != null) {
-			speed.removeModifier(FREEZE_UUID);
+			speed.removeModifier(com.summy.reliquary.SummyReliquary.id("fear_freeze"));
 		}
 	}
 
@@ -116,7 +118,8 @@ public final class OccultEye {
 			return false;
 		}
 		AttributeInstance speed = entity.getAttribute(Attributes.MOVEMENT_SPEED);
-		return speed != null && speed.getModifier(FREEZE_UUID) != null;
+		return speed != null && speed.getModifier(
+				com.summy.reliquary.SummyReliquary.id("fear_freeze")) != null;
 	}
 
 	/** 按 UUID 在全部维度里找实体（找不到返回 null） */

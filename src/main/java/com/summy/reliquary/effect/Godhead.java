@@ -22,7 +22,7 @@ import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 
 import java.util.List;
 import java.util.HashMap;
@@ -268,7 +268,7 @@ public final class Godhead {
 	}
 
 	/** 死亡拦截后的 2 秒无敌：取消一切来源的伤害 */
-	public static void onHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+	public static void onHurt(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player && isGuarded(player)) {
 			event.setAmount(0.0F);
 			event.setCanceled(true);

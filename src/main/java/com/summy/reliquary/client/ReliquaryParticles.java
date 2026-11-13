@@ -40,7 +40,7 @@ import net.minecraft.util.RandomSource;
 public final class ReliquaryParticles {
 	/** 我们在方块图集里的火焰 sprite（来自 {@code textures/particle/short_flame.png}） */
 	private static final ResourceLocation SPRITE =
-			new ResourceLocation(SummyReliquary.NAMESPACE, "short_flame");
+			ResourceLocation.fromNamespaceAndPath(SummyReliquary.NAMESPACE, "short_flame");
 	/** 是否已经成功注册过（仅用于日志节流） */
 	private static boolean registered;
 	/** 取贴图失败的告警是否已打过 */

@@ -1,18 +1,27 @@
 package com.summy.reliquary.net;
 
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
 import com.summy.reliquary.effect.RevelationBeam;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
 
-import java.util.function.Supplier;
 
 /**
  * 客户端 → 服务端：请求发射「启示之光」。
  *
  * <p>空包；是否真的能发射由服务端权威判定（是否佩戴终末天启、冷却是否就绪）。
  */
-public class FireRevelationMessage {
+public class FireRevelationMessage implements CustomPacketPayload {
+	public static final CustomPacketPayload.Type<FireRevelationMessage> TYPE =
+			new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "fire_revelation"));
+	public static final StreamCodec<RegistryFriendlyByteBuf, FireRevelationMessage> CODEC =
+			StreamCodec.of((buffer, value) -> value.encode(buffer), FireRevelationMessage::new);
+
 	public FireRevelationMessage() {
 	}
 
@@ -22,13 +31,17 @@ public class FireRevelationMessage {
 	public void encode(FriendlyByteBuf buffer) {
 	}
 
-	public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-		NetworkEvent.Context context = contextSupplier.get();
-		ServerPlayer player = context.getSender();
-		// 遁入暗影（1.7.5）：技能期间禁用 V 键射线
-		if (player != null && !com.summy.reliquary.effect.ShadowDash.isInvulnerable(player)) {
-			RevelationBeam.fire(player);
-		}
-		context.setPacketHandled(true);
+	public void handle(IPayloadContext context) {
+		context.enqueueWork(() -> {
+			if (context.player() instanceof ServerPlayer player
+					&& !com.summy.reliquary.effect.ShadowDash.isInvulnerable(player)) {
+				RevelationBeam.fire(player);
+			}
+		});
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 }

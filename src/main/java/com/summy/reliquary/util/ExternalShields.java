@@ -5,7 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 /**
  * 外部护盾的软读取（1.8.5 补修）。
@@ -19,7 +19,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 public final class ExternalShields {
 	/** Summy Enchantment 的生命护盾属性 id */
 	private static final ResourceLocation ER_LIFE_SHIELD =
-			new ResourceLocation("summy_enchantment", "life_shield");
+			ResourceLocation.fromNamespaceAndPath("summy_enchantment", "life_shield");
 
 	/** 找到的属性实例（注册表在游戏启动后冻结，找到一次就能一直用） */
 	private static Attribute cachedAttribute;
@@ -47,7 +47,7 @@ public final class ExternalShields {
 			return cachedAttribute;
 		}
 		try {
-			Attribute fromForge = ForgeRegistries.ATTRIBUTES.getValue(ER_LIFE_SHIELD);
+		Attribute fromForge = BuiltInRegistries.ATTRIBUTE.get(ER_LIFE_SHIELD);
 			if (fromForge != null) {
 				cachedAttribute = fromForge;
 				return cachedAttribute;

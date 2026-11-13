@@ -1,9 +1,10 @@
 package com.summy.reliquary.client;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.util.Mth;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 /**
  * 死形态的屏幕边缘暗红泛光。
@@ -11,7 +12,7 @@ import net.minecraftforge.client.gui.overlay.IGuiOverlay;
  * <p>只使用 GUI 半透明色块，不改世界亮度、不使用 Shader。倒计时进入最后 5 秒且
  * 尚未达到复活击杀目标时，以 18 tick 为一个周期轻微呼吸；目标达成后恢复为静态红光。
  */
-public final class LifeDeathScreenOverlay implements IGuiOverlay {
+public final class LifeDeathScreenOverlay implements LayeredDraw.Layer {
 	/** 静态外侧不透明度：40 / 255 ≈ 15.7%。 */
 	private static final int BASE_ALPHA = 40;
 	/** 警告脉冲最多额外增加的 12 / 255 ≈ 4.7 个百分点。 */
@@ -24,13 +25,15 @@ public final class LifeDeathScreenOverlay implements IGuiOverlay {
 	private static final int SIDE_BANDS = 6;
 
 	@Override
-	public void render(net.minecraftforge.client.gui.overlay.ForgeGui gui, GuiGraphics graphics,
-			float partialTick, int width, int height) {
+	public void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.player == null || client.options.hideGui || client.screen != null
 				|| client.player.isSpectator() || !ReliquaryClientState.isDeathFormVisualActive()) {
 			return;
 		}
+		float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
+		int width = graphics.guiWidth();
+		int height = graphics.guiHeight();
 		int alpha = edgeAlpha(true,
 				ReliquaryClientState.lifeDeathRemainingTicks(),
 				ReliquaryClientState.lifeDeathKillWeight(),

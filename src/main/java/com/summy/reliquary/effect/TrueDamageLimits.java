@@ -7,7 +7,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -100,13 +100,13 @@ public final class TrueDamageLimits {
 	}
 
 	/**
-	 * 记录当前真伤在 {@code LivingHurtEvent} 最终阶段的事件金额。
+	 * 记录当前真伤在 {@code LivingIncomingDamageEvent} 最终阶段的事件金额。
 	 *
 	 * <p>SR / SE 的增伤可能由事件监听器或其它模组注入在 {@code target.hurt()} 内部完成，
 	 * 因此调用前传入的配置金额不能直接作为补差目标。这里保留所有匹配事件中的最大值，
 	 * 让限伤破除以实际乘区后的应得金额为准。
 	 */
-	public static void capture(LivingHurtEvent event) {
+	public static void capture(LivingIncomingDamageEvent event) {
 		if (event == null || event.isCanceled() || event.getAmount() <= 0.0F
 				|| event.getEntity().level().isClientSide()) {
 			return;

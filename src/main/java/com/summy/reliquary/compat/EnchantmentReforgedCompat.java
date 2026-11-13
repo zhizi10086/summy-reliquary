@@ -32,7 +32,7 @@ public final class EnchantmentReforgedCompat {
 	/** SE 死神祝福的固定伤害排除标签 */
 	private static final TagKey<DamageType> NO_DEATHS_BLESSING_OUTGOING = TagKey.create(
 			Registries.DAMAGE_TYPE,
-			new ResourceLocation("summy_enchantment", "no_deaths_blessing_outgoing"));
+			ResourceLocation.fromNamespaceAndPath("summy_enchantment", "no_deaths_blessing_outgoing"));
 
 	/** 已经解析过的目标方法；null 表示不可用 */
 	private static Method foodLevelCapMethod;

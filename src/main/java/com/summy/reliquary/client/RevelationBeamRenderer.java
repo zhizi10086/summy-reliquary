@@ -9,10 +9,11 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -26,10 +27,10 @@ import java.util.List;
  * 颜色沿长度由白渐变为金，按服务端下发的持续时间淡入/淡出（默认 1.5 秒）。
  * 粒子与其它特效由服务端下发，所以这里只管光柱本体。
  */
-@Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+@EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
 public final class RevelationBeamRenderer {
 	/** 信标光束贴图：自带上下渐变的透明度，最像"光柱" */
-	private static final ResourceLocation BEAM_TEXTURE = new ResourceLocation("textures/entity/beacon_beam.png");
+	private static final ResourceLocation BEAM_TEXTURE = ResourceLocation.parse("textures/entity/beacon_beam.png");
 	/** 光柱整体不透明度（贴图本身已有渐变） */
 	private static final float BASE_ALPHA = 0.75F;
 	/** 淡入 tick 数 */
@@ -139,12 +140,11 @@ public final class RevelationBeamRenderer {
 	/** 顶点顺序必须与 BLOCK 顶点格式一致：位置 → 颜色 → uv → 光照 → 法线 */
 	private static void vertex(VertexConsumer consumer, Matrix4f matrix, float x, float y, float z,
 			float u, float v, float alpha, float red, float green, float blue) {
-		consumer.vertex(matrix, x, y, z)
-				.color(red, green, blue, alpha)
-				.uv(u, v)
-				.uv2(LightTexture.FULL_BRIGHT)
-				.normal(0.0F, 1.0F, 0.0F)
-				.endVertex();
+		consumer.addVertex(matrix, x, y, z)
+				.setColor(red, green, blue, alpha)
+				.setUv(u, v)
+				.setLight(LightTexture.FULL_BRIGHT)
+				.setNormal(0.0F, 1.0F, 0.0F);
 	}
 
 	/** 一根按服务端时长淡入淡出的光柱 */

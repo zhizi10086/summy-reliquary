@@ -4,9 +4,10 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.effect.DemonPact;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 /**
  * 黑心 HUD（1.6.0）：在血条上方把「黑心池」画成原版风格的黑色心。
@@ -20,13 +21,13 @@ import net.minecraftforge.client.gui.overlay.IGuiOverlay;
  * 如果玩家有吸收值（黄血）就再往上挪一行，避免与黄心重叠。
  * <p>只在**佩戴契约**且黑心池 > 0 时绘制（与"黑心随契约生效"一致）。
  */
-public final class DemonBlackHeartOverlay implements IGuiOverlay {
+public final class DemonBlackHeartOverlay implements LayeredDraw.Layer {
 	/** 满心贴图 */
 	private static final ResourceLocation FULL =
-			new ResourceLocation(SummyReliquary.NAMESPACE, "textures/gui/demon_black_heart/full.png");
+			ResourceLocation.fromNamespaceAndPath(SummyReliquary.NAMESPACE, "textures/gui/demon_black_heart/full.png");
 	/** 半心贴图 */
 	private static final ResourceLocation HALF =
-			new ResourceLocation(SummyReliquary.NAMESPACE, "textures/gui/demon_black_heart/half.png");
+			ResourceLocation.fromNamespaceAndPath(SummyReliquary.NAMESPACE, "textures/gui/demon_black_heart/half.png");
 	/** 单颗心的贴图尺寸（9×9，与原版心一致） */
 	private static final int HEART_SIZE = 9;
 	/** 相邻两颗心的水平间距 */
@@ -35,8 +36,7 @@ public final class DemonBlackHeartOverlay implements IGuiOverlay {
 	private static final int MAX_HEARTS = 20;
 
 	@Override
-	public void render(net.minecraftforge.client.gui.overlay.ForgeGui gui, GuiGraphics graphics,
-			float partialTick, int width, int height) {
+	public void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
 		// 创造与旁观模式不画（1.6.2）；F1 隐藏 GUI 时同样不画
 		if (!shouldRender(client.player, client.options.hideGui)) {
@@ -53,13 +53,13 @@ public final class DemonBlackHeartOverlay implements IGuiOverlay {
 		int full = Math.min(MAX_HEARTS, DemonPact.blackHeartFullCount(points));
 		boolean half = DemonPact.blackHeartHasHalf(points) && full < MAX_HEARTS;
 
-		int x = width / 2 - 91;
+		int x = graphics.guiWidth() / 2 - 91;
 		// 1.6.5：黑心紧跟在魂心（蓝心）之后的**独立行**——蓝心在盔甲条上方、黑心再往上，避免压住黄心与盔甲图标
 		// 1.6.6：行位改为按原版"红心 + 黄心"网格的真实行数 / 行距推算（多排红心时也不会重叠）
 		// 1.8.5 补修：经典状态条环境改用它的实际条堆高度锚定（与魂心同一个函数）
-		int y = blackHeartRowY(height, SoulHeartOverlay.maxHealthOf(client.player),
+		int y = blackHeartRowY(graphics.guiHeight(), SoulHeartOverlay.maxHealthOf(client.player),
 				client.player.getAbsorptionAmount(), client.player.getArmorValue(),
-				SoulHeartOverlay.ourSoulHeartPoints(client.player), gui.rightHeight,
+				SoulHeartOverlay.ourSoulHeartPoints(client.player), 0,
 				com.summy.reliquary.config.ReliquaryConfig.soulHeartHudOffsetY());
 		PoseStack pose = graphics.pose();
 		pose.pushPose();

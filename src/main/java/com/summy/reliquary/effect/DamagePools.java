@@ -9,8 +9,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.GameType;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -26,12 +26,12 @@ import java.util.UUID;
  *     （日志：{@code Shift.BY=2 ... exceeds the maximum allowed value: 0}）；</li>
  *     <li>Kilt-20.1.22 会派发玩家系事件，但 {@code event.setAmount(...)} 不会影响最终生命扣除
  *     （上游 #1049）；因此启动探针必须同时验证“事件到达”和“金额写回生效”；</li>
- *     <li>Kilt 对玩家会**触发两次 {@code LivingHurtEvent}**（{@code hurt} 开头一次、{@code actuallyHurt} 里一次），
+ *     <li>Kilt 对玩家会**触发两次 {@code LivingIncomingDamageEvent}**（{@code hurt} 开头一次、{@code actuallyHurt} 里一次），
  *     "命中前并入 + 事件后拆分"会被第二次触发撤销并入、或由过早点位的事件判定成"没被吸收"，
  *     于是池子永不扣、伤害全落原版护盾与红血。</li>
  * </ul>
  *
- * <p><b>1.6.6 修正</b>：Forge 的 {@code LivingHurtEvent} 是在 {@code LivingEntity#actuallyHurt} **内部**触发的，
+ * <p><b>1.6.6 修正</b>：Forge 的 {@code LivingIncomingDamageEvent} 是在 {@code LivingEntity#actuallyHurt} **内部**触发的，
  * 而原版 {@code hurt} 在调用 {@code actuallyHurt} **之前**就已经把 {@code invulnerableTime} 写成 20 —— 所以 1.6.5 那个
  * "新的一击"门槛（{@code invulnerableTime <= 10}）对**任何真实命中**都是 false，池子一次都没介入；
  * 而且该门槛只在 Fabric 侧生效，于是 Forge 自检全绿、线上（Kilt）全废。现在改成**每一击都介入**，
@@ -39,7 +39,7 @@ import java.util.UUID;
  *
  * <p>现在的流程：
  * <ol>
- *     <li>{@link #prepare}（{@code LivingHurtEvent}，LOWEST）：确认这是"会落地的新的一击"后，
+ *     <li>{@link #prepare}（{@code LivingIncomingDamageEvent}，LOWEST）：确认这是"会落地的新的一击"后，
  *     先用 {@link DamageEstimate} 估算"会打到血的部分"，**当场扣池**，并把同额**临时并入原版吸收值** ——
  *     于是原版自己的结算就会把这一份吃掉，玩家少掉的血正好等于池子承担的量；</li>
  *     <li>{@link #reconcile}（下一次 {@code prepare} 或玩家 tick 末尾）：此时上一击的吸收消耗早就做完了，
@@ -215,7 +215,7 @@ public final class DamagePools {
 	 *
 	 * @return true 表示这次介入了
 	 */
-	public static boolean prepare(LivingHurtEvent event) {
+	public static boolean prepare(LivingIncomingDamageEvent event) {
 		if (!(event.getEntity() instanceof ServerPlayer player)) {
 			return false;
 		}
@@ -230,7 +230,7 @@ public final class DamagePools {
 		if (useHealthDamagePath()) {
 			return prepareHealthDamagePath(player, event);
 		}
-		// Kilt：同一个 actuallyHurt 里会对玩家连发两次 LivingHurtEvent（两处注入锚在同一点）。
+		// Kilt：同一个 actuallyHurt 里会对玩家连发两次 LivingIncomingDamageEvent（两处注入锚在同一点）。
 		// 第二次必须**原样放过** —— 既不能再扣一次池，也绝不能把第一次并进去的吸收值当场对账掉。
 		if (isDuplicateEvent(player, event)) {
 			return false;
@@ -280,10 +280,10 @@ public final class DamagePools {
 	}
 
 	/**
-	 * 新路径的 {@code LivingHurtEvent} 阶段（1.8.5 第二轮）：**不并入吸收值**，只做"完全拦下"判定并登记本击，
+	 * 新路径的 {@code LivingIncomingDamageEvent} 阶段（1.8.5 第二轮）：**不并入吸收值**，只做"完全拦下"判定并登记本击，
 	 * 真正的扣池搬到 {@link #applyToHealthDamage(LivingDamageEvent)}（那里能拿到"真实会打到血"的金额）。
 	 */
-	private static boolean prepareHealthDamagePath(ServerPlayer player, LivingHurtEvent event) {
+	private static boolean prepareHealthDamagePath(ServerPlayer player, LivingIncomingDamageEvent event) {
 		// 兜底：刚切换模式时可能还残留旧路径的挂起记录
 		reconcile(player);
 		float absorptionBefore = player.getAbsorptionAmount();
@@ -314,7 +314,7 @@ public final class DamagePools {
 	 *
 	 * @param healthPart 估算"会打到生命值"的那部分（见 {@link DamageEstimate}）
 	 */
-	private static boolean guardOrNullify(ServerPlayer player, LivingHurtEvent event, float healthPart,
+	private static boolean guardOrNullify(ServerPlayer player, LivingIncomingDamageEvent event, float healthPart,
 			float absorptionBefore) {
 		if (healthPart <= 0.0F) {
 			return false;
@@ -433,11 +433,11 @@ public final class DamagePools {
 	/**
 	 * 把这一击整击取消：伤害不落地、吸收值不动，并把原版无敌帧还回去（1.8.5 补修）。
 	 *
-	 * <p>时机说明：取消发生在 {@code LivingHurtEvent}，此时原版 {@code hurt()} 早已写过
+	 * <p>时机说明：取消发生在 {@code LivingIncomingDamageEvent}，此时原版 {@code hurt()} 早已写过
 	 * {@code invulnerableTime = 20} 并调用 {@code markHurt()} —— 后者（客户端"抖一下"）已经来不及补救，
 	 * 前者可以在这里清 0：这一击既然不算数，就不该占掉一次原版无敌帧。
 	 */
-	private static void cancelHit(LivingHurtEvent event) {
+	private static void cancelHit(LivingIncomingDamageEvent event) {
 		event.setAmount(0.0F);
 		event.setCanceled(true);
 		if (event.getEntity() instanceof ServerPlayer player) {
@@ -583,14 +583,14 @@ public final class DamagePools {
 	}
 
 	/**
-	 * 这次事件是不是"同一击的重复触发"（Kilt 会对玩家连发两次 {@code LivingHurtEvent}）。
+	 * 这次事件是不是"同一击的重复触发"（Kilt 会对玩家连发两次 {@code LivingIncomingDamageEvent}）。
 	 *
 	 * <p>判据全部满足才算重复：① 挂起记录是**本 tick**生成的（原版每 tick 最多一次真正落地的一击）；
 	 * ② 同一个 {@code DamageSource} 实例、同一个金额（Kilt 的两处注入读的是同一个方法参数）；
 	 * ③ 吸收值**还等于**"命中前 + 本次并入量" —— 说明原版还没扣吸收，第二次事件确实发生在同一击的
 	 * 减伤之前。若是同 tick 的另一次真实命中，吸收值早已被上一击消耗过，不会被误判。
 	 */
-	private static boolean isDuplicateEvent(ServerPlayer player, LivingHurtEvent event) {
+	private static boolean isDuplicateEvent(ServerPlayer player, LivingIncomingDamageEvent event) {
 		Pending pending = PENDING.get(player.getUUID());
 		if (pending == null) {
 			return false;

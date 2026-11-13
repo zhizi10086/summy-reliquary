@@ -138,7 +138,7 @@ public final class ShadowDash {
 		RevelationBeam.setCharging(player, false);
 		AttributeManager.applyModifier(player, Attributes.MOVEMENT_SPEED, SPEED_MODIFIER,
 				"shadow_dash_movement", ReliquaryConfig.shadowDashMovementPercent() / 100.0D,
-				AttributeModifier.Operation.MULTIPLY_TOTAL);
+				AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		ServerLevel level = player.serverLevel();
 		level.playSound(null, player.getX(), player.getY(), player.getZ(),
 				SoundEvents.ILLUSIONER_MIRROR_MOVE, SoundSource.PLAYERS, 1.0F, 1.0F);
@@ -245,7 +245,7 @@ public final class ShadowDash {
 		state.resolveDelay = 0;
 		// 加速时长与技能判定时长相同 —— 开始结算就关闭加速
 		AttributeManager.applyModifier(player, Attributes.MOVEMENT_SPEED, SPEED_MODIFIER,
-				"shadow_dash_movement", 0.0D, AttributeModifier.Operation.MULTIPLY_TOTAL);
+				"shadow_dash_movement", 0.0D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		float total = 0.0F;
 		for (UUID id : state.order) {
 			float value = slashValue(player, state, findTarget(player, id));
@@ -259,7 +259,7 @@ public final class ShadowDash {
 	 * 一次「基础斩击」的理论值＝（玩家攻击力属性 ＋ 触发时武器对该目标类型的附魔增伤）× 倍率。
 	 *
 	 * <p>1.20.1 的力量 / 虚弱是属性修饰符，已经包含在 {@code ATTACK_DAMAGE} 里；饰品 / 契约等增伤
-	 * 由 {@code LivingHurtEvent} 在真正结算时叠加 —— 所以这里算出的就是"该打多少"的理论值。
+	 * 由 {@code LivingIncomingDamageEvent} 在真正结算时叠加 —— 所以这里算出的就是"该打多少"的理论值。
 	 */
 	private static float slashValue(ServerPlayer player, State state, LivingEntity target) {
 		double base = player.getAttributeValue(Attributes.ATTACK_DAMAGE);
@@ -377,7 +377,7 @@ public final class ShadowDash {
 	/** 收尾：关加速、解除无敌（从 ACTIVE 移除由调用方做）、写冷却 */
 	private static void finish(ServerPlayer player, State state) {
 		AttributeManager.applyModifier(player, Attributes.MOVEMENT_SPEED, SPEED_MODIFIER,
-				"shadow_dash_movement", 0.0D, AttributeModifier.Operation.MULTIPLY_TOTAL);
+				"shadow_dash_movement", 0.0D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		if (state.weapon != null) {
 			player.getCooldowns().addCooldown(state.weapon.getItem(),
 					ReliquaryConfig.shadowDashCooldownTicks());
@@ -406,7 +406,7 @@ public final class ShadowDash {
 		State state = ACTIVE.remove(player.getUUID());
 		if (state != null) {
 			AttributeManager.applyModifier(player, Attributes.MOVEMENT_SPEED, SPEED_MODIFIER,
-					"shadow_dash_movement", 0.0D, AttributeModifier.Operation.MULTIPLY_TOTAL);
+					"shadow_dash_movement", 0.0D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		}
 	}
 
@@ -447,7 +447,7 @@ public final class ShadowDash {
 		if (instance == null) {
 			return 0.0D;
 		}
-		var modifier = instance.getModifier(SPEED_MODIFIER);
+		var modifier = instance.getModifier(SummyReliquary.id("shadow_dash_movement"));
 		return modifier == null ? 0.0D : modifier.getAmount() * 100.0D;
 	}
 

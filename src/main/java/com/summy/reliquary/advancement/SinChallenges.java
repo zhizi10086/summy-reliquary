@@ -8,7 +8,7 @@ import com.summy.reliquary.effect.RevelationTracker;
 import com.summy.reliquary.sin.SinManager;
 import com.summy.reliquary.slot.ReliquarySlots;
 import com.summy.reliquary.util.CurioHelper;
-import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -33,7 +33,7 @@ import top.theillusivec4.curios.api.type.capability.ICuriosItemHandler;
 public final class SinChallenges {
 	/** 原版「解放末地」 */
 	public static final ResourceLocation VANILLA_KILL_DRAGON =
-			new ResourceLocation("minecraft", "end/kill_dragon");
+			ResourceLocation.fromNamespaceAndPath("minecraft", "end/kill_dragon");
 
 	/** 裁决：还没判过 */
 	public static final int VERDICT_NONE = 0;
@@ -264,9 +264,9 @@ public final class SinChallenges {
 		RevelationTracker.sync(player);
 	}
 
-	/** 进度达成时调用（Forge 的 AdvancementEvent.AdvancementEarnEvent） */
-	public static void onAdvancementEarned(ServerPlayer player, Advancement advancement) {
-		ResourceLocation id = advancement.getId();
+	/** 进度达成时调用（NeoForge 的 AdvancementEvent.AdvancementEarnEvent） */
+	public static void onAdvancementEarned(ServerPlayer player, AdvancementHolder advancement) {
+		ResourceLocation id = advancement.id();
 		if (VANILLA_KILL_DRAGON.equals(id)) {
 			evaluateDragon(player);
 			return;
@@ -359,7 +359,7 @@ public final class SinChallenges {
 		if (server == null) {
 			return false;
 		}
-		Advancement advancement = server.getAdvancements().getAdvancement(SummyReliquary.id(path));
+		AdvancementHolder advancement = server.getAdvancements().get(SummyReliquary.id(path));
 		return advancement != null && player.getAdvancements().getOrStartProgress(advancement).isDone();
 	}
 }

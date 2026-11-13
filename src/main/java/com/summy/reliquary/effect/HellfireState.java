@@ -161,7 +161,7 @@ public final class HellfireState {
 
 	public static boolean hasArmorModifier(LivingEntity target) {
 		AttributeInstance armor = target == null ? null : target.getAttribute(Attributes.ARMOR);
-		return armor != null && armor.getModifier(ARMOR_UUID) != null;
+		return armor != null && armor.getModifier(SummyReliquary.id("hellfire_armor")) != null;
 	}
 
 	public static long remainingTicksForTest(LivingEntity target) {
@@ -187,19 +187,19 @@ public final class HellfireState {
 		if (armor == null) {
 			return;
 		}
-		armor.removeModifier(ARMOR_UUID);
+		armor.removeModifier(SummyReliquary.id("hellfire_armor"));
 		double value = -(ReliquaryConfig.hellfireArmorPercentPerLevel() / 100.0D) * level;
 		if (Math.abs(value) > 1.0E-6D) {
-			armor.addTransientModifier(new AttributeModifier(ARMOR_UUID,
-					"summy_reliquary_hellfire_armor", value,
-					AttributeModifier.Operation.MULTIPLY_TOTAL));
+			armor.addTransientModifier(new AttributeModifier(
+					SummyReliquary.id("hellfire_armor"), value,
+					AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
 		}
 	}
 
 	private static void removeArmor(LivingEntity target) {
 		AttributeInstance armor = target.getAttribute(Attributes.ARMOR);
 		if (armor != null) {
-			armor.removeModifier(ARMOR_UUID);
+			armor.removeModifier(SummyReliquary.id("hellfire_armor"));
 		}
 	}
 

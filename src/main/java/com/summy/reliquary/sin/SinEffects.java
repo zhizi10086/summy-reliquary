@@ -169,13 +169,13 @@ public final class SinEffects {
 			}
 		}
 		AttributeManager.applyModifier(entity, Attributes.MOVEMENT_SPEED, SLOTH_MOVEMENT,
-				"sin_sloth_movement", -slothSlowdown, AttributeModifier.Operation.MULTIPLY_TOTAL);
+				"sin_sloth_movement", -slothSlowdown, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		AttributeManager.applyModifier(entity, Attributes.ATTACK_SPEED, SLOTH_ATTACK_SPEED,
-				"sin_sloth_attack_speed", -slothSlowdown, AttributeModifier.Operation.MULTIPLY_TOTAL);
+				"sin_sloth_attack_speed", -slothSlowdown, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		AttributeManager.applyModifier(entity, Attributes.ARMOR, LUST_ARMOR,
-				"sin_lust_armor", -lustArmor, AttributeModifier.Operation.MULTIPLY_TOTAL);
+				"sin_lust_armor", -lustArmor, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		AttributeManager.applyModifier(entity, Attributes.ARMOR_TOUGHNESS, LUST_TOUGHNESS,
-				"sin_lust_toughness", -lustArmor, AttributeModifier.Operation.MULTIPLY_TOTAL);
+				"sin_lust_toughness", -lustArmor, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 	}
 
 	/** 怠惰（未赎罪）时挖掘速度乘数（供 BreakSpeed 使用） */

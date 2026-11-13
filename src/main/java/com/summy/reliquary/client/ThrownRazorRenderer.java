@@ -21,7 +21,7 @@ import net.minecraft.world.item.ItemStack;
 public class ThrownRazorRenderer extends EntityRenderer<ThrownRazor> {
 	/** 物品渲染不走实体贴图，这里只是接口要求 */
 	private static final ResourceLocation PLACEHOLDER =
-			new ResourceLocation("minecraft", "textures/particle/flame.png");
+			ResourceLocation.fromNamespaceAndPath("minecraft", "textures/particle/flame.png");
 
 	public ThrownRazorRenderer(EntityRendererProvider.Context context) {
 		super(context);

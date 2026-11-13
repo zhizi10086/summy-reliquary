@@ -1,14 +1,23 @@
 package com.summy.reliquary.net;
 
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
 import com.summy.reliquary.effect.CovenantActions;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
 
-import java.util.function.Supplier;
 
 /** 客户端 → 服务端：请求释放当前誓约饰品的 R 技能（空 payload，2.3）。 */
-public class OathActionMessage {
+public class OathActionMessage implements CustomPacketPayload {
+	public static final CustomPacketPayload.Type<OathActionMessage> TYPE =
+			new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "oath_action"));
+	public static final StreamCodec<RegistryFriendlyByteBuf, OathActionMessage> CODEC =
+			StreamCodec.of((buffer, value) -> value.encode(buffer), OathActionMessage::new);
+
 	public OathActionMessage() {
 	}
 
@@ -18,12 +27,16 @@ public class OathActionMessage {
 	public void encode(FriendlyByteBuf buffer) {
 	}
 
-	public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-		NetworkEvent.Context context = contextSupplier.get();
-		ServerPlayer sender = context.getSender();
-		if (sender != null) {
-			CovenantActions.perform(sender);
-		}
-		context.setPacketHandled(true);
+	public void handle(IPayloadContext context) {
+		context.enqueueWork(() -> {
+			if (context.player() instanceof ServerPlayer sender) {
+				CovenantActions.perform(sender);
+			}
+		});
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 }

@@ -10,7 +10,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -139,7 +139,7 @@ public final class SpiritAltarSet {
 	 * {@code ReliquaryEvents.finalDamageMultiplier}（与圣心 / 神性同乘区相加）；
 	 * 本层不再处理它，并统一排除**本模组的全部伤害类型**与自伤。
 	 */
-	public static void onLivingHurt(LivingHurtEvent event) {
+	public static void onLivingHurt(LivingIncomingDamageEvent event) {
 		LivingEntity victim = event.getEntity();
 		// 1.8.3：自伤（献祭匕首的自损）**完全不吃这一层** —— 既不参与加伤，也不被「肉体」套装减伤缩水，
 		// 保证"自损恒为配置值"（否则三件套齐 / 戴咒印时 4 点会先被 ×0.8 变成 3.2）

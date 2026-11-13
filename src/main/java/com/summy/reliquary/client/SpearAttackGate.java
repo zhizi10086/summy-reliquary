@@ -6,12 +6,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.util.ObfuscationReflectionHelper;
 
 import java.lang.reflect.Field;
 
@@ -24,14 +25,14 @@ import java.lang.reflect.Field;
  * <p><b>瞄准方块一律放行</b>：Forge 在 {@code continueAttack}（挖方块）路径上也会 post 同一个事件，
  * 不分流的话"冷却未满时用手持矛挖方块"会被连带取消、直接挖不动。
  *
- * <p>本类**必须是顶层类**并带 {@code @Mod.EventBusSubscriber} —— 嵌套类的 FORGE 事件
+ * <p>本类**必须是顶层类**并带 {@code @EventBusSubscriber} —— 嵌套类的 FORGE 事件
  * 在本工程实测不会被注册（见 {@code ReliquaryClientTicks} 的注释）。
  *
  * <p><b>历史</b>：1.8.4 曾在这里实现过第一人称「左键戳刺」动画（接管
  * {@code applyForgeHandTransform}），因观感调不到位已**整体移除**，只保留本门禁；
  * 重启该动画的思路与踩过的坑记在本地维护的开发待办中（不随仓库分发）。
  */
-@Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE,
+@EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = EventBusSubscriber.Bus.GAME,
 		value = Dist.CLIENT)
 public final class SpearAttackGate {
 	/** 上一次真正放行的玩家实例；重生 / 换维度会替换实例。 */
@@ -83,10 +84,7 @@ public final class SpearAttackGate {
 	 * 事件里设的剩余冷却会被覆盖；在 END 段再设一次，保证下一 tick 的 startAttack 继续被挡住。
 	 */
 	@SubscribeEvent
-	public static void onClientTick(TickEvent.ClientTickEvent event) {
-		if (event.phase != TickEvent.Phase.END) {
-			return;
-		}
+	public static void onClientTick(ClientTickEvent.Post event) {
 		Minecraft client = Minecraft.getInstance();
 		LocalPlayer player = client.player;
 		if (player == null) {

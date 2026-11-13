@@ -63,13 +63,13 @@ public final class VirtuesEffects {
 		boolean active = active(entity);
 		double diligence = active ? ReliquaryConfig.diligenceSpeedPercent() / 100.0D : 0.0D;
 		AttributeManager.applyModifier(entity, Attributes.MOVEMENT_SPEED, DILIGENCE_MOVE,
-				"virtue_diligence_movement", diligence, AttributeModifier.Operation.MULTIPLY_TOTAL);
+				"virtue_diligence_movement", diligence, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		AttributeManager.applyModifier(entity, Attributes.ATTACK_SPEED, DILIGENCE_ATTACK,
-				"virtue_diligence_attack_speed", diligence, AttributeModifier.Operation.MULTIPLY_TOTAL);
+				"virtue_diligence_attack_speed", diligence, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
 		double charity = active ? charityBonusPercent(entity) / 100.0D : 0.0D;
 		AttributeManager.applyModifier(entity, Attributes.MOVEMENT_SPEED, CHARITY_MOVE,
-				"virtue_charity_movement", charity, AttributeModifier.Operation.MULTIPLY_TOTAL);
+				"virtue_charity_movement", charity, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 	}
 
 	/** 勤勉的挖掘速度倍率（供 BreakSpeed 使用） */

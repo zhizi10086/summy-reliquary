@@ -16,7 +16,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,7 +49,7 @@ public final class HexSeal {
 	/**
 	 * 受诅咒目标受伤 +50%，并登记本 tick 的转移候选；不处理转移伤害自身。
 	 */
-	public static void onIncomingHurt(LivingHurtEvent event) {
+	public static void onIncomingHurt(LivingIncomingDamageEvent event) {
 		if (applyingTransfer || event.isCanceled() || event.getAmount() <= 0.0F) {
 			return;
 		}
@@ -76,7 +76,7 @@ public final class HexSeal {
 	}
 
 	/** 普通玩家伤害可独立掷骰施加诅咒。 */
-	public static void onOutgoingHurt(LivingHurtEvent event) {
+	public static void onOutgoingHurt(LivingIncomingDamageEvent event) {
 		if (event.isCanceled() || event.getAmount() <= 0.0F
 				|| (HolyLightEffect.isDivine(event.getSource())
 						&& !HolyLightEffect.isGoldenRazor(event.getSource()))) {

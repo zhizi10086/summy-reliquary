@@ -4,6 +4,7 @@ import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.attribute.ReliquaryAttributes;
 import com.summy.reliquary.config.ReliquaryConfig;
 import com.summy.reliquary.util.CurioHelper;
+import net.minecraft.core.Holder;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -131,114 +132,114 @@ public final class AttributeManager {
 			bodyHealth = ReliquaryConfig.bodyHealth();
 		}
 		apply(entity, Attributes.MAX_HEALTH, BODY_HEALTH, "spirit_altar_body", bodyHealth,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 
 		// 光环：整套属性受七罪/美德倍率影响
 		boolean haloWorn = CurioHelper.wears(entity, SummyReliquary.THE_HALO.get());
 		double factor = haloWorn ? HaloState.multiplier(entity) : 0.0D;
 		apply(entity, Attributes.MAX_HEALTH, HALO_HEALTH, "the_halo_health",
-				ReliquaryConfig.haloMaxHealth() * factor, AttributeModifier.Operation.ADDITION);
+				ReliquaryConfig.haloMaxHealth() * factor, AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.ATTACK_DAMAGE, HALO_DAMAGE, "the_halo_damage",
-				ReliquaryConfig.haloAttackDamage() * factor, AttributeModifier.Operation.ADDITION);
+				ReliquaryConfig.haloAttackDamage() * factor, AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.ATTACK_SPEED, HALO_ATTACK_SPEED, "the_halo_attack_speed",
-				ReliquaryConfig.haloAttackSpeed() * factor, AttributeModifier.Operation.ADDITION);
+				ReliquaryConfig.haloAttackSpeed() * factor, AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.ARMOR, HALO_ARMOR, "the_halo_armor",
-				ReliquaryConfig.haloArmor() * factor, AttributeModifier.Operation.ADDITION);
+				ReliquaryConfig.haloArmor() * factor, AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.ARMOR_TOUGHNESS, HALO_TOUGHNESS, "the_halo_toughness",
-				ReliquaryConfig.haloArmorToughness() * factor, AttributeModifier.Operation.ADDITION);
+				ReliquaryConfig.haloArmorToughness() * factor, AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.MOVEMENT_SPEED, HALO_MOVEMENT, "the_halo_movement",
 				ReliquaryConfig.haloMovementPercent() / 100.0D * factor,
-				AttributeModifier.Operation.MULTIPLY_TOTAL);
+				AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
 		// 恶魔王冠（1.7.1）：需佩戴撒旦圣经才生效；固定值，不受光环那套倍率影响
 		boolean crownActive = DevilCrown.active(entity);
 		apply(entity, Attributes.MOVEMENT_SPEED, DEVIL_CROWN_SPEED, "devil_crown_movement",
 				crownActive ? ReliquaryConfig.devilCrownMovementPercent() / 100.0D : 0.0D,
-				AttributeModifier.Operation.MULTIPLY_TOTAL);
+				AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		apply(entity, Attributes.ATTACK_SPEED, DEVIL_CROWN_ATTACK_SPEED, "devil_crown_attack_speed",
 				crownActive ? ReliquaryConfig.devilCrownAttackSpeed() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.ATTACK_DAMAGE, DEVIL_CROWN_DAMAGE, "devil_crown_damage",
 				crownActive ? ReliquaryConfig.devilCrownMeleeDamage() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.MAX_HEALTH, DEVIL_CROWN_HEALTH, "devil_crown_health",
 				crownActive ? ReliquaryConfig.devilCrownMaxHealth() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.ARMOR, DEVIL_CROWN_ARMOR, "devil_crown_armor",
 				crownActive ? ReliquaryConfig.devilCrownArmor() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.ARMOR_TOUGHNESS, DEVIL_CROWN_TOUGHNESS, "devil_crown_toughness",
 				crownActive ? ReliquaryConfig.devilCrownArmorToughness() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 
 		// 天使线长矛（1.7.9）：手持且达标才有"攻击距离 +0.5 / +1.0"（切走立刻失效）
-		apply(entity, net.minecraftforge.common.ForgeMod.ENTITY_REACH.get(), SPEAR_REACH, "spear_reach",
-				WeaponGates.reachBonus(entity), AttributeModifier.Operation.ADDITION);
+		apply(entity, net.neoforged.neoforge.common.ForgeMod.ENTITY_REACH.get(), SPEAR_REACH, "spear_reach",
+				WeaponGates.reachBonus(entity), AttributeModifier.Operation.ADD_VALUE);
 
 		// 圣心：生命 / 护甲 / 韧性 / 攻速 / 移速（加护饰品，1.5.5）
 		boolean sacredHeartWorn = CurioHelper.wears(entity, SummyReliquary.SACRED_HEART.get());
 		apply(entity, Attributes.MAX_HEALTH, SACRED_HEART_HEALTH, "sacred_heart_health",
 				sacredHeartWorn ? ReliquaryConfig.sacredHeartMaxHealth() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.ARMOR, SACRED_HEART_ARMOR, "sacred_heart_armor",
 				sacredHeartWorn ? ReliquaryConfig.sacredHeartArmor() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.ARMOR_TOUGHNESS, SACRED_HEART_TOUGHNESS, "sacred_heart_toughness",
 				sacredHeartWorn ? ReliquaryConfig.sacredHeartToughness() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.ATTACK_SPEED, SACRED_HEART_ATTACK_SPEED, "sacred_heart_attack_speed",
 				sacredHeartWorn ? ReliquaryConfig.sacredHeartAttackSpeed() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 		apply(entity, Attributes.MOVEMENT_SPEED, SACRED_HEART_MOVEMENT, "sacred_heart_movement",
 				sacredHeartWorn ? ReliquaryConfig.sacredHeartMovementPercent() / 100.0D : 0.0D,
-				AttributeModifier.Operation.MULTIPLY_TOTAL);
+				AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
 		// 修女服（2.0）：背饰栏，固定护甲 +2；卸下或关闭总开关即回收。
 		apply(entity, Attributes.ARMOR, HABIT_ARMOR, "habit_armor",
 				Habit.wears(entity) ? ReliquaryConfig.habitArmor() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 
 		// 生死逆转死形态：移速 / 攻速固定 +25%，离开死形态立刻回收。
 		boolean deathForm = com.summy.reliquary.effect.LifeDeath.wears(entity)
 				&& com.summy.reliquary.effect.PlayerFlags.isDeathForm(entity);
 		apply(entity, Attributes.MOVEMENT_SPEED, LIFE_DEATH_SPEED, "life_death_death_form_speed",
 				deathForm ? ReliquaryConfig.lifeDeathMoveSpeedPercent() / 100.0D : 0.0D,
-				AttributeModifier.Operation.MULTIPLY_TOTAL);
+				AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		apply(entity, Attributes.ATTACK_SPEED, LIFE_DEATH_ATTACK_SPEED, "life_death_death_form_attack_speed",
 				deathForm ? ReliquaryConfig.lifeDeathAttackSpeedPercent() / 100.0D : 0.0D,
-				AttributeModifier.Operation.MULTIPLY_TOTAL);
+				AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
 		// 五芒星（护符栏，1.5.8）：近战伤害 +1（卸下即回收）
 		boolean pentagramWorn = CurioHelper.wears(entity, SummyReliquary.PENTAGRAM.get());
 		apply(entity, Attributes.ATTACK_DAMAGE, PENTAGRAM_DAMAGE, "pentagram_attack_damage",
 				pentagramWorn ? ReliquaryConfig.pentagramAttackDamage() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 
 		// 恶魔契约（1.6.0）：攻速 = 16% + 邪恶度加成；生命 / 移速 = 每条生效诅咒 2%
 		boolean pactActive = DemonPact.active(entity);
 		apply(entity, Attributes.ATTACK_SPEED, PACT_ATTACK_SPEED, "demon_pact_attack_speed",
 				pactActive ? DemonPact.attackSpeedBonusPercent(entity) / 100.0D : 0.0D,
-				AttributeModifier.Operation.MULTIPLY_TOTAL);
+				AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		apply(entity, Attributes.MAX_HEALTH, PACT_HEALTH, "demon_pact_health",
 				pactActive ? DemonPact.healthBonusPercent(entity) / 100.0D : 0.0D,
-				AttributeModifier.Operation.MULTIPLY_TOTAL);
+				AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 		apply(entity, Attributes.MOVEMENT_SPEED, PACT_SPEED, "demon_pact_speed",
 				pactActive ? DemonPact.speedBonusPercent(entity) / 100.0D : 0.0D,
-				AttributeModifier.Operation.MULTIPLY_TOTAL);
+				AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
 		// 仪式法袍（1.6.1）：固定 +2 攻击力（与五芒星同款加法），未佩戴时回收
 		boolean robeWorn = ReliquaryConfig.enableRobe()
 				&& CurioHelper.wears(entity, SummyReliquary.CEREMONIAL_ROBES.get());
 		apply(entity, Attributes.ATTACK_DAMAGE, ROBE_DAMAGE, "ceremonial_robes_attack_damage",
 				robeWorn ? ReliquaryConfig.robeAttackDamage() : 0.0D,
-				AttributeModifier.Operation.ADDITION);
+				AttributeModifier.Operation.ADD_VALUE);
 
 		// 夜之幽魂（1.6.3）/ 玄秘魔眼（1.6.5，继承夜之幽魂）：移动速度 +20%（百分比，卸下回收；同在也只加一次）
 		boolean wraithWorn = CurioHelper.wears(entity, SummyReliquary.NIGHT_WRAITH.get())
 				|| CurioHelper.wears(entity, SummyReliquary.OCCULT_EYE.get());
 		apply(entity, Attributes.MOVEMENT_SPEED, NIGHT_WRAITH_SPEED, "night_wraith_movement",
 				wraithWorn ? ReliquaryConfig.nightWraithMovementPercent() / 100.0D : 0.0D,
-				AttributeModifier.Operation.MULTIPLY_TOTAL);
+				AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
 		// 伯列恒之星 / 终末天启 / 神性：攻击速度 +20%
 		double starSpeed = (CurioHelper.wears(entity, SummyReliquary.STAR_OF_BETHLEHEM.get())
@@ -247,7 +248,7 @@ public final class AttributeManager {
 				? ReliquaryConfig.starAttackSpeedPercent() / 100.0D
 				: 0.0D;
 		apply(entity, Attributes.ATTACK_SPEED, STAR_ATTACK_SPEED, "star_of_bethlehem_attack_speed",
-				starSpeed, AttributeModifier.Operation.MULTIPLY_TOTAL);
+				starSpeed, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
 		// 魂心：灵魂 +3、终末天启/神性 +2（可叠加；独立池由 SoulShield 维护）；
 		// 1.6.2：戴咒印时"灵魂的魂心"已经转化成黑心，所以不算这一份
@@ -267,8 +268,8 @@ public final class AttributeManager {
 		if (Habit.wears(entity)) {
 			soulHearts += ReliquaryConfig.habitSoulHearts();
 		}
-		apply(entity, ReliquaryAttributes.SOUL_HEARTS.get(), SOUL_HEARTS, "soul_hearts",
-				soulHearts, AttributeModifier.Operation.ADDITION);
+		apply(entity, ReliquaryAttributes.SOUL_HEARTS, SOUL_HEARTS, "soul_hearts",
+				soulHearts, AttributeModifier.Operation.ADD_VALUE);
 
 		// 七罪：怠惰的减速、色欲的护甲削弱
 		com.summy.reliquary.sin.SinEffects.applyAttributes(entity);
@@ -303,7 +304,7 @@ public final class AttributeManager {
 	 *
 	 * <p>用固定的 UUID 区分同一条属性上的多个来源，值设回 0 也不会残留。
 	 */
-	public static void applyModifier(LivingEntity entity, Attribute attribute, UUID uuid, String name,
+	public static void applyModifier(LivingEntity entity, Holder<Attribute> attribute, UUID uuid, String name,
 			double value, AttributeModifier.Operation operation) {
 		apply(entity, attribute, uuid, name, value, operation);
 	}
@@ -482,9 +483,10 @@ public final class AttributeManager {
 		if (instance == null) {
 			return;
 		}
-		AttributeModifier existing = instance.getModifier(ATTACK_SPEED_CAP);
+		net.minecraft.resources.ResourceLocation capId = SummyReliquary.id("attack_speed_cap");
+		AttributeModifier existing = instance.getModifier(capId);
 		if (existing != null) {
-			instance.removeModifier(ATTACK_SPEED_CAP);
+			instance.removeModifier(capId);
 		}
 		double cap = ReliquaryConfig.maxAttackSpeed();
 		if (cap <= 0.0D) {
@@ -495,9 +497,9 @@ public final class AttributeManager {
 		double totalFactor = 1.0D;
 		for (AttributeModifier modifier : instance.getModifiers()) {
 			switch (modifier.getOperation()) {
-				case ADDITION -> addition += modifier.getAmount();
-				case MULTIPLY_BASE -> baseFactor += modifier.getAmount();
-				case MULTIPLY_TOTAL -> totalFactor *= 1.0D + modifier.getAmount();
+				case ADD_VALUE -> addition += modifier.getAmount();
+				case ADD_MULTIPLIED_BASE -> baseFactor += modifier.getAmount();
+				case ADD_MULTIPLIED_TOTAL -> totalFactor *= 1.0D + modifier.getAmount();
 			}
 		}
 		double multiplier = baseFactor * totalFactor;
@@ -507,23 +509,25 @@ public final class AttributeManager {
 		if (addition * multiplier <= cap) {
 			return;
 		}
-		instance.addTransientModifier(new AttributeModifier(ATTACK_SPEED_CAP, "attack_speed_cap",
-				cap / multiplier - addition, AttributeModifier.Operation.ADDITION));
+		instance.addTransientModifier(new AttributeModifier(
+				SummyReliquary.id("attack_speed_cap"),
+				cap / multiplier - addition, AttributeModifier.Operation.ADD_VALUE));
 	}
 
 	/** 移除后按需重新添加（值为 0 即视为不生效） */
-	private static void apply(LivingEntity entity, Attribute attribute, UUID uuid, String name,
+	private static void apply(LivingEntity entity, Holder<Attribute> attribute, UUID uuid, String name,
 			double value, AttributeModifier.Operation operation) {
 		AttributeInstance instance = entity.getAttribute(attribute);
 		if (instance == null) {
 			return;
 		}
-		AttributeModifier existing = instance.getModifier(uuid);
+		net.minecraft.resources.ResourceLocation modifierId = SummyReliquary.id(name);
+		AttributeModifier existing = instance.getModifier(modifierId);
 		if (existing != null) {
-			instance.removeModifier(uuid);
+			instance.removeModifier(modifierId);
 		}
 		if (Math.abs(value) > 1.0E-6D) {
-			instance.addTransientModifier(new AttributeModifier(uuid, name, value, operation));
+			instance.addTransientModifier(new AttributeModifier(modifierId, value, operation));
 		}
 	}
 }

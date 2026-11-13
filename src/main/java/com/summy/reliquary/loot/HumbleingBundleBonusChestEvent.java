@@ -3,7 +3,7 @@ package com.summy.reliquary.loot;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.loot.LootContext;
-import net.minecraftforge.eventbus.api.Event;
+import net.neoforged.bus.api.Event;
 
 /**
  * 一次慈善捆绑包 BONUS 开箱的公共兼容事件。

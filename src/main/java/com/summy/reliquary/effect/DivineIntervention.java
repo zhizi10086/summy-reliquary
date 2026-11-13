@@ -16,10 +16,10 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.event.level.ExplosionEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.level.ExplosionEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,7 +75,7 @@ public final class DivineIntervention {
 	}
 
 	/** 受击反伤：基数取护甲 / 抗性 / 保护之后、吸收与魂心黑心之前。 */
-	public static void onIncomingHurt(LivingHurtEvent event) {
+	public static void onIncomingHurt(LivingIncomingDamageEvent event) {
 		if (event.isCanceled() || event.getAmount() <= 0.0F
 				|| !(event.getEntity() instanceof ServerPlayer player) || !wears(player)) {
 			return;
@@ -96,7 +96,7 @@ public final class DivineIntervention {
 	}
 
 	/** 玩家投射物穿过屏障后只提升本次命中的原版伤害，不进入任何增伤名单。 */
-	public static void onProjectileHurt(LivingHurtEvent event) {
+	public static void onProjectileHurt(LivingIncomingDamageEvent event) {
 		if (event.isCanceled() || event.getAmount() <= 0.0F || event.getSource().getDirectEntity() == null) {
 			return;
 		}

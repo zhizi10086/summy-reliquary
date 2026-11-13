@@ -2,11 +2,12 @@ package com.summy.reliquary.client;
 
 import com.summy.reliquary.config.ReliquaryConfig;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 /**
  * 血债祭坛独立盾条。
@@ -14,14 +15,13 @@ import net.minecraftforge.client.gui.overlay.IGuiOverlay;
  * <p>血债盾不写入原版吸收，以免把血债份额混入 Summy Enchantment 等按吸收池差值记账的护盾；
  * 界面仍复用原版黄心贴图，并且只画出血债祭坛自己的份额。
  */
-public final class BloodDebtShieldOverlay implements IGuiOverlay {
-	private static final ResourceLocation ICONS = new ResourceLocation("textures/gui/icons.png");
+public final class BloodDebtShieldOverlay implements LayeredDraw.Layer {
+	private static final ResourceLocation ICONS = ResourceLocation.parse("textures/gui/icons.png");
 	private static final int HEART_SIZE = 9;
 	private static final int HEART_STEP = 8;
 
 	@Override
-	public void render(net.minecraftforge.client.gui.overlay.ForgeGui gui, GuiGraphics graphics,
-			float partialTick, int width, int height) {
+	public void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
 		Player player = client.player;
 		if (!SoulHeartOverlay.shouldRender(player, client.options.hideGui)
@@ -34,7 +34,7 @@ public final class BloodDebtShieldOverlay implements IGuiOverlay {
 		}
 		int hearts = Mth.ceil(points / 2.0D);
 		boolean half = points % 2.0D != 0.0D;
-		int x = width / 2 - 91;
+		int x = graphics.guiWidth() / 2 - 91;
 		double soulPoints = SoulHeartOverlay.ourSoulHeartPoints(player);
 		int soulRows = SoulHeartOverlay.soulHeartRows(soulPoints);
 		double blackPoints = com.summy.reliquary.effect.DemonPact.blackHeartPoints(player);
@@ -43,8 +43,8 @@ public final class BloodDebtShieldOverlay implements IGuiOverlay {
 		// 把血债盾计入布局行数，使它作为额外黄心行出现在红心 / 原版吸收之上，
 		// 而不是覆盖红心的第一排。
 		float layoutAbsorption = (float) (player.getAbsorptionAmount() + points);
-		int y = SoulHeartOverlay.soulHeartRowY(height, maxHealth,
-				layoutAbsorption, player.getArmorValue(), gui.rightHeight,
+		int y = SoulHeartOverlay.soulHeartRowY(graphics.guiHeight(), maxHealth,
+				layoutAbsorption, player.getArmorValue(), 0,
 				ReliquaryConfig.soulHeartHudOffsetY()) - 10 * (soulRows + blackRows);
 		int rowSpacing = SoulHeartOverlay.vanillaHeartGridRowSpacing(maxHealth, layoutAbsorption);
 		graphics.setColor(1.0F, 0.92F, 0.25F, 1.0F);

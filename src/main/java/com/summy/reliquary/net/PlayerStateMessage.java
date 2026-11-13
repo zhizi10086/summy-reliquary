@@ -1,16 +1,25 @@
 package com.summy.reliquary.net;
 
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
 import com.summy.reliquary.client.ReliquaryClientState;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
 
-import java.util.function.Supplier;
 import java.util.UUID;
 
 /**
  * 服务端 → 客户端：同步该玩家的七罪激活位掩码与启示坐标状态（提示文本要用）。
  */
-public class PlayerStateMessage {
+public class PlayerStateMessage implements CustomPacketPayload {
+	public static final CustomPacketPayload.Type<PlayerStateMessage> TYPE =
+			new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "player_state"));
+	public static final StreamCodec<RegistryFriendlyByteBuf, PlayerStateMessage> CODEC =
+			StreamCodec.of((buffer, value) -> value.encode(buffer), PlayerStateMessage::new);
+
 	/** 这条消息的目标玩家（客户端用来区分"我"和"别人"） */
 	private final UUID owner;
 	private final int sins;
@@ -99,15 +108,20 @@ public class PlayerStateMessage {
 		buffer.writeVarInt(covenantOwned);
 	}
 
-	public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-		NetworkEvent.Context context = contextSupplier.get();
-		ReliquaryClientState.update(owner, sins, redeemed, revealed, revealX, revealZ, flags,
-				revealRemainingSeconds);
-		ReliquaryClientState.setDemonStats(evil, blackHeartPoints, evilUnlocks);
-		ReliquaryClientState.setSoulHeartPoints(soulHeartPoints);
-		ReliquaryClientState.setLifeDeathHud(lifeDeathRemainingTicks,
-				lifeDeathKillWeight, lifeDeathKillRequired);
-		ReliquaryClientState.setCovenantOwned(covenantOwned);
-		context.setPacketHandled(true);
+	public void handle(IPayloadContext context) {
+		context.enqueueWork(() -> {
+			ReliquaryClientState.update(owner, sins, redeemed, revealed, revealX, revealZ, flags,
+					revealRemainingSeconds);
+			ReliquaryClientState.setDemonStats(evil, blackHeartPoints, evilUnlocks);
+			ReliquaryClientState.setSoulHeartPoints(soulHeartPoints);
+			ReliquaryClientState.setLifeDeathHud(lifeDeathRemainingTicks,
+					lifeDeathKillWeight, lifeDeathKillRequired);
+			ReliquaryClientState.setCovenantOwned(covenantOwned);
+		});
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 }

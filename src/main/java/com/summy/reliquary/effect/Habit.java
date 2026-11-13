@@ -6,7 +6,7 @@ import com.summy.reliquary.sin.SinEffects;
 import com.summy.reliquary.util.CurioHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +32,7 @@ public final class Habit {
 	 * <p>事件仍有效且金额大于 0 才代表这一击会落地；没有技能在冷却时也消耗本次触发窗口，
 	 * 不存格。0.5 秒节流由配置控制。
 	 */
-	public static void onHurt(LivingHurtEvent event) {
+	public static void onHurt(LivingIncomingDamageEvent event) {
 		if (!(event.getEntity() instanceof ServerPlayer player) || event.isCanceled()
 				|| event.getAmount() <= 0.0F || !wears(player)) {
 			return;

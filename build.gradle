@@ -29,6 +29,11 @@ java {
     withSourcesJar()
 }
 
+// 迁移期先隔离旧 devcheck，生产代码恢复可编译后再单独迁移自检。
+if (!project.hasProperty('devcheck')) {
+    sourceSets.main.java.exclude 'com/summy/reliquary/devcheck/**'
+}
+
 repositories {
     // Gate A 已验证的 1.21.1 官方元数据离线补充。
     def localMetadata = file('.gradle/se-local-maven')

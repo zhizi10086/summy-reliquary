@@ -13,7 +13,7 @@ import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Enemy;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,7 +38,7 @@ public final class BloodDebtAltar {
 					new net.minecraft.resources.ResourceLocation(SummyReliquary.NAMESPACE, "bosses"));
 	private static final Map<UUID, List<Debt>> DEBTS = new HashMap<>();
 	private static final Map<UUID, DuplicateGuard> LAST_HURT = new HashMap<>();
-	/** 玩家最近一次真实 LivingHurtEvent 的 tick；同 tick 有真实攻击时不得吞掉受击镜头。 */
+	/** 玩家最近一次真实 LivingIncomingDamageEvent 的 tick；同 tick 有真实攻击时不得吞掉受击镜头。 */
 	private static final Map<UUID, Long> LAST_EXTERNAL_HURT_TICK = new HashMap<>();
 
 	private BloodDebtAltar() {
@@ -67,7 +67,7 @@ public final class BloodDebtAltar {
 	}
 
 	/** 受伤时把减免部分拆成独立延迟段。 */
-	public static void onIncomingHurt(LivingHurtEvent event) {
+	public static void onIncomingHurt(LivingIncomingDamageEvent event) {
 		if (event.isCanceled() || event.getAmount() <= 0.0F
 				|| !(event.getEntity() instanceof ServerPlayer player) || !wears(player)) {
 			return;
@@ -301,7 +301,7 @@ public final class BloodDebtAltar {
 		if (entity instanceof Enemy) {
 			return true;
 		}
-		var id = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
+		var id = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
 		return id != null && ReliquaryConfig.bloodDebtExtraHostileEntities().contains(id.toString());
 	}
 
@@ -310,7 +310,7 @@ public final class BloodDebtAltar {
 		if (type.is(FORGE_BOSSES) || type.is(COMMON_BOSSES) || type.is(SUMMY_BOSSES)) {
 			return true;
 		}
-		var id = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES.getKey(type);
+		var id = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(type);
 		return id != null && ReliquaryConfig.bloodDebtExtraBossEntities().contains(id.toString());
 	}
 

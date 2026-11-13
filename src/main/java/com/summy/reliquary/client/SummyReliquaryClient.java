@@ -10,12 +10,12 @@ import com.summy.reliquary.util.CurioHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import org.lwjgl.glfw.GLFW;
 import top.theillusivec4.curios.api.client.CuriosRendererRegistry;
 
@@ -92,7 +92,7 @@ public final class SummyReliquaryClient {
 	}
 
 	/** 模组加载阶段：注册按键与渲染器 */
-	@Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+	@EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 	public static final class ModBus {
 		private ModBus() {
 		}
@@ -132,25 +132,25 @@ public final class SummyReliquaryClient {
 		 * 只有在这个锚点之后读到的偏移才是累加完的（Summy Enchantment 的额外饥饿行用的也是这一招）。
 		 */
 		@SubscribeEvent
-		public static void onRegisterGuiOverlays(net.minecraftforge.client.event.RegisterGuiOverlaysEvent event) {
+		public static void onRegisterGuiLayers(net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event) {
 			// 死形态边缘红光：高于暗角，但必须低于快捷栏、准星与 Boss 条等 HUD。
 			// 直接注册在 HOTBAR 下方，避免红边覆盖死形态 Boss 条标题。
-			event.registerBelow(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.HOTBAR.id(),
-					"life_death_screen_red", new LifeDeathScreenOverlay());
-			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
-					"demon_black_hearts", new DemonBlackHeartOverlay());
+			event.registerBelow(net.neoforged.neoforge.client.gui.VanillaGuiLayers.HOTBAR,
+					SummyReliquary.id("life_death_screen_red"), new LifeDeathScreenOverlay());
+			event.registerAbove(net.neoforged.neoforge.client.gui.VanillaGuiLayers.SELECTED_ITEM_NAME,
+					SummyReliquary.id("demon_black_hearts"), new DemonBlackHeartOverlay());
 			// 魂心：把属于我们的那几颗黄心重新画成蓝心（不隐藏原版黄心）
-			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
-					"soul_hearts_hud", new SoulHeartOverlay());
+			event.registerAbove(net.neoforged.neoforge.client.gui.VanillaGuiLayers.SELECTED_ITEM_NAME,
+					SummyReliquary.id("soul_hearts_hud"), new SoulHeartOverlay());
 			// 血债盾是独立结算层，但视觉仍使用原版黄心，避免与其它吸收来源互相记账。
-			event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.ITEM_NAME.id(),
-					"blood_debt_shield", new BloodDebtShieldOverlay());
+			event.registerAbove(net.neoforged.neoforge.client.gui.VanillaGuiLayers.SELECTED_ITEM_NAME,
+					SummyReliquary.id("blood_debt_shield"), new BloodDebtShieldOverlay());
 		}
 
 		/** 1.7.8：幻影矛的渲染器（投掷出去的矛用物品模型画） */
 		@SubscribeEvent
 		public static void onRegisterRenderers(
-				net.minecraftforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
+				net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
 			event.registerEntityRenderer(SummyReliquary.THROWN_SPEAR.get(), ThrownSpearRenderer::new);
 			// 1.7.10：金刀片投掷物的渲染器（同一套朝向链，但不需要平面内补偿）
 			event.registerEntityRenderer(SummyReliquary.THROWN_RAZOR.get(), ThrownRazorRenderer::new);
@@ -169,17 +169,12 @@ public final class SummyReliquaryClient {
 		}
 
 		/** 真正的客户端 tick 逻辑（由 {@link ReliquaryClientTicks} 调用） */
-		static void onClientTick(TickEvent.ClientTickEvent event) {
-			Minecraft client = Minecraft.getInstance();
-			if (event.phase == TickEvent.Phase.START) {
-				// 原始按键事件在 Kilt / 部分输入环境中可能不派发。START tick 只补“松开 → 按下”的
-				// 边沿，既不等待 END tick，也不会在长按时每 tick 重复释放。
-				tickOathAction(client);
-				return;
-			}
-			if (event.phase != TickEvent.Phase.END) {
-				return;
-			}
+		static void onClientTickStart(Minecraft client) {
+			// 原始按键事件在部分输入环境中可能不派发。Pre tick 只补“松开 → 按下”的边沿。
+			tickOathAction(client);
+		}
+
+		static void onClientTickEnd(Minecraft client) {
 			// 1.7.3：短寿命火焰粒子的提供者 —— 自己造 SpriteSet + 纯 providers.put 注册，
 			// 不依赖 Forge 的粒子事件（Kilt 上那个事件不会 post），每 tick 幂等调用。
 			ReliquaryParticles.register();
@@ -206,7 +201,7 @@ public final class SummyReliquaryClient {
 		 * <p>这里直接比较绑定键值；tick START 的边沿检测只作为事件漏发兜底。
 		 * 两条路径共享“本次按下已处理”标记，因此同一次物理按下最多发包一次。
 		 */
-		public static void onKeyInput(net.minecraftforge.client.event.InputEvent.Key event) {
+		public static void onKeyInput(net.neoforged.neoforge.client.event.InputEvent.Key event) {
 			Minecraft client = Minecraft.getInstance();
 			if (event.getAction() == GLFW.GLFW_RELEASE) {
 				oathKeyPressHandled = false;
@@ -417,7 +412,7 @@ public final class SummyReliquaryClient {
 		 * <p><b>1.8.2 修</b>：本方法**必须**由顶层 {@code ReliquaryClientTicks#onComputeFov} 转发 ——
 		 * 嵌套类里的 FORGE 事件不会注册，之前写在这里导致三处 FOV 收缩全部失效。
 		 */
-		public static void onComputeFov(net.minecraftforge.client.event.ViewportEvent.ComputeFov event) {
+		public static void onComputeFov(net.neoforged.neoforge.client.event.ViewportEvent.ComputeFov event) {
 			// ① 启示之光（V 键）蓄力
 			double beam = chargeProgress();
 			if (beam > 0.0D) {
@@ -449,7 +444,7 @@ public final class SummyReliquaryClient {
 		if (!player.getUseItem().is(SummyReliquary.PENTAGRAM.get())) {
 			return 0.0F;
 		}
-		int total = SummyReliquary.PENTAGRAM.get().getUseDuration(player.getUseItem());
+		int total = SummyReliquary.PENTAGRAM.get().getUseDuration(player.getUseItem(), player);
 		if (total <= 0) {
 			return 0.0F;
 		}
@@ -479,14 +474,16 @@ public final class SummyReliquaryClient {
 		usingPropertyRegistered = true;
 		net.minecraft.client.renderer.item.ItemProperties.registerGeneric(SummyReliquary.id("using"),
 				(stack, level, entity, seed) -> entity != null && entity.isUsingItem()
-						&& net.minecraft.world.item.ItemStack.isSameItemSameTags(stack, entity.getUseItem())
+						&& net.minecraft.world.item.ItemStack.isSameItemSameComponents(
+								stack, entity.getUseItem())
 								? 1.0F : 0.0F);
 	}
 
 	/** 自检用：谓词是否已经注册成功 */
 	public static boolean isUsingPropertyRegistered() {
 		return net.minecraft.client.renderer.item.ItemProperties.getProperty(
-				SummyReliquary.HOLY_SPEAR.get(), SummyReliquary.id("using")) != null;
+				new net.minecraft.world.item.ItemStack(SummyReliquary.HOLY_SPEAR.get()),
+				SummyReliquary.id("using")) != null;
 	}
 
 	/** 生死逆转图标状态谓词：生形态 0、死形态 1。 */
@@ -503,6 +500,7 @@ public final class SummyReliquaryClient {
 
 	public static boolean isDeathFormPropertyRegistered() {
 		return net.minecraft.client.renderer.item.ItemProperties.getProperty(
-				SummyReliquary.LIFE_DEATH.get(), SummyReliquary.id("death_form")) != null;
+				new net.minecraft.world.item.ItemStack(SummyReliquary.LIFE_DEATH.get()),
+				SummyReliquary.id("death_form")) != null;
 	}
 }

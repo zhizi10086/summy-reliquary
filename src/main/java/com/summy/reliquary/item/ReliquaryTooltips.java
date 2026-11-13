@@ -7,9 +7,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.neoforged.fml.loading.FMLEnvironment;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -283,28 +281,22 @@ public final class ReliquaryTooltips {
 	 * 是否按住 Shift（服务端一律 false）。
 	 *
 	 * <p>键状态只在客户端存在，且通用类不能引用 {@code Screen}（专用服务端会因 dist 校验失败而崩），
-	 * 所以这里用 {@link DistExecutor} 把真正的客户端调用延后到客户端才加载的
-	 * {@link TooltipClientHooks}。
+	 * 所以在客户端分支中才调用 {@link TooltipClientHooks}。
 	 */
 	public static boolean shiftDown() {
 		return FMLEnvironment.dist.isClient()
-				&& Boolean.TRUE.equals(
-						DistExecutor.<Boolean>unsafeCallWhenOn(Dist.CLIENT,
-								() -> () -> TooltipClientHooks.isShiftDown()));
+				&& TooltipClientHooks.isShiftDown();
 	}
 
 	/** 是否按住 Alt（服务端一律 false） */
 	public static boolean altDown() {
 		return FMLEnvironment.dist.isClient()
-				&& Boolean.TRUE.equals(
-						DistExecutor.<Boolean>unsafeCallWhenOn(Dist.CLIENT,
-								() -> () -> TooltipClientHooks.isAltDown()));
+				&& TooltipClientHooks.isAltDown();
 	}
 
 	/** 本地玩家（服务端返回 null，不会加载任何客户端类） */
 	public static LivingEntity localPlayer() {
-		return DistExecutor.<LivingEntity>unsafeCallWhenOn(Dist.CLIENT,
-				() -> () -> TooltipClientHooks.localPlayer());
+		return FMLEnvironment.dist.isClient() ? TooltipClientHooks.localPlayer() : null;
 	}
 
 	/**
@@ -332,8 +324,7 @@ public final class ReliquaryTooltips {
 		if (!FMLEnvironment.dist.isClient()) {
 			return List.of(line);
 		}
-		List<Component> wrapped = DistExecutor.unsafeCallWhenOn(Dist.CLIENT,
-				() -> () -> TooltipClientHooks.wrap(line));
+		List<Component> wrapped = TooltipClientHooks.wrap(line);
 		return wrapped == null || wrapped.isEmpty() ? List.of(line) : wrapped;
 	}
 }

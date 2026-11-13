@@ -1,10 +1,14 @@
 package com.summy.reliquary.net;
 
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
 import com.summy.reliquary.client.ClientRenderHooks;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
 
-import java.util.function.Supplier;
 
 /**
  * 服务端 → 客户端：让该客户端播放"不死图腾动画（贴图换成创世纪）"（1.7.2）。
@@ -15,7 +19,12 @@ import java.util.function.Supplier;
  * <p>真正的客户端调用放在 {@link ClientRenderHooks} 的回调里，通用类不直接引用客户端类型
  * （否则专用服务端加载本类会被 dist 校验拦下）。
  */
-public class GenesisUsedMessage {
+public class GenesisUsedMessage implements CustomPacketPayload {
+	public static final CustomPacketPayload.Type<GenesisUsedMessage> TYPE =
+			new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("summy-reliquary", "genesis_used"));
+	public static final StreamCodec<RegistryFriendlyByteBuf, GenesisUsedMessage> CODEC =
+			StreamCodec.of((buffer, value) -> value.encode(buffer), GenesisUsedMessage::new);
+
 	public GenesisUsedMessage() {
 	}
 
@@ -27,9 +36,14 @@ public class GenesisUsedMessage {
 		// 空包：没有负载
 	}
 
-	public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-		NetworkEvent.Context context = contextSupplier.get();
-		context.enqueueWork(ClientRenderHooks.genesisActivationSink);
-		context.setPacketHandled(true);
+	public void handle(IPayloadContext context) {
+		context.enqueueWork(() -> {
+			ClientRenderHooks.genesisActivationSink.run();
+		});
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 }

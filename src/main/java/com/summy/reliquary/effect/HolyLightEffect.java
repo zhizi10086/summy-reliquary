@@ -16,7 +16,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ import java.util.UUID;
  *     <li>类型**不同** → **累加**进当前这次攻击的基准 —— 对应「魔剑」那种同一击的追加段。</li>
  * </ul>
  *
- * <p>时机：在 {@code LivingHurtEvent} 的 LOWEST 优先级记录（各类倍率之后、目标减伤之前），
+ * <p>时机：在 {@code LivingIncomingDamageEvent} 的 LOWEST 优先级记录（各类倍率之后、目标减伤之前），
  * 服务端 tick 结束时统一掷点结算；落地前清无敌帧，所以**无视无敌帧**。
  *
  * <p><b>两条独立通道</b>（1.7.9）：饰品位（圣光 / 圣光 + 神性 → 15% / 25%）与
@@ -158,9 +158,9 @@ public final class HolyLightEffect {
 	}
 
 	/**
-	 * 记录一次命中（{@code LivingHurtEvent}，LOWEST 优先级：各类倍率已算完、还没减伤）。
+	 * 记录一次命中（{@code LivingIncomingDamageEvent}，LOWEST 优先级：各类倍率已算完、还没减伤）。
 	 */
-	public static void record(LivingHurtEvent event) {
+	public static void record(LivingIncomingDamageEvent event) {
 		if (event.isCanceled() || !ReliquaryConfig.enableHolyLight()) {
 			return;
 		}

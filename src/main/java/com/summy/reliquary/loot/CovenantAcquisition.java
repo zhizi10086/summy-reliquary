@@ -27,13 +27,14 @@ import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,7 +49,7 @@ import java.util.function.Supplier;
  * <p>只处理玩家真实打开、首次生成内容的箱子：无阵营时仅按概率尝试生死逆转且无保底；
  * 单阵营时从“本家两件 + 生死逆转”的缺失池中抽取，并使用该路线独立的连续失败保底。
  */
-@Mod.EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class CovenantAcquisition {
 	public static final int LIFE_DEATH_BIT = 1;
 	public static final int DIVINE_INTERVENTION_BIT = 1 << 1;
@@ -118,12 +119,13 @@ public final class CovenantAcquisition {
 
 	/** 每 20 tick 扫描一次背包与 Curios，补记 /give、创造模式和旧存档已有的物品。 */
 	@SubscribeEvent
-	public static void onServerTick(TickEvent.ServerTickEvent event) {
-		if (event.phase == TickEvent.Phase.START) {
-			CONTAINER_WINDOWS.clear();
-			return;
-		}
-		if (event.phase != TickEvent.Phase.END || event.getServer().getTickCount() % 20 != 0) {
+	public static void onServerTickPre(ServerTickEvent.Pre event) {
+		CONTAINER_WINDOWS.clear();
+	}
+
+	@SubscribeEvent
+	public static void onServerTickPost(ServerTickEvent.Post event) {
+		if (event.getServer().getTickCount() % 20 != 0) {
 			return;
 		}
 		for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
