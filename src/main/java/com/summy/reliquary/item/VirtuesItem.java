@@ -85,7 +85,7 @@ public class VirtuesItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 1.4.4 双重门：七罪还没全部赎清时不能查阅属性（效果同样不生效）
 		// 1.5.2：这时候连风味行「你已赎清罪过」都不显示，只留一行「七罪尚未赎清」
 		if (!com.summy.reliquary.client.ReliquaryClientState.allRedeemed(

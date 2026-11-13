@@ -70,13 +70,13 @@ public class TheHaloItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public Multimap<Attribute, AttributeModifier> getAttributeModifiers(SlotContext slotContext, UUID uuid,
+	public Multimap<net.minecraft.core.Holder<Attribute>, AttributeModifier> getAttributeModifiers(SlotContext slotContext, UUID uuid,
 			ItemStack stack) {
 		return CurioItemSupport.noAttributes();
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		tooltip.add(Component.translatable("item.summy-reliquary.the_halo.tagline")
 				.withStyle(ChatFormatting.GRAY));
 

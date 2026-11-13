@@ -69,7 +69,7 @@ public class PentagramItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 风味行：并不普通的一枚护符（灰）
 		tooltip.add(Component.translatable("item.summy-reliquary.pentagram.tagline")
 				.withStyle(ChatFormatting.GRAY));
@@ -155,7 +155,7 @@ public class PentagramItem extends Item implements ICurioItem {
 
 	/** 蓄力时长 = [demon_deal] charge_seconds（默认 5 秒 = 100 tick） */
 	@Override
-	public int getUseDuration(ItemStack stack) {
+	public int getUseDuration(ItemStack stack, LivingEntity entity) {
 		return DemonDeal.chargeTicks();
 	}
 

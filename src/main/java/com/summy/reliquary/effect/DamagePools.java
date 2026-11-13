@@ -4,6 +4,7 @@ import com.mojang.authlib.GameProfile;
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
@@ -165,7 +166,7 @@ public final class DamagePools {
 			GameProfile profile = new GameProfile(
 					UUID.nameUUIDFromBytes("summy_reliquary_writeback_probe".getBytes(StandardCharsets.UTF_8)),
 					"summy_writeback_probe");
-			probe = new ServerPlayer(server, level, profile);
+			probe = new ServerPlayer(server, level, profile, ClientInformation.createDefault());
 			probe.setPos(0.0D, 100.0D, 0.0D);
 			probe.setInvulnerable(false);
 			probe.gameMode.changeGameModeForPlayer(GameType.SURVIVAL);
@@ -378,12 +379,12 @@ public final class DamagePools {
 	 * —— 但本次实际扣池 {@code deducted > 0} 意味着"血伤 > 0"，也就意味着吸收值早已被扣到 0（否则血伤为 0），
 	 * 那次减法会被原版钳到 0，**不会额外扣任何东西**（已核字节码）。
 	 */
-	public static void applyToHealthDamage(LivingDamageEvent event) {
+	public static void applyToHealthDamage(LivingDamageEvent.Pre event) {
 		if (writebackProbePlayer != null && event.getEntity() == writebackProbePlayer) {
 			writebackProbeEvents++;
-			writebackProbeAmountBefore = event.getAmount();
-			event.setAmount(0.0F);
-			writebackProbeAmountAfter = event.getAmount();
+			writebackProbeAmountBefore = event.getNewDamage();
+			event.setNewDamage(0.0F);
+			writebackProbeAmountAfter = event.getNewDamage();
 			return;
 		}
 		if (!(event.getEntity() instanceof ServerPlayer player)) {
@@ -394,16 +395,17 @@ public final class DamagePools {
 			// 不是新口径的命中（旧路径 / 被完全拦下 / 没登记）
 			return;
 		}
-		if (event.isCanceled() || event.getAmount() <= 0.0F) {
+		float amountBefore = event.getNewDamage();
+		float healthPart = Math.max(0.0F, amountBefore - player.getAbsorptionAmount());
+		if (healthPart <= 0.0F) {
 			return;
 		}
 		double blood = effectiveBlood(player);
 		double soul = effectiveSoul(player);
 		double black = effectiveBlack(player);
 		double poolBefore = blood + soul + black;
-		float amountBefore = event.getAmount();
 		double protectedAmount = shieldProtectionActive(event.getSource(), soul + black)
-				? amountBefore : Math.min(poolBefore, amountBefore);
+				? healthPart : Math.min(poolBefore, healthPart);
 		if (protectedAmount <= 0.0D) {
 			return;
 		}
@@ -420,14 +422,14 @@ public final class DamagePools {
 		if (usedBlack > 0.0D) {
 			DemonPact.deductBlackHearts(player, usedBlack);
 		}
-		event.setAmount((float) (amountBefore - protectedAmount));
+		event.setNewDamage((float) (amountBefore - protectedAmount));
 		// 池子被打空 → 破碎（与旧路径同口径：只有真的吃到池子才判定）
 		if (deducted > 0.0D) {
 			SoulShield.shatterIfEmpty(player);
 			DemonPact.shatterBlackHeartsIfEmpty(player);
 		}
 		logHealthDamage(player, player.getAbsorptionAmount(), poolBefore, deducted, amountBefore,
-				event.getAmount());
+				event.getNewDamage());
 	}
 
 	/**

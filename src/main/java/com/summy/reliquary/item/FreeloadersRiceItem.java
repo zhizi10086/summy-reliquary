@@ -38,7 +38,7 @@ public class FreeloadersRiceItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 栏位行交给 Curios 自带文本，这里只输出风味文本与 Shift 提示
 		ReliquaryTooltips.append(tooltip,
 				"item.summy-reliquary.freeloaders_rice.tagline",

@@ -5,10 +5,12 @@ import com.summy.reliquary.effect.EvilUnlock;
 import com.summy.reliquary.effect.RedemptionRecipeGate;
 import com.summy.reliquary.effect.SpiritAltarRecipeGate;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -64,8 +66,13 @@ public final class GatedRecipeRegistry {
 		return id != null && RECIPES.containsKey(id);
 	}
 
-	public static boolean isGatedRecipe(Recipe<?> recipe) {
-		return recipe != null && isGatedRecipe(recipe.getId());
+	public static boolean isGatedRecipe(RecipeHolder<?> holder) {
+		return holder != null && isGatedRecipe(holder.id());
+	}
+
+	public static boolean isGatedRecipe(Recipe<?> recipe, HolderLookup.Provider registries) {
+		return recipe instanceof com.summy.reliquary.recipe.ManualOnlyShapelessRecipe
+				|| recipe != null && isGatedResult(recipe.getResultItem(registries));
 	}
 
 	public static boolean isGatedResult(ItemStack stack) {

@@ -5,6 +5,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.block.Block;
 
 /**
  * 本模组武器的自定材质（1.7.5 起：两把仪式匕首；1.7.7 起追加圣光短矛）。
@@ -50,8 +53,8 @@ public enum RitualTiers implements Tier {
 	}
 
 	@Override
-	public int getLevel() {
-		return 0;
+	public TagKey<Block> getIncorrectBlocksForDrops() {
+		return BlockTags.INCORRECT_FOR_WOODEN_TOOL;
 	}
 
 	@Override

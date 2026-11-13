@@ -2,6 +2,7 @@ package com.summy.reliquary.effect;
 
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.util.CurioHelper;
+import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffects;
@@ -36,8 +37,8 @@ public final class DivineImmunity {
 	}
 
 	/** 这个效果是否被上面的免疫挡住 */
-	public static boolean blocks(MobEffect effect) {
-		return effect == MobEffects.DARKNESS || effect == SummyReliquary.FEAR.get();
+	public static boolean blocks(Holder<MobEffect> effect) {
+		return effect != null && (effect.is(MobEffects.DARKNESS) || effect.is(SummyReliquary.FEAR));
 	}
 
 	/** 每秒清理身上已有的黑暗 / 恐惧（例如先中招、之后才戴上圣心或神性） */
@@ -48,8 +49,8 @@ public final class DivineImmunity {
 		if (player.hasEffect(MobEffects.DARKNESS)) {
 			player.removeEffect(MobEffects.DARKNESS);
 		}
-		if (player.hasEffect(SummyReliquary.FEAR.get())) {
-			player.removeEffect(SummyReliquary.FEAR.get());
+		if (player.hasEffect(SummyReliquary.FEAR)) {
+			player.removeEffect(SummyReliquary.FEAR);
 		}
 	}
 }

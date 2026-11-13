@@ -44,7 +44,7 @@ public class HumbleingBundleItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip,
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip,
 			TooltipFlag flag) {
 		tooltip.add(Component.translatable("item.summy-reliquary.humbleing_bundle.desc.1")
 				.withStyle(ChatFormatting.GRAY));

@@ -1,5 +1,6 @@
 package com.summy.reliquary.effect;
 
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -37,11 +38,11 @@ public final class DebuffImmunity {
 	}
 
 	/** 是否是本免疫要挡住的「原版负面效果」 */
-	public static boolean blocks(MobEffect effect) {
-		if (effect == null || effect.getCategory() != MobEffectCategory.HARMFUL) {
+	public static boolean blocks(Holder<MobEffect> effect) {
+		if (effect == null || effect.value().getCategory() != MobEffectCategory.HARMFUL) {
 			return false;
 		}
-		ResourceLocation key = BuiltInRegistries.MOB_EFFECT.getKey(effect);
+		ResourceLocation key = BuiltInRegistries.MOB_EFFECT.getKey(effect.value());
 		return key != null && VANILLA_NAMESPACE.equals(key.getNamespace());
 	}
 
@@ -50,13 +51,13 @@ public final class DebuffImmunity {
 		if (player == null || !covers(player)) {
 			return;
 		}
-		List<MobEffect> harmful = new ArrayList<>();
+		List<Holder<MobEffect>> harmful = new ArrayList<>();
 		for (MobEffectInstance instance : player.getActiveEffects()) {
 			if (blocks(instance.getEffect())) {
 				harmful.add(instance.getEffect());
 			}
 		}
-		for (MobEffect effect : harmful) {
+		for (Holder<MobEffect> effect : harmful) {
 			player.removeEffect(effect);
 		}
 	}

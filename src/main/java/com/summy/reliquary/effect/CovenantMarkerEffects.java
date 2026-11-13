@@ -1,5 +1,6 @@
 package com.summy.reliquary.effect;
 
+import net.minecraft.core.Holder;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -18,7 +19,7 @@ public final class CovenantMarkerEffects {
 	private CovenantMarkerEffects() {
 	}
 
-	public static void mirror(LivingEntity target, MobEffect effect, long untilTick) {
+	public static void mirror(LivingEntity target, Holder<MobEffect> effect, long untilTick) {
 		if (target == null || effect == null || !target.isAlive()) {
 			return;
 		}
@@ -40,7 +41,7 @@ public final class CovenantMarkerEffects {
 		target.addEffect(new MobEffectInstance(effect, remaining, 0, false, true, true));
 	}
 
-	public static void remove(LivingEntity target, MobEffect effect) {
+	public static void remove(LivingEntity target, Holder<MobEffect> effect) {
 		if (target != null && effect != null && target.hasEffect(effect)) {
 			target.removeEffect(effect);
 		}

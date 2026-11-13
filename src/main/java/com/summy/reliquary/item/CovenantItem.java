@@ -114,7 +114,7 @@ public class CovenantItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip,
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip,
 			TooltipFlag flag) {
 		appendFlavor(tooltip, kind, "desc.1", true);
 		appendFlavor(tooltip, kind, "desc.2", false);

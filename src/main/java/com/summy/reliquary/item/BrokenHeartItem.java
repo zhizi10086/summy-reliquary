@@ -24,7 +24,7 @@ public class BrokenHeartItem extends Item {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level,
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context,
 			List<Component> tooltip, TooltipFlag flag) {
 		ReliquaryTooltips.demonFlavorLine(tooltip,
 				"item.summy-reliquary.broken_heart.desc.1");

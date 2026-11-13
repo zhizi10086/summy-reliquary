@@ -69,7 +69,7 @@ public class GoldenRazorItem extends Item {
 	 * <p>它是**中立物品**，所以风味行用中立灰白（{@code #AAAAAA}），Shift 行用灰色叙述行。
 	 */
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip,
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip,
 			TooltipFlag flag) {
 		ReliquaryTooltips.neutralFlavorLine(tooltip, "item.summy-reliquary.golden_razor.tagline.1");
 		if (ReliquaryTooltips.shiftDown()) {

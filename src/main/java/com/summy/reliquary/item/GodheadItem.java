@@ -69,7 +69,7 @@ public class GodheadItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 经文：淡金斜体 + 慢速流光（其余物品仍用默认速度）
 		tooltip.add(SinTexts.scrolling("item.summy-reliquary.godhead.desc.1", PALE_GOLD, HIGHLIGHT, true,
 				SWEEP_CHARS_PER_SECOND));

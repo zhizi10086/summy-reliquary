@@ -77,7 +77,7 @@ public class SatanicBibleItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 三行深红斜体风味（1.6.9：颜色统一到恶魔线 0xC03030，仍保持斜体）
 		for (int index = 1; index <= 3; index++) {
 			tooltip.add(Component.translatable("item.summy-reliquary.satanic_bible.tagline." + index)

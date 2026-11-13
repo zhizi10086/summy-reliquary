@@ -39,7 +39,7 @@ public final class SacredVerdictTrace {
 		}
 	}
 
-	public static void onDamage(LivingDamageEvent event) {
+	public static void onDamage(LivingDamageEvent.Pre event) {
 		Trace trace = currentFor(event.getEntity());
 		if (trace != null) {
 			trace.damage(event);
@@ -176,16 +176,16 @@ public final class SacredVerdictTrace {
 					tick);
 		}
 
-		private void damage(LivingDamageEvent event) {
+		private void damage(LivingDamageEvent.Pre event) {
 			String line = String.format("#%d %s=%.4f 直接来源=%s 取消=%s",
-					damageEvents.size() + 1, sourceType(event.getSource()), event.getAmount(),
-					entityName(event.getSource().getDirectEntity()), event.isCanceled());
+					damageEvents.size() + 1, sourceType(event.getSource()), event.getNewDamage(),
+					entityName(event.getSource().getDirectEntity()), false);
 			damageEvents.add(line);
 			SummyReliquary.LOGGER.info(
 					"神圣裁决伤害探针：事务={}#{}、目标={}、阶段=LivingDamageEvent{}、"
 							+ "类型={}、金额={}、直接来源={}、取消={}、tick={}",
-					kind, id, targetName, line, sourceType(event.getSource()), event.getAmount(),
-					entityName(event.getSource().getDirectEntity()), event.isCanceled(),
+					kind, id, targetName, line, sourceType(event.getSource()), event.getNewDamage(),
+					entityName(event.getSource().getDirectEntity()), false,
 					tick);
 		}
 

@@ -4,6 +4,7 @@ import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
 import com.summy.reliquary.slot.ReliquarySlots;
 import com.summy.reliquary.util.CurioHelper;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -23,6 +24,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.core.Holder;
 import top.theillusivec4.curios.api.CuriosApi;
 
@@ -120,9 +122,11 @@ public final class LifeDeath {
 
 	/** 物品图标与提示的权威显示值；标记缺失时回退到客户端同步位。 */
 	public static boolean displayDeathForm(ItemStack stack, LivingEntity entity) {
-		if (stack != null && !stack.isEmpty() && stack.hasTag()
-				&& stack.getTag().contains(DISPLAY_TAG)) {
-			return stack.getTag().getBoolean(DISPLAY_TAG);
+		if (stack != null && !stack.isEmpty()) {
+			CustomData data = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+			if (data.contains(DISPLAY_TAG)) {
+				return data.copyTag().getBoolean(DISPLAY_TAG);
+			}
 		}
 		return entity != null && PlayerFlags.isDeathForm(entity);
 	}
@@ -402,13 +406,10 @@ public final class LifeDeath {
 	}
 
 	private static void removeTag(ItemStack stack, String key) {
-		if (stack == null || !stack.hasTag()) {
+		if (stack == null || stack.isEmpty()) {
 			return;
 		}
-		stack.getTag().remove(key);
-		if (stack.getTag().isEmpty()) {
-			stack.setTag(null);
-		}
+		CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(key));
 	}
 
 	/** 清理旧版卸装补发遗留状态；已经复制出的实体物品只清标记，不主动删除。 */
@@ -646,16 +647,14 @@ public final class LifeDeath {
 			}
 			ItemStack updated = worn.copy();
 			if (deathForm) {
-				updated.getOrCreateTag().putBoolean(DISPLAY_TAG, true);
-			} else if (updated.hasTag()) {
-				updated.getTag().remove(DISPLAY_TAG);
+				CustomData.update(DataComponents.CUSTOM_DATA, updated,
+						tag -> tag.putBoolean(DISPLAY_TAG, true));
+			} else {
+				CustomData.update(DataComponents.CUSTOM_DATA, updated,
+						tag -> tag.remove(DISPLAY_TAG));
 			}
-			if (updated.hasTag()) {
-				updated.getTag().remove(LEGACY_RETURN_TAG);
-				if (updated.getTag().isEmpty()) {
-					updated.setTag(null);
-				}
-			}
+			CustomData.update(DataComponents.CUSTOM_DATA, updated,
+					tag -> tag.remove(LEGACY_RETURN_TAG));
 			if (!ItemStack.matches(updated, worn)) {
 				covenant.getStacks().setStackInSlot(index, updated);
 			}

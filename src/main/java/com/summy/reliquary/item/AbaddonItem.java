@@ -47,7 +47,7 @@ public class AbaddonItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 描述行：按你的要求用红色
 		tooltip.add(Component.translatable("item.summy-reliquary.abaddon.tagline.1")
 				.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(TAGLINE_COLOR))));

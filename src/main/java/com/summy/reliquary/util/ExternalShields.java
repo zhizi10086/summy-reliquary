@@ -1,11 +1,11 @@
 package com.summy.reliquary.util;
 
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.core.registries.BuiltInRegistries;
 
 /**
  * 外部护盾的软读取（1.8.5 补修）。
@@ -22,7 +22,7 @@ public final class ExternalShields {
 			ResourceLocation.fromNamespaceAndPath("summy_enchantment", "life_shield");
 
 	/** 找到的属性实例（注册表在游戏启动后冻结，找到一次就能一直用） */
-	private static Attribute cachedAttribute;
+	private static Holder<Attribute> cachedAttribute;
 
 	private ExternalShields() {
 	}
@@ -33,7 +33,7 @@ public final class ExternalShields {
 	 * @return SE 护盾值（基础值）；没装 SE、属性缺失或实体没有该属性时返回 0
 	 */
 	public static double enchantmentReforgedLifeShield(LivingEntity entity) {
-		Attribute attribute = findAttribute();
+		Holder<Attribute> attribute = findAttribute();
 		if (entity == null || attribute == null) {
 			return 0.0D;
 		}
@@ -42,12 +42,13 @@ public final class ExternalShields {
 	}
 
 	/** 按 id 找属性；两套注册表都试一遍（找不到就返回 null，下次再找） */
-	private static Attribute findAttribute() {
+	private static Holder<Attribute> findAttribute() {
 		if (cachedAttribute != null) {
 			return cachedAttribute;
 		}
 		try {
-		Attribute fromForge = BuiltInRegistries.ATTRIBUTE.get(ER_LIFE_SHIELD);
+			Holder<Attribute> fromForge = BuiltInRegistries.ATTRIBUTE
+					.getHolder(ER_LIFE_SHIELD).orElse(null);
 			if (fromForge != null) {
 				cachedAttribute = fromForge;
 				return cachedAttribute;
@@ -56,7 +57,7 @@ public final class ExternalShields {
 			// 注册表还没准备好等情况一律按"没有"处理
 		}
 		try {
-			cachedAttribute = BuiltInRegistries.ATTRIBUTE.getOptional(ER_LIFE_SHIELD).orElse(null);
+			cachedAttribute = BuiltInRegistries.ATTRIBUTE.getHolder(ER_LIFE_SHIELD).orElse(null);
 		} catch (Throwable ignored) {
 			cachedAttribute = null;
 		}

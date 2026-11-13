@@ -61,7 +61,7 @@ public final class HellfireState {
 			return Math.min(level, ReliquaryConfig.hellfireMaxLevel());
 		}
 		// 旧存档迁移：此前由带机制的 MobEffect 保存层数。
-		MobEffectInstance legacy = target.getEffect(SummyReliquary.HELLFIRE.get());
+		MobEffectInstance legacy = target.getEffect(SummyReliquary.HELLFIRE);
 		if (legacy != null && legacy.getDuration() > 0) {
 			long now = target.level().getGameTime();
 			int migrated = Math.min(ReliquaryConfig.hellfireMaxLevel(), legacy.getAmplifier() + 1);
@@ -150,7 +150,7 @@ public final class HellfireState {
 		data.remove(UNTIL);
 		data.remove(NEXT_DAMAGE);
 		data.remove(LINK_UNTIL);
-		target.removeEffect(SummyReliquary.HELLFIRE.get());
+		target.removeEffect(SummyReliquary.HELLFIRE);
 	}
 
 	public static void setNextDamageForTest(LivingEntity target, long gameTime) {
@@ -178,7 +178,7 @@ public final class HellfireState {
 	}
 
 	private static void refreshVisual(LivingEntity target, int level, int ticks) {
-		target.addEffect(new MobEffectInstance(SummyReliquary.HELLFIRE.get(), Math.max(1, ticks),
+		target.addEffect(new MobEffectInstance(SummyReliquary.HELLFIRE, Math.max(1, ticks),
 				Math.max(0, level - 1), false, true, true));
 	}
 

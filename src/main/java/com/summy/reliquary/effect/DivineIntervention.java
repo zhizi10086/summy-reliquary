@@ -187,7 +187,7 @@ public final class DivineIntervention {
 	public static void onExplosionDetonate(ExplosionEvent.Detonate event) {
 		Explosion explosion = event.getExplosion();
 		ServerLevel level = (ServerLevel) event.getLevel();
-		Vec3 origin = explosion.getPosition();
+		Vec3 origin = explosion.center();
 		event.getAffectedBlocks().removeIf(block -> {
 			Vec3 target = Vec3.atCenterOf(block);
 			return blocked(level, origin, target);

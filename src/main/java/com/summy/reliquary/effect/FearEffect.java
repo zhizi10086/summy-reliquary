@@ -24,9 +24,9 @@ public class FearEffect extends MobEffect {
 	}
 
 	@Override
-	public void applyEffectTick(LivingEntity entity, int amplifier) {
+	public boolean applyEffectTick(LivingEntity entity, int amplifier) {
 		if (!ReliquaryConfig.enableOccultEye()) {
-			return;
+			return true;
 		}
 		int duration = Math.max(20, ReliquaryConfig.fearTicks());
 		// 1.6.6：这里要的是原版「黑暗」（DARKNESS）—— 1.6.5 误写成了「失明」（BLINDNESS）
@@ -39,11 +39,12 @@ public class FearEffect extends MobEffect {
 				ReliquaryConfig.fearSlownessAmplifier(), false, false, false));
 		entity.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, duration,
 				ReliquaryConfig.fearWeaknessAmplifier(), false, false, false));
+		return true;
 	}
 
 	/** 每秒结算一次（与刷新周期一致） */
 	@Override
-	public boolean isDurationEffectTick(int duration, int amplifier) {
+	public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) {
 		return duration % 20 == 0;
 	}
 }

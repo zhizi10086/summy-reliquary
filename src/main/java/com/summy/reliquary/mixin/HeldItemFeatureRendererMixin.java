@@ -31,7 +31,7 @@ public abstract class HeldItemFeatureRendererMixin {
 		if (entity.getMainArm() != arm || !(stack.getItem() instanceof SpearItem)) {
 			return;
 		}
-		float partialTick = Minecraft.getInstance().getFrameTime();
+		float partialTick = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
 		// 戳刺：物品随三段曲线前突
 		SpearAnimation.Stab stab = SpearAnimation.stab(entity.getAttackAnim(partialTick));
 		poseStack.translate(0.0F, -0.125F, 0.125F);

@@ -49,7 +49,7 @@ public class SalvationItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 描述：两条弧线，一个名字（亮蓝）
 		tooltip.add(Component.translatable("item.summy-reliquary.salvation.tagline")
 				.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(AQUA))));

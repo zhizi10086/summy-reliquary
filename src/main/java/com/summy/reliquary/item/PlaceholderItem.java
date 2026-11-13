@@ -21,7 +21,7 @@ public class PlaceholderItem extends Item {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		tooltip.add(Component.translatable("item.summy-reliquary.placeholder.pending")
 				.withStyle(ChatFormatting.GRAY));
 	}

@@ -345,7 +345,7 @@ public class ActOfContritionItem extends Item {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 风味文本：第二行按「有没有位于主世界的个人重生点」切换（客户端读同步来的标记位）
 		boolean overworldRespawn = com.summy.reliquary.effect.PlayerFlags
 				.hasOverworldRespawn(ReliquaryTooltips.localPlayer());

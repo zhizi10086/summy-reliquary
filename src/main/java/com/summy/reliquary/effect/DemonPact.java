@@ -268,8 +268,8 @@ public final class DemonPact {
 			return 0;
 		}
 		int count = 0;
-		for (var entry : EnchantmentHelper.getEnchantments(stack).entrySet()) {
-			if (entry.getKey().isCurse()) {
+		for (var entry : EnchantmentHelper.getEnchantmentsForCrafting(stack).entrySet()) {
+			if (entry.getKey().is(net.minecraft.tags.EnchantmentTags.CURSE)) {
 				count++;
 			}
 		}

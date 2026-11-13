@@ -194,7 +194,7 @@ public final class CurioItemSupport {
 	}
 
 	/** 空属性表：本模组的属性修正统一由 AttributeManager 管理 */
-	public static Multimap<Attribute, AttributeModifier> noAttributes() {
+	public static Multimap<net.minecraft.core.Holder<Attribute>, AttributeModifier> noAttributes() {
 		return ImmutableMultimap.of();
 	}
 }

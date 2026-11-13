@@ -77,13 +77,13 @@ public class DevilCrownItem extends Item implements ICurioItem {
 
 	/** 属性全部由 {@code AttributeManager} 写入，避免 Curios 只看单格重算时的漏算 */
 	@Override
-	public Multimap<Attribute, AttributeModifier> getAttributeModifiers(SlotContext slotContext, UUID uuid,
+	public Multimap<net.minecraft.core.Holder<Attribute>, AttributeModifier> getAttributeModifiers(SlotContext slotContext, UUID uuid,
 			ItemStack stack) {
 		return CurioItemSupport.noAttributes();
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 风味两行（恶魔线深红）
 		ReliquaryTooltips.demonFlavorLine(tooltip, "item.summy-reliquary.devil_crown.tagline.1");
 		ReliquaryTooltips.demonFlavorLine(tooltip, "item.summy-reliquary.devil_crown.tagline.2");

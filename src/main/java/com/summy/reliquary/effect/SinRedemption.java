@@ -9,6 +9,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.bus.api.ICancellableEvent;
 import top.theillusivec4.curios.api.CuriosApi;
 import top.theillusivec4.curios.api.SlotContext;
 import top.theillusivec4.curios.api.SlotResult;
@@ -64,7 +65,9 @@ public final class SinRedemption {
 		player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
 				SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.8F, 1.6F);
 
-		event.setCanceled(true);
+		if (event instanceof ICancellableEvent cancellable) {
+			cancellable.setCanceled(true);
+		}
 		if (event instanceof PlayerInteractEvent.RightClickBlock blockEvent) {
 			blockEvent.setCancellationResult(InteractionResult.SUCCESS);
 		} else if (event instanceof PlayerInteractEvent.RightClickItem itemEvent) {

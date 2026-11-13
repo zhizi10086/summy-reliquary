@@ -58,7 +58,7 @@ public final class OccultEye {
 		if (target == null || !canFear(target)) {
 			return;
 		}
-		target.addEffect(new MobEffectInstance(SummyReliquary.FEAR.get(), ReliquaryConfig.fearTicks(),
+		target.addEffect(new MobEffectInstance(SummyReliquary.FEAR, ReliquaryConfig.fearTicks(),
 				0, false, true, true));
 		// 1.6.10 联动：亚巴顿 + 玄秘魔眼 → 恐惧期间额外"移速归零"
 		if (Synergies.fearFreezes(player)) {
@@ -84,7 +84,7 @@ public final class OccultEye {
 				continue;
 			}
 			boolean expired = target.level().getGameTime() > entry.getValue();
-			if (expired || !target.hasEffect(SummyReliquary.FEAR.get())) {
+			if (expired || !target.hasEffect(SummyReliquary.FEAR)) {
 				clearFreeze(target);
 				iterator.remove();
 			}

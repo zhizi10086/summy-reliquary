@@ -130,7 +130,7 @@ public final class HumbleingBundleLoot {
 			return;
 		}
 		ResourceLocation tableId = context.getQueriedLootTableId();
-		if (!tableId.equals(victim.getLootTable())) {
+		if (!tableId.equals(victim.getLootTable().location())) {
 			return;
 		}
 		ServerPlayer player = creditedPlayer(context);
@@ -307,7 +307,11 @@ public final class HumbleingBundleLoot {
 
 	private static ObjectArrayList<ItemStack> replay(LootContext source, ResourceLocation tableId) {
 		ObjectArrayList<ItemStack> result = new ObjectArrayList<>();
-		LootTable table = source.getResolver().getLootTable(tableId);
+		LootTable table = source.getResolver()
+				.get(net.minecraft.core.registries.Registries.LOOT_TABLE,
+						ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE, tableId))
+				.map(net.minecraft.core.Holder::value)
+				.orElse(LootTable.EMPTY);
 		if (table == null || table == LootTable.EMPTY) {
 			return result;
 		}
@@ -315,7 +319,7 @@ public final class HumbleingBundleLoot {
 		LootContext replay = new LootContext.Builder(source)
 				.withOptionalRandomSeed(seed)
 				.withQueriedLootTableId(tableId)
-				.create(tableId);
+				.create(java.util.Optional.empty());
 		REPLAY_DEPTH.set(REPLAY_DEPTH.get() + 1);
 		try {
 			table.getRandomItems(replay, result::add);
@@ -335,7 +339,7 @@ public final class HumbleingBundleLoot {
 		int max = Math.min(container.getMaxStackSize(), remaining.getMaxStackSize());
 		for (int slot = 0; slot < container.getContainerSize() && !remaining.isEmpty(); slot++) {
 			ItemStack existing = container.getItem(slot);
-			if (existing.isEmpty() || !ItemStack.isSameItemSameTags(existing, remaining)) {
+			if (existing.isEmpty() || !ItemStack.isSameItemSameComponents(existing, remaining)) {
 				continue;
 			}
 			int moved = Math.min(remaining.getCount(), max - existing.getCount());
@@ -370,7 +374,7 @@ public final class HumbleingBundleLoot {
 				.create(LootContextParamSets.CHEST);
 		return new LootContext.Builder(params)
 				.withQueriedLootTableId(tableId)
-				.create(tableId);
+				.create(java.util.Optional.empty());
 	}
 
 	@Nullable
@@ -378,9 +382,9 @@ public final class HumbleingBundleLoot {
 		if (context.getParamOrNull(LootContextParams.LAST_DAMAGE_PLAYER) instanceof ServerPlayer player) {
 			return player;
 		}
-		Entity entity = context.getParamOrNull(LootContextParams.KILLER_ENTITY);
+		Entity entity = context.getParamOrNull(LootContextParams.ATTACKING_ENTITY);
 		if (entity == null) {
-			entity = context.getParamOrNull(LootContextParams.DIRECT_KILLER_ENTITY);
+			entity = context.getParamOrNull(LootContextParams.DIRECT_ATTACKING_ENTITY);
 		}
 		return resolveOwner(entity, new HashSet<>(), 0);
 	}
@@ -679,7 +683,8 @@ public final class HumbleingBundleLoot {
 		}
 
 		static OpenWindow cart(ServerLevel level, AbstractMinecartContainer cart, int tick) {
-			return new OpenWindow(level, Map.of(), cart.getUUID(), cart.position(), cart.getLootTable(), tick);
+			return new OpenWindow(level, Map.of(), cart.getUUID(), cart.position(),
+					cart.getLootTable().location(), tick);
 		}
 
 		boolean matches(LootContext context) {

@@ -31,7 +31,8 @@ public class RitualDaggerItem extends SwordItem {
 
 	public RitualDaggerItem(Tier tier, int attackDamageModifier, float attackSpeedModifier,
 			Properties properties, String nameKey, boolean darkArts) {
-		super(tier, attackDamageModifier, attackSpeedModifier, properties);
+		super(tier, properties.attributes(SwordItem.createAttributes(
+				tier, attackDamageModifier, attackSpeedModifier)));
 		this.nameKey = nameKey;
 		this.darkArts = darkArts;
 	}
@@ -76,7 +77,7 @@ public class RitualDaggerItem extends SwordItem {
 	 * 暗仪刺刀比献祭匕首多一行括注（无敌更久、斩击更痛）。
 	 */
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip,
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip,
 			TooltipFlag flag) {
 		ReliquaryTooltips.demonFlavorLine(tooltip, nameKey + ".tagline.1");
 		// 1.8.2：未进恶魔线（暗仪刺刀还要邪恶 700）时与其它路线饰品一致 —— 不可查阅功能

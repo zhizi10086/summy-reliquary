@@ -194,7 +194,7 @@ public final class HexSeal {
 				return false;
 			}
 			LivingEntity target = CovenantMarkerEffects.findEntity(server, entry.getKey());
-			CovenantMarkerEffects.remove(target, SummyReliquary.HEX_SEAL_EFFECT.get());
+			CovenantMarkerEffects.remove(target, SummyReliquary.HEX_SEAL_EFFECT);
 			return true;
 		});
 		synchronizeMarkers(server);
@@ -233,7 +233,7 @@ public final class HexSeal {
 	}
 
 	public static void onDeath(LivingEntity entity) {
-		CovenantMarkerEffects.remove(entity, SummyReliquary.HEX_SEAL_EFFECT.get());
+		CovenantMarkerEffects.remove(entity, SummyReliquary.HEX_SEAL_EFFECT);
 		Mark mark = activeMark(entity);
 		if (mark == null) {
 			MARKS.remove(entity.getUUID());
@@ -267,10 +267,10 @@ public final class HexSeal {
 	public static void reconcileMarker(LivingEntity entity) {
 		Mark mark = activeMark(entity);
 		if (mark == null) {
-			CovenantMarkerEffects.remove(entity, SummyReliquary.HEX_SEAL_EFFECT.get());
+			CovenantMarkerEffects.remove(entity, SummyReliquary.HEX_SEAL_EFFECT);
 			return;
 		}
-		CovenantMarkerEffects.mirror(entity, SummyReliquary.HEX_SEAL_EFFECT.get(), mark.until());
+		CovenantMarkerEffects.mirror(entity, SummyReliquary.HEX_SEAL_EFFECT, mark.until());
 	}
 
 	public static void clear() {
@@ -302,7 +302,7 @@ public final class HexSeal {
 				continue;
 			}
 			LivingEntity target = CovenantMarkerEffects.findEntity(owner.getServer(), entry.getKey());
-			CovenantMarkerEffects.remove(target, SummyReliquary.HEX_SEAL_EFFECT.get());
+			CovenantMarkerEffects.remove(target, SummyReliquary.HEX_SEAL_EFFECT);
 			MARKS.remove(entry.getKey());
 		}
 		TRANSFERS.remove(ownerId);
@@ -315,7 +315,7 @@ public final class HexSeal {
 		long until = target.level().getGameTime() + ticks;
 		Mark merged = MARKS.merge(target.getUUID(), new Mark(owner, until), (old, fresh) ->
 				new Mark(fresh.owner(), Math.max(old.until(), fresh.until())));
-		CovenantMarkerEffects.mirror(target, SummyReliquary.HEX_SEAL_EFFECT.get(), merged.until());
+		CovenantMarkerEffects.mirror(target, SummyReliquary.HEX_SEAL_EFFECT, merged.until());
 	}
 
 	private static void synchronizeMarkers(MinecraftServer server) {
@@ -323,7 +323,7 @@ public final class HexSeal {
 			LivingEntity target = CovenantMarkerEffects.findEntity(server, entry.getKey());
 			if (target != null && target.isAlive()) {
 				CovenantMarkerEffects.mirror(target,
-						SummyReliquary.HEX_SEAL_EFFECT.get(), entry.getValue().until());
+						SummyReliquary.HEX_SEAL_EFFECT, entry.getValue().until());
 			}
 		}
 	}

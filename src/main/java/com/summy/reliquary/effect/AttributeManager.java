@@ -173,7 +173,7 @@ public final class AttributeManager {
 				AttributeModifier.Operation.ADD_VALUE);
 
 		// 天使线长矛（1.7.9）：手持且达标才有"攻击距离 +0.5 / +1.0"（切走立刻失效）
-		apply(entity, net.neoforged.neoforge.common.NeoForgeMod.ENTITY_REACH, SPEAR_REACH, "spear_reach",
+		apply(entity, Attributes.ENTITY_INTERACTION_RANGE, SPEAR_REACH, "spear_reach",
 				WeaponGates.reachBonus(entity), AttributeModifier.Operation.ADD_VALUE);
 
 		// 圣心：生命 / 护甲 / 韧性 / 攻速 / 移速（加护饰品，1.5.5）
@@ -496,10 +496,10 @@ public final class AttributeManager {
 		double baseFactor = 1.0D;
 		double totalFactor = 1.0D;
 		for (AttributeModifier modifier : instance.getModifiers()) {
-			switch (modifier.getOperation()) {
-				case ADD_VALUE -> addition += modifier.getAmount();
-				case ADD_MULTIPLIED_BASE -> baseFactor += modifier.getAmount();
-				case ADD_MULTIPLIED_TOTAL -> totalFactor *= 1.0D + modifier.getAmount();
+			switch (modifier.operation()) {
+				case ADD_VALUE -> addition += modifier.amount();
+				case ADD_MULTIPLIED_BASE -> baseFactor += modifier.amount();
+				case ADD_MULTIPLIED_TOTAL -> totalFactor *= 1.0D + modifier.amount();
 			}
 		}
 		double multiplier = baseFactor * totalFactor;

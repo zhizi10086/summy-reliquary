@@ -54,7 +54,7 @@ public class FinalRevelationItem extends Item implements ICurioItem {
 
 	/** 属性修正由 AttributeManager 统一管理（顺带避免 Curios 在提示里加属性块） */
 	@Override
-	public Multimap<Attribute, AttributeModifier> getAttributeModifiers(SlotContext slotContext, UUID uuid,
+	public Multimap<net.minecraft.core.Holder<Attribute>, AttributeModifier> getAttributeModifiers(SlotContext slotContext, UUID uuid,
 			ItemStack stack) {
 		return CurioItemSupport.noAttributes();
 	}
@@ -78,7 +78,7 @@ public class FinalRevelationItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 风味：金色底 + 滚动金光
 		tooltip.add(SinTexts.scrolling("item.summy-reliquary.final_revelation.tagline",
 				TAGLINE_GOLD, TAGLINE_HIGHLIGHT, false));

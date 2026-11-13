@@ -2,6 +2,7 @@ package com.summy.reliquary.effect;
 
 import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
+import net.minecraft.core.Holder;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -28,7 +29,7 @@ public final class TimedMarkerState {
 		}
 		long until = entity.level().getGameTime() + ReliquaryConfig.revelationLightBuffTicks();
 		entity.getPersistentData().putLong(REVELATION_UNTIL, until);
-		applyVisual(entity, SummyReliquary.REVELATION_LIGHT.get(),
+		applyVisual(entity, SummyReliquary.REVELATION_LIGHT,
 				ReliquaryConfig.revelationLightBuffTicks());
 	}
 
@@ -46,7 +47,7 @@ public final class TimedMarkerState {
 		int ticks = ReliquaryConfig.demonicBrandTicks();
 		long until = entity.level().getGameTime() + ticks;
 		entity.getPersistentData().putLong(DEMONIC_BRAND_UNTIL, until);
-		applyVisual(entity, SummyReliquary.DEMONIC_BRAND.get(), ticks);
+		applyVisual(entity, SummyReliquary.DEMONIC_BRAND, ticks);
 	}
 
 	/** 是否仍带有未过期的恶魔印记内部标记。 */
@@ -87,8 +88,8 @@ public final class TimedMarkerState {
 		}
 		entity.getPersistentData().remove(REVELATION_UNTIL);
 		entity.getPersistentData().remove(DEMONIC_BRAND_UNTIL);
-		entity.removeEffect(SummyReliquary.REVELATION_LIGHT.get());
-		entity.removeEffect(SummyReliquary.DEMONIC_BRAND.get());
+		entity.removeEffect(SummyReliquary.REVELATION_LIGHT);
+		entity.removeEffect(SummyReliquary.DEMONIC_BRAND);
 	}
 
 	/** 自检：读取内部剩余 tick；-1 表示没有内部标记。 */
@@ -124,7 +125,7 @@ public final class TimedMarkerState {
 		return false;
 	}
 
-	private static void applyVisual(LivingEntity entity, MobEffect effect, int ticks) {
+	private static void applyVisual(LivingEntity entity, Holder<MobEffect> effect, int ticks) {
 		entity.addEffect(new MobEffectInstance(effect, Math.max(1, ticks),
 				0, false, true, true));
 	}

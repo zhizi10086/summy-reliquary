@@ -1,6 +1,6 @@
 package com.summy.reliquary.loot;
 
-import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.world.item.ItemStack;
@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 
 /** Forge 全局战利品入口；实际来源过滤与抽取逻辑在 {@link CovenantAcquisition}。 */
 public final class CovenantLootModifier extends LootModifier {
-	public static final Codec<CovenantLootModifier> CODEC = RecordCodecBuilder.create(instance ->
+	public static final MapCodec<CovenantLootModifier> CODEC = RecordCodecBuilder.mapCodec(instance ->
 			codecStart(instance).apply(instance, CovenantLootModifier::new));
 
 	private CovenantLootModifier(LootItemCondition[] conditions) {
@@ -26,7 +26,7 @@ public final class CovenantLootModifier extends LootModifier {
 	}
 
 	@Override
-	public Codec<? extends IGlobalLootModifier> codec() {
+	public MapCodec<? extends IGlobalLootModifier> codec() {
 		return CODEC;
 	}
 }

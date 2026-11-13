@@ -1,5 +1,6 @@
 package com.summy.reliquary.effect;
 
+import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.particles.ParticleTypes;
@@ -262,9 +263,10 @@ public final class ShadowDash {
 	 * 由 {@code LivingIncomingDamageEvent} 在真正结算时叠加 —— 所以这里算出的就是"该打多少"的理论值。
 	 */
 	private static float slashValue(ServerPlayer player, State state, LivingEntity target) {
-		double base = player.getAttributeValue(Attributes.ATTACK_DAMAGE);
+		float base = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE);
 		if (target != null && state.weapon != null) {
-			base += EnchantmentHelper.getDamageBonus(state.weapon, target.getMobType());
+			base = EnchantmentHelper.modifyDamage(player.serverLevel(), state.weapon, target,
+					player.damageSources().playerAttack(player), base);
 		}
 		return (float) Math.max(0.0D, base * ReliquaryConfig.shadowDashMultiplier(state.darkArts));
 	}
@@ -448,7 +450,7 @@ public final class ShadowDash {
 			return 0.0D;
 		}
 		var modifier = instance.getModifier(SummyReliquary.id("shadow_dash_movement"));
-		return modifier == null ? 0.0D : modifier.getAmount() * 100.0D;
+		return modifier == null ? 0.0D : modifier.amount() * 100.0D;
 	}
 
 }

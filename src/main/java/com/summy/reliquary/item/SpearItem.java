@@ -59,7 +59,8 @@ public class SpearItem extends SwordItem {
 
 	public SpearItem(Tier tier, int attackDamageModifier, float attackSpeedModifier, Properties properties,
 			String nameKey, boolean throwable) {
-		super(tier, attackDamageModifier, attackSpeedModifier, properties);
+		super(tier, properties.attributes(SwordItem.createAttributes(
+				tier, attackDamageModifier, attackSpeedModifier)));
 		this.nameKey = nameKey;
 		this.throwable = throwable;
 	}
@@ -82,7 +83,7 @@ public class SpearItem extends SwordItem {
 	}
 
 	@Override
-	public int getUseDuration(ItemStack stack) {
+	public int getUseDuration(ItemStack stack, LivingEntity entity) {
 		return MAX_USE_TICKS;
 	}
 
@@ -117,7 +118,7 @@ public class SpearItem extends SwordItem {
 		if (!throwable || !WeaponGates.qualified(player, this)) {
 			return;
 		}
-		int charge = getUseDuration(stack) - timeLeft;
+		int charge = getUseDuration(stack, entity) - timeLeft;
 		if (charge < MIN_CHARGE_TICKS || level.isClientSide || player.getCooldowns().isOnCooldown(this)) {
 			return;
 		}
@@ -130,7 +131,7 @@ public class SpearItem extends SwordItem {
 		spear.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, velocity, 1.0F);
 		level.addFreshEntity(spear);
 		// 本体不消耗，只扣耐久
-		stack.hurtAndBreak(1, player, broken -> broken.broadcastBreakEvent(player.getUsedItemHand()));
+		stack.hurtAndBreak(1, player, LivingEntity.getSlotForHand(player.getUsedItemHand()));
 		// 冷却上限：幻影回收时会被提前撤掉
 		player.getCooldowns().addCooldown(this, ThrownSpear.THROW_BLOCK_TICKS);
 		level.playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -144,7 +145,7 @@ public class SpearItem extends SwordItem {
 	 * 免得改了配置之后提示与实际不符。
 	 */
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip,
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip,
 			TooltipFlag flag) {
 		ReliquaryTooltips.angelFlavorLine(tooltip, nameKey + ".tagline.1");
 		// 1.8.2：没有天使标记时与其它天使线饰品一致 —— 不可查阅功能

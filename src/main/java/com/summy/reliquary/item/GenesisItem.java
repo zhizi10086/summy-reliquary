@@ -425,7 +425,7 @@ public class GenesisItem extends Item {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 1.6.10：获取前禁止查看 —— 没"知道"过它时只有名字 + 一行「你还不知此为何物。」
 		LivingEntity self = ReliquaryTooltips.localPlayer();
 		if (self != null && !isKnown(self)) {

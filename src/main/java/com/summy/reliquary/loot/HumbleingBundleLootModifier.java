@@ -1,6 +1,6 @@
 package com.summy.reliquary.loot;
 
-import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.world.item.ItemStack;
@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 
 /** 慈善捆绑包的 Forge 全局战利品入口。实际判定集中在 {@link HumbleingBundleLoot}。 */
 public final class HumbleingBundleLootModifier extends LootModifier {
-	public static final Codec<HumbleingBundleLootModifier> CODEC = RecordCodecBuilder.create(instance ->
+	public static final MapCodec<HumbleingBundleLootModifier> CODEC = RecordCodecBuilder.mapCodec(instance ->
 			codecStart(instance).apply(instance, HumbleingBundleLootModifier::new));
 
 	private HumbleingBundleLootModifier(LootItemCondition[] conditions) {
@@ -27,7 +27,7 @@ public final class HumbleingBundleLootModifier extends LootModifier {
 	}
 
 	@Override
-	public Codec<? extends IGlobalLootModifier> codec() {
+	public MapCodec<? extends IGlobalLootModifier> codec() {
 		return CODEC;
 	}
 }

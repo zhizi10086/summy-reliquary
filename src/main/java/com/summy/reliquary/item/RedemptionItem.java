@@ -21,7 +21,7 @@ public class RedemptionItem extends Item {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		tooltip.add(SinTexts.scrollingGold("item.summy-reliquary.redemption.desc", 0xFFFFFF, false));
 	}
 }

@@ -9,6 +9,7 @@ import net.minecraft.world.food.FoodData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.UseAnim;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.bus.api.ICancellableEvent;
 import top.theillusivec4.curios.api.CuriosApi;
 
 /**
@@ -40,7 +41,9 @@ public final class RiceHungerLock {
 		ItemStack stack = event.getItemStack();
 		if (wearsRice(player) && !com.summy.reliquary.sin.SinEffects.gluttonyDisablesRice(player)
 				&& isConsumable(stack)) {
-			event.setCanceled(true);
+			if (event instanceof ICancellableEvent cancellable) {
+				cancellable.setCanceled(true);
+			}
 			return true;
 		}
 		return false;

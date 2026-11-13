@@ -5,6 +5,7 @@ import com.summy.reliquary.config.ReliquaryConfig;
 import com.summy.reliquary.effect.AttributeManager;
 import com.summy.reliquary.effect.RiceHungerLock;
 import com.summy.reliquary.util.CurioHelper;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -413,14 +414,11 @@ public final class SinEffects {
 		if (!effectsEnabled(player) || SinManager.state(player, Sin.GLUTTONY) != SinManager.SinState.UNACTIVATED) {
 			return;
 		}
-		if (!stack.isEdible()) {
-			return;
-		}
-		net.minecraft.world.food.FoodProperties food = stack.getFoodProperties(player);
+		net.minecraft.world.food.FoodProperties food = stack.get(DataComponents.FOOD);
 		if (food == null) {
 			return;
 		}
-		double saturation = food.getNutrition() * food.getSaturationModifier() * 2.0D;
+		double saturation = food.saturation();
 		if (saturation <= ReliquaryConfig.gluttonySaturationThreshold()) {
 			return;
 		}
@@ -533,7 +531,7 @@ public final class SinEffects {
 			}
 		}
 		for (MobEffectInstance effect : target.getActiveEffects()) {
-			if (effect.getEffect().isBeneficial()) {
+			if (effect.getEffect().value().isBeneficial()) {
 				return true;
 			}
 		}

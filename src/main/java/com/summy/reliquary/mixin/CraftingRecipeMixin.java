@@ -20,7 +20,7 @@ public abstract class CraftingRecipeMixin {
 	private void summyReliquary$blockAutomatedAssembly(CraftingContainer container,
 			RegistryAccess registryAccess, CallbackInfoReturnable<ItemStack> cir) {
 		Recipe<?> recipe = (Recipe<?>) (Object) this;
-		if (GatedRecipeRegistry.isGatedRecipe(recipe) && !GatedRecipeContext.isManualCrafting()) {
+		if (GatedRecipeRegistry.isGatedRecipe(recipe, registryAccess) && !GatedRecipeContext.isManualCrafting()) {
 			cir.setReturnValue(ItemStack.EMPTY);
 		}
 	}

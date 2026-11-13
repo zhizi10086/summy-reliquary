@@ -58,7 +58,7 @@ public class BrimstoneItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 风味两行（1.6.9：恶魔线深红）；引号句保持暗红斜体
 		ReliquaryTooltips.demonFlavorLine(tooltip, "item.summy-reliquary.brimstone.tagline.1");
 		ReliquaryTooltips.demonFlavorLine(tooltip, "item.summy-reliquary.brimstone.tagline.2");

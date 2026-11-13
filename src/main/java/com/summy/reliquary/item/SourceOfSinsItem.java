@@ -92,7 +92,7 @@ public class SourceOfSinsItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 风味（褪色暗红；七罪赎清后换成亮蓝的等待救赎）；栏位行由 Curios 自带文本负责
 		boolean allRedeemed = ReliquaryClientState.allRedeemed(Sin.values().length);
 		tooltip.add(allRedeemed

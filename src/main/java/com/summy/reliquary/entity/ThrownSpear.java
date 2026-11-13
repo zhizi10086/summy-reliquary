@@ -8,6 +8,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -86,7 +87,7 @@ public class ThrownSpear extends AbstractArrow {
 	}
 
 	public ThrownSpear(Level level, LivingEntity shooter, ItemStack stack, float attackDamage) {
-		super(SummyReliquary.THROWN_SPEAR.get(), shooter, level);
+		super(SummyReliquary.THROWN_SPEAR.get(), shooter, level, stack.copy(), stack.copy());
 		this.lockedAttackDamage = attackDamage;
 		setDisplayStack(stack.copy());
 		// 本体没被拿走 → 幻影一律不可拾取（避免任何"复制一把"的分支）
@@ -96,9 +97,9 @@ public class ThrownSpear extends AbstractArrow {
 	// ==================== 同步数据 ====================
 
 	@Override
-	protected void defineSynchedData() {
-		super.defineSynchedData();
-		this.entityData.define(DATA_ITEM, ItemStack.EMPTY);
+	protected void defineSynchedData(SynchedEntityData.Builder builder) {
+		super.defineSynchedData(builder);
+		builder.define(DATA_ITEM, ItemStack.EMPTY);
 	}
 
 	/** 渲染与附魔计算用的物品堆栈 */
@@ -121,6 +122,11 @@ public class ThrownSpear extends AbstractArrow {
 		return ItemStack.EMPTY;
 	}
 
+	@Override
+	protected ItemStack getDefaultPickupItem() {
+		return new ItemStack(SummyReliquary.HOLY_SPEAR.get());
+	}
+
 	/** 幻影是否可被拾取 —— 恒为 false（自检与外部判断用） */
 	public boolean isPickupAllowed() {
 		return this.pickup != Pickup.DISALLOWED && !getPickupItem().isEmpty();
@@ -141,9 +147,11 @@ public class ThrownSpear extends AbstractArrow {
 			source = living.damageSources().thrown(this, living);
 		}
 		if (source != null) {
-			float damage = lockedAttackDamage
-					+ EnchantmentHelper.getDamageBonus(getDisplayStack(), target instanceof LivingEntity livingTarget
-							? livingTarget.getMobType() : net.minecraft.world.entity.MobType.UNDEFINED);
+			float damage = lockedAttackDamage;
+			if (level() instanceof ServerLevel serverLevel) {
+				damage = EnchantmentHelper.modifyDamage(
+						serverLevel, getDisplayStack(), target, source, damage);
+			}
 			if (damage > 0.0F) {
 				// 1.8.2：投掷走的是与左键近战同一个 playerAttack 源，这里打个「投掷结算中」标记，
 				// 让献祭的近战增伤明确跳过投掷（严格左键近战）
@@ -314,7 +322,9 @@ public class ThrownSpear extends AbstractArrow {
 	@Override
 	public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
 		super.addAdditionalSaveData(tag);
-		tag.put("SpearItem", getDisplayStack().save(new net.minecraft.nbt.CompoundTag()));
+		tag.put("SpearItem", ItemStack.CODEC
+				.encodeStart(NbtOps.INSTANCE, getDisplayStack())
+				.getOrThrow());
 		tag.putFloat("LockedDamage", lockedAttackDamage);
 		tag.putInt("FlightTicks", flightTicks);
 		tag.putBoolean("Landed", landed);
@@ -325,7 +335,9 @@ public class ThrownSpear extends AbstractArrow {
 	public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
 		super.readAdditionalSaveData(tag);
 		if (tag.contains("SpearItem")) {
-			setDisplayStack(ItemStack.of(tag.getCompound("SpearItem")));
+			ItemStack.CODEC.parse(NbtOps.INSTANCE, tag.get("SpearItem"))
+					.result()
+					.ifPresent(this::setDisplayStack);
 		}
 		lockedAttackDamage = tag.getFloat("LockedDamage");
 		flightTicks = tag.getInt("FlightTicks");

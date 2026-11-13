@@ -16,6 +16,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -88,8 +89,9 @@ public class ReliquaryJeiPlugin implements IModPlugin {
 		}
 		Map<ResourceLocation, CraftingRecipe> recipes = new LinkedHashMap<>();
 		for (Map.Entry<ResourceLocation, Boolean> entry : wanted.entrySet()) {
-			Optional<? extends Recipe<?>> recipe = client.level.getRecipeManager().byKey(entry.getKey());
+			Optional<RecipeHolder<?>> recipe = client.level.getRecipeManager().byKey(entry.getKey());
 			CraftingRecipe crafting = recipe
+					.map(RecipeHolder::value)
 					.filter(CraftingRecipe.class::isInstance)
 					.map(CraftingRecipe.class::cast)
 					.orElse(null);

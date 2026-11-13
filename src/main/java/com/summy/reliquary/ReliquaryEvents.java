@@ -781,7 +781,7 @@ public final class ReliquaryEvents {
 
 	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGHEST)
 	public static void onLivingDamageTraceSacredVerdict(
-			net.neoforged.neoforge.event.entity.living.LivingDamageEvent event) {
+			net.neoforged.neoforge.event.entity.living.LivingDamageEvent.Pre event) {
 		if (!event.getEntity().level().isClientSide()) {
 			com.summy.reliquary.effect.SacredVerdictTrace.onDamage(event);
 		}
@@ -806,8 +806,8 @@ public final class ReliquaryEvents {
 	@SubscribeEvent
 	public static void onLivingTickHellfire(
 			EntityTickEvent.Post event) {
-		if (!event.getEntity().level().isClientSide()) {
-			com.summy.reliquary.effect.HellfireState.tick(event.getEntity());
+		if (event.getEntity() instanceof LivingEntity living && !living.level().isClientSide()) {
+			com.summy.reliquary.effect.HellfireState.tick(living);
 		}
 	}
 
@@ -1026,14 +1026,14 @@ public final class ReliquaryEvents {
 		// （必须放在前面的免疫判定之前：亚巴顿不在 DivineImmunity 的名单里）
 		if (com.summy.reliquary.effect.DebuffImmunity.covers(event.getEntity())
 				&& com.summy.reliquary.effect.DebuffImmunity.blocks(event.getEffectInstance().getEffect())) {
-			event.setResult(net.neoforged.bus.api.Event.Result.DENY);
+			event.setResult(net.neoforged.neoforge.event.entity.living.MobEffectEvent.Applicable.Result.DO_NOT_APPLY);
 			return;
 		}
 		if (!com.summy.reliquary.effect.DivineImmunity.immune(event.getEntity())) {
 			return;
 		}
 		if (com.summy.reliquary.effect.DivineImmunity.blocks(event.getEffectInstance().getEffect())) {
-			event.setResult(net.neoforged.bus.api.Event.Result.DENY);
+			event.setResult(net.neoforged.neoforge.event.entity.living.MobEffectEvent.Applicable.Result.DO_NOT_APPLY);
 		}
 	}
 
@@ -1134,9 +1134,9 @@ public final class ReliquaryEvents {
 	 * 因为 Kilt 20.1.22 会派发事件但忽略金额写回。
 	 */
 	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
-	public static void onLivingDamagePools(net.neoforged.neoforge.event.entity.living.LivingDamageEvent event) {
+	public static void onLivingDamagePools(net.neoforged.neoforge.event.entity.living.LivingDamageEvent.Pre event) {
 		com.summy.reliquary.effect.DamagePools.applyToHealthDamage(event);
-		if (!event.isCanceled() && event.getAmount() >= 0.0F) {
+		if (event.getNewDamage() >= 0.0F) {
 			com.summy.reliquary.effect.SacredVerdict.confirmLanding(event);
 		}
 	}

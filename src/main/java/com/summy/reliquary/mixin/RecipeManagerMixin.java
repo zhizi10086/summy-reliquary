@@ -1,11 +1,11 @@
 package com.summy.reliquary.mixin;
 
-import com.mojang.datafixers.util.Pair;
 import com.summy.reliquary.integration.recipe.GatedRecipeContext;
 import com.summy.reliquary.integration.recipe.GatedRecipeRegistry;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Container;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeInput;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
@@ -22,51 +22,49 @@ import java.util.Optional;
 @Mixin(RecipeManager.class)
 public abstract class RecipeManagerMixin {
 	@Inject(
-			method = "getRecipeFor(Lnet/minecraft/world/item/crafting/RecipeType;Lnet/minecraft/world/Container;Lnet/minecraft/world/level/Level;)Ljava/util/Optional;",
+			method = "getRecipeFor(Lnet/minecraft/world/item/crafting/RecipeType;Lnet/minecraft/world/item/crafting/RecipeInput;Lnet/minecraft/world/level/Level;)Ljava/util/Optional;",
 			at = @At("RETURN"),
 			cancellable = true,
 			require = 1
 	)
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	private void summyReliquary$filterAutomatedRecipe(RecipeType type, Container container,
+	private void summyReliquary$filterAutomatedRecipe(RecipeType type, RecipeInput input,
 			Level level, CallbackInfoReturnable<Optional> cir) {
 		Optional<?> found = cir.getReturnValue();
 		if (GatedRecipeContext.isManualCrafting() || found == null || found.isEmpty()) {
 			return;
 		}
-		if (found.get() instanceof Recipe<?> recipe && GatedRecipeRegistry.isGatedRecipe(recipe)) {
+		if (found.get() instanceof RecipeHolder<?> holder && GatedRecipeRegistry.isGatedRecipe(holder)) {
 			cir.setReturnValue(Optional.empty());
 		}
 	}
 
 	@Inject(
-			method = "getRecipeFor(Lnet/minecraft/world/item/crafting/RecipeType;Lnet/minecraft/world/Container;Lnet/minecraft/world/level/Level;Lnet/minecraft/resources/ResourceLocation;)Ljava/util/Optional;",
+			method = "getRecipeFor(Lnet/minecraft/world/item/crafting/RecipeType;Lnet/minecraft/world/item/crafting/RecipeInput;Lnet/minecraft/world/level/Level;Lnet/minecraft/resources/ResourceLocation;)Ljava/util/Optional;",
 			at = @At("RETURN"),
 			cancellable = true,
 			require = 1
 	)
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	private void summyReliquary$filterAutomatedRecipeById(RecipeType type, Container container,
+	private void summyReliquary$filterAutomatedRecipeById(RecipeType type, RecipeInput input,
 			Level level, ResourceLocation id, CallbackInfoReturnable<Optional> cir) {
 		Optional<?> found = cir.getReturnValue();
 		if (GatedRecipeContext.isManualCrafting() || found == null || found.isEmpty()) {
 			return;
 		}
-		if (found.get() instanceof Pair<?, ?> pair
-				&& pair.getSecond() instanceof Recipe<?> recipe
-				&& GatedRecipeRegistry.isGatedRecipe(recipe)) {
+		if (found.get() instanceof RecipeHolder<?> holder && GatedRecipeRegistry.isGatedRecipe(holder)) {
 			cir.setReturnValue(Optional.empty());
 		}
 	}
 
 	@Inject(
-			method = "getRecipesFor(Lnet/minecraft/world/item/crafting/RecipeType;Lnet/minecraft/world/Container;Lnet/minecraft/world/level/Level;)Ljava/util/List;",
+			method = "getRecipesFor(Lnet/minecraft/world/item/crafting/RecipeType;Lnet/minecraft/world/item/crafting/RecipeInput;Lnet/minecraft/world/level/Level;)Ljava/util/List;",
 			at = @At("RETURN"),
 			cancellable = true,
 			require = 1
 	)
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	private void summyReliquary$filterAutomatedRecipes(RecipeType type, Container container,
+	private void summyReliquary$filterAutomatedRecipes(RecipeType type, RecipeInput input,
 			Level level, CallbackInfoReturnable<List> cir) {
 		if (GatedRecipeContext.isManualCrafting()) {
 			return;
@@ -77,7 +75,7 @@ public abstract class RecipeManagerMixin {
 		}
 		List<Object> filtered = new ArrayList<>(found.size());
 		for (Object value : found) {
-			if (value instanceof Recipe<?> recipe && GatedRecipeRegistry.isGatedRecipe(recipe)) {
+			if (value instanceof RecipeHolder<?> holder && GatedRecipeRegistry.isGatedRecipe(holder)) {
 				continue;
 			}
 			filtered.add(value);

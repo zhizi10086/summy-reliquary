@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -43,6 +44,9 @@ import net.minecraft.world.phys.Vec3;
  * </ul>
  */
 public class ThrownRazor extends AbstractArrow {
+	/** 1.21 的原版穿透等级字段不再允许子类写入，这里通过覆写读取口保留配置含义。 */
+	private byte pierceLevel;
+
 	/** 渲染用的物品堆栈（同步到客户端） */
 	private static final EntityDataAccessor<ItemStack> DATA_ITEM =
 			SynchedEntityData.defineId(ThrownRazor.class, EntityDataSerializers.ITEM_STACK);
@@ -70,22 +74,24 @@ public class ThrownRazor extends AbstractArrow {
 	}
 
 	public ThrownRazor(Level level, ServerPlayer shooter) {
-		super(SummyReliquary.THROWN_RAZOR.get(), shooter, level);
+		super(SummyReliquary.THROWN_RAZOR.get(), shooter, level,
+				new ItemStack(SummyReliquary.GOLDEN_RAZOR.get()),
+				new ItemStack(SummyReliquary.GOLDEN_RAZOR.get()));
 		// 本体没被拿走 → 幻影一律不可拾取
 		this.pickup = Pickup.DISALLOWED;
 		// 伤害完全由我们自己结算（原版那条路径在 0 伤害时会把速度反弹，穿不透）
 		setBaseDamage(0.0D);
 		setCritArrow(false);
-		setPierceLevel((byte) ReliquaryConfig.razorPierceLevel());
+		this.pierceLevel = (byte) ReliquaryConfig.razorPierceLevel();
 		setDisplayStack(new ItemStack(SummyReliquary.GOLDEN_RAZOR.get()));
 	}
 
 	// ==================== 同步数据 ====================
 
 	@Override
-	protected void defineSynchedData() {
-		super.defineSynchedData();
-		this.entityData.define(DATA_ITEM, ItemStack.EMPTY);
+	protected void defineSynchedData(SynchedEntityData.Builder builder) {
+		super.defineSynchedData(builder);
+		builder.define(DATA_ITEM, ItemStack.EMPTY);
 	}
 
 	/** 渲染用的物品堆栈 */
@@ -100,6 +106,16 @@ public class ThrownRazor extends AbstractArrow {
 	@Override
 	protected ItemStack getPickupItem() {
 		return ItemStack.EMPTY;
+	}
+
+	@Override
+	protected ItemStack getDefaultPickupItem() {
+		return new ItemStack(SummyReliquary.GOLDEN_RAZOR.get());
+	}
+
+	@Override
+	public byte getPierceLevel() {
+		return this.pierceLevel;
 	}
 
 	/** 幻影是否可被拾取 —— 恒为 false（自检与外部判断用） */
@@ -244,7 +260,9 @@ public class ThrownRazor extends AbstractArrow {
 	@Override
 	public void addAdditionalSaveData(CompoundTag tag) {
 		super.addAdditionalSaveData(tag);
-		tag.put("RazorItem", getDisplayStack().save(new CompoundTag()));
+		tag.put("RazorItem", ItemStack.CODEC
+				.encodeStart(NbtOps.INSTANCE, getDisplayStack())
+				.getOrThrow());
 		tag.putInt("LifeTicks", lifeTicks);
 		tag.putBoolean("Stuck", stuck);
 		tag.putInt("StuckTicks", stuckTicks);
@@ -254,7 +272,9 @@ public class ThrownRazor extends AbstractArrow {
 	public void readAdditionalSaveData(CompoundTag tag) {
 		super.readAdditionalSaveData(tag);
 		if (tag.contains("RazorItem")) {
-			setDisplayStack(ItemStack.of(tag.getCompound("RazorItem")));
+			ItemStack.CODEC.parse(NbtOps.INSTANCE, tag.get("RazorItem"))
+					.result()
+					.ifPresent(this::setDisplayStack);
 		}
 		lifeTicks = tag.getInt("LifeTicks");
 		// 1.7.10 收尾：区块重载后继续倒计时

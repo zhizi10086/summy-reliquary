@@ -56,7 +56,7 @@ public class HabitItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		ReliquaryTooltips.add(tooltip, Component.translatable("item.summy-reliquary.habit.desc.1")
 				.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(PALE_GOLD)).withItalic(true)));
 		ReliquaryTooltips.add(tooltip, Component.translatable("item.summy-reliquary.habit.desc.2")

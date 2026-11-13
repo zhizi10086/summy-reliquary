@@ -45,7 +45,7 @@ public class BetrayalItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		ReliquaryTooltips.demonFlavorLine(tooltip, "item.summy-reliquary.betrayal.tagline.1");
 		ReliquaryTooltips.demonFlavorLine(tooltip, "item.summy-reliquary.betrayal.tagline.2");
 		Object local = ReliquaryTooltips.localPlayer();

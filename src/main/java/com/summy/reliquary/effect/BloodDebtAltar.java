@@ -30,12 +30,14 @@ import java.util.UUID;
  */
 public final class BloodDebtAltar {
 	private static final TagKey<EntityType<?>> FORGE_BOSSES =
-			TagKey.create(Registries.ENTITY_TYPE, new net.minecraft.resources.ResourceLocation("forge", "bosses"));
+			TagKey.create(Registries.ENTITY_TYPE,
+					net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("forge", "bosses"));
 	private static final TagKey<EntityType<?>> COMMON_BOSSES =
-			TagKey.create(Registries.ENTITY_TYPE, new net.minecraft.resources.ResourceLocation("c", "bosses"));
+			TagKey.create(Registries.ENTITY_TYPE,
+					net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("c", "bosses"));
 	private static final TagKey<EntityType<?>> SUMMY_BOSSES =
 			TagKey.create(Registries.ENTITY_TYPE,
-					new net.minecraft.resources.ResourceLocation(SummyReliquary.NAMESPACE, "bosses"));
+					net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(SummyReliquary.NAMESPACE, "bosses"));
 	private static final Map<UUID, List<Debt>> DEBTS = new HashMap<>();
 	private static final Map<UUID, DuplicateGuard> LAST_HURT = new HashMap<>();
 	/** 玩家最近一次真实 LivingIncomingDamageEvent 的 tick；同 tick 有真实攻击时不得吞掉受击镜头。 */

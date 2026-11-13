@@ -75,7 +75,7 @@ public class ThePactItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		LivingEntity self = ReliquaryTooltips.localPlayer();
 		// 风味行（1.6.9：恶魔线深红）+ 引号行（恶魔话语：暗红斜体）
 		ReliquaryTooltips.demonFlavorLine(tooltip, "item.summy-reliquary.the_pact.tagline");

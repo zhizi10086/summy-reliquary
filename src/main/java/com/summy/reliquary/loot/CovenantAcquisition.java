@@ -155,7 +155,8 @@ public final class CovenantAcquisition {
 			return;
 		}
 		CONTAINER_WINDOWS.put(player.getUUID(), new ContainerWindow(
-				level.dimension(), Map.of(), cart.position(), cart.getLootTable(), level.getServer().getTickCount()));
+				level.dimension(), Map.of(), cart.position(), cart.getLootTable().location(),
+				level.getServer().getTickCount()));
 	}
 
 	@SubscribeEvent
@@ -320,7 +321,7 @@ public final class CovenantAcquisition {
 		if (!(blockEntity instanceof RandomizableContainerBlockEntity container)) {
 			return null;
 		}
-		CompoundTag saved = container.saveWithoutMetadata();
+		CompoundTag saved = container.saveWithoutMetadata(container.getLevel().registryAccess());
 		if (!saved.contains(RandomizableContainerBlockEntity.LOOT_TABLE_TAG, CompoundTag.TAG_STRING)) {
 			return null;
 		}
@@ -329,6 +330,10 @@ public final class CovenantAcquisition {
 
 	static boolean isChestTable(ResourceLocation table) {
 		return table != null && table.getPath().startsWith("chests/");
+	}
+
+	static boolean isChestTable(net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable> table) {
+		return table != null && isChestTable(table.location());
 	}
 
 	/** 自检入口：跳过容器窗口，只执行同一套获得 / 概率 / 保底逻辑。 */

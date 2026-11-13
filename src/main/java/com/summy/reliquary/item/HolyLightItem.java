@@ -47,7 +47,7 @@ public class HolyLightItem extends Item implements ICurioItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		// 描述：淡金斜体经文 + 灰色出处（原版提示框无法居中，两行都左对齐）
 		tooltip.add(Component.translatable("item.summy-reliquary.holy_light.desc.1")
 				.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(PALE_GOLD)).withItalic(true)));

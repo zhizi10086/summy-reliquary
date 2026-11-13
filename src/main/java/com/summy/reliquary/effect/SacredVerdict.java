@@ -121,7 +121,7 @@ public final class SacredVerdict {
 	 * {@code LivingDamageEvent} 表示原伤害已进入落地管线（护盾后、生命前）；此处确认候选，
 	 * 附伤延后到 server tick 末结算，避免递归扰动原伤害。
 	 */
-	public static void confirmLanding(LivingDamageEvent event) {
+	public static void confirmLanding(LivingDamageEvent.Pre event) {
 		long now = event.getEntity().level().getGameTime();
 		HitKey key = hitKey(null, event.getEntity(), event.getSource());
 		for (int index = CANDIDATES.size() - 1; index >= 0; index--) {
@@ -335,7 +335,7 @@ public final class SacredVerdict {
 
 	public static void onDeath(LivingEntity entity) {
 		MARKS.remove(entity.getUUID());
-		CovenantMarkerEffects.remove(entity, SummyReliquary.SACRED_VERDICT_EFFECT.get());
+		CovenantMarkerEffects.remove(entity, SummyReliquary.SACRED_VERDICT_EFFECT);
 		LAST_BONUS_TICK.keySet().removeIf(key -> key.target().equals(entity.getUUID()));
 	}
 
@@ -352,10 +352,10 @@ public final class SacredVerdict {
 		Mark mark = MARKS.get(entity.getUUID());
 		if (mark == null || mark.until() <= entity.level().getGameTime()) {
 			MARKS.remove(entity.getUUID());
-			CovenantMarkerEffects.remove(entity, SummyReliquary.SACRED_VERDICT_EFFECT.get());
+			CovenantMarkerEffects.remove(entity, SummyReliquary.SACRED_VERDICT_EFFECT);
 			return;
 		}
-		CovenantMarkerEffects.mirror(entity, SummyReliquary.SACRED_VERDICT_EFFECT.get(), mark.until());
+		CovenantMarkerEffects.mirror(entity, SummyReliquary.SACRED_VERDICT_EFFECT, mark.until());
 	}
 
 	public static void clear() {
@@ -449,7 +449,7 @@ public final class SacredVerdict {
 	private static void applyMark(LivingEntity target, long until) {
 		Mark merged = MARKS.merge(target.getUUID(), new Mark(until), (old, fresh) ->
 				new Mark(Math.max(old.until(), fresh.until())));
-		CovenantMarkerEffects.mirror(target, SummyReliquary.SACRED_VERDICT_EFFECT.get(), merged.until());
+		CovenantMarkerEffects.mirror(target, SummyReliquary.SACRED_VERDICT_EFFECT, merged.until());
 	}
 
 	private static void synchronizeMarkers(MinecraftServer server) {
@@ -457,7 +457,7 @@ public final class SacredVerdict {
 			LivingEntity target = CovenantMarkerEffects.findEntity(server, entry.getKey());
 			if (target != null && target.isAlive()) {
 				CovenantMarkerEffects.mirror(target,
-						SummyReliquary.SACRED_VERDICT_EFFECT.get(), entry.getValue().until());
+						SummyReliquary.SACRED_VERDICT_EFFECT, entry.getValue().until());
 			}
 		}
 	}

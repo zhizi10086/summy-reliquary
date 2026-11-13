@@ -1,6 +1,7 @@
 package com.summy.reliquary.effect;
 
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -47,7 +48,7 @@ public final class DamageEstimate {
 		float amount = rawAmount;
 		// ① 护甲（原版 getDamageAfterArmorAbsorb 只多看一个 bypasses_armor 标签）
 		if (!source.is(DamageTypeTags.BYPASSES_ARMOR)) {
-			amount = CombatRules.getDamageAfterAbsorb(amount,
+			amount = CombatRules.getDamageAfterAbsorb(entity, amount, source,
 					(float) entity.getAttributeValue(Attributes.ARMOR),
 					(float) entity.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
 		}
@@ -62,7 +63,9 @@ public final class DamageEstimate {
 				}
 			}
 			if (amount > 0.0F && !source.is(DamageTypeTags.BYPASSES_ENCHANTMENTS)) {
-				int protection = EnchantmentHelper.getDamageProtection(entity.getArmorSlots(), source);
+				float protection = entity.level() instanceof ServerLevel serverLevel
+						? EnchantmentHelper.getDamageProtection(serverLevel, entity, source)
+						: 0;
 				if (protection > 0) {
 					amount = CombatRules.getDamageAfterMagicAbsorb(amount, protection);
 				}
