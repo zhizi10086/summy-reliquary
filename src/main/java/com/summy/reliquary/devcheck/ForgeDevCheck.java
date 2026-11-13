@@ -7846,14 +7846,40 @@ public final class ForgeDevCheck {
 				+ " tick（应 30）、冷却=" + com.summy.reliquary.effect.Godhead.beamCooldownTicks(player)
 				+ " tick（应 100）、半径=" + com.summy.reliquary.effect.Godhead.beamRadius(player)
 				+ "（应 3）、射程=" + com.summy.reliquary.effect.Godhead.beamLength(player) + "（应 35）");
-		// 训练人偶：软检测按实体 id 判定（真实假人需要装了 dummmmmmy 才能测，留人工）
+		// 训练人偶：先做无依赖的 id 判定，安装时再生成真实实体验证 SR 兼容分支。
 		boolean dummyId = com.summy.reliquary.effect.DummySupport.isDummyId(
 				net.minecraft.resources.ResourceLocation.tryParse("dummmmmmy:target_dummy"));
 		boolean otherId = com.summy.reliquary.effect.DummySupport.isDummyId(
 				net.minecraft.resources.ResourceLocation.tryParse("minecraft:zombie"));
-		log("训练人偶判定：dummmmmmy:target_dummy=" + dummyId + "（应 true）、minecraft:zombie=" + otherId
-				+ "（应 false）、开关默认=" + com.summy.reliquary.config.ReliquaryConfig.affectTargetDummies()
-				+ "（应 true）");
+		var dummyType = BuiltInRegistries.ENTITY_TYPE.getOptional(
+				com.summy.reliquary.effect.DummySupport.TARGET_DUMMY_ID).orElse(null);
+		if (dummyType == null) {
+			log("训练人偶判定：dummmmmmy:target_dummy=" + dummyId + "（应 true）、minecraft:zombie=" + otherId
+					+ "（应 false）、实体未安装（可选兼容跳过实体验证）");
+			return;
+		}
+		var created = dummyType.create(player.serverLevel());
+		if (!(created instanceof LivingEntity dummyEntity)) {
+			require("dummy-live-entity", false);
+			log("训练人偶实体验证：实体类型已注册，但无法创建 LivingEntity");
+			return;
+		}
+		dummyEntity.moveTo(player.getX() + 2.0D, player.getY(), player.getZ(), 0.0F, 0.0F);
+		player.serverLevel().addFreshEntity(dummyEntity);
+		boolean recognized = com.summy.reliquary.effect.DummySupport.isTargetDummyEntity(dummyEntity);
+		boolean enabledTarget = com.summy.reliquary.effect.DummySupport.isTargetDummy(dummyEntity)
+				== com.summy.reliquary.config.ReliquaryConfig.affectTargetDummies();
+		boolean auraTarget = com.summy.reliquary.effect.Godhead.isAuraTarget(player, dummyEntity);
+		float maxHealth = dummyEntity.getMaxHealth();
+		dummyEntity.setHealth(Math.max(1.0F, maxHealth * 0.5F));
+		com.summy.reliquary.effect.DummySupport.protectDummy(dummyEntity);
+		boolean restored = close(dummyEntity.getHealth(), maxHealth, 1.0E-4D);
+		boolean dummyOk = dummyId && !otherId && recognized && enabledTarget && auraTarget && restored;
+		require("dummy-live-entity", dummyOk);
+		log("训练人偶实体验证：id=" + recognized + "（应 true）、开关生效=" + enabledTarget
+				+ "（应 true）、神性光环可选目标=" + auraTarget + "（应 true）、受伤后保护回满="
+				+ restored + "（应 true）→ dummyOk=" + dummyOk + "（应 true）");
+		dummyEntity.discard();
 	}
 
 	/** 神性 8 格光环：真实伤害 + 目标口径 */
