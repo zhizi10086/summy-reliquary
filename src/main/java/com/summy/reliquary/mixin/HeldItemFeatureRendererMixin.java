@@ -23,6 +23,30 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(ItemInHandLayer.class)
 public abstract class HeldItemFeatureRendererMixin {
+	/**
+	 * 左键攻击时在手臂矩阵应用前抬高当前手持物。
+	 *
+	 * <p>此处位于 {@code renderArmWithItem} 自身的 pushPose 之后，方法结束时会自动恢复，
+	 * 因此不会把位移泄漏到另一只手。实体空间 Y 才是屏幕中的世界垂直方向。
+	 */
+	@Inject(method = "renderArmWithItem",
+			at = @At(value = "INVOKE",
+					target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V",
+					shift = At.Shift.AFTER))
+	private void summyReliquary$raiseAttackingSpear(LivingEntity entity, ItemStack stack,
+			ItemDisplayContext context, HumanoidArm arm, PoseStack poseStack,
+			MultiBufferSource buffer, int light, CallbackInfo ci) {
+		if (entity.getMainArm() != arm
+				|| !(stack.getItem() instanceof SpearItem)
+				|| entity.isUsingItem()) {
+			return;
+		}
+		float partialTick = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
+		if (entity.getAttackAnim(partialTick) > 0.0F) {
+			poseStack.translate(0.0F, SpearAnimation.THIRD_PERSON_ATTACK_Y_OFFSET, 0.0F);
+		}
+	}
+
 	@Inject(method = "renderArmWithItem",
 			at = @At(value = "INVOKE",
 					target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;renderItem(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemDisplayContext;ZLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V"))

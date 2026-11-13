@@ -1095,10 +1095,12 @@ public final class ForgeDevCheck {
 		float advanceStart = SpearAnimation.thirdPersonAdvance(0.0F);
 		float advancePeak = SpearAnimation.thirdPersonAdvance(0.4F);
 		float advanceEnd = SpearAnimation.thirdPersonAdvance(1.0F);
+		float attackYOffset = SpearAnimation.THIRD_PERSON_ATTACK_Y_OFFSET;
 		boolean thirdPersonOk = close(rotationStart, 0.0D)
 				&& rotationPeak > 60.0F && rotationEnd < 0.7F
 				&& close(advanceStart, 0.0D)
 				&& advancePeak > 0.1F && advanceEnd < 0.001F
+				&& close(attackYOffset, 0.0625D)
 				&& close(rotationPeak,
 						SpearAnimation.THIRD_PERSON_ROTATION_DEGREES
 								* SpearAnimation.thirdPersonSwing(0.4F), 1.0E-4D)
@@ -1109,6 +1111,7 @@ public final class ForgeDevCheck {
 				rotationStart, rotationPeak, rotationEnd));
 		log(String.format("第三人称戳刺局部推进：%.4f → %.4f → %.4f（应 0 → >0.1 → 0）",
 				advanceStart, advancePeak, advanceEnd));
+		log(String.format("第三人称攻击实体空间 Y 抬升：%.4f（应 0.0625）", attackYOffset));
 		require("spear-third-person-transform", thirdPersonOk);
 	}
 
@@ -16351,8 +16354,8 @@ public final class ForgeDevCheck {
 				&& sameZ(baseText, holyUsing, "firstperson_lefthand")
 				&& sameZ(baseText, seraphUsing, "firstperson_righthand")
 				&& sameZ(baseText, seraphUsing, "firstperson_lefthand");
-		boolean baseThirdPersonAligned = translationY(baseText, "thirdperson_righthand") == 3.0D
-				&& translationY(baseText, "thirdperson_lefthand") == 3.0D
+		boolean baseThirdPersonAligned = translationY(baseText, "thirdperson_righthand") == 2.0D
+				&& translationY(baseText, "thirdperson_lefthand") == 2.0D
 				&& translationZ(baseText, "thirdperson_righthand") == 2.0D
 				&& translationZ(baseText, "thirdperson_lefthand") == 2.0D;
 		boolean usingTransformsMatch = sameTransform(holyUsing, seraphUsing,
@@ -16365,7 +16368,7 @@ public final class ForgeDevCheck {
 				+ "（应 true）；主模型含 using overrides=" + overrides + "（应 true）、两个举矛模型在包内="
 				+ usingModels + "（应 true）；蓄力朝向（修订）：两把矛的**第三人称** Z 都比主模型多 180°（头尾翻转）="
 				+ thirdFlipped + "（应 true）、第一人称 Z 与主模型一致（不动第一人称）=" + firstPersonKept
-				+ "（应 true）；第三人称基础 Y=3.0、Z=2.0=" + baseThirdPersonAligned
+				+ "（应 true）；第三人称基础 Y=2.0、Z=2.0=" + baseThirdPersonAligned
 				+ "（应 true）、两把 using 模型的第三人称旋转与缩放一致=" + usingTransformsMatch
 				+ "（应 true）；投掷物平面补偿=+" + String.format("%.0f",
 						com.summy.reliquary.client.ThrownSpearRenderer.Z_TILT_DEGREES)
