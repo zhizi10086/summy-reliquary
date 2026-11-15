@@ -419,7 +419,7 @@ JEI 另提供 11 个系统型信息主题，覆盖七罪与赎罪、撒旦圣经
 
 1. 安装 **Minecraft 1.21.1 + NeoForge 21.1.265 或更高**，并使用 **Java 21**。
 2. 安装前置 **Curios** `9.5.1+1.21.1`。
-3. 把 `summy-reliquary-2.0.0-neoforge.jar` 放进 `mods`，只保留一份 SR。
+3. 把 `summy-reliquary-2.0.1-neoforge.jar` 放进 `mods`，只保留一份 SR。
 
 客户端和服务端必须使用同一 SR 版本。JEI `19.70.0.469` 为可选兼容，用于查询配方与系统信息页。
 
