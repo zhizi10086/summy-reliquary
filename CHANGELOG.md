@@ -3,6 +3,18 @@
 > 本文档收录 Summy Reliquary 的历史版本变更；**当前版本的内容与玩法以 [README.md](README.md) 为准**
 > （README 只保留最新一版变更，历史记录全部收在这里）。
 
+## 2.0.1-forge 变更
+
+> Minecraft 1.20.1 · Forge 47.4.10+ · Curios 5.14.1+1.20.1
+>
+> 这是 2.0.0 的 ST 兼容补丁；网络协议继续为 `"19"`，不新增配置键或网络字段。
+
+### 修改
+
+- 背叛读取 ST 的 `summy_threat:legendary_resistance_betrayal_immune`：免疫单位不会成为候选或被强制改目标。
+- 当前靶子中途获得背叛免疫时立即结束本轮、清除靶子标记并恢复仍指向本轮靶子的攻击者原目标；普通结束路径保持不变。
+- 慈善捆绑包复制其他模组事件新增掉落时，跳过 `#summy-reliquary:humbleing_bundle_excluded` 物品；原始掉落和未命中标签的物品不变。
+
 ## 2.0.0 变更
 
 > Minecraft 1.20.1 · Forge 47.4.10+ · Curios 5.14.1+1.20.1

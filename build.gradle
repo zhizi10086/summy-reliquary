@@ -90,6 +90,7 @@ minecraft {
             // 只有显式加 -Pdevcheck 时才打开自检脚本（跑完会自动退出游戏）
             if (project.hasProperty('devcheck')) {
                 property 'summy.devcheck', 'true'
+                args '--quickPlaySingleplayer', 'DevCheckWorld'
             }
             mods {
                 "${project.mod_id}" {
