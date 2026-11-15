@@ -6,11 +6,13 @@ import com.summy.reliquary.util.CurioHelper;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
@@ -21,6 +23,7 @@ import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.vehicle.AbstractMinecartContainer;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -62,6 +65,8 @@ import java.util.UUID;
  */
 @EventBusSubscriber(modid = SummyReliquary.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class HumbleingBundleLoot {
+	private static final TagKey<Item> EXTERNAL_COPY_EXCLUDED =
+			TagKey.create(Registries.ITEM, SummyReliquary.id("humbleing_bundle_excluded"));
 	private static final ThreadLocal<Integer> REPLAY_DEPTH = ThreadLocal.withInitial(() -> 0);
 	private static final Map<UUID, OpenWindow> OPEN_WINDOWS = new HashMap<>();
 	private static final Map<KillKey, KillTransaction> KILL_TRANSACTIONS = new HashMap<>();
@@ -199,10 +204,13 @@ public final class HumbleingBundleLoot {
 	}
 
 	/**
-	 * 特殊稀有材料专用：只查询本 tick 已成功的击杀事务，不消费、不递归。
+	 * SR 2.x 跨模组稳定只读入口：只查询本 tick 已成功的击杀事务，不消费、不递归。
 	 *
 	 * <p>心之碎片与碎心在实体死亡掉落事件直接生成，不经过战利品表；它们据此决定
 	 * 是否追加一次独立掉率判定。
+	 *
+	 * <p>外部模组可在同一受害者的服务端 {@code LivingDropsEvent} 中调用此方法，
+	 * 根据返回玩家自行执行一次受控的额外材料判定。查询失败时始终返回 {@code null}。
 	 */
 	@Nullable
 	public static ServerPlayer specialDropBonusPlayer(LivingEntity victim) {
@@ -536,6 +544,7 @@ public final class HumbleingBundleLoot {
 		}
 		List<ItemEntity> added = event.getDrops().stream()
 				.filter(drop -> !snapshot.baseline.contains(drop))
+				.filter(drop -> !drop.getItem().is(EXTERNAL_COPY_EXCLUDED))
 				.toList();
 		if (added.isEmpty()) {
 			return;

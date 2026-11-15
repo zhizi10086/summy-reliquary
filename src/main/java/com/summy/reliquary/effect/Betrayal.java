@@ -4,12 +4,15 @@ import com.summy.reliquary.SummyReliquary;
 import com.summy.reliquary.config.ReliquaryConfig;
 import com.summy.reliquary.util.CurioHelper;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Enemy;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -18,11 +21,16 @@ import java.util.UUID;
 public final class Betrayal {
 	private static final String TARGET_TAG = "summy_reliquary:betrayal_target";
 	private static final String EXIMUS_SHIELD_TAG = "summy_threat:eximus_shield";
+	private static final String LEGENDARY_BETRAYAL_IMMUNE_TAG =
+			"summy_threat:legendary_resistance_betrayal_immune";
 	private static final Map<UUID, Taunt> ACTIVE = new HashMap<>();
 	private static Double chanceOverrideForTest;
 	private static int triggerCount;
 
-	private record Taunt(Mob target, long until) {
+	private record Taunt(Mob target, long until, Map<UUID, UUID> previousTargets) {
+		private Taunt(Mob target, long until) {
+			this(target, until, new HashMap<>());
+		}
 	}
 
 	private Betrayal() {
@@ -42,11 +50,23 @@ public final class Betrayal {
 		long now = level.getGameTime();
 		Taunt current = ACTIVE.get(id);
 		if (current != null) {
-			if (!wears(player) || !validActiveTarget(player, current, now)) {
+			if (!wears(player)) {
 				finish(player, current);
 				return;
 			}
-			forceTargets(player, current.target());
+			if (!validActiveTarget(player, current, now)) {
+				finish(player, current);
+				return;
+			}
+			if (legendaryBetrayalImmune(current.target())) {
+				finish(player, current, true);
+				return;
+			}
+			if (eximusShielded(current.target())) {
+				finish(player, current);
+				return;
+			}
+			forceTargets(player, current);
 			if (now % 5L == 0L) {
 				level.sendParticles(ParticleTypes.ANGRY_VILLAGER,
 						current.target().getX(),
@@ -64,7 +84,8 @@ public final class Betrayal {
 				mob -> mob instanceof Enemy
 						&& Godhead.isAuraTarget(player, mob)
 						&& mob.distanceToSqr(player) <= radius * radius
-						&& !eximusShielded(mob));
+						&& !eximusShielded(mob)
+						&& !legendaryBetrayalImmune(mob));
 		if (candidates.size() < ReliquaryConfig.betrayalMinEnemies()) {
 			return;
 		}
@@ -93,7 +114,7 @@ public final class Betrayal {
 		ACTIVE.put(id, taunt);
 		chosen.getPersistentData().putLong(TARGET_TAG, until);
 		triggerCount++;
-		forceTargets(player, chosen);
+		forceTargets(player, taunt);
 	}
 
 	private static boolean validActiveTarget(ServerPlayer player, Taunt current, long now) {
@@ -104,11 +125,12 @@ public final class Betrayal {
 				&& !target.isRemoved()
 				&& target.level() == player.level()
 				&& target instanceof Enemy
-				&& Godhead.isAuraTarget(player, target)
-				&& !eximusShielded(target);
+				&& Godhead.isAuraTarget(player, target);
 	}
 
-	private static void forceTargets(ServerPlayer player, Mob target) {
+	private static void forceTargets(ServerPlayer player, Taunt taunt) {
+		Mob target = taunt.target();
+		restoreImmuneAttackers(player, taunt);
 		double radius = ReliquaryConfig.betrayalRadius();
 		ServerLevel level = player.serverLevel();
 		for (Mob attacker : level.getEntitiesOfClass(Mob.class,
@@ -116,15 +138,68 @@ public final class Betrayal {
 				mob -> mob instanceof Enemy
 						&& Godhead.isAuraTarget(player, mob)
 						&& mob.distanceToSqr(player) <= radius * radius
-						&& !eximusShielded(mob))) {
+						&& !eximusShielded(mob)
+						&& !legendaryBetrayalImmune(mob))) {
 			if (attacker != target) {
+				if (!taunt.previousTargets().containsKey(attacker.getUUID())) {
+					LivingEntity previous = attacker.getTarget();
+					taunt.previousTargets().put(attacker.getUUID(),
+							previous == null ? null : previous.getUUID());
+				}
 				attacker.setTarget(target);
 			}
 		}
 	}
 
+	private static void restoreImmuneAttackers(ServerPlayer player, Taunt taunt) {
+		ServerLevel level = player.serverLevel();
+		for (UUID attackerId : new ArrayList<>(taunt.previousTargets().keySet())) {
+			Entity entity = level.getEntity(attackerId);
+			if (entity instanceof Mob attacker && legendaryBetrayalImmune(attacker)) {
+				restoreForcedTarget(attacker, taunt);
+				taunt.previousTargets().remove(attackerId);
+			}
+		}
+	}
+
+	private static void restoreForcedTarget(Mob attacker, Taunt taunt) {
+		if (attacker.getTarget() != taunt.target()) {
+			return;
+		}
+		UUID previousId = taunt.previousTargets().get(attacker.getUUID());
+		attacker.setTarget(resolvePreviousTarget(attacker, previousId));
+	}
+
+	private static LivingEntity resolvePreviousTarget(Mob attacker, UUID previousId) {
+		if (previousId == null) {
+			return null;
+		}
+		MinecraftServer server = attacker.getServer();
+		if (server != null) {
+			ServerPlayer player = server.getPlayerList().getPlayer(previousId);
+			if (player != null && player.level() == attacker.level()) {
+				return player;
+			}
+		}
+		if (attacker.level() instanceof ServerLevel level) {
+			Entity entity = level.getEntity(previousId);
+			if (entity instanceof LivingEntity living
+					&& living.isAlive()
+					&& !living.isRemoved()
+					&& living.level() == attacker.level()) {
+				return living;
+			}
+		}
+		return null;
+	}
+
 	private static boolean eximusShielded(Mob mob) {
 		return mob.getPersistentData().getDouble(EXIMUS_SHIELD_TAG) > 0.0D;
+	}
+
+	private static boolean legendaryBetrayalImmune(Mob mob) {
+		return mob != null
+				&& mob.getPersistentData().getBoolean(LEGENDARY_BETRAYAL_IMMUNE_TAG);
 	}
 
 	/** 主动结束当前嘲讽并开始冷却。 */
@@ -139,6 +214,13 @@ public final class Betrayal {
 	}
 
 	private static void finish(ServerPlayer player, Taunt taunt) {
+		finish(player, taunt, false);
+	}
+
+	private static void finish(ServerPlayer player, Taunt taunt, boolean restoreTargets) {
+		if (restoreTargets) {
+			restoreAllForcedTargets(player, taunt);
+		}
 		ACTIVE.remove(player.getUUID());
 		if (taunt.target() != null) {
 			taunt.target().getPersistentData().remove(TARGET_TAG);
@@ -146,6 +228,17 @@ public final class Betrayal {
 		long now = player.serverLevel().getGameTime();
 		PlayerFlags.setBetrayalCooldownUntil(player,
 				now + ReliquaryConfig.betrayalCooldownSeconds() * 20L);
+	}
+
+	private static void restoreAllForcedTargets(ServerPlayer player, Taunt taunt) {
+		ServerLevel level = player.serverLevel();
+		for (UUID attackerId : new ArrayList<>(taunt.previousTargets().keySet())) {
+			Entity entity = level.getEntity(attackerId);
+			if (entity instanceof Mob attacker) {
+				restoreForcedTarget(attacker, taunt);
+			}
+		}
+		taunt.previousTargets().clear();
 	}
 
 	public static void forget(ServerPlayer player) {

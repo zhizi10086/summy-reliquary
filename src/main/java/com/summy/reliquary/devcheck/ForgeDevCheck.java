@@ -6215,6 +6215,8 @@ public final class ForgeDevCheck {
 				&& serverResourceText(player.getServer(), "forge",
 						"loot_modifiers/global_loot_modifiers.json")
 						.contains("summy-reliquary:humbleing_bundle")
+				&& hasServerResource(player.getServer(), SummyReliquary.NAMESPACE,
+						"tags/item/humbleing_bundle_excluded.json")
 				&& serverResourceText(player.getServer(), "curios", "tags/item/charm.json")
 						.contains("summy-reliquary:humbleing_bundle");
 
@@ -6244,6 +6246,23 @@ public final class ForgeDevCheck {
 		com.summy.reliquary.loot.HumbleingBundleLoot.clearStateForTest();
 		com.summy.reliquary.loot.HumbleingBundleLoot.markKillSuccessForTest(
 				player, victim, victimContext, victimTable);
+		ServerPlayer queriedBonusPlayer =
+				com.summy.reliquary.loot.HumbleingBundleLoot.specialDropBonusPlayer(victim);
+		int queryStateBefore =
+				com.summy.reliquary.loot.HumbleingBundleLoot.killTransactionStateForTest(victim);
+		ServerPlayer queriedBonusPlayerAgain =
+				com.summy.reliquary.loot.HumbleingBundleLoot.specialDropBonusPlayer(victim);
+		int queryStateAfter =
+				com.summy.reliquary.loot.HumbleingBundleLoot.killTransactionStateForTest(victim);
+		boolean stableBonusQuery = queriedBonusPlayer == player
+				&& queriedBonusPlayerAgain == player
+				&& queryStateBefore == queryStateAfter
+				&& queryStateBefore == 3;
+		net.minecraft.world.entity.animal.Cow noTransactionVictim =
+				new net.minecraft.world.entity.animal.Cow(EntityType.COW, level);
+		boolean absentBonusQuery =
+				com.summy.reliquary.loot.HumbleingBundleLoot.specialDropBonusPlayer(
+						noTransactionVictim) == null;
 		java.util.List<ItemEntity> drops = new java.util.ArrayList<>();
 		drops.add(new ItemEntity(level, player.getX(), player.getY(), player.getZ(),
 				new ItemStack(Items.ROTTEN_FLESH, 2)));
@@ -6427,11 +6446,13 @@ public final class ForgeDevCheck {
 		boolean hexTransferBundle = hexTransferKill && hexTransferCredit
 				&& hexTransferOnce && hexTransferNonRecursive;
 		boolean ok = thresholds && slotGate && keepOnDeath && resources
+				&& stableBonusQuery && absentBonusQuery
 				&& copiedOnly && copiedExperience && transactionMatching
 				&& hexTransferBundle && sourceGate;
 		log("慈善捆绑包：50/5 阈值=" + thresholds + "、护符门禁=" + slotGate
 				+ "（标签=" + charmTagged + "、Curios 校验=" + charmValid + "）"
 				+ "、死亡保留=" + keepOnDeath + "、单行 Shift / JEI 边界 / 资源=" + resources
+				+ "、稳定查询/空事务=" + stableBonusQuery + "/" + absentBonusQuery
 				+ "、仅复制事件追加物=" + copiedOnly + "、最终经验 7→"
 				+ xpEvent.getDroppedExperience() + "=" + copiedExperience
 				+ "、无玩家最终伤害源仍重掷/两阶段各一次=" + transactionMatching
@@ -7791,11 +7812,172 @@ public final class ForgeDevCheck {
 			zeroB.discard();
 		}
 
+		// 基础传奇抗性本身不参与背叛过滤，只有独立背叛免疫标签生效。
+		com.summy.reliquary.effect.Betrayal.clear();
+		com.summy.reliquary.effect.PlayerFlags.setBetrayalCooldownUntil(player, 0L);
+		com.summy.reliquary.effect.Betrayal.setChanceForTest(100.0D);
+		Zombie baseLegendaryA = spawnZombieAtSide(player, 2.0D);
+		Zombie baseLegendaryB = spawnZombieAtSide(player, 4.0D);
+		if (baseLegendaryA != null) {
+			baseLegendaryA.getPersistentData().putBoolean("summy_threat:legendary_resistance", true);
+		}
+		if (baseLegendaryB != null) {
+			baseLegendaryB.getPersistentData().putBoolean("summy_threat:legendary_resistance", true);
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		boolean baseLegendaryIgnored =
+				com.summy.reliquary.effect.Betrayal.targetForTest(player) != null;
+		if (baseLegendaryA != null) {
+			baseLegendaryA.discard();
+		}
+		if (baseLegendaryB != null) {
+			baseLegendaryB.discard();
+		}
+
+		// 2.0.1 ST：全免疫候选不触发；移除免疫后下一轮恢复候选资格。
+		com.summy.reliquary.effect.Betrayal.clear();
+		com.summy.reliquary.effect.PlayerFlags.setBetrayalCooldownUntil(player, 0L);
+		com.summy.reliquary.effect.Betrayal.setChanceForTest(100.0D);
+		Zombie immuneA = spawnZombieAtSide(player, 2.0D);
+		Zombie immuneB = spawnZombieAtSide(player, 4.0D);
+		if (immuneA != null) {
+			immuneA.getPersistentData().putBoolean(
+					"summy_threat:legendary_resistance_betrayal_immune", true);
+			immuneA.setTarget(player);
+		}
+		if (immuneB != null) {
+			immuneB.getPersistentData().putBoolean(
+					"summy_threat:legendary_resistance_betrayal_immune", true);
+			immuneB.setTarget(player);
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		boolean immuneOnlyBlocked = com.summy.reliquary.effect.Betrayal.targetForTest(player) == null;
+		if (immuneA != null) {
+			immuneA.getPersistentData().remove("summy_threat:legendary_resistance_betrayal_immune");
+		}
+		if (immuneB != null) {
+			immuneB.getPersistentData().remove("summy_threat:legendary_resistance_betrayal_immune");
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		boolean immuneRemovalRestored =
+				com.summy.reliquary.effect.Betrayal.targetForTest(player) != null;
+		if (immuneA != null) {
+			immuneA.discard();
+		}
+		if (immuneB != null) {
+			immuneB.discard();
+		}
+
+		// 普通与免疫混合：免疫单位不选靶，也不被强制改目标。
+		com.summy.reliquary.effect.Betrayal.clear();
+		com.summy.reliquary.effect.PlayerFlags.setBetrayalCooldownUntil(player, 0L);
+		com.summy.reliquary.effect.Betrayal.setChanceForTest(100.0D);
+		Zombie immuneAttacker = spawnZombieAtSide(player, 2.0D);
+		Zombie mixedTarget = spawnZombieAtSide(player, 4.0D);
+		Zombie normalAttacker = spawnZombieAtSide(player, 6.0D);
+		if (immuneAttacker != null) {
+			immuneAttacker.getPersistentData().putBoolean(
+					"summy_threat:legendary_resistance_betrayal_immune", true);
+			immuneAttacker.setTarget(player);
+		}
+		if (mixedTarget != null) {
+			mixedTarget.setTarget(player);
+		}
+		if (normalAttacker != null) {
+			normalAttacker.setTarget(player);
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		var mixedSelected = com.summy.reliquary.effect.Betrayal.targetForTest(player);
+		boolean mixedImmuneFiltered = mixedSelected == mixedTarget
+				&& immuneAttacker != null
+				&& immuneAttacker.getTarget() == player;
+		boolean immuneAttackerSkipped = normalAttacker != null
+				&& normalAttacker.getTarget() == mixedSelected;
+
+		// 已被强制的攻击者中途免疫：只恢复该攻击者，本轮继续。
+		if (normalAttacker != null) {
+			normalAttacker.getPersistentData().putBoolean(
+					"summy_threat:legendary_resistance_betrayal_immune", true);
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		boolean immuneAttackerRestored = normalAttacker != null
+				&& normalAttacker.getTarget() == player
+				&& com.summy.reliquary.effect.Betrayal.targetForTest(player) == mixedTarget;
+
+		// 当前靶子中途免疫：结束、清标签、恢复其它攻击者并进入冷却。
+		Zombie secondAttacker = spawnZombieAtSide(player, 5.0D);
+		if (secondAttacker != null) {
+			secondAttacker.setTarget(player);
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		long beforeTargetImmunity = player.serverLevel().getGameTime();
+		if (mixedTarget != null) {
+			mixedTarget.getPersistentData().putBoolean(
+					"summy_threat:legendary_resistance_betrayal_immune", true);
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		boolean targetImmuneEnded =
+				com.summy.reliquary.effect.Betrayal.targetForTest(player) == null;
+		boolean targetImmuneRestored = secondAttacker != null
+				&& secondAttacker.getTarget() == player;
+		boolean targetImmuneTagCleared = mixedTarget != null
+				&& !mixedTarget.getPersistentData().contains("summy_reliquary:betrayal_target");
+		boolean targetImmuneCooldown =
+				com.summy.reliquary.effect.PlayerFlags.betrayalCooldownUntil(player)
+						>= beforeTargetImmunity + 95L;
+		if (immuneAttacker != null) {
+			immuneAttacker.discard();
+		}
+		if (mixedTarget != null) {
+			mixedTarget.discard();
+		}
+		if (normalAttacker != null) {
+			normalAttacker.discard();
+		}
+		if (secondAttacker != null) {
+			secondAttacker.discard();
+		}
+
+		// 原目标失效：靶子中途免疫时恢复为空，不保留失效实体。
+		com.summy.reliquary.effect.Betrayal.clear();
+		com.summy.reliquary.effect.PlayerFlags.setBetrayalCooldownUntil(player, 0L);
+		com.summy.reliquary.effect.Betrayal.setChanceForTest(100.0D);
+		Zombie oldTarget = spawnZombieAtSide(player, 10.0D);
+		Zombie invalidTarget = spawnZombieAtSide(player, 2.0D);
+		Zombie invalidAttacker = spawnZombieAtSide(player, 4.0D);
+		if (invalidAttacker != null && oldTarget != null) {
+			invalidAttacker.setTarget(oldTarget);
+		}
+		if (invalidTarget != null) {
+			invalidTarget.setTarget(player);
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		if (oldTarget != null) {
+			oldTarget.discard();
+		}
+		if (invalidTarget != null) {
+			invalidTarget.getPersistentData().putBoolean(
+					"summy_threat:legendary_resistance_betrayal_immune", true);
+		}
+		com.summy.reliquary.effect.Betrayal.tickPlayer(player);
+		boolean invalidPreviousRestoredNull = invalidAttacker != null
+				&& invalidAttacker.getTarget() == null;
+		if (invalidTarget != null) {
+			invalidTarget.discard();
+		}
+		if (invalidAttacker != null) {
+			invalidAttacker.discard();
+		}
+
 		boolean overall = locked && demonAllowed && hiddenWithoutDemon && hiddenWithDemon
 				&& recipeOk && betrayalConfigOk && refunded && achievement && advancementJson && modelOk && textsOk
 				&& oneBlocked && pickedNearest
 				&& forcedAttackers && outsideUnaffected && targetTag && durationOk && cooldownOk
-				&& cooldownAfterReequip == cooldownAtDeath && cooldownBlocks && eximusSkipped && zeroBlocked;
+				&& cooldownAfterReequip == cooldownAtDeath && cooldownBlocks && eximusSkipped && zeroBlocked
+				&& baseLegendaryIgnored && immuneOnlyBlocked && immuneRemovalRestored && mixedImmuneFiltered
+				&& immuneAttackerSkipped && immuneAttackerRestored && targetImmuneEnded
+				&& targetImmuneRestored && targetImmuneTagCleared && targetImmuneCooldown
+				&& invalidPreviousRestoredNull;
 		log("背叛（2.11）：门槛/恶魔=" + locked + "/" + demonAllowed + "、JEI 永久隐藏="
 				+ hiddenWithoutDemon + "/" + hiddenWithDemon + "、配方/配置=" + recipeOk + "/" + betrayalConfigOk
 				+ "、无标记退料="
@@ -7805,6 +7987,11 @@ public final class ForgeDevCheck {
 				+ "、标签/时长=" + targetTag + "/" + durationOk + "；死亡冷却=" + cooldownOk
 				+ "、重装不变=" + (cooldownAfterReequip == cooldownAtDeath) + "、冷却静默="
 				+ cooldownBlocks + "、Eximus 跳过=" + eximusSkipped + "、0% 不触发=" + zeroBlocked
+				+ "；ST 免疫（基础标记忽略/全免疫/移除恢复/混合/攻击者跳过/攻击者恢复/靶子结束/靶子恢复/标签/冷却/失效原目标）="
+				+ baseLegendaryIgnored + "/" + immuneOnlyBlocked + "/" + immuneRemovalRestored + "/" + mixedImmuneFiltered
+				+ "/" + immuneAttackerSkipped + "/" + immuneAttackerRestored + "/"
+				+ targetImmuneEnded + "/" + targetImmuneRestored + "/" + targetImmuneTagCleared
+				+ "/" + targetImmuneCooldown + "/" + invalidPreviousRestoredNull
 				+ " → 整体=" + overall + "（应 true）");
 
 		com.summy.reliquary.effect.Betrayal.setChanceForTest(null);
