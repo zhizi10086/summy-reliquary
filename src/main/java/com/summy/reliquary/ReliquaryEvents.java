@@ -976,10 +976,9 @@ public final class ReliquaryEvents {
 
 		// 2.3 誓约：
 		// ① 穿过神圣干预屏障的玩家投射物；② 厄咒增伤与转移候选；
-		// ③ 血债祭坛减伤与延迟；④ 神圣干预反伤；⑤ 神圣裁决附伤与新触发。
+		// 血债祭坛移到减伤后的 LivingDamageEvent.Pre；此处处理神圣干预与神圣裁决。
 		com.summy.reliquary.effect.DivineIntervention.onProjectileHurt(event);
 		com.summy.reliquary.effect.HexSeal.onIncomingHurt(event);
-		com.summy.reliquary.effect.BloodDebtAltar.onIncomingHurt(event);
 		com.summy.reliquary.effect.DivineIntervention.onIncomingHurt(event);
 		com.summy.reliquary.effect.SacredVerdict.recordOutgoing(event);
 		com.summy.reliquary.effect.HexSeal.onOutgoingHurt(event);
@@ -1140,6 +1139,16 @@ public final class ReliquaryEvents {
 		if (event.getNewDamage() >= 0.0F) {
 			com.summy.reliquary.effect.SacredVerdict.confirmLanding(event);
 		}
+	}
+
+	/**
+	 * 血债祭坛：常规护甲、保护与抗性已经完成，原版吸收和伤害池尚未结算。
+	 * 必须先于 LOWEST 的伤害池处理，让路线护盾看到减债后的即时金额。
+	 */
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGH)
+	public static void onLivingDamageBloodDebt(
+			net.neoforged.neoforge.event.entity.living.LivingDamageEvent.Pre event) {
+		com.summy.reliquary.effect.BloodDebtAltar.onPostMitigationDamage(event);
 	}
 
 	/** 挖掘速度：Forge 1.20.1 没有"挖掘速度"属性，用 BreakSpeed 事件实现 */

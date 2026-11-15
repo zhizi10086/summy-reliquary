@@ -13,7 +13,7 @@ import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Enemy;
-import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,6 +29,10 @@ import java.util.UUID;
  * 「原版吸收 → 血债盾 → 魂心 → 黑心 → 生命」。
  */
 public final class BloodDebtAltar {
+	private static final ResourceKey<DamageType> BLOOD_DEBT_TYPE =
+			ResourceKey.create(Registries.DAMAGE_TYPE,
+					net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+							SummyReliquary.NAMESPACE, "blood_debt"));
 	private static final TagKey<EntityType<?>> FORGE_BOSSES =
 			TagKey.create(Registries.ENTITY_TYPE,
 					net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("forge", "bosses"));
@@ -39,7 +43,6 @@ public final class BloodDebtAltar {
 			TagKey.create(Registries.ENTITY_TYPE,
 					net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(SummyReliquary.NAMESPACE, "bosses"));
 	private static final Map<UUID, List<Debt>> DEBTS = new HashMap<>();
-	private static final Map<UUID, DuplicateGuard> LAST_HURT = new HashMap<>();
 	/** 玩家最近一次真实 LivingIncomingDamageEvent 的 tick；同 tick 有真实攻击时不得吞掉受击镜头。 */
 	private static final Map<UUID, Long> LAST_EXTERNAL_HURT_TICK = new HashMap<>();
 
@@ -68,9 +71,9 @@ public final class BloodDebtAltar {
 		ReliquaryNetworking.sendBloodDebtShield(player, wears(player) ? shield(player) : 0.0D);
 	}
 
-	/** 受伤时把减免部分拆成独立延迟段。 */
-	public static void onIncomingHurt(LivingIncomingDamageEvent event) {
-		if (event.isCanceled() || event.getAmount() <= 0.0F
+	/** 护甲、保护、抗性等常规减伤完成后，把减免部分拆成独立延迟段。 */
+	public static void onPostMitigationDamage(LivingDamageEvent.Pre event) {
+		if (event.getEntity().level().isClientSide() || event.getNewDamage() <= 0.0F
 				|| !(event.getEntity() instanceof ServerPlayer player) || !wears(player)) {
 			return;
 		}
@@ -79,26 +82,22 @@ public final class BloodDebtAltar {
 		if (HolyLightEffect.isCovenantEffect(event.getSource())) {
 			return;
 		}
-		DuplicateGuard guard = LAST_HURT.get(player.getUUID());
-		if (guard != null && guard.tick() == now && guard.source() == event.getSource()
-				&& Math.abs(guard.originalAmount() - event.getAmount()) < 1.0E-4F) {
-			return;
-		}
-		LAST_HURT.put(player.getUUID(), new DuplicateGuard(now, event.getSource(), event.getAmount()));
+		float amount = event.getNewDamage();
 		double reduction = Math.max(0.0D,
 				Math.min(100.0D, ReliquaryConfig.bloodDebtReductionPercent()));
-		float deferred = (float) (event.getAmount() * reduction / 100.0D);
+		float deferred = (float) (amount * reduction / 100.0D);
 		if (deferred <= 0.0F) {
 			return;
 		}
-		event.setAmount(Math.max(0.0F, event.getAmount() - deferred));
+		event.setNewDamage(Math.max(0.0F, amount - deferred));
 		double minimum = ReliquaryConfig.bloodDebtMinDeferredDamage();
 		if (minimum > 0.0D && deferred <= minimum + 1.0E-6F) {
 			return;
 		}
 		int ticks = ReliquaryConfig.bloodDebtDeferTicks();
+		DamageSource debtSource = debtSource(player, event.getSource());
 		DEBTS.computeIfAbsent(player.getUUID(), ignored -> new ArrayList<>())
-				.add(new Debt(deferred, ticks, ticks, event.getSource()));
+				.add(new Debt(deferred, ticks, ticks, debtSource));
 	}
 
 	/** 每 tick 静默扣血：原版吸收 → 血债盾 → 魂心 → 黑心 → 生命。 */
@@ -180,21 +179,18 @@ public final class BloodDebtAltar {
 
 	public static void onDeathOrUnequip(ServerPlayer player) {
 		DEBTS.remove(player.getUUID());
-		LAST_HURT.remove(player.getUUID());
 		LAST_EXTERNAL_HURT_TICK.remove(player.getUUID());
 	}
 
 	public static void forget(ServerPlayer player) {
 		if (player != null) {
 			DEBTS.remove(player.getUUID());
-			LAST_HURT.remove(player.getUUID());
 			LAST_EXTERNAL_HURT_TICK.remove(player.getUUID());
 		}
 	}
 
 	public static void clear() {
 		DEBTS.clear();
-		LAST_HURT.clear();
 		LAST_EXTERNAL_HURT_TICK.clear();
 	}
 
@@ -279,6 +275,14 @@ public final class BloodDebtAltar {
 		PlayerFlags.setBloodDebtShield(player, Math.min(cap, Math.max(0.0D, value)));
 	}
 
+	private static DamageSource debtSource(ServerPlayer player, DamageSource original) {
+		var holder = player.serverLevel().registryAccess()
+				.registryOrThrow(Registries.DAMAGE_TYPE)
+				.getHolderOrThrow(BLOOD_DEBT_TYPE);
+		return new DamageSource(holder, original.getDirectEntity(), original.getEntity(),
+				original.getSourcePosition());
+	}
+
 	private static double healthCostFor(double availableHealth, double currentShield, double maxHealth,
 			double capPercent, double activeAbsorbPercent) {
 		if (availableHealth < 0.5D) {
@@ -318,9 +322,6 @@ public final class BloodDebtAltar {
 
 	private static void fail(ServerPlayer player, String key) {
 		player.displayClientMessage(net.minecraft.network.chat.Component.translatable(key), true);
-	}
-
-	private record DuplicateGuard(long tick, DamageSource source, float originalAmount) {
 	}
 
 	private static final class Debt {

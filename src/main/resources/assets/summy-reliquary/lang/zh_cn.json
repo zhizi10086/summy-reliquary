@@ -670,7 +670,7 @@
   "item.summy-reliquary.blood_debt_altar": "血债祭坛",
   "item.summy-reliquary.blood_debt_altar.desc.1": "每一滴血，",
   "item.summy-reliquary.blood_debt_altar.desc.2": "都记在债上。",
-  "item.summy-reliquary.blood_debt_altar.shift.1": "受到伤害 -%s%%，减免部分会形成债务并于 %s 秒内持续偿还；若单笔债务不大于 %s 点则不生成。",
+  "item.summy-reliquary.blood_debt_altar.shift.1": "护甲、保护与抗性等常规减伤后，受到伤害 -%s%%；减免部分会形成债务并于 %s 秒内以真实伤害持续偿还，若单笔债务不大于 %s 点则不生成。",
   "item.summy-reliquary.blood_debt_altar.shift.2": "按下 R 将生命值下降至 1 点，并获得消耗量 %s%% 的血债盾，上限为最大生命值的 %s%%。",
   "item.summy-reliquary.blood_debt_altar.shift.3": "若血债盾空余量不足，则只消耗补满上限所需的生命。",
   "item.summy-reliquary.blood_debt_altar.shift.4": "击杀敌对生物会使所有债务的剩余时间缩短 %s 秒，击杀 BOSS 会清空全部债务。",
