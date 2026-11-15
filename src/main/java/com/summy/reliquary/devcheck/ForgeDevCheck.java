@@ -116,6 +116,8 @@ public final class ForgeDevCheck {
 	private static boolean suppressMarkerVisualsForTest = false;
 	/** 本轮自检失败的独立断言，结束时用于阻止“失败但正常退出”。 */
 	private static final Set<String> failedChecks = new HashSet<>();
+	private static UUID debtDeathProbePlayerId;
+	private static DamageSource debtDeathProbeSource;
 
 	/** 光环观感截图用的头部姿态：{偏航角, 俯仰角} */
 	private static final float[][] HALO_POSES = {
@@ -142,6 +144,15 @@ public final class ForgeDevCheck {
 			return;
 		}
 		event.setAmount(Math.min(event.getAmount(), trueDamageCapAmount));
+	}
+
+	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
+	public static void captureDebtDeathSource(
+			net.minecraftforge.event.entity.living.LivingDeathEvent event) {
+		if (ENABLED && debtDeathProbePlayerId != null
+				&& debtDeathProbePlayerId.equals(event.getEntity().getUUID())) {
+			debtDeathProbeSource = event.getSource();
+		}
 	}
 
 	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
@@ -5383,18 +5394,83 @@ public final class ForgeDevCheck {
 			player.setAbsorptionAmount(0.0F);
 			equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.BLOOD_DEBT_ALTAR.get());
 			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 0.0D);
-			LivingHurtEvent debtEvent = new LivingHurtEvent(player,
-					player.damageSources().magic(), 10.0F);
-			com.summy.reliquary.effect.BloodDebtAltar.onIncomingHurt(debtEvent);
+			// 2.0.1：真实 Player 管线必须按护甲 / 保护 / 抗性后的金额生成债务。
+			// 等效满钻甲（20 护甲 / 8 韧性）+ 抗性 IV：40 点玩家攻击伤害最终为 4.8，即时 / 债务各 2.4。
+			resetSinState(player);
+			prepareBarePlayer(player);
+			CuriosApi.getCuriosInventory(player).ifPresent(handler ->
+					handler.getCurios().values().forEach(stacks -> {
+						for (int index = 0; index < stacks.getSlots(); index++) {
+							stacks.getStacks().setStackInSlot(index, ItemStack.EMPTY);
+						}
+					}));
+			com.summy.reliquary.effect.PlayerFlags.setAngel(player, false);
+			com.summy.reliquary.effect.PlayerFlags.setDemon(player, true);
+			com.summy.reliquary.effect.SlotSizing.syncNow(player);
+			equipAt(player, ReliquarySlots.COVENANT, 0, SummyReliquary.BLOOD_DEBT_ALTAR.get());
+			com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+			com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+			com.summy.reliquary.effect.DamagePools.clear();
+			com.summy.reliquary.effect.AttributeManager.apply(player);
+			double oldArmorBase = player.getAttribute(Attributes.ARMOR).getBaseValue();
+			double oldToughnessBase = player.getAttribute(Attributes.ARMOR_TOUGHNESS).getBaseValue();
+			player.getAttribute(Attributes.ARMOR).setBaseValue(20.0D);
+			player.getAttribute(Attributes.ARMOR_TOUGHNESS).setBaseValue(8.0D);
+			player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+					net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 200, 3));
+			player.setAbsorptionAmount(0.0F);
+			player.invulnerableTime = 0;
+			com.summy.reliquary.effect.BloodDebtAltar.clear();
+			float armoredHealthBefore = player.getHealth();
+			player.hurt(player.damageSources().playerAttack(player), 40.0F);
+			float armoredHealthLoss = armoredHealthBefore - player.getHealth();
+			double armoredPending = com.summy.reliquary.effect.BloodDebtAltar.pending(player);
+			boolean postMitigationDebt = Math.abs(armoredHealthLoss - 2.4F) < 0.1F
+					&& Math.abs(armoredPending - 2.4D) < 0.1D;
+			require("血债减伤按护甲后金额结算", postMitigationDebt);
+			player.getAttribute(Attributes.ARMOR).setBaseValue(oldArmorBase);
+			player.getAttribute(Attributes.ARMOR_TOUGHNESS).setBaseValue(oldToughnessBase);
+			prepareBarePlayer(player);
+			com.summy.reliquary.effect.BloodDebtAltar.clear();
+			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 0.0D);
+			com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+			com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+			player.setAbsorptionAmount(0.0F);
+			player.invulnerableTime = 0;
+			for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+					EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
+				ItemStack armor = switch (slot) {
+					case HEAD -> new ItemStack(Items.DIAMOND_HELMET);
+					case CHEST -> new ItemStack(Items.DIAMOND_CHESTPLATE);
+					case LEGS -> new ItemStack(Items.DIAMOND_LEGGINGS);
+					case FEET -> new ItemStack(Items.DIAMOND_BOOTS);
+					default -> ItemStack.EMPTY;
+				};
+				armor.enchant(net.minecraft.world.item.enchantment.Enchantments.ALL_DAMAGE_PROTECTION, 4);
+				player.setItemSlot(slot, armor);
+			}
+			player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+					net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 200, 3));
+			float protectionHealthBefore = player.getHealth();
+			player.hurt(player.damageSources().magic(), 40.0F);
+			float protectionHealthLoss = protectionHealthBefore - player.getHealth();
+			double protectionPending = com.summy.reliquary.effect.BloodDebtAltar.pending(player);
+			boolean protectionDebt = Math.abs(protectionHealthLoss - 1.44F) < 0.1F
+					&& Math.abs(protectionPending - 1.44D) < 0.1D;
+			require("血债减伤包含保护附魔", protectionDebt);
+			prepareBarePlayer(player);
+			com.summy.reliquary.effect.BloodDebtAltar.clear();
+			net.minecraft.world.damagesource.DamageSource debtSource = player.damageSources().magic();
+			float debtImmediate = com.summy.reliquary.effect.BloodDebtAltar
+					.onPostMitigationHurt(player, debtSource, 10.0F);
 			boolean realHurtTickMarked =
 					com.summy.reliquary.effect.BloodDebtAltar.hasExternalHurtThisTickForTest(player);
 			int segments = com.summy.reliquary.effect.BloodDebtAltar.segmentCount(player);
 			double pendingBefore = com.summy.reliquary.effect.BloodDebtAltar.pending(player);
 			com.summy.reliquary.effect.BloodDebtAltar.tickPlayer(player);
 			double pendingAfter = com.summy.reliquary.effect.BloodDebtAltar.pending(player);
-			LivingHurtEvent tinyDebt = new LivingHurtEvent(player,
-					player.damageSources().magic(), 1.5F);
-			com.summy.reliquary.effect.BloodDebtAltar.onIncomingHurt(tinyDebt);
+			com.summy.reliquary.effect.BloodDebtAltar.onPostMitigationHurt(
+					player, player.damageSources().magic(), 1.5F);
 			int segmentsAfterTiny = com.summy.reliquary.effect.BloodDebtAltar.segmentCount(player);
 			player.setHealth(3.0F);
 			player.setAbsorptionAmount(0.0F);
@@ -5509,8 +5585,9 @@ public final class ForgeDevCheck {
 				quietHealthTiltSuppression = matchedSuppressed && mismatchPreserved;
 			}
 			com.summy.reliquary.client.ClientBloodDebtState.clear();
-			boolean debtOk = Math.abs(debtEvent.getAmount() - 5.0F) < 1.0E-4F
+			boolean debtOk = Math.abs(debtImmediate - 5.0F) < 1.0E-4F
 					&& segments == 1 && pendingAfter < pendingBefore && segmentsAfterTiny == 1
+					&& postMitigationDebt && protectionDebt
 					&& shieldActivated && Math.abs(shieldGain - expectedShieldGain) < 1.0E-4D
 					&& Math.abs(absorptionAfterActivation) < 1.0E-4F
 					&& existingAbsorptionPreserved && realHurtTickMarked
@@ -5519,6 +5596,36 @@ public final class ForgeDevCheck {
 					&& independentShieldPersisted
 					&& bloodLayerAfterAbsorption && quietHealthTargetMatches
 					&& quietHealthTiltSuppression;
+
+			// 债务部分必须以 blood_debt 真实伤害来源结算，同时保留原攻击者与直接实体。
+			com.summy.reliquary.effect.BloodDebtAltar.clear();
+			com.summy.reliquary.effect.BloodDebtAltar.setShield(player, 0.0D);
+			com.summy.reliquary.effect.SoulShield.setPoints(player, 0.0D);
+			com.summy.reliquary.effect.PlayerFlags.setBlackHeartPoints(player, 0.0D);
+			player.setAbsorptionAmount(0.0F);
+			Zombie debtAttacker = new Zombie(EntityType.ZOMBIE, player.serverLevel());
+			net.minecraft.world.entity.projectile.Arrow debtArrow =
+					new net.minecraft.world.entity.projectile.Arrow(player.serverLevel(), debtAttacker);
+			DamageSource debtOrigin = player.damageSources().arrow(debtArrow, debtAttacker);
+			com.summy.reliquary.effect.BloodDebtAltar.onPostMitigationHurt(player, debtOrigin, 10.0F);
+			player.setHealth(0.01F);
+			debtDeathProbePlayerId = player.getUUID();
+			debtDeathProbeSource = null;
+			com.summy.reliquary.effect.BloodDebtAltar.tickPlayer(player);
+			DamageSource debtDeathSource = debtDeathProbeSource;
+			debtDeathProbePlayerId = null;
+			debtDeathProbeSource = null;
+			boolean debtTrueDamage = debtDeathSource != null
+					&& debtDeathSource.is(net.minecraft.resources.ResourceKey.create(
+							net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+							SummyReliquary.id("blood_debt")))
+					&& debtDeathSource.getEntity() == debtAttacker
+					&& debtDeathSource.getDirectEntity() == debtArrow;
+			require("血债还款使用 blood_debt 真实伤害来源", debtTrueDamage);
+			player.revive();
+			prepareBarePlayer(player);
+			debtOk = debtOk && debtTrueDamage;
+
 			unequip(player, ReliquarySlots.COVENANT);
 			player.setHealth(3.0F);
 			player.setAbsorptionAmount(2.0F);
@@ -5643,7 +5750,9 @@ public final class ForgeDevCheck {
 							+ "神圣裁决附伤 %.2f（应 5）/重复候选 %d（应 1）/重复附伤 %.2f（应 5）/"
 							+ "批次合并附伤 %.2f（应 5）/不同直接实体候选=%s/重复施法=%s/爆炸伤害 %.2f（应 21）/"
 							+ "未满攻击强度附伤 %.2f（应 0）/状态图标定义=%s（共 %d 个）/锥形采样=%s → %s；"
-							+ "血债祭坛落地 %.1f（应 5）/段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/"
+							+ "血债祭坛落地 %.1f（应 5）/护甲后即时 %.1f + 债务 %.1f（应 2.4 + 2.4）/"
+							+ "保护后即时 %.1f + 债务 %.1f（应 1.44 + 1.44）/"
+							+ "段数 %d/1 tick 后剩余 %.2f→%.2f/小额段 %d/"
 							+ "独立盾 %.1f（应 %.1f）/原版吸收 %.1f（应 0） → %s；"
 							+ "厄咒增伤后 %.1f（应 15）/待转移 %d/实际转移 %.2f（应 7.5）/触发范围、图标与清理=%s → %s；"
 							+ "野箱获取=%s；"
@@ -5670,7 +5779,9 @@ public final class ForgeDevCheck {
 					verdictBonus, duplicateCandidates, duplicateVerdictBonus, mergedVerdictBonus,
 					differentDirectEntities, duplicateCastBlocked, castDamage, unchargedBonus,
 					markerEffectDefinitions, covenantEffectCount, coneParticleGeometry, sacredOk,
-					debtEvent.getAmount(), segments, pendingBefore, pendingAfter, segmentsAfterTiny,
+					debtImmediate, armoredHealthLoss, armoredPending,
+					protectionHealthLoss, protectionPending,
+					segments, pendingBefore, pendingAfter, segmentsAfterTiny,
 					shieldGain, expectedShieldGain, absorptionAfterActivation, debtOk,
 					hexEvent.getAmount(), pendingTransfers, transferred,
 					hexVisualOk, hexOk, acquisitionOk, config, ok));

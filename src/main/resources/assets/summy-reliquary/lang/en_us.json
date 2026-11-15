@@ -672,7 +672,7 @@
   "item.summy-reliquary.blood_debt_altar": "Blood Debt Altar",
   "item.summy-reliquary.blood_debt_altar.desc.1": "Every drop of blood",
   "item.summy-reliquary.blood_debt_altar.desc.2": "is written into the debt.",
-  "item.summy-reliquary.blood_debt_altar.shift.1": "Damage taken is reduced by %s%%; the reduction becomes debt, repaid over %s s. No debt is created if a single segment is %s damage or less.",
+  "item.summy-reliquary.blood_debt_altar.shift.1": "After armor, protection, resistance, and other normal mitigation, damage taken is reduced by %s%%; the reduction becomes debt, repaid as true damage over %s s. No debt is created if a single segment is %s damage or less.",
   "item.summy-reliquary.blood_debt_altar.shift.2": "Press R to spend health down to 1 and gain Blood Shield equal to %s%% of the health spent, capped at %s%% of max health.",
   "item.summy-reliquary.blood_debt_altar.shift.3": "If the Blood Shield has insufficient free capacity, only the health needed to fill its cap is spent.",
   "item.summy-reliquary.blood_debt_altar.shift.4": "Killing a hostile creature shortens every debt segment by %s s; killing a boss clears all debt.",

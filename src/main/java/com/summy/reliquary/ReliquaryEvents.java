@@ -983,10 +983,9 @@ public final class ReliquaryEvents {
 
 		// 2.3 誓约：
 		// ① 穿过神圣干预屏障的玩家投射物；② 厄咒增伤与转移候选；
-		// ③ 血债祭坛减伤与延迟；④ 神圣干预反伤；⑤ 神圣裁决附伤与新触发。
+		// ③ 神圣干预反伤；④ 神圣裁决附伤与新触发。血债在护甲 / 保护 / 抗性之后由 Mixin 接管。
 		com.summy.reliquary.effect.DivineIntervention.onProjectileHurt(event);
 		com.summy.reliquary.effect.HexSeal.onIncomingHurt(event);
-		com.summy.reliquary.effect.BloodDebtAltar.onIncomingHurt(event);
 		com.summy.reliquary.effect.DivineIntervention.onIncomingHurt(event);
 		com.summy.reliquary.effect.SacredVerdict.recordOutgoing(event);
 		com.summy.reliquary.effect.HexSeal.onOutgoingHurt(event);
