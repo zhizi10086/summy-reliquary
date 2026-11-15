@@ -36,13 +36,22 @@ function Check-Contains([string]$file, [string]$label, [string]$needle, [string]
 $mainJava = Join-Path $ProjectRoot 'src\main\java\com\summy\reliquary\SummyReliquary.java'
 $configJava = Join-Path $ProjectRoot 'src\main\java\com\summy\reliquary\config\ReliquaryConfig.java'
 $netJava = Join-Path $ProjectRoot 'src\main\java\com\summy\reliquary\net\ReliquaryNetworking.java'
-$recipeDir = Join-Path $ProjectRoot 'src\main\resources\data\summy-reliquary\recipes'
+$recipeDirName = if (Test-Path -LiteralPath (Join-Path $ProjectRoot 'src\main\resources\data\summy-reliquary\recipes')) { 'recipes' } else { 'recipe' }
+$recipeDir = Join-Path $ProjectRoot ('src\main\resources\data\summy-reliquary\' + $recipeDirName)
+$isNeoForge = $recipeDirName -eq 'recipe'
+$historicalVersion = if ($isNeoForge) { '2.0.0-neoforge' } else { '2.0.0-forge' }
+$expectedSelfCheckMin = if ($isNeoForge) { 631 } else { 627 }
+$expectedSelfCheckMax = if ($isNeoForge) { 635 } else { 630 }
+$selfCheckText = '完整客户端自检 **' + $expectedSelfCheckMin + '~' + $expectedSelfCheckMax + ' 行全绿**'
+$progressSelfCheckText = '完整 `[DEVCHECK]` **' + $expectedSelfCheckMin + '~' + $expectedSelfCheckMax + ' 行全绿**'
+$changelogHeading = if ($isNeoForge) { '## 2.0.0-neoforge 变更' } else { '## 2.0.0 变更' }
 
 $itemCount = (Select-String -Path $mainJava -Pattern 'ITEMS\.register\("').Count
 $tabCount = (Select-String -Path $mainJava -Pattern 'out\.accept\(').Count
 $recipeCount = (Get-ChildItem -LiteralPath $recipeDir -Filter '*.json').Count
 # 进度数与配置键数都从源码/资源实测（1.7.10 收尾起不再硬编码）
-$advancementDir = Join-Path $ProjectRoot 'src\main\resources\data\summy-reliquary\advancements'
+$advancementDirName = if (Test-Path -LiteralPath (Join-Path $ProjectRoot 'src\main\resources\data\summy-reliquary\advancements')) { 'advancements' } else { 'advancement' }
+$advancementDir = Join-Path $ProjectRoot ('src\main\resources\data\summy-reliquary\' + $advancementDirName)
 $advancementCount = (Get-ChildItem -LiteralPath $advancementDir -Filter '*.json').Count
 $allSections = @(Select-String -Path $configJava -Pattern '\.push\("' |
         ForEach-Object { ($_.Line -replace '.*\.push\("([a-z_]+)".*', '$1') } |
@@ -78,8 +87,8 @@ Write-Host ("实测：物品 {0} / 创造页 {1} / 配方 {2} / 进度 {3} / 配
         ($(if ($devcheckLog) { $devcheckLog.Name } else { '没有 devcheck 日志' })))
 
 # 自检行数允许小幅浮动：「光环 / 美德提示行」dump 会读存档里的赎罪状态（两行都在 / 都不在差 2 行）
-if ($devcheckLines -lt 627 -or $devcheckLines -gt 630) {
-    Add-Problem ("自检行数 " + $devcheckLines + " 超出预期的 627~630 区间（文档写的正是这个区间）")
+if ($devcheckLines -lt $expectedSelfCheckMin -or $devcheckLines -gt $expectedSelfCheckMax) {
+    Add-Problem ("自检行数 " + $devcheckLines + " 超出预期的 " + $expectedSelfCheckMin + "~" + $expectedSelfCheckMax + " 区间（文档写的正是这个区间）")
 }
 
 # ==================== 与文档比对 ====================
@@ -89,16 +98,16 @@ $events = Join-Path $LedgerDir 'SummyReliquary-事件文本与触发关系-2.0.0
 
 Write-Host '检查 README…'
 Check-Contains $readme 'README' '## 2.0.0 变更' '当前版本小节'
-Check-Contains $readme 'README' ('`2.0.0-forge`') '当前版本号'
+Check-Contains $readme 'README' ('`' + $historicalVersion + '`') '当前版本号'
 Check-Contains $readme 'README' ("注册物品 / 创造页 / 配方 / 进度为（**" + $itemCount + " / " + $tabCount + " / " + $recipeCount + " / " + $advancementCount + "**）") '物品 / 创造页 / 配方 / 进度数'
 # 1.8.0：创造页与配方数已并入上一条断言
 # 1.8.0：配方数已并入上一条断言
-Check-Contains $readme 'README' '完整客户端自检 **627~630 行全绿**' '自检结果'
+Check-Contains $readme 'README' $selfCheckText '自检结果'
 Check-Contains $readme 'README' '定值真伤增伤转正' '2.0.0 关键口径'
 
 Write-Host '检查《进度文档》…'
 Check-Contains $progress '进度文档' ("## 2. 内容总表（" + $itemCount + " 件已注册物品）") '第 2 章标题的物品数'
-Check-Contains $progress '进度文档' '完整 `[DEVCHECK]` **627~630 行全绿**' '第 11 章自检结果'
+Check-Contains $progress '进度文档' $progressSelfCheckText '第 11 章自检结果'
 Check-Contains $progress '进度文档' '版本 2.0.0-forge' '第 14 章版本号'
 Check-Contains $progress '进度文档' ("$sectionCount 个配置段 / $configKeyCount 个键") '配置段总览（简介）'
 Check-Contains $progress '进度文档' ("注册物品 **" + $itemCount + "**、进度 **" + $advancementCount + "**、配方 **" + $recipeCount + "**、配置段 **" + $sectionCount + "**") '当前计数行'
@@ -110,7 +119,8 @@ Check-Contains $progress '进度文档' 'doc-consistency.ps1' '第 11 章·本�
 
 Write-Host '检查致谢与二创声明…'
 $credits = Join-Path $ProjectRoot 'CREDITS.md'
-$modsToml = Join-Path $ProjectRoot 'src\main\resources\META-INF\mods.toml'
+$modsTomlName = if (Test-Path -LiteralPath (Join-Path $ProjectRoot 'src\main\resources\META-INF\mods.toml')) { 'mods.toml' } else { 'neoforge.mods.toml' }
+$modsToml = Join-Path $ProjectRoot ('src\main\resources\META-INF\' + $modsTomlName)
 Check-Contains $readme 'README' '## 致谢与免责声明' '致谢与免责声明小节'
 Check-Contains $readme 'README' 'The Binding of Isaac' '《以撒的结合》致谢'
 Check-Contains $readme 'README' '525277385@qq.com' '联系邮箱'
@@ -128,7 +138,7 @@ Check-Contains $events '事件台账' '灰正体尾行' '700 台词的口径'
 
 Write-Host '检查 README 去历史与 CHANGELOG…'
 $changelog = Join-Path $ProjectRoot 'CHANGELOG.md'
-Check-Contains $changelog 'CHANGELOG' '## 2.0.0 变更' '最新版本小节'
+Check-Contains $changelog 'CHANGELOG' $changelogHeading '最新版本小节'
 Check-Contains $changelog 'CHANGELOG' '## 1.4.4 变更' '最老版本小节'
 $readmeText = [System.IO.File]::ReadAllText($readme)
 foreach ($old in @('## 1.7.9 变更', '## 1.6.10 变更', '## 1.4.4 变更')) {
