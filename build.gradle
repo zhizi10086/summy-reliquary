@@ -1,3 +1,8 @@
+import java.nio.file.FileAlreadyExistsException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+
 // Summy Reliquary 1.20.1：Forge + Curios 版本
 // 说明：本工程由原来的 Fabric/Trinkets 版本原地改造而来，现在只产出 Forge jar；
 //      在 Fabric 整合包里通过 Kilt（+ Fabric Language Kotlin）运行同一个 jar。
@@ -34,7 +39,13 @@ group = project.maven_group
 //   -Pnodata  去掉本轮新增的全部数据包内容（自定义伤害类型 + 3 个原版伤害类型标签覆盖）
 //   -Pnotags  只去掉 3 个原版伤害类型标签覆盖（保留自定义伤害类型）
 //   -Pnomodel 去掉新物品「终末天启」的模型与贴图
-def diagnosisSwitch = ['nodata', 'notags', 'nomodel'].find { project.hasProperty(it) }
+def diagnosticFlags = ['nodata', 'notags', 'nomodel'].findAll { project.hasProperty(it) }
+if (diagnosticFlags.size() > 1) {
+    throw new GradleException('nodata、notags、nomodel 只能选一个')
+}
+def diagnosisSwitch = diagnosticFlags.find()
+def runGameDirectory = project.file(project.findProperty('testRunDir') ?: 'run')
+def testFlags = (project.hasProperty('devcheck') ? ['devcheck'] : []) + diagnosticFlags
 
 base {
     archivesName = project.archives_base_name
@@ -81,7 +92,7 @@ minecraft {
 
     runs {
         client {
-            workingDirectory project.file('run')
+            workingDirectory runGameDirectory
             property 'forge.logging.console.level', 'debug'
             // 开发环境里让 Mixin 把依赖模组（Curios）自带的 SRG refmap 重映射成开发映射，
             // 否则 Curios 的 mixin 会因为找不到 f_xxx_ 字段而崩溃
@@ -99,7 +110,7 @@ minecraft {
             }
         }
         server {
-            workingDirectory project.file('run')
+            workingDirectory runGameDirectory
             property 'forge.logging.console.level', 'debug'
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
@@ -121,13 +132,6 @@ mixin {
 // ForgeGradle 的 jarJar 默认关闭：显式打开，MixinExtras 才会作为嵌套 jar 打进产物
 jarJar {
     enable()
-}
-
-// 正式包不带开发自检脚本（jarJar 从 classes 重新组装，不会继承 jar 的 exclude）
-tasks.named('jarJar') {
-    if (!project.hasProperty('devcheck')) {
-        exclude 'com/summy/reliquary/devcheck/**'
-    }
 }
 
 dependencies {
@@ -156,6 +160,7 @@ dependencies {
 
 // 把 gradle.properties 里的版本号写进 mods.toml
 processResources {
+    filteringCharset = 'UTF-8'
     inputs.property 'version', project.mod_version
     inputs.property 'curios_version', project.curios_version
 
@@ -172,21 +177,36 @@ tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
 }
 
-jar {
+tasks.withType(Jar).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+// 普通包和 Forge 的 JarJar 使用相同的内容过滤与许可文件。
+def configureRuntimeJar = { Jar artifact ->
     // 开发自检脚本不打进正式 jar；需要测试时用 -Pdevcheck 打包
     if (!project.hasProperty('devcheck')) {
-        exclude 'com/summy/reliquary/devcheck/**'
+        artifact.exclude 'com/summy/reliquary/devcheck/**'
     }
     if (diagnosisSwitch == 'nodata' || diagnosisSwitch == 'notags') {
-        exclude 'data/minecraft/tags/damage_type/**'
+        artifact.exclude 'data/minecraft/tags/damage_type/**'
     }
     if (diagnosisSwitch == 'nodata') {
-        exclude 'data/summy-reliquary/damage_type/**'
+        artifact.exclude 'data/summy-reliquary/damage_type/**'
     }
     if (diagnosisSwitch == 'nomodel') {
-        exclude 'assets/summy-reliquary/models/item/final_revelation.json'
-        exclude 'assets/summy-reliquary/textures/item/final_revelation.png'
+        artifact.exclude 'assets/summy-reliquary/models/item/final_revelation.json'
+        artifact.exclude 'assets/summy-reliquary/textures/item/final_revelation.png'
     }
+    artifact.from('LICENSE') {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}
+
+tasks.named('jar', Jar).configure(configureRuntimeJar)
+tasks.named('jarJar', Jar).configure(configureRuntimeJar)
+
+jar {
     manifest {
         attributes([
                 'Specification-Title'     : project.archives_base_name,
@@ -196,9 +216,6 @@ jar {
                 'Implementation-Version'  : project.mod_version,
                 'Implementation-Vendor'   : 'Summy'
         ])
-    }
-    from('LICENSE') {
-        rename { "${it}_${project.base.archivesName.get()}" }
     }
 }
 
@@ -217,10 +234,9 @@ def resolveJarArchive = { String moduleDirectory ->
 // 构建结束后把 reobf 后的 jar 复制到 JAR/<Minecraft版本>/summy-reliquary
 tasks.named('build') {
     doLast {
-        // 带诊断开关时：改名 + 放进 _test 子目录，避免覆盖正式产物
         def archiveDir = resolveJarArchive('summy-reliquary')
-        def releaseDir = diagnosisSwitch ? new File(archiveDir, '_test') : archiveDir
-        releaseDir.mkdirs()
+        def releaseDir = testFlags ? new File(archiveDir, '_test') : archiveDir
+        Files.createDirectories(releaseDir.toPath())
         // 开启 JarJar 后，真正可发布的产物是 reobfJarJar（含嵌套的 MixinExtras）；
         // 没有该任务时才退回 reobfJar。ForgeGradle 6 的任务没有 archiveFile 属性，
         // 优先取 output 属性，取不到再退回约定目录。
@@ -239,13 +255,23 @@ tasks.named('build') {
         if (jarFile == null || !jarFile.exists()) {
             throw new GradleException('找不到 reobfJar 的输出 jar')
         }
-        def targetName = diagnosisSwitch
-                ? "${project.archives_base_name}-${project.mod_version}-test-${diagnosisSwitch}.jar"
-                : "${project.archives_base_name}-${project.mod_version}.jar"
-        copy {
-            from jarFile
-            rename { targetName }
-            into releaseDir
+        def suffix = testFlags ? "-test-${testFlags.join('-')}" : ''
+        def targetName = "${project.archives_base_name}-${project.mod_version}${suffix}.jar"
+        def target = new File(releaseDir, targetName).toPath()
+        // 先完整写入临时文件，再移动到归档。并发归档也不能覆盖同名文件。
+        def staged = Files.createTempFile(releaseDir.toPath(), '.summy-reliquary-', '.tmp')
+        try {
+            Files.copy(jarFile.toPath(), staged, StandardCopyOption.REPLACE_EXISTING)
+            Files.move(staged, target)
+        } catch (FileAlreadyExistsException conflict) {
+            def digest = MessageDigest.getInstance('SHA-256')
+            if (!Files.isRegularFile(target)
+                    || !MessageDigest.isEqual(digest.digest(Files.readAllBytes(staged)),
+                            digest.digest(Files.readAllBytes(target)))) {
+                throw new GradleException("JAR 归档冲突：${target}。请先按工作区规范归档旧件。", conflict)
+            }
+        } finally {
+            Files.deleteIfExists(staged)
         }
     }
 }
