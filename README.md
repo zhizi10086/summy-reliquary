@@ -2,7 +2,7 @@
 
 > 七罪遗物 · 天使与恶魔双线 · Minecraft 1.21.1 NeoForge
 >
-> 当前版本：`2.0.1-neoforge` · ST 兼容与血债结算修复
+> 当前版本：`2.0.1-fix-neoforge` · 2.0.1 内容修复
 
 **前置：** NeoForge 21.1.265+｜ Curios 9.5.1+1.21.1｜ Java 21
 
@@ -303,6 +303,13 @@ JEI 另提供 11 个系统型信息主题，覆盖七罪与赎罪、撒旦圣经
 - 嫉妒的「观察到」= 16 格内且在视线 30° 锥内；「带 buff」指任意正面药水效果。
 - 贪婪的钻石只统计玩家自身背包（36 格 + 副手 + 盔甲槽），不含 Curios 与箱子。
 - 暴食未赎罪时饥饿上限取 `min(18, 当前环境下限)`（装了 summy-enchantment 的「大胃袋」也一样）。
+
+## 2.0.1-fix-neoforge 变更
+
+- 修复誓约饰品野箱获取与慈善捆绑包的掉落重掷入口。
+- 修复长矛空挥冷却无法解析客户端字段的问题，按住攻击或快速点击时恢复原有冷却门禁。
+
+完整版本记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 2.0.0 变更
 
@@ -728,16 +735,10 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
 
 ## 开发
 
-- 构建：`gradlew build`（需要 Java 17，见 `gradle.properties` 的 `org.gradle.java.home`），
-  产物会自动复制到 `JAR/<Minecraft版本>/summy-reliquary/`
-- **clone 后请先把 `gradle.properties` 里的 `org.gradle.java.home` 指向本机 JDK 17**（仓库里那一行是注释示例，不填会用系统默认 JDK，可能不是 17 而构建失败）。
-- 开发台账（进度文档 / 事件文本与触发关系）在 [`docs/`](docs/)，与模组源码一起维护。
-- `gradle.properties` 里关掉了 ForgeGradle 的联网自检（`systemProp.net.minecraftforge.gradle.check.certs=false`）：
-  本机访问 `maven.minecraftforge.net` 很慢，开着这一项每次构建要空等几分钟；关掉后不影响任何产物。
-- 运行：`gradlew runClient` / `gradlew runServer`
-- 自检脚本：`src/main/java/com/summy/reliquary/devcheck/ForgeDevCheck.java` 默认不生效；
-  用 `gradlew runClient -Pdevcheck --quickPlaySingleplayer summy-devcheck` 会跑完全部检查（当前共输出 **631~635 行 `[DEVCHECK]`**、0 条失败断言；NeoForge 平台实测 633 行并正常退出；
-  行数浮动来自「光环 / 美德提示行」会读存档里的赎罪状态）。当前覆盖：
+- 在 `support/1.21.1` 版本工作树开发，使用 Java 21。
+- `gradlew.bat build` 将正式产物归档到 `JAR/1.21.1/summy-reliquary/`。相同文件可复用，同名且 SHA-256 不同的文件先按工作区规范归档旧件。
+- 运行 `gradlew.bat runClient` 或 `gradlew.bat runServer`。`-PtestRunDir=<目录>` 可以为隔离测试指定游戏目录。
+- 准备名为 `summy-devcheck` 的测试世界，再执行 `gradlew.bat -Pdevcheck runClient`。以当前进程成功退出和 `[DEVCHECK] RESULT failures=0` 作为自检通过标志。当前覆盖：
   - **栏位与套装**：10×5 栏位校验矩阵、套装切换与提示去重/着色、不可重复佩戴、栏位阶段表与缩格退回
   - **魂心 / 黑心 / 吸收**：独立池结算顺序、外部清零模拟、与护盾相加 46/36/2、卸下只收我方份额、碎裂击退与无敌
   - **七罪 / 美德**：七项触发与效果、三态与碎片赎罪、赎罪配方门槛（含 JEI 可见性）、美德继承增益/减益矩阵、免死（触发率 / 半血 / 2 秒无敌）
@@ -748,7 +749,7 @@ Kilt 组合升级到 0.19.5 + 20.1.20；仍卡就在卡住时抓一份线程快�
   - **流程与命令**：首次发放、右键规则、创造飞行、末影龙一次性裁决与老存档自愈、命令权限矩阵、进度 23 条
   逐版本各自补了哪些用例，见 [CHANGELOG.md](CHANGELOG.md)。
 - 自检会把测试世界切成「简单难度 + 关闭刷怪 + 玩家无敌」（和平难度会立刻清除测试用的僵尸）
-- 排查用诊断开关（三选一，产物会**改名**并放进 `JAR/<Minecraft版本>/summy-reliquary/_test/`，不会覆盖正式包）：
+- `-Pdevcheck` 和诊断构建会把带开关名的产物放入 `JAR/<Minecraft版本>/summy-reliquary/_test/`。诊断开关三选一。
   `-Pnodata`（去掉本轮新增的**全部数据包内容**：自定义伤害类型 + 3 个原版伤害类型标签覆盖）、
   `-Pnotags`（只去掉那 3 个原版伤害类型标签覆盖，保留自定义伤害类型）、
   `-Pnomodel`（去掉**终末天启**的模型与贴图）；例：`gradlew build -Pnodata`

@@ -38,13 +38,6 @@ $configJava = Join-Path $ProjectRoot 'src\main\java\com\summy\reliquary\config\R
 $netJava = Join-Path $ProjectRoot 'src\main\java\com\summy\reliquary\net\ReliquaryNetworking.java'
 $recipeDirName = if (Test-Path -LiteralPath (Join-Path $ProjectRoot 'src\main\resources\data\summy-reliquary\recipes')) { 'recipes' } else { 'recipe' }
 $recipeDir = Join-Path $ProjectRoot ('src\main\resources\data\summy-reliquary\' + $recipeDirName)
-$isNeoForge = $recipeDirName -eq 'recipe'
-$historicalVersion = if ($isNeoForge) { '2.0.0-neoforge' } else { '2.0.0-forge' }
-$expectedSelfCheckMin = if ($isNeoForge) { 631 } else { 627 }
-$expectedSelfCheckMax = if ($isNeoForge) { 635 } else { 630 }
-$selfCheckText = '完整客户端自检 **' + $expectedSelfCheckMin + '~' + $expectedSelfCheckMax + ' 行全绿**'
-$progressSelfCheckText = '完整 `[DEVCHECK]` **' + $expectedSelfCheckMin + '~' + $expectedSelfCheckMax + ' 行全绿**'
-$changelogHeading = if ($isNeoForge) { '## 2.0.0-neoforge 变更' } else { '## 2.0.0 变更' }
 
 $itemCount = (Select-String -Path $mainJava -Pattern 'ITEMS\.register\("').Count
 $tabCount = (Select-String -Path $mainJava -Pattern 'out\.accept\(').Count
@@ -73,41 +66,28 @@ function Get-SectionKeyCount([string]$path, [string]$section) {
 $razorKeys = Get-SectionKeyCount $configJava 'golden_razor'
 $protocol = ((Select-String -Path $netJava -Pattern 'VERSION\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches[0].Groups[1].Value)
 
-# 自检行数：取最新一份 devcheck 日志里 `[DEVCHECK]` 的行数
-$devcheckLog = Get-ChildItem -LiteralPath $ProjectRoot -Filter 'devcheck-*.log' -ErrorAction SilentlyContinue |
-        Sort-Object LastWriteTime -Descending | Select-Object -First 1
-$devcheckLines = 0
-if ($devcheckLog) {
-    $devcheckLines = (Get-Content -LiteralPath $devcheckLog.FullName |
-            Select-String -Pattern '\[DEVCHECK\]').Count
-}
-
-Write-Host ("实测：物品 {0} / 创造页 {1} / 配方 {2} / 进度 {3} / 配置段 {4} / 配置键 {5}（golden_razor {6}） / 协议 `"{7}`" / 自检 {8} 行（{9}）" -f `
-        $itemCount, $tabCount, $recipeCount, $advancementCount, $sectionCount, $configKeyCount, $razorKeys, $protocol, $devcheckLines, `
-        ($(if ($devcheckLog) { $devcheckLog.Name } else { '没有 devcheck 日志' })))
-
-# 自检行数允许小幅浮动：「光环 / 美德提示行」dump 会读存档里的赎罪状态（两行都在 / 都不在差 2 行）
-if ($devcheckLines -lt $expectedSelfCheckMin -or $devcheckLines -gt $expectedSelfCheckMax) {
-    Add-Problem ("自检行数 " + $devcheckLines + " 超出预期的 " + $expectedSelfCheckMin + "~" + $expectedSelfCheckMax + " 区间（文档写的正是这个区间）")
-}
+Write-Host ('实测：物品 {0} / 创造页 {1} / 配方 {2} / 进度 {3} / 配置段 {4} / 配置键 {5}（golden_razor {6}） / 协议 "{7}"' -f `
+        $itemCount, $tabCount, $recipeCount, $advancementCount, $sectionCount, $configKeyCount, $razorKeys, $protocol)
 
 # ==================== 与文档比对 ====================
 $readme = Join-Path $ProjectRoot 'README.md'
 $progress = Join-Path $LedgerDir 'SummyReliquary-进度文档-2.0.0-forge.md'
 $events = Join-Path $LedgerDir 'SummyReliquary-事件文本与触发关系-2.0.0.md'
 
+$properties = Join-Path $ProjectRoot 'gradle.properties'
+$version = (Select-String -LiteralPath $properties -Pattern '^mod_version=(\S+)$').Matches[0].Groups[1].Value
+$versionHeading = '## ' + $version + ' 变更'
+
 Write-Host '检查 README…'
-Check-Contains $readme 'README' '## 2.0.0 变更' '当前版本小节'
-Check-Contains $readme 'README' ('`' + $historicalVersion + '`') '当前版本号'
+Check-Contains $readme 'README' $versionHeading '当前版本小节'
+Check-Contains $readme 'README' ('当前版本：`' + $version + '`') '顶部版本号'
 Check-Contains $readme 'README' ("注册物品 / 创造页 / 配方 / 进度为（**" + $itemCount + " / " + $tabCount + " / " + $recipeCount + " / " + $advancementCount + "**）") '物品 / 创造页 / 配方 / 进度数'
 # 1.8.0：创造页与配方数已并入上一条断言
 # 1.8.0：配方数已并入上一条断言
-Check-Contains $readme 'README' $selfCheckText '自检结果'
 Check-Contains $readme 'README' '定值真伤增伤转正' '2.0.0 关键口径'
 
 Write-Host '检查《进度文档》…'
 Check-Contains $progress '进度文档' ("## 2. 内容总表（" + $itemCount + " 件已注册物品）") '第 2 章标题的物品数'
-Check-Contains $progress '进度文档' $progressSelfCheckText '第 11 章自检结果'
 Check-Contains $progress '进度文档' '版本 2.0.0-forge' '第 14 章版本号'
 Check-Contains $progress '进度文档' ("$sectionCount 个配置段 / $configKeyCount 个键") '配置段总览（简介）'
 Check-Contains $progress '进度文档' ("注册物品 **" + $itemCount + "**、进度 **" + $advancementCount + "**、配方 **" + $recipeCount + "**、配置段 **" + $sectionCount + "**") '当前计数行'
@@ -138,7 +118,7 @@ Check-Contains $events '事件台账' '灰正体尾行' '700 台词的口径'
 
 Write-Host '检查 README 去历史与 CHANGELOG…'
 $changelog = Join-Path $ProjectRoot 'CHANGELOG.md'
-Check-Contains $changelog 'CHANGELOG' $changelogHeading '最新版本小节'
+Check-Contains $changelog 'CHANGELOG' $versionHeading '当前版本小节'
 Check-Contains $changelog 'CHANGELOG' '## 1.4.4 变更' '最老版本小节'
 $readmeText = [System.IO.File]::ReadAllText($readme)
 foreach ($old in @('## 1.7.9 变更', '## 1.6.10 变更', '## 1.4.4 变更')) {

@@ -1,3 +1,8 @@
+import java.nio.file.FileAlreadyExistsException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+
 // Summy Reliquary 1.21.1：NeoForge + Curios 版本
 plugins {
     id 'java-library'
@@ -20,7 +25,13 @@ base {
 //   -Pnodata  去掉全部新增数据包内容
 //   -Pnotags  只去掉原版伤害类型标签覆盖
 //   -Pnomodel 去掉终末天启模型与贴图
-def diagnosisSwitch = ['nodata', 'notags', 'nomodel'].find { project.hasProperty(it) }
+def diagnosticFlags = ['nodata', 'notags', 'nomodel'].findAll { project.hasProperty(it) }
+if (diagnosticFlags.size() > 1) {
+    throw new GradleException('nodata、notags、nomodel 只能选一个')
+}
+def diagnosisSwitch = diagnosticFlags.find()
+def runGameDirectory = project.file(project.findProperty('testRunDir') ?: 'run')
+def testFlags = (project.hasProperty('devcheck') ? ['devcheck'] : []) + diagnosticFlags
 
 java {
     toolchain {
@@ -116,7 +127,7 @@ neoForge {
     runs {
         client {
             client()
-            gameDirectory = project.file('run')
+            gameDirectory = runGameDirectory
             if (project.hasProperty('devcheck')) {
                 systemProperty 'summy.devcheck', 'true'
                 programArgument '--quickPlaySingleplayer'
@@ -125,7 +136,7 @@ neoForge {
         }
         server {
             server()
-            gameDirectory = project.file('run')
+            gameDirectory = runGameDirectory
             programArgument '--nogui'
         }
     }
@@ -164,6 +175,11 @@ processResources {
 tasks.withType(JavaCompile).configureEach {
     options.release = 21
     options.encoding = 'UTF-8'
+}
+
+tasks.withType(Jar).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 }
 
 jar {
@@ -210,19 +226,29 @@ def resolveJarArchive = { String moduleDirectory ->
 tasks.named('build') {
     doLast {
         def archiveDir = resolveJarArchive('summy-reliquary')
-        def releaseDir = diagnosisSwitch ? new File(archiveDir, '_test') : archiveDir
-        releaseDir.mkdirs()
+        def releaseDir = testFlags ? new File(archiveDir, '_test') : archiveDir
+        Files.createDirectories(releaseDir.toPath())
         def jarFile = tasks.named('jar').get().archiveFile.get().asFile
         if (!jarFile.exists()) {
             throw new GradleException('找不到 NeoForge JAR 输出')
         }
-        def targetName = diagnosisSwitch
-                ? "${project.archives_base_name}-${project.mod_version}-test-${diagnosisSwitch}.jar"
-                : "${project.archives_base_name}-${project.mod_version}.jar"
-        copy {
-            from jarFile
-            rename { targetName }
-            into releaseDir
+        def suffix = testFlags ? "-test-${testFlags.join('-')}" : ''
+        def targetName = "${project.archives_base_name}-${project.mod_version}${suffix}.jar"
+        def target = new File(releaseDir, targetName).toPath()
+        // 先完整写入临时文件，再移动到归档。并发归档也不能覆盖同名文件。
+        def staged = Files.createTempFile(releaseDir.toPath(), '.summy-reliquary-', '.tmp')
+        try {
+            Files.copy(jarFile.toPath(), staged, StandardCopyOption.REPLACE_EXISTING)
+            Files.move(staged, target)
+        } catch (FileAlreadyExistsException conflict) {
+            def digest = MessageDigest.getInstance('SHA-256')
+            if (!Files.isRegularFile(target)
+                    || !MessageDigest.isEqual(digest.digest(Files.readAllBytes(staged)),
+                            digest.digest(Files.readAllBytes(target)))) {
+                throw new GradleException("JAR 归档冲突：${target}。请先按工作区规范归档旧件。", conflict)
+            }
+        } finally {
+            Files.deleteIfExists(staged)
         }
     }
 }

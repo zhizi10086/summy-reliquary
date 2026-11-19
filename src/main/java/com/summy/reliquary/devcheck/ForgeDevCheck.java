@@ -122,7 +122,8 @@ public final class ForgeDevCheck {
 	/** 2.0 自检：临时拒绝启示之光与恶魔印记的视觉状态，内部标记仍应写入。 */
 	private static boolean suppressMarkerVisualsForTest = false;
 	/** 本轮自检失败的独立断言，结束时用于阻止“失败但正常退出”。 */
-	private static final Set<String> failedChecks = new HashSet<>();
+	private static final Set<String> failedChecks = java.util.concurrent.ConcurrentHashMap.newKeySet();
+	private static volatile boolean serverChecksComplete;
 	private static UUID debtDeathProbePlayerId;
 	private static DamageSource debtDeathProbeSource;
 
@@ -566,20 +567,24 @@ public final class ForgeDevCheck {
 				case 2275 -> checkBetrayal(player);
 				case 2276 -> checkTrueDamageLimits(player);
 				case 2277 -> checkCovenantItems(player);
-				case 2278 -> checkHumbleingBundle(player);
+				case 2278 -> require("humbleing-bundle", checkHumbleingBundle(player));
 				case 2279 -> checkGatedRecipeProtection(player);
 				case 2280 -> checkBrokenHeartAndInternalStates(player);
 				case 2281 -> checkPactCurseGrowthAndJei(player);
-				case 2282 -> checkDemonRouteAndHellfireKnockback(player);
+				case 2282 -> {
+					checkDemonRouteAndHellfireKnockback(player);
+					serverChecksComplete = true;
+				}
 				case 2037 -> cleanupAfterTests(player);
 				case 2040 -> checkHolyMantleExpired(player);
 				default -> {
 				}
 			}
 		} catch (Throwable throwable) {
+			require("server-step-" + tick, false);
 			log("步骤 " + tick + " 出错: " + throwable);
 			throwable.printStackTrace();
-			Minecraft.getInstance().execute(() -> Minecraft.getInstance().stop());
+			Minecraft.getInstance().execute(() -> finishDevCheck(Minecraft.getInstance()));
 		}
 	}
 
@@ -596,8 +601,8 @@ public final class ForgeDevCheck {
 		// 1.7.2：无条件累计 tick，作为"永远不退出"的硬保险
 		clientTotalTicks++;
 		if (clientTotalTicks > CLIENT_HARD_STOP_TICKS) {
-			log("===== 自检结束（硬保险：总 tick 超过 " + CLIENT_HARD_STOP_TICKS + "）=====");
-			client.stop();
+			require("client-total-timeout", false);
+			finishDevCheck(client);
 			return;
 		}
 		if (client.player == null || client.level == null) {
@@ -611,13 +616,19 @@ public final class ForgeDevCheck {
 						+ (client.level == null ? "null" : "有"));
 			}
 			if (clientIdleTicks > CLIENT_IDLE_HARD_STOP_TICKS) {
-				log("===== 自检结束（硬保险：客户端连续 " + clientIdleTicks + " tick 没有玩家/关卡）=====");
-				client.stop();
+				require("client-no-world-timeout", false);
+				finishDevCheck(client);
 			}
 			return;
 		}
 		clientIdleTicks = 0;
 		clientTick++;
+		if (clientTick == 40) {
+			require("spear-miss-time", checkSpearMissTime(client));
+			require("covenant-tooltip-zh-cn", covenantTooltipResourcesOk(client, "zh_cn"));
+			require("covenant-tooltip-en-us", covenantTooltipResourcesOk(client, "en_us"));
+			require("blood-debt-client-tilt", checkBloodDebtClientTilt(client.player));
+		}
 
 		if (clientTick == POSE_START_TICK - 20) {
 			// 第三人称背面，才能看到玩家自己与脑后的光环
@@ -757,15 +768,53 @@ public final class ForgeDevCheck {
 		// 尾巴留够时间：1.5.2 的服务端用例排到 2005 tick，客户端 tick 计数会略微领先服务端
 		// 1.8.2：用例号已排到 2248，原来 1500 的余量只剩约 30 tick，稍慢一点就会被提前掐断 → 放宽到 2500
 		if (clientTick > POSE_START_TICK + HALO_POSES.length * POSE_INTERVAL + 2500) {
-			if (failedChecks.isEmpty()) {
-				log("===== 自检结束（失败断言=0） =====");
-			} else {
-				log("===== 自检结束（失败断言=" + failedChecks.size() + "：" + failedChecks + "） =====");
-			}
+			finishDevCheck(client);
+		}
+	}
+
+	private static void finishDevCheck(Minecraft client) {
+		require("server-suite-completed", serverChecksComplete);
+		log("RESULT failures=" + failedChecks.size());
+		if (failedChecks.isEmpty()) {
 			client.stop();
-			if (!failedChecks.isEmpty()) {
-				System.exit(1);
+		} else {
+			log("失败断言：" + failedChecks);
+			System.exit(1);
+		}
+	}
+
+	/** 使用实际门禁解析器和写入入口验证当前映射，最后恢复原版计数。 */
+	private static boolean checkSpearMissTime(Minecraft client) {
+		try {
+			var gate = com.summy.reliquary.client.SpearAttackGate.class;
+			var resolve = gate.getDeclaredMethod("resolveMissTime");
+			var apply = gate.getDeclaredMethod("applyMissTime", Minecraft.class, int.class);
+			var release = gate.getDeclaredMethod("releaseMissTime", Minecraft.class);
+			resolve.setAccessible(true);
+			apply.setAccessible(true);
+			release.setAccessible(true);
+			var field = (java.lang.reflect.Field) resolve.invoke(null);
+			if (field == null) {
+				return false;
 			}
+			int previous = field.getInt(client);
+			try {
+				apply.invoke(null, client, 17);
+				boolean writtenAndCached = field.getInt(client) == 17 && field == resolve.invoke(null);
+				field.setInt(client, 16);
+				release.invoke(null, client);
+				boolean releasedAfterTick = field.getInt(client) == 0;
+				apply.invoke(null, client, 17);
+				field.setInt(client, 10);
+				release.invoke(null, client);
+				return writtenAndCached && releasedAfterTick && field.getInt(client) == 10;
+			} finally {
+				release.invoke(null, client);
+				field.setInt(client, previous);
+			}
+		} catch (ReflectiveOperationException failure) {
+			log("长矛字段检查异常：" + failure);
+			return false;
 		}
 	}
 
@@ -4728,6 +4777,11 @@ public final class ForgeDevCheck {
 	private static void checkCovenantItems(ServerPlayer player) {
 		List<LivingEntity> cleanup = new java.util.ArrayList<>();
 		ItemStack oldMain = player.getMainHandItem().copy();
+		// 1.21 的吸收值受属性上限约束，夹具先给普通吸收留出空间。
+		var absorption = java.util.Objects.requireNonNull(player.getAttribute(Attributes.MAX_ABSORPTION));
+		double previousMaxAbsorption = absorption.getBaseValue();
+		absorption.setBaseValue(Math.max(previousMaxAbsorption, 1024.0D));
+
 		try {
 			stripAllCurios(player);
 			com.summy.reliquary.effect.SacredVerdict.clear();
@@ -4781,13 +4835,7 @@ public final class ForgeDevCheck {
 					&& SummyReliquary.HEX_SEAL_EFFECT.get().getColor() == 0x7B2CBF
 					&& SummyReliquary.DEMONIC_BRAND.get().getCategory()
 							== net.minecraft.world.effect.MobEffectCategory.HARMFUL
-					&& SummyReliquary.DEMONIC_BRAND.get().getColor() == 0xC03030
-					&& Component.translatable("effect.summy-reliquary.sacred_verdict")
-							.getString().equals("神圣裁决")
-					&& Component.translatable("effect.summy-reliquary.hex_seal")
-							.getString().equals("厄咒")
-					&& Component.translatable("effect.summy-reliquary.demonic_brand")
-							.getString().equals("恶魔印记");
+					&& SummyReliquary.DEMONIC_BRAND.get().getColor() == 0xC03030;
 			DamageSource sacredSource = srSource(player, "sacred_verdict");
 			DamageSource empoweredSacredSource = srSource(player, "sacred_verdict_empowered");
 			DamageSource bonusSacredSource = srSource(player, "sacred_verdict_bonus");
@@ -4846,8 +4894,7 @@ public final class ForgeDevCheck {
 			boolean deathHud = com.summy.reliquary.effect.LifeDeath.hudVisible(player)
 					&& com.summy.reliquary.effect.LifeDeath.hudColor(player)
 							== net.minecraft.world.BossEvent.BossBarColor.RED
-					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("死形态")
-					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("击杀权重 0/")
+					&& lifeDeathHudMatches(player, 0)
 					&& com.summy.reliquary.effect.LifeDeath.hudProgress(player) > 0.99F;
 			// Curios 会把显示 NBT 变化识别为同物品替换；模拟其 onUnequip 回调，状态必须保留。
 			ItemStack displayRefreshStack = covenantStack(player);
@@ -4931,8 +4978,7 @@ public final class ForgeDevCheck {
 			boolean reachedAwaitingTimer = com.summy.reliquary.effect.PlayerFlags.isDeathForm(player)
 					&& com.summy.reliquary.effect.PlayerFlags.deathFormKillWeight(player)
 							== requiredKillWeight
-					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player)
-							.contains("击杀权重 " + requiredKillWeight + "/" + requiredKillWeight);
+					&& lifeDeathHudMatches(player, requiredKillWeight);
 			long reachedNow = player.serverLevel().getGameTime();
 			int reachedDuration = com.summy.reliquary.config.ReliquaryConfig.lifeDeathDeathFormTicks();
 			com.summy.reliquary.effect.PlayerFlags.setDeathFormClockForTest(
@@ -4959,7 +5005,7 @@ public final class ForgeDevCheck {
 			boolean cooldownHud = com.summy.reliquary.effect.LifeDeath.hudVisible(player)
 					&& com.summy.reliquary.effect.LifeDeath.hudColor(player)
 							== net.minecraft.world.BossEvent.BossBarColor.BLUE
-					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("复活冷却")
+					&& lifeDeathHudMatches(player, -1)
 					&& com.summy.reliquary.effect.LifeDeath.hudProgress(player) > 0.99F;
 			boolean reviveOk = duplicateKillIgnored && reachedAwaitingTimer
 					&& revived && revivedTagCleared && revivedSyncCleared
@@ -4968,8 +5014,8 @@ public final class ForgeDevCheck {
 					&& Math.abs(revivedHealth - player.getMaxHealth()) < 1.0E-4F
 					&& Math.abs(revivedMoveModifier) < 1.0E-6D
 					&& Math.abs(revivedAttackModifier) < 1.0E-6D
-					&& revivedTooltip.contains("当前形态|生")
-					&& revivedTooltip.contains("下一次逆转|死")
+					&& revivedTooltip.contains(lifeDeathTooltipLine("current", "life"))
+					&& revivedTooltip.contains(lifeDeathTooltipLine("next", "death"))
 					&& reviveCooldown && cooldownHud;
 
 			// BOSS 默认权重应能单独完成复活。
@@ -5019,7 +5065,7 @@ public final class ForgeDevCheck {
 			boolean expiryCooldownHud = com.summy.reliquary.effect.LifeDeath.hudVisible(player)
 					&& com.summy.reliquary.effect.LifeDeath.hudColor(player)
 							== net.minecraft.world.BossEvent.BossBarColor.BLUE
-					&& com.summy.reliquary.effect.LifeDeath.hudTitle(player).contains("复活冷却");
+					&& lifeDeathHudMatches(player, -1);
 			refreshClientStateForTest(player);
 			boolean expiryPacketCleared = !com.summy.reliquary.client.ReliquaryClientState.isDeathForm()
 					&& com.summy.reliquary.client.ReliquaryClientState.lifeDeathRemainingTicks() == 0;
@@ -5715,44 +5761,15 @@ public final class ForgeDevCheck {
 			com.summy.reliquary.effect.DamagePools.clear();
 			com.summy.reliquary.effect.DamagePools.setModeForTest(
 					com.summy.reliquary.effect.DamagePools.Mode.HEALTH_DAMAGE);
-			DamageSource layeredSource = player.damageSources().generic();
-			DevIncomingDamageEvent layeredHurt = new DevIncomingDamageEvent(player, layeredSource, 5.0F);
-			boolean layeredRegistered = com.summy.reliquary.effect.DamagePools.prepare(layeredHurt);
-			DevDamageEvent layeredDamage = new DevDamageEvent(player, layeredSource, 3.0F);
-			com.summy.reliquary.effect.DamagePools.applyToHealthDamage(layeredDamage);
-			boolean bloodLayerAfterAbsorption = layeredRegistered
-					&& Math.abs(com.summy.reliquary.effect.BloodDebtAltar.shield(player)) < 1.0E-4D
-					&& Math.abs(player.getAbsorptionAmount() - 2.0F) < 1.0E-4F
-					&& Math.abs(player.getHealth() - 10.0F) < 1.0E-4F
-					&& Math.abs(layeredDamage.getNewDamage()) < 1.0E-4F;
+			player.invulnerableTime = 0;
+			// 真实命中：10 点拆成 5 点即时、5 点债务，原版吸收在 Pre 之后扣除。
+			player.hurt(player.damageSources().generic(), 10.0F);
+			boolean bloodLayerAfterAbsorption =
+					Math.abs(com.summy.reliquary.effect.BloodDebtAltar.shield(player)) < 1.0E-4D
+					&& Math.abs(player.getAbsorptionAmount()) < 1.0E-4F
+					&& Math.abs(player.getHealth() - 10.0F) < 1.0E-4F;
 			com.summy.reliquary.effect.DamagePools.setModeForTest(null);
 
-			com.summy.reliquary.client.ClientBloodDebtState.clear();
-			com.summy.reliquary.client.ClientBloodDebtState.update(4.0D, true, 7.5F);
-			boolean quietHealthTargetMatches =
-					com.summy.reliquary.client.ClientBloodDebtState.matchesQuietHealthForTest(7.5F)
-					&& !com.summy.reliquary.client.ClientBloodDebtState.matchesQuietHealthForTest(6.5F);
-			net.minecraft.client.player.LocalPlayer localPlayer = Minecraft.getInstance().player;
-			boolean quietHealthTiltSuppression = false;
-			if (localPlayer != null) {
-				int oldHurtTime = localPlayer.hurtTime;
-				localPlayer.hurtTime = 10;
-				com.summy.reliquary.client.ClientBloodDebtState.update(
-						4.0D, true, localPlayer.getHealth());
-				boolean matchedSuppressed =
-						com.summy.reliquary.client.ClientBloodDebtState
-								.suppressMatchingDamageTilt(localPlayer)
-						&& localPlayer.hurtTime == 0;
-				localPlayer.hurtTime = 10;
-				com.summy.reliquary.client.ClientBloodDebtState.update(
-						4.0D, true, localPlayer.getHealth() + 1.0F);
-				boolean mismatchPreserved = !com.summy.reliquary.client.ClientBloodDebtState
-						.suppressMatchingDamageTilt(localPlayer)
-						&& localPlayer.hurtTime == 10;
-				localPlayer.hurtTime = oldHurtTime;
-				quietHealthTiltSuppression = matchedSuppressed && mismatchPreserved;
-			}
-			com.summy.reliquary.client.ClientBloodDebtState.clear();
 			boolean debtOk = Math.abs(debtEvent.getNewDamage() - 5.0F) < 1.0E-4F
 					&& segments == 1 && pendingAfter < pendingBefore && segmentsAfterTiny == 1
 					&& postMitigationDebt && protectionDebt
@@ -5762,8 +5779,7 @@ public final class ForgeDevCheck {
 					&& independentCapIgnoresAbsorption && capRejected && nearCapCostScaled
 					&& lowLifeRejected && zeroCapRejected && zeroConversionRejected
 					&& independentShieldPersisted
-					&& bloodLayerAfterAbsorption && quietHealthTargetMatches
-					&& quietHealthTiltSuppression;
+					&& bloodLayerAfterAbsorption;
 
 			// 债务部分必须以 blood_debt 真实伤害来源结算，同时保留原攻击者与直接实体。
 			com.summy.reliquary.effect.BloodDebtAltar.clear();
@@ -5803,6 +5819,8 @@ public final class ForgeDevCheck {
 			player.hurt(player.damageSources().magic(), 2.0F);
 			boolean ordinaryAbsorptionConsumed = Math.abs(player.getHealth() - 3.0F) < 1.0E-4F
 					&& player.getAbsorptionAmount() <= 1.0E-4F;
+			require("blood-debt-layer-after-absorption", bloodLayerAfterAbsorption);
+			require("blood-debt-ordinary-absorption", ordinaryAbsorptionConsumed);
 			debtOk = debtOk && ordinaryAbsorptionConsumed;
 
 			// 厄咒之印：受诅咒目标 +50%；本 tick 最高一笔 50% 转移给另一名受诅咒目标。
@@ -5954,6 +5972,12 @@ public final class ForgeDevCheck {
 					shieldGain, expectedShieldGain, absorptionAfterActivation, debtOk,
 					hexEvent.getAmount(), pendingTransfers, transferred,
 					hexVisualOk, hexOk, acquisitionOk, config, ok));
+			require("covenant-tooltip-arguments", tooltipArguments);
+			require("covenant-marker-effects", markerEffectDefinitions);
+			require("covenant-acquisition", acquisitionOk);
+			require("covenant-life-death", lifeAllOk && smoothProgress && reachedAwaitingTimer
+					&& reviveOk && bossRevive && expiryOk && directDeathRespawnOk && expiredCleared && lifeEnds);
+			require("covenant-blood-debt", debtOk);
 			log("COVENANT_STATE registered=" + (registered && covenantSlots == 1)
 					+ " resources=" + (resources && dataResources && sourceClassification && verdictSeTag)
 					+ " tooltip=" + (tooltipArguments && markerEffectDefinitions)
@@ -5978,6 +6002,7 @@ public final class ForgeDevCheck {
 					+ " config=" + config
 					+ " ok=" + ok);
 		} finally {
+			absorption.setBaseValue(previousMaxAbsorption);
 			com.summy.reliquary.effect.SacredVerdict.setForcedProcForTest(null);
 			com.summy.reliquary.effect.SacredVerdict.setForcedReadyForTest(null);
 			com.summy.reliquary.effect.HexSeal.setForcedProcForTest(null);
@@ -6145,7 +6170,7 @@ public final class ForgeDevCheck {
 
 			String modifier = serverResourceText(player.getServer(), SummyReliquary.NAMESPACE,
 					"loot_modifiers/covenant_acquisition.json");
-			String global = serverResourceText(player.getServer(), "forge",
+			String global = serverResourceText(player.getServer(), "neoforge",
 					"loot_modifiers/global_loot_modifiers.json");
 			boolean resources = modifier.contains("summy-reliquary:covenant_acquisition")
 					&& global.contains("summy-reliquary:covenant_acquisition");
@@ -6177,6 +6202,7 @@ public final class ForgeDevCheck {
 			boolean refunds = lifeRefund && interventionRefund && verdictRefund && debtRefund && hexRefund;
 
 			boolean containerSource = checkCovenantContainerSource(player);
+			require("covenant-natural-chest", containerSource);
 			boolean ok = neutralFail && neutralPityUntouched && neutralSuccess && neutralOnlyLife
 					&& neutralNoRepeat && tenFailures && angelPityGrant && angelPoolOnly
 					&& demonTenFailures && demonPityGrant && noDuplicateLife && demonPoolOnly
@@ -6326,7 +6352,7 @@ public final class ForgeDevCheck {
 				&& covenantText
 				&& hasServerResource(player.getServer(), SummyReliquary.NAMESPACE,
 						"loot_modifiers/humbleing_bundle.json")
-				&& serverResourceText(player.getServer(), "forge",
+				&& serverResourceText(player.getServer(), "neoforge",
 						"loot_modifiers/global_loot_modifiers.json")
 						.contains("summy-reliquary:humbleing_bundle")
 				&& hasServerResource(player.getServer(), SummyReliquary.NAMESPACE,
@@ -6795,59 +6821,82 @@ public final class ForgeDevCheck {
 								com.summy.reliquary.config.ReliquaryConfig.hexSealSpreadRadius()))
 				&& covenantArgs(hex, 5,
 						com.summy.reliquary.config.ReliquaryConfig.hexSealCooldownSeconds())
-				&& "0.05".equals(com.summy.reliquary.item.ReliquaryTooltips.exactNumber(0.05D))
-				&& covenantTooltipStyleOk();
+				&& "0.05".equals(com.summy.reliquary.item.ReliquaryTooltips.exactNumber(0.05D));
 	}
 
-	/** 机制行必须是完整叙述句；只有冷却行允许使用“名称|数值”的两段配色。 */
-	private static boolean covenantTooltipStyleOk() {
-		int totalLines = 0;
-		for (CovenantItem.Kind kind : CovenantItem.Kind.values()) {
-			totalLines += kind.functionLineCount();
-		}
-		if (totalLines != 23) {
+	/** 两种语言分别检查缺项、格式和占位符数量。 */
+	private static boolean covenantTooltipResourcesOk(Minecraft client, String language) {
+		String source = resourceText(client, SummyReliquary.NAMESPACE, "lang/" + language + ".json");
+		if (source.isEmpty()) {
 			return false;
 		}
-		return covenantNarrativeLines(CovenantItem.Kind.LIFE_DEATH, 1, 4)
-				&& covenantStatLine(CovenantItem.Kind.LIFE_DEATH, 5)
-				&& covenantNarrativeLines(CovenantItem.Kind.DIVINE_INTERVENTION, 1, 3)
-				&& covenantStatLine(CovenantItem.Kind.DIVINE_INTERVENTION, 4)
-				&& covenantNarrativeLines(CovenantItem.Kind.SACRED_VERDICT, 1, 3)
-				&& covenantStatLine(CovenantItem.Kind.SACRED_VERDICT, 4)
-				&& covenantNarrativeLines(CovenantItem.Kind.BLOOD_DEBT_ALTAR, 1, 4)
-				&& covenantStatLine(CovenantItem.Kind.BLOOD_DEBT_ALTAR, 5)
-				&& covenantNarrativeLines(CovenantItem.Kind.HEX_SEAL, 1, 4)
-				&& covenantStatLine(CovenantItem.Kind.HEX_SEAL, 5)
-				&& covenantLineMissing(CovenantItem.Kind.DIVINE_INTERVENTION, 5)
-				&& covenantLineMissing(CovenantItem.Kind.SACRED_VERDICT, 5)
-				&& covenantLineMissing(CovenantItem.Kind.HEX_SEAL, 6);
-	}
-
-	private static boolean covenantNarrativeLines(CovenantItem.Kind kind, int first, int last) {
-		for (int line = first; line <= last; line++) {
-			String raw = covenantRawTooltip(kind, line);
-			if (raw.equals("item.summy-reliquary." + kind.id() + ".shift." + line)
-					|| raw.contains("|")) {
+		var translations = com.google.gson.JsonParser.parseString(source).getAsJsonObject();
+		for (String effect : java.util.List.of("sacred_verdict", "hex_seal", "demonic_brand")) {
+			var name = translations.get("effect.summy-reliquary." + effect);
+			if (name == null || name.getAsString().isBlank()) {
+				return false;
+			}
+		}
+		var placeholder = java.util.regex.Pattern.compile("%%|%(?:[0-9]+\\$)?s");
+		for (CovenantItem.Kind kind : CovenantItem.Kind.values()) {
+			String prefix = "item.summy-reliquary." + kind.id() + ".shift.";
+			int lines = kind.functionLineCount();
+			for (int line = 1; line <= lines; line++) {
+				if (!translations.has(prefix + line)) {
+					return false;
+				}
+				String raw = translations.get(prefix + line).getAsString();
+				long arguments = placeholder.matcher(raw).results()
+						.filter(match -> !match.group().equals("%%")).count();
+				if (raw.contains("|") != (line == lines)
+						|| arguments != com.summy.reliquary.effect.CovenantActions.tooltipArguments(kind, line).length) {
+					log("誓约提示不匹配：" + language + " " + prefix + line);
+					return false;
+				}
+			}
+			if (translations.has(prefix + (lines + 1))) {
 				return false;
 			}
 		}
 		return true;
 	}
 
-	private static boolean covenantStatLine(CovenantItem.Kind kind, int line) {
-		String raw = covenantRawTooltip(kind, line);
-		return !raw.equals("item.summy-reliquary." + kind.id() + ".shift." + line)
-				&& raw.contains("|");
+	private static boolean lifeDeathHudMatches(ServerPlayer player, int weight) {
+		long now = player.serverLevel().getGameTime();
+		if (weight < 0) {
+			long deadline = com.summy.reliquary.effect.PlayerFlags.lifeDeathCooldownUntil(player);
+			return com.summy.reliquary.effect.LifeDeath.hudTitle(player).equals(Component.translatable(
+					"message.summy-reliquary.life_death.hud.cooldown", (deadline - now + 19) / 20).getString());
+		}
+		long deadline = com.summy.reliquary.effect.PlayerFlags.deathFormStartedAt(player)
+				+ com.summy.reliquary.effect.PlayerFlags.deathFormDuration(player);
+		return com.summy.reliquary.effect.LifeDeath.hudTitle(player).equals(Component.translatable(
+				"message.summy-reliquary.life_death.hud.death_form", (deadline - now + 19) / 20,
+				weight, ReliquaryConfig.lifeDeathReviveKillRequired()).getString());
 	}
 
-	private static boolean covenantLineMissing(CovenantItem.Kind kind, int line) {
-		return !net.minecraft.locale.Language.getInstance().has(
-				"item.summy-reliquary." + kind.id() + ".shift." + line);
+	private static String lifeDeathTooltipLine(String key, String form) {
+		return Component.translatable("item.summy-reliquary.life_death.state." + key,
+				Component.translatable("item.summy-reliquary.life_death.form." + form)).getString();
 	}
 
-	private static String covenantRawTooltip(CovenantItem.Kind kind, int line) {
-		return net.minecraft.locale.Language.getInstance().getOrDefault(
-				"item.summy-reliquary." + kind.id() + ".shift." + line);
+	private static boolean checkBloodDebtClientTilt(net.minecraft.client.player.LocalPlayer player) {
+		int previousHurtTime = player.hurtTime;
+		try {
+			player.hurtTime = 10;
+			com.summy.reliquary.client.ClientBloodDebtState.update(4.0D, true, player.getHealth());
+			if (!com.summy.reliquary.client.ClientBloodDebtState.suppressMatchingDamageTilt(player)
+					|| player.hurtTime != 0) {
+				return false;
+			}
+			player.hurtTime = 10;
+			com.summy.reliquary.client.ClientBloodDebtState.update(4.0D, true, player.getHealth() + 1.0F);
+			return !com.summy.reliquary.client.ClientBloodDebtState.suppressMatchingDamageTilt(player)
+					&& player.hurtTime == 10;
+		} finally {
+			player.hurtTime = previousHurtTime;
+			com.summy.reliquary.client.ClientBloodDebtState.clear();
+		}
 	}
 
 	private static boolean basisOrthonormal(Vec3[] basis) {

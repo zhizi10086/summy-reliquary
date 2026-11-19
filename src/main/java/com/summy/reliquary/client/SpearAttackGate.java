@@ -5,14 +5,12 @@ import com.summy.reliquary.item.SpearItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.util.ObfuscationReflectionHelper;
 
 import java.lang.reflect.Field;
 
@@ -41,7 +39,8 @@ public final class SpearAttackGate {
 	private static long lastAttackTick = Long.MIN_VALUE;
 	/** Minecraft.missTime：>0 时 startAttack 直接返回 */
 	private static Field missTimeField;
-	private static boolean missTimeWarned;
+	private static boolean missTimeResolved;
+	private static int appliedMissTime;
 
 	private SpearAttackGate() {
 	}
@@ -58,7 +57,7 @@ public final class SpearAttackGate {
 			return;
 		}
 		// 挖掘：只在真正按住破坏方块时放行；点击方块的空挥仍走门禁
-		if (client.hitResult instanceof BlockHitResult && client.gameMode != null && client.gameMode.isDestroying()) {
+		if (aimsAtBlock(client) && client.gameMode != null && client.gameMode.isDestroying()) {
 			return;
 		}
 		// 空挥不重置 attackStrengthTicker，attackAnim 也可能在按键事件时尚未更新；
@@ -70,7 +69,9 @@ public final class SpearAttackGate {
 			event.setCanceled(true);
 			event.setSwingHand(false);
 			// 硬限：把 missTime 拉到剩余冷却，按住 / 连点也不会再进 startAttack
-			applyMissTime(client, (int) (cooldown - (now - lastAttackTick)));
+			if (!aimsAtBlock(client)) {
+				applyMissTime(client, (int) (cooldown - (now - lastAttackTick)));
+			}
 		} else {
 			lastPlayer = player;
 			lastAttackTick = now;
@@ -93,10 +94,9 @@ public final class SpearAttackGate {
 			}
 			return;
 		}
-		if (!isSpearInMainHand(player) || isChargingSpear(player)) {
-			return;
-		}
-		if (!client.options.keyAttack.isDown()) {
+		if (!isSpearInMainHand(player) || isChargingSpear(player) || aimsAtBlock(client)
+				|| !client.options.keyAttack.isDown()) {
+			releaseMissTime(client);
 			return;
 		}
 		int cooldown = SpearAnimation.swingDuration((float) player.getAttributeValue(Attributes.ATTACK_SPEED));
@@ -104,6 +104,8 @@ public final class SpearAttackGate {
 		boolean sameSession = ensureSession(client, player, now);
 		if (isCoolingDown(sameSession, now, lastAttackTick, cooldown)) {
 			applyMissTime(client, (int) (cooldown - (now - lastAttackTick)) + 1);
+		} else {
+			releaseMissTime(client);
 		}
 	}
 
@@ -127,26 +129,72 @@ public final class SpearAttackGate {
 	private static void resetSession(Minecraft client, LocalPlayer player) {
 		lastPlayer = player;
 		lastAttackTick = player == null ? Long.MIN_VALUE : player.tickCount;
-		setMissTime(client, 0);
+		releaseMissTime(client);
 	}
 
-	/** 反射设置 Minecraft.missTime；失败只警告一次，降级为普通事件取消 */
+	private static boolean aimsAtBlock(Minecraft client) {
+		return client.hitResult != null && client.hitResult.getType() == HitResult.Type.BLOCK;
+	}
+
 	private static void applyMissTime(Minecraft client, int ticks) {
-		setMissTime(client, Math.max(1, ticks));
+		int value = Math.max(1, ticks);
+		appliedMissTime = setMissTime(client, value) ? value : 0;
 	}
 
-	private static void setMissTime(Minecraft client, int ticks) {
+	/** 离开长矛拦截状态后只清理自己的计数，原版可能已递减一刻。 */
+	private static void releaseMissTime(Minecraft client) {
+		if (appliedMissTime == 0) {
+			return;
+		}
+		int previous = appliedMissTime;
+		appliedMissTime = 0;
+		Field field = missTimeField;
+		if (field == null) {
+			return;
+		}
 		try {
-			if (missTimeField == null) {
-				missTimeField = ObfuscationReflectionHelper.findField(Minecraft.class, "missTime");
+			int current = field.getInt(client);
+			if (current == previous || current == previous - 1) {
+				setMissTime(client, 0);
 			}
-			missTimeField.setInt(client, ticks);
-		} catch (Throwable t) {
-			if (!missTimeWarned) {
-				missTimeWarned = true;
-				SummyReliquary.LOGGER.warn("无法设置 Minecraft.missTime，长矛空挥硬限降级为事件取消", t);
+		} catch (IllegalAccessException | RuntimeException failure) {
+			missTimeField = null;
+			logMissTimeFallback(failure);
+		}
+	}
+
+	/** 每个客户端只解析一次字段；失败后继续沿用输入事件取消。 */
+	private static Field resolveMissTime() {
+		if (!missTimeResolved) {
+			missTimeResolved = true;
+			try {
+				Field field = Minecraft.class.getDeclaredField("missTime");
+				field.setAccessible(true);
+				missTimeField = field;
+			} catch (ReflectiveOperationException | RuntimeException failure) {
+				logMissTimeFallback(failure);
 			}
 		}
+		return missTimeField;
+	}
+
+	private static boolean setMissTime(Minecraft client, int ticks) {
+		Field field = resolveMissTime();
+		if (field == null) {
+			return false;
+		}
+		try {
+			field.setInt(client, ticks);
+			return true;
+		} catch (IllegalAccessException | RuntimeException failure) {
+			missTimeField = null;
+			logMissTimeFallback(failure);
+			return false;
+		}
+	}
+
+	private static void logMissTimeFallback(Exception failure) {
+		SummyReliquary.LOGGER.warn("无法设置 Minecraft.missTime，长矛空挥硬限降级为事件取消", failure);
 	}
 
 	/** 主手是不是两把矛之一 */
